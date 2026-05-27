@@ -19,17 +19,17 @@ export default function Navbar() {
       <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto] items-center gap-4 md:grid-cols-[1fr_auto_1fr]">
         <motion.a
           href="#home"
-          className="font-heading text-3xl tracking-tight text-white"
+          className="font-heading text-3xl tracking-tight text-foreground"
           aria-label="Prelude home"
           style={{ opacity: logoOpacity, y: logoY }}
         >
           Prelude
         </motion.a>
 
-        <nav className="hidden rounded-full border border-white/15 bg-black/40 px-2 py-1 backdrop-blur md:flex" aria-label="Primary navigation">
+        <nav className="paper-card hidden rounded-full px-2 py-1 md:flex" aria-label="Primary navigation">
           {links.map(([label, href]) => (
             <a
-              className="rounded-full px-3 py-2 font-body text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+              className="rounded-full px-3 py-2 font-body text-sm font-medium text-foreground/80 transition hover:bg-foreground/[0.04] hover:text-foreground"
               href={href}
               key={label}
             >
@@ -39,7 +39,7 @@ export default function Navbar() {
         </nav>
 
         <div className="justify-self-end">
-          <Button href="#contact" className="border-white/15 bg-white text-black hover:bg-white/90 px-4 py-2">
+          <Button href="#contact" className="px-4 py-2">
             Get Started
             <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
           </Button>

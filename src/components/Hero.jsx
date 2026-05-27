@@ -33,7 +33,7 @@ export default function Hero() {
       <div className="relative z-10 mx-auto max-w-7xl">
         <div className="hero-dark-stage mx-auto max-w-5xl rounded-[2rem] px-6 py-14 text-center md:px-12 md:py-16">
           <motion.p
-            className="mx-auto inline-flex rounded-full border border-white/20 bg-white/5 px-4 py-1.5 font-body text-xs font-medium tracking-wide text-white/80"
+            className="mx-auto inline-flex rounded-full border border-foreground/15 bg-background/55 px-4 py-1.5 font-body text-xs font-medium tracking-wide text-foreground/80"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
           >
@@ -41,7 +41,7 @@ export default function Hero() {
           </motion.p>
 
           <motion.h1
-            className="mx-auto mt-6 max-w-3xl font-heading text-5xl leading-[0.9] tracking-[-1.5px] text-white md:text-7xl lg:text-[5.25rem]"
+            className="mx-auto mt-6 max-w-3xl font-heading text-5xl leading-[0.9] tracking-[-1.5px] text-foreground md:text-7xl lg:text-[5.25rem]"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
@@ -50,7 +50,7 @@ export default function Hero() {
           </motion.h1>
 
           <motion.p
-            className="mx-auto mt-6 max-w-2xl font-body text-base font-light leading-8 text-white/70 md:text-lg"
+            className="mx-auto mt-6 max-w-2xl font-body text-base font-light leading-8 text-muted-foreground md:text-lg"
             initial={{ filter: "blur(10px)", opacity: 0, y: 20 }}
             animate={{ filter: "blur(0px)", opacity: 1, y: 0 }}
             transition={{ delay: 0.22, duration: 0.6, ease: "easeOut" }}
@@ -60,11 +60,11 @@ export default function Hero() {
           </motion.p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button href="#mentorship" className="bg-white text-black hover:bg-white/90">
+            <Button href="#mentorship">
               Start for Free
               <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </Button>
-            <Button href="#how-it-works" variant="secondary" className="border-white/20 bg-white/5 text-white hover:bg-white/10">
+            <Button href="#how-it-works" variant="secondary">
               <Play className="h-4 w-4" aria-hidden="true" />
               See How It Works
             </Button>
@@ -84,8 +84,8 @@ export default function Hero() {
                 <img src={tile.image} alt={tile.title} className="h-full w-full object-cover" />
               </div>
               <div className="p-4">
-                <h2 className="font-heading text-2xl leading-none text-white">{tile.title}</h2>
-                <p className="mt-2 font-body text-xs leading-5 text-white/70">{tile.text}</p>
+                <h2 className="font-heading text-2xl leading-none text-foreground">{tile.title}</h2>
+                <p className="mt-2 font-body text-xs leading-5 text-muted-foreground">{tile.text}</p>
               </div>
             </motion.article>
           ))}
