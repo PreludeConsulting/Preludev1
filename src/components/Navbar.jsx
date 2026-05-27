@@ -1,9 +1,10 @@
-import { ArrowUpRight } from "lucide-react";
+﻿import { ArrowUpRight } from "lucide-react";
 import { motion, useScroll, useTransform } from "motion/react";
 import { Button } from "./ui/button.jsx";
 
 const links = [
   ["Home", "#home"],
+  ["PreludeMatch", "#preludematch"],
   ["Mentorship", "#mentorship"],
   ["Pricing", "#pricing"],
   ["Roadmap", "#roadmap"]
@@ -19,7 +20,7 @@ export default function Navbar() {
       <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto] items-center gap-4 md:grid-cols-[1fr_auto_1fr]">
         <motion.a
           href="#home"
-          className="font-heading text-3xl italic tracking-tight text-foreground"
+          className="font-heading text-3xl tracking-tight text-foreground"
           aria-label="Prelude home"
           style={{ opacity: logoOpacity, y: logoY }}
         >
