@@ -5,9 +5,8 @@ import { Button } from "./ui/button.jsx";
 const links = [
   ["Home", "#home"],
   ["Mentorship", "#mentorship"],
-  ["Roadmap", "#roadmap"],
   ["Pricing", "#pricing"],
-  ["Contact", "#contact"]
+  ["Roadmap", "#roadmap"]
 ];
 
 export default function Navbar() {

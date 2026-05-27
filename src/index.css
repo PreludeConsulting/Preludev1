@@ -126,7 +126,7 @@ a {
 }
 
 .section-badge {
-  @apply paper-card inline-flex rounded-full px-3.5 py-1 text-xs font-medium text-foreground font-body;
+  @apply paper-card inline-flex rounded-full px-5 py-2 text-sm font-medium text-foreground font-body;
 }
 
 .section-heading {
