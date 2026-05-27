@@ -100,6 +100,11 @@ a {
   z-index: 1;
 }
 
+.hero-stage {
+  backdrop-filter: blur(4px);
+  box-shadow: 0 26px 90px rgba(35, 39, 48, 0.14);
+}
+
 .ink-border {
   border: 1px solid rgba(35, 39, 48, 0.16);
 }
