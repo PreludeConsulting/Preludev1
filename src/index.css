@@ -318,3 +318,31 @@ a {
     animation: none;
   }
 }
+
+
+.hero-waves {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 12% 16%, hsl(var(--accent) / 0.38), transparent 30%),
+    radial-gradient(circle at 82% 26%, hsl(var(--primary) / 0.5), transparent 34%),
+    radial-gradient(circle at 50% 72%, rgba(97, 145, 255, 0.22), transparent 36%),
+    linear-gradient(180deg, #05060a 0%, #080a11 58%, #0b0f18 100%);
+}
+
+.hero-dark-stage {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at 85% 18%, hsl(var(--accent) / 0.18), transparent 30%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(8px);
+  box-shadow: 0 28px 100px rgba(0, 0, 0, 0.55);
+}
+
+.hero-tile {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(8px);
+}

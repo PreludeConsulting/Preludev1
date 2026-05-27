@@ -16,7 +16,7 @@ import {
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-[#07080c] text-foreground">
       <div className="pointer-events-none fixed inset-0 z-0 paper-grain" aria-hidden="true" />
       <div className="relative z-10">
         <Navbar />
