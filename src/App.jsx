@@ -1,7 +1,12 @@
-﻿import Navbar from "./components/Navbar.jsx";
+﻿import AccountPanel from "./components/AccountPanel.jsx";
+import Navbar from "./components/Navbar.jsx";
+import PreludeChat from "./components/PreludeChat.jsx";
+import SignInModal from "./components/SignInModal.jsx";
+import { useAuth } from "./context/AuthContext.jsx";
 import { useEffect, useState } from "react";
 import Hero from "./components/Hero.jsx";
 import QuestionnairePage from "./components/QuestionnairePage.jsx";
+import UserDashboard from "./components/UserDashboard.jsx";
 import {
   AIDashboard,
   CtaFooter,
@@ -16,7 +21,8 @@ import {
   Testimonials
 } from "./components/Sections.jsx";
 
-export default function App() {
+function AppContent() {
+  const { requestPersonalizedAi } = useAuth();
   const [hash, setHash] = useState(window.location.hash);
 
   useEffect(() => {
@@ -24,6 +30,21 @@ export default function App() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
+  if (hash === "#dashboard") {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <div className="pointer-events-none fixed inset-0 z-0 paper-grain" aria-hidden="true" />
+        <div className="relative z-10">
+          <Navbar />
+          <UserDashboard />
+        </div>
+        <PreludeChat />
+        <SignInModal />
+        <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
+      </div>
+    );
+  }
 
   if (hash === "#preludematch") {
     return (
@@ -33,6 +54,9 @@ export default function App() {
           <Navbar />
           <QuestionnairePage />
         </div>
+        <PreludeChat />
+        <SignInModal />
+        <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
       </div>
     );
   }
@@ -55,6 +79,13 @@ export default function App() {
         <SocialImpact />
         <CtaFooter />
       </div>
+      <PreludeChat />
+      <SignInModal />
+      <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
     </div>
   );
+}
+
+export default function App() {
+  return <AppContent />;
 }
