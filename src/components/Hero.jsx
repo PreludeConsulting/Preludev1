@@ -41,7 +41,7 @@ export default function Hero() {
           </motion.p>
 
           <motion.h1
-            className="display-heading mx-auto mt-6 max-w-3xl text-5xl md:text-7xl lg:text-[5.25rem]"
+            className="mx-auto mt-6 max-w-3xl font-heading text-5xl leading-[0.9] tracking-[-1.5px] text-foreground md:text-7xl lg:text-[5.25rem]"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
@@ -84,7 +84,7 @@ export default function Hero() {
                 <img src={tile.image} alt={tile.title} className="h-full w-full object-cover" />
               </div>
               <div className="p-4">
-                <h2 className="subheading text-2xl">{tile.title}</h2>
+                <h2 className="font-heading text-2xl leading-none text-foreground">{tile.title}</h2>
                 <p className="mt-2 font-body text-xs leading-5 text-muted-foreground">{tile.text}</p>
               </div>
             </motion.article>
