@@ -156,18 +156,57 @@ export function MentorMatching() {
 
 export function FeaturesGrid() {
   const features = [
-    [GraduationCap, "Peer Mentorship", "Students learn from current college students who understand the admissions process, campus life, and what it takes to stand out."],
-    [Sparkles, "Identity Building", "We help students turn their background, interests, and experiences into a clear personal narrative."],
-    [DollarSign, "Financial Guidance", "Families receive support with scholarships, FAFSA, CSS Profile, aid strategy, and true cost comparison."],
-    [Trophy, "Gamified Progress", "Roadmaps, milestones, and progress tracking make the application process more motivating and less overwhelming."]
+    {
+      Icon: GraduationCap,
+      title: "Peer Mentorship",
+      text: "Students learn from current college students who understand the admissions process, campus life, and what it takes to stand out.",
+      image: media.mentorLoop,
+      className: "lg:col-span-7 lg:row-span-2"
+    },
+    {
+      Icon: Sparkles,
+      title: "Identity Building",
+      text: "We help students turn their background, interests, and experiences into a clear personal narrative.",
+      image: media.roadmapLoop,
+      className: "lg:col-span-5"
+    },
+    {
+      Icon: DollarSign,
+      title: "Financial Guidance",
+      text: "Families receive support with scholarships, FAFSA, CSS Profile, aid strategy, and true cost comparison.",
+      image: media.impactLoop,
+      className: "lg:col-span-5"
+    },
+    {
+      Icon: Trophy,
+      title: "Gamified Progress",
+      text: "Roadmaps, milestones, and progress tracking make the application process more motivating and less overwhelming.",
+      image: media.roadmapImage,
+      className: "lg:col-span-12"
+    }
   ];
 
   return (
-    <section className="section-shell">
+    <section className="section-shell feature-showcase-section">
       <SectionIntro badge="Why Prelude" heading="The difference is personal." centered />
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {features.map(([Icon, title, text], index) => (
-          <IconCard icon={Icon} title={title} text={text} delay={index * 0.12} key={title} />
+      <div className="feature-showcase-grid grid gap-5 lg:grid-cols-12 lg:auto-rows-[18rem]">
+        {features.map(({ Icon, title, text, image, className }, index) => (
+          <Reveal className={`feature-showcase-card group ${className}`} delay={index * 0.12} key={title}>
+            <img
+              src={image}
+              alt={`${title} visual`}
+              className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.045] group-hover:brightness-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-foreground/62 via-foreground/12 to-background/5" aria-hidden="true" />
+            <div className="absolute left-5 top-5 inline-flex items-center gap-2 rounded-full border border-primary-foreground/25 bg-primary-foreground/15 px-3 py-1.5 font-body text-xs font-medium text-primary-foreground backdrop-blur-md md:left-6 md:top-6">
+              <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+              Prelude
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 p-5 text-primary-foreground md:p-7">
+              <h3 className="subheading text-4xl md:text-5xl">{title}</h3>
+              <p className="mt-3 max-w-xl font-body text-sm font-light leading-6 text-primary-foreground/80 md:text-base">{text}</p>
+            </div>
+          </Reveal>
         ))}
       </div>
     </section>

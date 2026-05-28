@@ -28,12 +28,12 @@ const heroTiles = [
 
 export default function Hero() {
   return (
-    <section id="home" className="relative overflow-hidden px-4 pb-10 pt-28 md:px-8 md:pt-32 lg:px-16">
+    <section id="home" className="relative overflow-hidden px-4 pb-12 pt-28 md:px-8 md:pb-16 md:pt-32 lg:px-16">
       <div className="hero-waves" aria-hidden="true" />
       <div className="relative z-10 mx-auto max-w-7xl">
-        <div className="hero-dark-stage mx-auto max-w-5xl rounded-[2rem] px-6 py-14 text-center md:px-12 md:py-16">
+        <div className="hero-open-stage mx-auto max-w-6xl text-center">
           <motion.p
-            className="mx-auto inline-flex rounded-full border border-foreground/15 bg-background/55 px-4 py-1.5 font-body text-xs font-medium tracking-wide text-foreground/80"
+            className="mx-auto inline-flex rounded-full border border-foreground/15 bg-background/55 px-4 py-1.5 font-body text-xs font-medium tracking-wide text-foreground/80 shadow-sm backdrop-blur"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
           >
@@ -41,7 +41,7 @@ export default function Hero() {
           </motion.p>
 
           <motion.h1
-            className="display-heading mx-auto mt-6 max-w-3xl text-5xl md:text-7xl lg:text-[5.25rem]"
+            className="display-heading mx-auto mt-7 max-w-5xl text-6xl md:text-8xl lg:text-[7.25rem]"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
@@ -50,7 +50,7 @@ export default function Hero() {
           </motion.h1>
 
           <motion.p
-            className="mx-auto mt-6 max-w-2xl font-body text-base font-light leading-8 text-muted-foreground md:text-lg"
+            className="mx-auto mt-6 max-w-xl font-body text-sm font-light leading-7 text-muted-foreground md:text-base"
             initial={{ filter: "blur(10px)", opacity: 0, y: 20 }}
             animate={{ filter: "blur(0px)", opacity: 1, y: 0 }}
             transition={{ delay: 0.22, duration: 0.6, ease: "easeOut" }}
@@ -71,21 +71,30 @@ export default function Hero() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="hero-gallery mt-10 grid auto-rows-[15rem] gap-4 md:grid-cols-6 md:auto-rows-[12rem] lg:auto-rows-[14rem]">
           {heroTiles.map((tile, index) => (
             <motion.article
               key={tile.title}
-              className="hero-tile overflow-hidden rounded-2xl"
+              className={`hero-tile group relative overflow-hidden rounded-[1.75rem] ${
+                index === 0
+                  ? "md:col-span-3 md:row-span-2"
+                  : index === 2
+                    ? "md:col-span-3"
+                    : "md:col-span-3 lg:col-span-3"
+              }`}
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35 + index * 0.1, duration: 0.45, ease: "easeOut" }}
             >
-              <div className="media-frame h-40">
-                <img src={tile.image} alt={tile.title} className="h-full w-full object-cover" />
-              </div>
-              <div className="p-4">
-                <h2 className="subheading text-2xl">{tile.title}</h2>
-                <p className="mt-2 font-body text-xs leading-5 text-muted-foreground">{tile.text}</p>
+              <img
+                src={tile.image}
+                alt={tile.title}
+                className="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.045] group-hover:brightness-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-foreground/55 via-foreground/10 to-background/5" aria-hidden="true" />
+              <div className="absolute bottom-0 left-0 right-0 p-5 text-left text-primary-foreground md:p-6">
+                <h2 className="subheading text-3xl md:text-4xl">{tile.title}</h2>
+                <p className="mt-2 max-w-sm font-body text-xs leading-5 text-primary-foreground/80 md:text-sm">{tile.text}</p>
               </div>
             </motion.article>
           ))}
