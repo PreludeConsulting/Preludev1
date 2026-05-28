@@ -343,21 +343,69 @@ a {
     linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted) / 0.65));
 }
 
-.hero-dark-stage {
+.hero-open-stage {
   position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(35, 39, 48, 0.12);
-  background:
-    radial-gradient(circle at 84% 20%, hsl(var(--accent) / 0.12), transparent 30%),
-    linear-gradient(165deg, rgba(255, 252, 244, 0.86), rgba(255, 252, 244, 0.74));
-  backdrop-filter: blur(6px);
-  box-shadow: 0 26px 90px rgba(35, 39, 48, 0.14);
+  padding-block: clamp(1.5rem, 5vw, 4.25rem) clamp(0.5rem, 2vw, 1.5rem);
 }
 
-.hero-tile {
+.hero-open-stage::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(70rem, 92vw);
+  height: min(30rem, 58vw);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 252, 244, 0.88), rgba(255, 252, 244, 0.2) 56%, transparent 72%);
+  filter: blur(10px);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.hero-open-stage > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-gallery {
+  perspective: 1200px;
+}
+
+.hero-tile,
+.feature-showcase-card {
   border: 1px solid rgba(35, 39, 48, 0.12);
-  background: linear-gradient(170deg, rgba(255, 252, 244, 0.9), rgba(255, 252, 244, 0.76));
+  background: linear-gradient(170deg, rgba(255, 252, 244, 0.9), rgba(255, 252, 244, 0.72));
+  box-shadow: 0 22px 70px rgba(35, 39, 48, 0.1);
   backdrop-filter: blur(6px);
+  transition:
+    border-color 0.28s ease,
+    box-shadow 0.28s ease,
+    transform 0.28s ease;
+}
+
+.hero-tile:hover,
+.feature-showcase-card:hover {
+  border-color: rgba(35, 39, 48, 0.2);
+  box-shadow: 0 34px 90px rgba(35, 39, 48, 0.18);
+  transform: translateY(-6px);
+}
+
+.feature-showcase-section {
+  padding-top: clamp(4.5rem, 8vw, 8rem);
+}
+
+.feature-showcase-card {
+  position: relative;
+  min-height: 24rem;
+  overflow: hidden;
+  border-radius: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .feature-showcase-card {
+    min-height: 100%;
+  }
 }
 
 /* Prelude AI chat widget */
