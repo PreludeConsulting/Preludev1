@@ -16,6 +16,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "motion/react";
 import { Button } from "./ui/button.jsx";
+import RoadmapPath from "./RoadmapPath.jsx";
 
 const mediaBase = import.meta.env.BASE_URL;
 const media = {
@@ -49,14 +50,12 @@ function SectionIntro({ badge, heading, body, centered = false }) {
   );
 }
 
-function IconCard({ icon: Icon, title, text, dark = false }) {
+function IconCard({ icon: Icon, title, text, featured = false }) {
   return (
-    <Reveal className={`paper-card rounded-2xl p-6 ${dark ? "paper-card-dark" : ""}`}>
-      <Icon className={`mb-8 h-6 w-6 ${dark ? "text-primary-foreground" : "text-primary"}`} aria-hidden="true" />
-      <h3 className="font-heading text-3xl italic leading-none">{title}</h3>
-      <p className={`mt-4 font-body text-sm font-light leading-7 ${dark ? "text-primary-foreground/72" : "text-muted-foreground"}`}>
-        {text}
-      </p>
+    <Reveal className={`paper-card rounded-2xl p-6 ${featured ? "paper-card-featured" : ""}`}>
+      <Icon className="mb-8 h-6 w-6 text-primary" aria-hidden="true" />
+      <h3 className="subheading text-3xl">{title}</h3>
+      <p className="mt-4 font-body text-sm font-light leading-7 text-muted-foreground">{text}</p>
     </Reveal>
   );
 }
@@ -105,9 +104,9 @@ export function HowItWorks() {
         <div className="grid gap-5">
           {steps.map(([number, title, text], index) => (
             <Reveal className="paper-card rounded-2xl p-6 md:ml-12 md:grid md:grid-cols-[120px_1fr] md:p-8" delay={index * 0.12} key={title}>
-              <div className="mb-6 font-heading text-5xl italic text-accent md:mb-0">{number}</div>
+              <div className="subheading mb-6 text-5xl text-accent md:mb-0">{number}</div>
               <div>
-                <h3 className="font-heading text-4xl italic leading-none">{title}</h3>
+                <h3 className="subheading text-4xl">{title}</h3>
                 <p className="body-copy mt-4">{text}</p>
               </div>
             </Reveal>
@@ -147,7 +146,7 @@ export function MentorMatching() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {cards.map(([Icon, title, text], index) => (
-            <IconCard icon={Icon} title={title} text={text} key={title} dark={index === 0} />
+            <IconCard icon={Icon} title={title} text={text} key={title} featured={index === 0} />
           ))}
         </div>
       </div>
@@ -231,28 +230,27 @@ export function Plans() {
       <div className="grid gap-6 lg:grid-cols-3">
         {plans.map((plan, index) => (
           <Reveal
-            className={`paper-card flex rounded-[2rem] p-7 md:p-8 ${plan.emphasized ? "paper-card-dark" : ""}`}
+            className={`paper-card flex rounded-[2rem] p-7 md:p-8 ${plan.emphasized ? "paper-card-featured" : ""}`}
             delay={index * 0.12}
             key={plan.name}
           >
             <div className="flex min-h-full w-full flex-col">
-              <h3 className="font-heading text-5xl italic leading-none">{plan.name}</h3>
-              <p className={`mt-4 font-body text-sm font-light leading-7 ${plan.emphasized ? "text-primary-foreground/72" : "text-muted-foreground"}`}>
-                {plan.description}
-              </p>
+              {plan.emphasized ? (
+                <span className="mb-3 inline-flex w-fit rounded-full bg-primary/10 px-3 py-1 font-body text-xs font-medium text-primary">
+                  Most popular
+                </span>
+              ) : null}
+              <h3 className="subheading text-5xl text-foreground">{plan.name}</h3>
+              <p className="mt-4 font-body text-sm font-light leading-7 text-muted-foreground">{plan.description}</p>
               <ul className="mt-8 grid gap-3">
                 {plan.features.map((feature) => (
-                  <li className={`flex gap-3 font-body text-sm font-light leading-6 ${plan.emphasized ? "text-primary-foreground/82" : "text-foreground/76"}`} key={feature}>
-                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <li className="flex gap-3 font-body text-sm font-light leading-6 text-foreground/76" key={feature}>
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                     {feature}
                   </li>
                 ))}
               </ul>
-              <Button
-                href="#contact"
-                variant={plan.emphasized ? "secondary" : "primary"}
-                className={`mt-8 w-full ${plan.emphasized ? "border-primary-foreground/25 text-primary-foreground hover:bg-primary-foreground/10" : ""}`}
-              >
+              <Button href="#contact" variant="primary" className="mt-8 w-full">
                 Choose Plan
               </Button>
             </div>
@@ -264,49 +262,22 @@ export function Plans() {
 }
 
 export function GamifiedRoadmap() {
-  const milestones = [
-    [Sparkles, "Identity Building Meter"],
-    [BookOpen, "Essay Draft Quest"],
-    [Map, "College List Builder"],
-    [DollarSign, "Scholarship Tracker"],
-    [Compass, "Interview Prep"],
-    [CalendarCheck, "Application Deadline Timeline"]
-  ];
-
   return (
     <section className="section-shell" id="roadmap">
       <SectionIntro
         badge="Roadmap"
         heading="Turn applications into a path students actually want to follow."
-        body="Prelude transforms the college application process into a clear, interactive roadmap. Students complete milestones, unlock progress, and see how each step moves them closer to their strongest application."
+        body="Follow a clear, step-by-step path through college applications. Sign in and chat with Prelude AI to unlock progress on your personal dashboard."
+        centered
       />
-      <div className="paper-card rounded-[2rem] p-6 md:p-10">
-        <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
-          <div className="media-frame min-h-[360px] rounded-[1.5rem]">
-            <img
-              src={media.roadmapLoop}
-              alt="Animated roadmap dashboard for college application milestones"
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <div className="relative grid gap-4 sm:grid-cols-2">
-            <div className="absolute left-8 right-8 top-1/2 hidden h-px bg-foreground/10 lg:block" aria-hidden="true" />
-            {milestones.map(([Icon, title], index) => (
-              <Reveal className="rounded-2xl border border-foreground/10 bg-background/54 p-5" delay={index * 0.08} key={title}>
-                <div className="mb-8 flex items-center justify-between">
-                  <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
-                  <span className="h-3 w-3 rounded-full bg-accent/80" />
-                </div>
-                <h3 className="font-heading text-3xl italic leading-none">{title}</h3>
-              </Reveal>
-            ))}
-          </div>
+      <Reveal className="paper-card mx-auto max-w-md rounded-[2rem] p-6 md:p-8">
+        <RoadmapPath previewMode sectionBanner="Sign in to save your progress · Demo path below" />
+        <div className="mt-6 text-center">
+          <a href="#dashboard" className="prelude-btn-primary inline-flex items-center justify-center px-6 py-3 font-body text-sm font-medium no-underline">
+            Open your dashboard
+          </a>
         </div>
-        <p className="body-copy mt-8 max-w-3xl">
-          After launch, Prelude will introduce peer benchmarking so students can compare progress with anonymized
-          students pursuing similar schools, majors, or goals.
-        </p>
-      </div>
+      </Reveal>
     </section>
   );
 }
@@ -358,7 +329,7 @@ export function AIDashboard() {
         <SectionIntro
           badge="AI Support"
           heading="AI keeps the process organized. Mentors keep it human."
-          body="Prelude's future AI assistant will help students organize deadlines, essay prompts, scholarships, and application tasks in one central dashboard. The goal is not to replace mentors, but to make the process easier to navigate."
+          body="Prelude AI helps students organize deadlines, essay prompts, scholarships, and application tasks in one central dashboard. The goal is not to replace mentors, but to make the process easier to navigate — with human support when they need to go deeper."
         />
         <Reveal className="paper-card rounded-[2rem] p-4 md:p-5">
           <div className="grid gap-4 lg:grid-cols-[0.95fr_1fr]">
@@ -374,7 +345,7 @@ export function AIDashboard() {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {bullets.map((bullet, index) => (
               <div className="flex items-center gap-3 rounded-2xl border border-foreground/10 bg-background/50 p-4" key={bullet}>
-                <span className="font-heading text-2xl italic text-accent">{String(index + 1).padStart(2, "0")}</span>
+                <span className="subheading text-2xl text-accent">{String(index + 1).padStart(2, "0")}</span>
                 <span className="font-body text-sm text-foreground/76">{bullet}</span>
               </div>
             ))}
@@ -401,7 +372,7 @@ export function Stats() {
       <div className="paper-card grid rounded-[2rem] p-6 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map(([number, label], index) => (
           <Reveal className="border-foreground/10 p-6 lg:border-r last:border-r-0" delay={index * 0.1} key={label}>
-            <div className="font-heading text-4xl italic leading-none text-foreground md:text-5xl lg:text-6xl">{number}</div>
+            <div className="display-heading text-4xl md:text-5xl lg:text-6xl">{number}</div>
             <div className="mt-4 font-body text-sm font-light text-muted-foreground">{label}</div>
           </Reveal>
         ))}
@@ -424,7 +395,7 @@ export function Testimonials() {
         {cards.map(([label, title, text], index) => (
           <Reveal className="paper-card rounded-2xl p-7" delay={index * 0.12} key={title}>
             <div className="mb-8 font-body text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
-            <h3 className="font-heading text-3xl italic leading-none">{title}</h3>
+            <h3 className="subheading text-3xl">{title}</h3>
             <p className="body-copy mt-5">{text}</p>
           </Reveal>
         ))}
