@@ -74,5 +74,6 @@ export const TRAINING_CASES = [
     mustMatch: [/css profile|institutional|aid|college board/i],
     mustNotBeDeflectionOnly: true,
     minWords: 20
+    // p
   }
 ];
