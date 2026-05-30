@@ -1,4 +1,4 @@
-﻿import AccountPanel from "./components/AccountPanel.jsx";
+import AccountPanel from "./components/AccountPanel.jsx";
 import Navbar from "./components/Navbar.jsx";
 import PreludeChat from "./components/PreludeChat.jsx";
 import SignInModal from "./components/SignInModal.jsx";
@@ -30,6 +30,12 @@ function AppContent() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
+  useEffect(() => {
+    if (hash === "#preludematch" || hash === "#dashboard") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [hash]);
 
   if (hash === "#dashboard") {
     return (
