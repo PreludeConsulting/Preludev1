@@ -1,16 +1,20 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 import { createChatApiMiddleware } from "./server/chatApi.js";
+import { createAuthApiMiddleware } from "./server/authApi.js";
 
 function preludeChatApiPlugin(env) {
   const middleware = createChatApiMiddleware(env);
+  const authMiddleware = createAuthApiMiddleware(env);
 
   return {
     name: "prelude-chat-api",
     configureServer(server) {
+      server.middlewares.use(authMiddleware);
       server.middlewares.use(middleware);
     },
     configurePreviewServer(server) {
+      server.middlewares.use(authMiddleware);
       server.middlewares.use(middleware);
     }
   };
@@ -18,6 +22,7 @@ function preludeChatApiPlugin(env) {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  Object.assign(process.env, env);
 
   return {
     base: "/Preludev1/",
