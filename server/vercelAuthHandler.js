@@ -1,4 +1,4 @@
-import { createAuthApiMiddleware } from "./preludeAuthApi.js";
+import { createAuthApiMiddleware } from "./authApi.js";
 
 const middleware = createAuthApiMiddleware();
 
