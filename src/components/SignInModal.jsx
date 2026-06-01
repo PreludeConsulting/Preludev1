@@ -109,7 +109,8 @@ export default function SignInModal({ onSuccess }) {
                   <span>I am a</span>
                   <select value={form.role} onChange={update("role")}>
                     <option value="student">Student</option>
-                    <option value="parent">Parent / guardian</option>
+                    <option value="mentor">Mentor</option>
+                    <option value="counselor">Counselor</option>
                   </select>
                 </label>
                 <label className="prelude-field">
@@ -126,6 +127,7 @@ export default function SignInModal({ onSuccess }) {
                   onChange={update("focus")}
                 />
               </label>
+              <p className="font-body text-xs text-muted-foreground">By creating an account you accept Prelude's terms. Passwords must be 12+ characters with uppercase, lowercase, number, and symbol.</p>
             </>
           ) : null}
 
@@ -138,7 +140,7 @@ export default function SignInModal({ onSuccess }) {
             <input
               type="password"
               required
-              minLength={mode === "signup" ? 6 : 1}
+              minLength={mode === "signup" ? 12 : 1}
               value={form.password}
               onChange={update("password")}
               autoComplete={mode === "signin" ? "current-password" : "new-password"}

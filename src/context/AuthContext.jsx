@@ -13,8 +13,15 @@ export function AuthProvider({ children }) {
   const [personalizedAiRequest, setPersonalizedAiRequest] = useState(0);
 
   useEffect(() => {
-    setUser(getStoredSession());
-    setReady(true);
+    let cancelled = false;
+    getStoredSession().then((session) => {
+      if (!cancelled) setUser(session);
+    }).finally(() => {
+      if (!cancelled) setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const openSignIn = useCallback(() => {
@@ -37,7 +44,7 @@ export function AuthProvider({ children }) {
   const signIn = useCallback(async (email, password) => {
     setAuthError(null);
     try {
-      const next = authSignIn(email, password);
+      const next = await authSignIn(email, password);
       setUser(next);
       setSignInOpen(false);
       return next;
@@ -50,9 +57,11 @@ export function AuthProvider({ children }) {
   const signUp = useCallback(async (payload) => {
     setAuthError(null);
     try {
-      const next = authSignUp(payload);
-      setUser(next);
-      setSignInOpen(false);
+      const next = await authSignUp(payload);
+      if (next?.emailVerified) {
+        setUser(next);
+        setSignInOpen(false);
+      }
       return next;
     } catch (error) {
       setAuthError(error.message);
@@ -60,14 +69,16 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const signOut = useCallback(() => {
-    authSignOut();
+  const signOut = useCallback(async () => {
+    await authSignOut();
     setUser(null);
     setAccountOpen(false);
   }, []);
 
-  const refreshUser = useCallback(() => {
-    setUser(getStoredSession());
+  const refreshUser = useCallback(async () => {
+    const session = await getStoredSession();
+    setUser(session);
+    return session;
   }, []);
 
   const requestPersonalizedAi = useCallback(() => {

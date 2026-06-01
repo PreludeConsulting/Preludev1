@@ -1,173 +1,127 @@
 import { getPlan } from "./plans.js";
-import { attachRoadmapToUser, ensureRoadmap, getUserRecord } from "./userProfile.js";
 
-const STORAGE_KEY = "prelude_session";
-const USERS_KEY = "prelude_users";
+const CSRF_KEY = "prelude_csrf";
+const LEGACY_SESSION_KEY = "prelude_session";
 
-const DEMO_USERS = {
-  "student@prelude.demo": {
-    password: "demo123",
-    name: "Alex Kim",
-    plan: "plus",
-    role: "student",
-    grade: "11",
-    focus: "essays and building a balanced college list",
-    roadmap: {
-      completedNodes: ["profile", "goals", "identity"],
-      currentNodeId: "college-list",
-      lastChatCategory: "collegeList",
-      insights: { concerns: ["essay", "collegeList"], targetSchools: [], notes: [] }
-    }
-  },
-  "parent@prelude.demo": {
-    password: "demo123",
-    name: "Jordan Lee",
-    plan: "pro",
-    role: "parent",
-    grade: null,
-    focus: "affordability, deadlines, and supporting my student",
-    roadmap: {
-      completedNodes: ["profile", "goals", "financial"],
-      currentNodeId: "deadlines",
-      lastChatCategory: "financial",
-      insights: { concerns: ["financial", "parent"], targetSchools: [], notes: [] }
-    }
-  },
-  "basic@prelude.demo": {
-    password: "demo123",
-    name: "Sam Rivera",
-    plan: "basic",
-    role: "student",
-    grade: "10",
-    focus: "getting started with college planning",
-    roadmap: {
-      completedNodes: ["profile"],
-      currentNodeId: "goals",
-      lastChatCategory: "gettingStarted",
-      insights: { concerns: ["gettingStarted"], targetSchools: [], notes: [] }
-    }
-  }
-};
-
-function readUsers() {
-  try {
-    const raw = localStorage.getItem(USERS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+function readCookie(name) {
+  return document.cookie
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.split("=")
+    .slice(1)
+    .join("=") || "";
 }
 
-function writeUsers(users) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+function storeCsrf(token) {
+  if (token) sessionStorage.setItem(CSRF_KEY, token);
 }
 
-function toPublicUser(record, email) {
-  const plan = getPlan(record.plan);
+export function getCsrfToken() {
+  return sessionStorage.getItem(CSRF_KEY) || decodeURIComponent(readCookie("prelude_csrf") || "");
+}
+
+async function api(path, options = {}) {
+  const headers = { Accept: "application/json", ...(options.headers || {}) };
+  if (options.body && !(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
+  const csrf = getCsrfToken();
+  if (csrf && !["GET", "HEAD", "OPTIONS"].includes(options.method || "GET")) headers["X-CSRF-Token"] = csrf;
+  const response = await fetch(path, { credentials: "include", ...options, headers });
+  const payload = await response.json().catch(() => ({}));
+  if (payload.csrfToken) storeCsrf(payload.csrfToken);
+  if (!response.ok) {
+    const error = new Error(payload.message || payload.error || "Request failed.");
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+  return payload;
+}
+
+function attachFrontendFields(user) {
+  if (!user) return null;
+  const plan = getPlan(user.plan || "basic");
   return {
-    email,
-    name: record.name,
-    plan: record.plan,
+    ...user,
+    name: user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+    plan: user.plan || "basic",
     planName: plan.name,
-    role: record.role ?? "student",
-    grade: record.grade ?? null,
-    focus: record.focus ?? ""
+    role: (user.role || "STUDENT").toLowerCase()
   };
 }
 
-function ensureUserInStore(email) {
-  const normalized = email.toLowerCase();
-  const users = readUsers();
-  if (!users[normalized] && DEMO_USERS[normalized]) {
-    users[normalized] = { ...DEMO_USERS[normalized] };
-    writeUsers(users);
-  }
-  return users[normalized] ?? DEMO_USERS[normalized] ?? null;
-}
-
-function hydrateUser(email) {
-  const normalized = email.toLowerCase();
-  const base = ensureUserInStore(normalized);
-  if (!base) return null;
-  ensureRoadmap(normalized, base);
-  const full = getUserRecord(normalized) ?? base;
-  return attachRoadmapToUser(toPublicUser(full, normalized), full);
-}
-
-export function getStoredSession() {
+export async function getStoredSession() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const session = JSON.parse(raw);
-    return hydrateUser(session.email);
+    const { user } = await api("/api/auth/me");
+    return attachFrontendFields(user);
   } catch {
+    localStorage.removeItem(LEGACY_SESSION_KEY);
     return null;
   }
 }
 
-export function persistSession(user) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ email: user.email }));
+export async function signIn(email, password) {
+  const { user } = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+  return attachFrontendFields(user);
 }
 
-export function clearSession() {
-  localStorage.removeItem(STORAGE_KEY);
-}
-
-export function signIn(email, password) {
-  const normalized = email.trim().toLowerCase();
-  const users = { ...readUsers(), ...DEMO_USERS };
-  const record = users[normalized];
-
-  if (!record || record.password !== password) {
-    const error = new Error("Invalid email or password.");
-    error.code = "INVALID_CREDENTIALS";
-    throw error;
-  }
-
-  ensureUserInStore(normalized);
-  const user = hydrateUser(normalized);
-  persistSession(user);
-  return user;
-}
-
-export function signUp({ email, password, name, plan, role, grade, focus }) {
-  const normalized = email.trim().toLowerCase();
-  const users = readUsers();
-
-  if (DEMO_USERS[normalized] || users[normalized]) {
-    const error = new Error("An account with this email already exists.");
-    error.code = "EMAIL_EXISTS";
-    throw error;
-  }
-
-  if (!password || password.length < 6) {
-    const error = new Error("Password must be at least 6 characters.");
-    error.code = "WEAK_PASSWORD";
-    throw error;
-  }
-
-  users[normalized] = {
-    password,
-    name: name.trim(),
-    plan: plan ?? "basic",
-    role: role ?? "student",
-    grade: grade || null,
-    focus: focus?.trim() || "college planning"
+export async function signUp(payload) {
+  const [firstName, ...rest] = (payload.name || "").trim().split(/\s+/);
+  const body = {
+    firstName: payload.firstName || firstName || "Student",
+    lastName: payload.lastName || rest.join(" ") || "User",
+    email: payload.email,
+    password: payload.password,
+    role: (payload.role || "student").toUpperCase(),
+    termsAccepted: Boolean(payload.termsAccepted ?? true)
   };
-
-  writeUsers(users);
-  const user = hydrateUser(normalized);
-  persistSession(user);
-  return user;
+  const { user } = await api("/api/auth/register", { method: "POST", body: JSON.stringify(body) });
+  return attachFrontendFields(user);
 }
 
-export function signOut() {
-  clearSession();
+export async function signOut() {
+  try {
+    await api("/api/auth/logout", { method: "POST" });
+  } finally {
+    sessionStorage.removeItem(CSRF_KEY);
+    localStorage.removeItem(LEGACY_SESSION_KEY);
+  }
 }
+
+export async function requestPasswordReset(email) {
+  return api("/api/auth/request-reset", { method: "POST", body: JSON.stringify({ email }) });
+}
+
+export async function resetPassword(token, password) {
+  return api("/api/auth/reset-password", { method: "POST", body: JSON.stringify({ token, password }) });
+}
+
+export async function verifyEmail(token) {
+  return api(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+}
+
+export async function getDashboardData() {
+  return api("/api/dashboard");
+}
+
+export async function getProfile() {
+  return api("/api/account/profile");
+}
+
+export async function updateProfile(profile) {
+  return api("/api/account/profile", { method: "PATCH", body: JSON.stringify(profile) });
+}
+
+export async function getSessions() {
+  return api("/api/account/sessions");
+}
+
+export async function revokeSession(id) {
+  return api(`/api/account/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export const DEMO_HINT = "Create a free account. Email links are logged by the local server until an email provider is configured.";
 
 export function getUserBaseRecord(email) {
-  return getUserRecord(email?.toLowerCase()) ?? ensureUserInStore(email);
+  return { email, focus: "college planning", role: "student" };
 }
-
-export const DEMO_HINT =
-  "Try student@prelude.demo, parent@prelude.demo, or basic@prelude.demo — password: demo123";
