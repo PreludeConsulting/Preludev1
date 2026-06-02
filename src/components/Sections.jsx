@@ -16,6 +16,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "motion/react";
 import { Button } from "./ui/button.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
+import { startBillingCheckout } from "../lib/auth.js";
 import RoadmapPath from "./RoadmapPath.jsx";
 
 const mediaBase = import.meta.env.BASE_URL;
@@ -241,10 +243,15 @@ export function FeaturesGrid() {
 }
 
 export function Plans() {
+  const { isAuthenticated, openSignIn } = useAuth();
+  const [billingNotice, setBillingNotice] = useState("");
+  const [loadingPlan, setLoadingPlan] = useState(null);
   const plans = [
     {
+      id: "basic",
       name: "Basic",
       description: "Foundational guidance for students beginning their college journey.",
+      paid: false,
       features: [
         "Monthly group mentorship session",
         "Access to a matched mentor through PreludeMatch",
@@ -257,8 +264,10 @@ export function Plans() {
       ]
     },
     {
+      id: "plus",
       name: "Plus",
       description: "More personalized guidance and consistent support.",
+      paid: true,
       features: [
         "Everything in Basic",
         "Two 1-on-1 mentor sessions per month",
@@ -271,8 +280,10 @@ export function Plans() {
       ]
     },
     {
+      id: "pro",
       name: "Pro",
       description: "End-to-end support for students aiming for top-tier outcomes.",
+      paid: true,
       features: [
         "Everything in Plus",
         "Weekly or biweekly 1-on-1 mentor sessions",
@@ -290,9 +301,47 @@ export function Plans() {
     }
   ];
 
+  async function handlePlanClick(plan) {
+    setBillingNotice("");
+    if (!plan.paid) {
+      if (isAuthenticated) {
+        window.location.hash = "dashboard";
+      } else {
+        setBillingNotice("Basic is free. Create an account to start, then upgrade when paid subscriptions are available.");
+        openSignIn();
+      }
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setBillingNotice("Create or sign into a free Basic account first. Paid subscriptions will attach to that account when Stripe is connected.");
+      openSignIn();
+      return;
+    }
+
+    setLoadingPlan(plan.id);
+    try {
+      const result = await startBillingCheckout(plan.id);
+      if (result.url) window.location.href = result.url;
+    } catch (error) {
+      if (error.payload?.error === "billing_not_configured") {
+        setBillingNotice("Paid subscriptions are coming soon. Basic is free today, and Plus/Pro checkout will turn on after Stripe is connected.");
+      } else {
+        setBillingNotice(error.message || "Billing is not available right now.");
+      }
+    } finally {
+      setLoadingPlan(null);
+    }
+  }
+
   return (
     <section className="section-shell" id="pricing">
       <SectionIntro badge="Plans" heading="Support that grows with your goals." centered />
+      {billingNotice ? (
+        <div className="mx-auto mb-6 max-w-3xl rounded-2xl border border-primary/20 bg-primary/10 px-5 py-4 text-center font-body text-sm text-foreground/80">
+          {billingNotice}
+        </div>
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-3">
         {plans.map((plan, index) => (
           <Reveal
@@ -316,8 +365,8 @@ export function Plans() {
                   </li>
                 ))}
               </ul>
-              <Button href="#contact" variant="primary" className="mt-8 w-full">
-                Choose Plan
+              <Button as="button" type="button" variant="primary" className="mt-8 w-full" onClick={() => handlePlanClick(plan)} disabled={loadingPlan === plan.id}>
+                {loadingPlan === plan.id ? "Please wait..." : plan.paid ? `Choose ${plan.name}` : "Start free"}
               </Button>
             </div>
           </Reveal>

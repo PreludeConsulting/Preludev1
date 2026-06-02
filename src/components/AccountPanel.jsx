@@ -1,12 +1,29 @@
-import { CheckCircle, LogOut, MessageCircle, Sparkles, X } from "lucide-react";
+import { CheckCircle, CreditCard, LogOut, MessageCircle, Sparkles, X } from "lucide-react";
+import { useState } from "react";
 import { motion } from "motion/react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { openBillingPortal } from "../lib/auth.js";
 import { PRELUDE_AI_NAME } from "../lib/preludeAi.js";
 
 export default function AccountPanel({ onOpenPersonalizedAi }) {
   const { accountOpen, closeModals, user, planDetails, signOut } = useAuth();
+  const [billingMessage, setBillingMessage] = useState("");
+  const [billingLoading, setBillingLoading] = useState(false);
 
   if (!accountOpen || !user || !planDetails) return null;
+
+  async function handleManageBilling() {
+    setBillingLoading(true);
+    setBillingMessage("");
+    try {
+      const result = await openBillingPortal();
+      if (result.url) window.location.href = result.url;
+    } catch (error) {
+      setBillingMessage(error.payload?.message || error.message || "Billing is not available yet.");
+    } finally {
+      setBillingLoading(false);
+    }
+  }
 
   return (
     <div className="prelude-modal-backdrop" role="presentation" onClick={closeModals}>
@@ -42,8 +59,11 @@ export default function AccountPanel({ onOpenPersonalizedAi }) {
             <p className="subheading mt-1 text-4xl">{planDetails.name}</p>
             <p className="mt-2 font-body text-sm text-muted-foreground">{planDetails.tagline}</p>
             <p className="mt-3 font-body text-xs text-muted-foreground">
-              Plans change software and mentor access — {PRELUDE_AI_NAME} is the same for everyone.
+              Plans change software and mentor access - {PRELUDE_AI_NAME} is the same for everyone.
             </p>
+            {user.subscriptionStatus ? (
+              <p className="mt-2 font-body text-xs text-muted-foreground">Billing status: {user.subscriptionStatus}</p>
+            ) : null}
           </div>
 
           <div>
@@ -101,6 +121,21 @@ export default function AccountPanel({ onOpenPersonalizedAi }) {
             <p className="rounded-xl border border-foreground/10 bg-muted/40 px-4 py-3 font-body text-sm text-muted-foreground">
               <span className="font-medium text-foreground">Your focus:</span> {user.focus}
             </p>
+          ) : null}
+
+          {user.hasBillingCustomer ? (
+            <div className="space-y-2">
+              <button
+                type="button"
+                className="prelude-btn-primary flex w-full items-center justify-center gap-2"
+                onClick={handleManageBilling}
+                disabled={billingLoading}
+              >
+                <CreditCard className="h-4 w-4" />
+                {billingLoading ? "Opening billing..." : "Manage billing"}
+              </button>
+              {billingMessage ? <p className="font-body text-xs text-muted-foreground">{billingMessage}</p> : null}
+            </div>
           ) : null}
 
           <button
