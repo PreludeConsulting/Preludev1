@@ -4,7 +4,7 @@ import { cn } from "../../lib/utils.js";
 const variants = {
   primary: "bg-primary text-primary-foreground hover:bg-primary/95",
   secondary:
-    "border border-primary/40 bg-background/90 text-primary hover:border-primary/60 hover:bg-primary/[0.06]",
+    "border border-primary bg-primary text-primary-foreground hover:border-primary/90 hover:bg-primary/90",
   ghost: "text-foreground/80 hover:text-foreground"
 };
 

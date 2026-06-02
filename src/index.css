@@ -3,34 +3,34 @@
 @tailwind utilities;
 
 :root {
-  --background: 42 42% 94%;
-  --foreground: 220 18% 12%;
+  --background: 203 100% 97%;
+  --foreground: 238 64% 18%;
 
-  --card: 40 38% 90%;
-  --card-foreground: 220 18% 12%;
+  --card: 196 72% 93%;
+  --card-foreground: 238 64% 18%;
 
-  --primary: 214 28% 38%;
-  --primary-foreground: 42 40% 98%;
-  --primary-deep: 214 32% 30%;
+  --primary: 267 86% 48%;
+  --primary-foreground: 0 0% 100%;
+  --primary-deep: 267 82% 34%;
 
-  --secondary: 28 28% 78%;
-  --secondary-foreground: 220 18% 12%;
+  --secondary: 225 92% 52%;
+  --secondary-foreground: 0 0% 100%;
 
-  --muted: 38 24% 84%;
-  --muted-foreground: 220 10% 38%;
+  --muted: 190 67% 88%;
+  --muted-foreground: 238 30% 36%;
 
-  --accent: 356 38% 72%;
-  --accent-foreground: 220 18% 12%;
+  --accent: 176 76% 48%;
+  --accent-foreground: 238 64% 18%;
 
-  --border: 220 12% 18% / 0.12;
-  --input: 220 12% 18% / 0.12;
-  --ring: 214 28% 38% / 0.35;
+  --border: 238 64% 18% / 0.12;
+  --input: 238 64% 18% / 0.12;
+  --ring: 267 86% 48% / 0.45;
 
   --radius: 1.5rem;
 
-  --paper-bg: rgba(255, 252, 244, 0.72);
-  --paper-border: rgba(35, 39, 48, 0.14);
-  --paper-shadow: 0 24px 80px rgba(35, 39, 48, 0.08);
+  --paper-bg: rgba(244, 251, 255, 0.78);
+  --paper-border: rgba(34, 36, 118, 0.14);
+  --paper-shadow: 0 24px 80px rgba(34, 36, 118, 0.08);
 }
 
 * {
@@ -57,7 +57,7 @@ a {
 }
 
 ::selection {
-  background: hsl(var(--accent) / 0.45);
+  background: hsl(var(--primary) / 0.45);
 }
 
 .paper-grain {
@@ -137,6 +137,167 @@ a {
 
 .section-badge {
   @apply paper-card inline-flex rounded-full px-5 py-2 text-sm font-medium text-foreground font-body;
+}
+
+.ivy-display {
+  font-family: "Barlow Condensed", "Barlow", sans-serif;
+}
+
+.ivy-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.ivy-nav-link:hover {
+  color: hsl(var(--secondary));
+}
+
+.ivy-hero {
+  background: hsl(var(--background));
+}
+
+.ivy-hero__wash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 28% 16%, rgb(120 106 255 / 0.32), transparent 30%),
+    radial-gradient(circle at 74% 12%, rgb(120 106 255 / 0.22), transparent 34%),
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background)) 68%, #786aff 100%);
+}
+
+
+.admissions-cost-banner {
+  position: relative;
+  overflow: hidden;
+  background: #786aff;
+  color: #ffffff;
+}
+
+.admissions-cost-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 18%, rgb(255 255 255 / 0.16), transparent 28%),
+    radial-gradient(circle at 82% 84%, rgb(255 255 255 / 0.12), transparent 30%);
+  pointer-events: none;
+}
+
+.admissions-cost-banner__inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  min-height: 28rem;
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: center;
+  width: min(100%, 76rem);
+  margin-inline: auto;
+  padding: clamp(4rem, 8vw, 6.5rem) 1.5rem;
+}
+
+@media (min-width: 900px) {
+  .admissions-cost-banner__inner {
+    grid-template-columns: 0.92fr 1fr;
+  }
+}
+
+.admissions-cost-banner__visual {
+  position: relative;
+  min-height: 17rem;
+}
+
+.admissions-cost-banner__card {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(100%, 27rem);
+  min-height: 13.5rem;
+  margin-inline: auto;
+  padding: 2rem;
+  border: 2px solid rgb(255 255 255 / 0.8);
+  border-radius: 6rem 6rem 0.75rem 0.75rem / 2.4rem 2.4rem 0.75rem 0.75rem;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.08)),
+    repeating-linear-gradient(115deg, rgb(255 255 255 / 0.12) 0 2px, transparent 2px 18px);
+  box-shadow: 0 2rem 4rem rgb(40 28 150 / 0.2);
+  text-align: center;
+}
+
+.admissions-cost-banner__card::after {
+  content: "";
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: -1.3rem;
+  height: 1.4rem;
+  border: 2px solid rgb(255 255 255 / 0.72);
+  background: rgb(255 255 255 / 0.14);
+}
+
+.admissions-cost-banner__eyebrow,
+.admissions-cost-banner__caption {
+  font-family: "Barlow", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.admissions-cost-banner__eyebrow {
+  font-size: 0.9rem;
+}
+
+.admissions-cost-banner__price {
+  margin-block: 0.35rem;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(4rem, 10vw, 6.25rem);
+  font-weight: 600;
+  line-height: 0.9;
+  color: #ffffff;
+}
+
+.admissions-cost-banner__caption {
+  max-width: 17rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.admissions-cost-banner__ring {
+  position: absolute;
+  right: max(1rem, 10%);
+  bottom: 0.25rem;
+  width: 8rem;
+  height: 8rem;
+  border: 0.8rem solid #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 1.2rem 2.4rem rgb(40 28 150 / 0.18);
+}
+
+.admissions-cost-banner__ring span {
+  position: absolute;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.admissions-cost-banner__ring span:nth-child(1) { left: 0.25rem; top: 0.4rem; }
+.admissions-cost-banner__ring span:nth-child(2) { right: -0.35rem; top: 1.3rem; }
+.admissions-cost-banner__ring span:nth-child(3) { left: -0.45rem; bottom: 1.5rem; }
+.admissions-cost-banner__ring span:nth-child(4) { right: 1rem; bottom: -0.15rem; }
+.admissions-cost-banner__ring span:nth-child(5) { left: 2.7rem; top: -0.65rem; }
+
+.admissions-cost-banner__copy {
+  color: #ffffff;
 }
 
 /* Large display type — matches hero (Cormorant Garamond, not italic) */
