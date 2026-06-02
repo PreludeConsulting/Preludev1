@@ -120,6 +120,18 @@ export async function revokeSession(id) {
   return api(`/api/account/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
+export async function getBillingConfig() {
+  return api("/api/billing/config");
+}
+
+export async function startBillingCheckout(planId) {
+  return api("/api/billing/checkout", { method: "POST", body: JSON.stringify({ planId }) });
+}
+
+export async function openBillingPortal() {
+  return api("/api/billing/portal", { method: "POST" });
+}
+
 export const DEMO_HINT = "Create a free account. Email links are logged by the local server until an email provider is configured.";
 
 export function getUserBaseRecord(email) {

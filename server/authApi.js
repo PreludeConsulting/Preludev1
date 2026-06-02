@@ -5,7 +5,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 
-function db() {
+export function db() {
   if (!globalThis.__preludePrisma) globalThis.__preludePrisma = new PrismaClient();
   return globalThis.__preludePrisma;
 }
@@ -109,7 +109,8 @@ function parseDevice(userAgent = "") {
   return { browser, device };
 }
 
-function publicUser(user) {
+export function publicUser(user) {
+  const plan = (user.plan || "BASIC").toLowerCase();
   return {
     id: user.id,
     firstName: user.firstName,
@@ -117,20 +118,24 @@ function publicUser(user) {
     name: `${user.firstName} ${user.lastName}`,
     email: user.email,
     role: user.role,
+    plan,
     emailVerified: user.emailVerified,
     status: user.status,
+    subscriptionStatus: user.subscriptionStatus || null,
+    subscriptionCurrentPeriodEnd: user.subscriptionCurrentPeriodEnd || null,
+    hasBillingCustomer: Boolean(user.stripeCustomerId),
     createdAt: user.createdAt
   };
 }
 
-function sendJson(res, statusCode, payload, headers = {}) {
+export function sendJson(res, statusCode, payload, headers = {}) {
   res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json");
   for (const [key, value] of Object.entries(headers)) res.setHeader(key, value);
   res.end(JSON.stringify(payload));
 }
 
-function readJsonBody(req) {
+export function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     let raw = "";
     req.on("data", (chunk) => {
@@ -169,7 +174,7 @@ function cookiesForTokens({ accessToken, refreshToken, csrfToken, clear = false 
   ];
 }
 
-function requireCsrf(req) {
+export function requireCsrf(req) {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return;
   const parsed = cookie.parse(req.headers.cookie || "");
   const cookieToken = parsed[CSRF_COOKIE];
@@ -299,7 +304,7 @@ async function getAuth(req) {
   }
 }
 
-async function requireAuth(req) {
+export async function requireAuth(req) {
   const auth = await getAuth(req);
   if (!auth) {
     const error = new Error("Authentication required.");
