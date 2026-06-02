@@ -76,7 +76,7 @@ export function AdmissionsCostBanner() {
         </Reveal>
 
         <Reveal className="admissions-cost-banner__copy" delay={0.12}>
-          <p className="max-w-md font-serif text-base leading-6 text-white md:text-lg md:leading-7">
+          <p className="max-w-lg font-serif text-lg leading-7 text-white md:text-xl md:leading-8">
             American families spend over <span className="admissions-cost-banner__amount">$6,500</span> on college
             admissions consulting every year.
           </p>

@@ -102,6 +102,7 @@ function AppContent() {
         <Hero />
         <div className="home-section-divider" aria-hidden="true" />
         <AdmissionsCostBanner />
+        <div className="home-section-divider" aria-hidden="true" />
         <ProblemSolution />
         <HowItWorks />
         <MentorMatching />
