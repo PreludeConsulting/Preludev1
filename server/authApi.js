@@ -45,6 +45,17 @@ const loginSchema = z.object({
 });
 const requestResetSchema = z.object({ email: z.string().trim().email() });
 const resetPasswordSchema = z.object({ token: z.string().min(32), password: passwordSchema });
+const questionnaireAnswerSchema = z.object({
+  index: z.number().int().min(0).max(100),
+  question: z.string().trim().min(1).max(500),
+  answer: z.string().trim().min(1).max(200)
+});
+
+const questionnaireSchema = z.object({
+  answers: z.array(questionnaireAnswerSchema).min(1).max(100),
+  completionPercent: z.number().int().min(0).max(100).optional()
+});
+
 const profileSchema = z.object({
   firstName: z.string().trim().min(1).max(80).optional(),
   lastName: z.string().trim().min(1).max(80).optional(),
@@ -499,6 +510,54 @@ async function handleProfile(req, res) {
   sendJson(res, 200, { user: publicUser(user) });
 }
 
+
+async function handlePreludeMatchQuestionnaire(req, res) {
+  const auth = await requireAuth(req);
+
+  if (req.method === "GET") {
+    const questionnaire = await db().preludeMatchQuestionnaire.findUnique({ where: { userId: auth.user.id } });
+    return sendJson(res, 200, { questionnaire });
+  }
+
+  const payload = questionnaireSchema.parse(await readJsonBody(req));
+  const uniqueAnswers = new Set(payload.answers.map((answer) => answer.index));
+  const completionPercent = payload.completionPercent ?? Math.round((uniqueAnswers.size / payload.answers.length) * 100);
+  const studentProfile = await db().studentProfile.findUnique({ where: { userId: auth.user.id }, select: { id: true } });
+
+  const questionnaire = await db().$transaction(async (tx) => {
+    const saved = await tx.preludeMatchQuestionnaire.upsert({
+      where: { userId: auth.user.id },
+      create: {
+        userId: auth.user.id,
+        studentProfileId: studentProfile?.id || null,
+        answers: payload.answers,
+        completionPercent,
+        submittedAt: new Date()
+      },
+      update: {
+        studentProfileId: studentProfile?.id || null,
+        answers: payload.answers,
+        completionPercent,
+        submittedAt: new Date()
+      }
+    });
+    await tx.activityLog.create({
+      data: {
+        actorUserId: auth.user.id,
+        action: "PRELUDE_MATCH_QUESTIONNAIRE_SUBMITTED",
+        entityType: "PreludeMatchQuestionnaire",
+        entityId: saved.id,
+        ipAddress: getClientIp(req),
+        userAgent: req.headers["user-agent"] || null,
+        metadata: { answerCount: payload.answers.length, completionPercent }
+      }
+    });
+    return saved;
+  });
+
+  sendJson(res, 200, { questionnaire });
+}
+
 async function handleDashboard(req, res) {
   const auth = await requireAuth(req);
   const user = auth.user;
@@ -551,7 +610,7 @@ async function handleStudentRead(req, res, url) {
 export function createAuthApiMiddleware() {
   return async function authApiMiddleware(req, res, next) {
     const url = new URL(req.url || "/", "http://localhost");
-    if (!url.pathname.startsWith("/api/auth") && !url.pathname.startsWith("/api/account") && !url.pathname.startsWith("/api/dashboard") && !url.pathname.startsWith("/api/students")) return next();
+    if (!url.pathname.startsWith("/api/auth") && !url.pathname.startsWith("/api/account") && !url.pathname.startsWith("/api/dashboard") && !url.pathname.startsWith("/api/students") && url.pathname !== "/api/prelude-match-questionnaire") return next();
 
     if (req.method === "OPTIONS") {
       res.statusCode = 204;
@@ -563,24 +622,29 @@ export function createAuthApiMiddleware() {
 
     try {
       if (!["/api/auth/login", "/api/auth/register", "/api/auth/request-reset", "/api/auth/reset-password"].includes(url.pathname)) requireCsrf(req);
-      if (url.pathname === "/api/auth/register" && req.method === "POST") return handleRegister(req, res);
-      if (url.pathname === "/api/auth/verify-email" && req.method === "GET") return handleVerifyEmail(req, res, url);
-      if (url.pathname === "/api/auth/login" && req.method === "POST") return handleLogin(req, res);
-      if (url.pathname === "/api/auth/refresh" && req.method === "POST") return handleRefresh(req, res);
-      if (url.pathname === "/api/auth/logout" && req.method === "POST") return handleLogout(req, res);
-      if (url.pathname === "/api/auth/request-reset" && req.method === "POST") return handleRequestReset(req, res);
-      if (url.pathname === "/api/auth/reset-password" && req.method === "POST") return handleResetPassword(req, res);
-      if (url.pathname === "/api/auth/me" && req.method === "GET") return handleMe(req, res);
-      if (url.pathname === "/api/account/profile" && ["GET", "PATCH"].includes(req.method)) return handleProfile(req, res);
-      if (url.pathname === "/api/account/sessions" && req.method === "GET") return handleSessions(req, res, url);
-      if (url.pathname.startsWith("/api/account/sessions/") && req.method === "DELETE") return handleSessions(req, res, url);
-      if (url.pathname === "/api/dashboard" && req.method === "GET") return handleDashboard(req, res);
-      if (url.pathname.startsWith("/api/students/") && req.method === "GET") return handleStudentRead(req, res, url);
+      if (url.pathname === "/api/auth/register" && req.method === "POST") return await handleRegister(req, res);
+      if (url.pathname === "/api/auth/verify-email" && req.method === "GET") return await handleVerifyEmail(req, res, url);
+      if (url.pathname === "/api/auth/login" && req.method === "POST") return await handleLogin(req, res);
+      if (url.pathname === "/api/auth/refresh" && req.method === "POST") return await handleRefresh(req, res);
+      if (url.pathname === "/api/auth/logout" && req.method === "POST") return await handleLogout(req, res);
+      if (url.pathname === "/api/auth/request-reset" && req.method === "POST") return await handleRequestReset(req, res);
+      if (url.pathname === "/api/auth/reset-password" && req.method === "POST") return await handleResetPassword(req, res);
+      if (url.pathname === "/api/auth/me" && req.method === "GET") return await handleMe(req, res);
+      if (url.pathname === "/api/account/profile" && ["GET", "PATCH"].includes(req.method)) return await handleProfile(req, res);
+      if (url.pathname === "/api/prelude-match-questionnaire" && ["GET", "POST"].includes(req.method)) return await handlePreludeMatchQuestionnaire(req, res);
+      if (url.pathname === "/api/account/sessions" && req.method === "GET") return await handleSessions(req, res, url);
+      if (url.pathname.startsWith("/api/account/sessions/") && req.method === "DELETE") return await handleSessions(req, res, url);
+      if (url.pathname === "/api/dashboard" && req.method === "GET") return await handleDashboard(req, res);
+      if (url.pathname.startsWith("/api/students/") && req.method === "GET") return await handleStudentRead(req, res, url);
       sendJson(res, 404, { error: "not_found" });
     } catch (error) {
       if (error instanceof z.ZodError) return sendJson(res, 400, { error: "validation_error", issues: error.issues });
-      console.error("[prelude-auth-api]", error);
-      sendJson(res, error.statusCode || 500, { error: error.statusCode ? "request_failed" : "server_error", message: error.message || "Request failed." });
+      const statusCode = error.statusCode || 500;
+      if (statusCode >= 500) console.error("[prelude-auth-api]", error);
+      sendJson(res, statusCode, {
+        error: statusCode === 401 ? "unauthenticated" : statusCode === 403 ? "forbidden" : statusCode >= 500 ? "server_error" : "request_failed",
+        message: error.message || "Request failed."
+      });
     }
   };
 }

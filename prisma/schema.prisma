@@ -132,6 +132,7 @@ model User {
   counselorProfile        CounselorProfile?
   messagesSent            Message[]                @relation("MessagesSent")
   messagesReceived        Message[]                @relation("MessagesReceived")
+  preludeMatchQuestionnaire PreludeMatchQuestionnaire?
 
   @@index([role, status], map: "idx_users_role_status")
   @@index([emailVerified, status], map: "idx_users_verified_status")
@@ -176,10 +177,30 @@ model StudentProfile {
   mentorAssignments      MentorAssignment[]
   collegeApplications    CollegeApplication[]
   essays                 Essay[]
+  preludeMatchQuestionnaires PreludeMatchQuestionnaire[]
 
   @@index([organizationId], map: "idx_student_profiles_org")
   @@index([graduationYear], map: "idx_student_profiles_grad_year")
   @@map("student_profiles")
+}
+
+
+model PreludeMatchQuestionnaire {
+  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String         @unique @map("user_id") @db.Uuid
+  studentProfileId   String?        @map("student_profile_id") @db.Uuid
+  answers            Json           @db.JsonB
+  completionPercent  Int            @default(0) @map("completion_percent")
+  submittedAt        DateTime       @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentProfile     StudentProfile? @relation(fields: [studentProfileId], references: [id], onDelete: SetNull)
+
+  @@index([studentProfileId, submittedAt], map: "idx_prelude_match_student_submitted")
+  @@index([submittedAt], map: "idx_prelude_match_submitted_at")
+  @@map("prelude_match_questionnaires")
 }
 
 model MentorProfile {
