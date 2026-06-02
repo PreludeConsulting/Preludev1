@@ -3,34 +3,34 @@
 @tailwind utilities;
 
 :root {
-  --background: 42 42% 94%;
-  --foreground: 220 18% 12%;
+  --background: 203 100% 97%;
+  --foreground: 238 64% 18%;
 
-  --card: 40 38% 90%;
-  --card-foreground: 220 18% 12%;
+  --card: 196 72% 93%;
+  --card-foreground: 238 64% 18%;
 
-  --primary: 214 28% 38%;
-  --primary-foreground: 42 40% 98%;
-  --primary-deep: 214 32% 30%;
+  --primary: 267 86% 48%;
+  --primary-foreground: 0 0% 100%;
+  --primary-deep: 267 82% 34%;
 
-  --secondary: 28 28% 78%;
-  --secondary-foreground: 220 18% 12%;
+  --secondary: 225 92% 52%;
+  --secondary-foreground: 0 0% 100%;
 
-  --muted: 38 24% 84%;
-  --muted-foreground: 220 10% 38%;
+  --muted: 190 67% 88%;
+  --muted-foreground: 238 30% 36%;
 
-  --accent: 356 38% 72%;
-  --accent-foreground: 220 18% 12%;
+  --accent: 176 76% 48%;
+  --accent-foreground: 238 64% 18%;
 
-  --border: 220 12% 18% / 0.12;
-  --input: 220 12% 18% / 0.12;
-  --ring: 214 28% 38% / 0.35;
+  --border: 238 64% 18% / 0.12;
+  --input: 238 64% 18% / 0.12;
+  --ring: 267 86% 48% / 0.45;
 
   --radius: 1.5rem;
 
-  --paper-bg: rgba(255, 252, 244, 0.72);
-  --paper-border: rgba(35, 39, 48, 0.14);
-  --paper-shadow: 0 24px 80px rgba(35, 39, 48, 0.08);
+  --paper-bg: rgba(244, 251, 255, 0.78);
+  --paper-border: rgba(34, 36, 118, 0.14);
+  --paper-shadow: 0 24px 80px rgba(34, 36, 118, 0.08);
 }
 
 * {
@@ -57,7 +57,7 @@ a {
 }
 
 ::selection {
-  background: hsl(var(--accent) / 0.45);
+  background: hsl(var(--primary) / 0.45);
 }
 
 .paper-grain {
@@ -137,6 +137,41 @@ a {
 
 .section-badge {
   @apply paper-card inline-flex rounded-full px-5 py-2 text-sm font-medium text-foreground font-body;
+}
+
+.ivy-display {
+  font-family: "Barlow Condensed", "Barlow", sans-serif;
+}
+
+.ivy-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.ivy-nav-link:hover {
+  color: hsl(var(--secondary));
+}
+
+.ivy-hero {
+  background: hsl(var(--background));
+}
+
+.ivy-hero__wash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 28% 16%, hsl(var(--accent) / 0.24), transparent 30%),
+    radial-gradient(circle at 74% 12%, hsl(var(--secondary) / 0.18), transparent 34%),
+    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background)) 68%, hsl(var(--accent) / 0.55) 100%);
 }
 
 /* Large display type — matches hero (Cormorant Garamond, not italic) */
