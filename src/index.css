@@ -393,12 +393,12 @@ a {
 
 .shopify-hero__visual {
   position: relative;
-  min-height: 22rem;
+  min-height: 15rem;
 }
 
 @media (min-width: 1024px) {
   .shopify-hero__visual {
-    min-height: 28rem;
+    min-height: 17.5rem;
   }
 }
 
@@ -1632,7 +1632,7 @@ a {
 }
 
 .pm-card--stable {
-  --prelude-match-height: clamp(560px, 66vh, 690px);
+  --prelude-match-height: clamp(360px, 42.5vh, 450px);
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -1645,7 +1645,7 @@ a {
 
 @media (max-width: 767px) {
   .pm-card--stable {
-    --prelude-match-height: clamp(520px, 62vh, 640px);
+    --prelude-match-height: clamp(330px, 40vh, 420px);
   }
 }
 
