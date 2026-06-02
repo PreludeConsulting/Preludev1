@@ -10,17 +10,12 @@ import UserDashboard from "./components/UserDashboard.jsx";
 import { DashboardPage, ForgotPasswordPage, LoginPage, ProfilePage, RegisterPage, ResetPasswordPage, SettingsPage, VerifyEmailPage } from "./components/AuthPages.jsx";
 import {
   AdmissionsCostBanner,
-  AIDashboard,
-  CtaFooter,
-  FeaturesGrid,
-  GamifiedRoadmap,
-  HowItWorks,
-  MentorMatching,
-  Plans,
-  ProblemSolution,
-  SocialImpact,
-  Stats,
-  Testimonials
+  LowerBenefits,
+  LowerCta,
+  LowerFeatureIntro,
+  LowerFooter,
+  LowerPlans,
+  LowerSplitVisual
 } from "./components/Sections.jsx";
 
 function AppContent() {
@@ -102,18 +97,12 @@ function AppContent() {
         <Hero />
         <div className="home-section-divider" aria-hidden="true" />
         <AdmissionsCostBanner />
-        <div className="home-section-divider" aria-hidden="true" />
-        <ProblemSolution />
-        <HowItWorks />
-        <MentorMatching />
-        <FeaturesGrid />
-        <Plans />
-        <GamifiedRoadmap />
-        <AIDashboard />
-        <Stats />
-        <Testimonials />
-        <SocialImpact />
-        <CtaFooter />
+        <LowerFeatureIntro />
+        <LowerSplitVisual />
+        <LowerBenefits />
+        <LowerPlans />
+        <LowerCta />
+        <LowerFooter />
       </div>
       <PreludeChat />
       <SignInModal />
