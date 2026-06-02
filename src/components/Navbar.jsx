@@ -23,7 +23,7 @@ export default function Navbar() {
       <div className="mx-auto flex max-w-[118rem] items-center justify-between gap-6">
         <motion.a
           href="#home"
-          className="font-heading text-4xl font-semibold uppercase leading-none tracking-[-0.08em] text-foreground md:text-5xl"
+          className="border-2 border-primary bg-background/80 px-3 py-2 font-heading text-3xl font-semibold uppercase leading-none tracking-[-0.08em] text-foreground shadow-[6px_6px_0_0_#786aff] backdrop-blur md:text-4xl"
           aria-label="Prelude home"
           style={{ opacity: logoOpacity, y: logoY }}
         >
