@@ -62,6 +62,38 @@ function IconCard({ icon: Icon, title, text, featured = false }) {
   );
 }
 
+export function AdmissionsCostBanner() {
+  return (
+    <section className="admissions-cost-banner" id="about-cost">
+      <div className="admissions-cost-banner__inner">
+        <Reveal className="admissions-cost-banner__visual">
+          <div className="admissions-cost-banner__card" aria-hidden="true">
+            <span className="admissions-cost-banner__eyebrow">Here lies</span>
+            <span className="admissions-cost-banner__price">$6,500</span>
+            <span className="admissions-cost-banner__caption">in avoidable consulting spend</span>
+          </div>
+          <div className="admissions-cost-banner__ring" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        </Reveal>
+
+        <Reveal className="admissions-cost-banner__copy" delay={0.12}>
+          <p className="font-serif text-lg font-semibold leading-7 text-white md:text-xl">
+            American families spend over $6,500 on college admissions consulting every year.
+          </p>
+          <h2 className="ivy-display mt-6 max-w-xl text-6xl font-extrabold uppercase leading-[0.86] tracking-[-0.035em] text-white md:text-8xl lg:text-[7.5rem]">
+            Spend smarter, not more.
+          </h2>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
 export function ProblemSolution() {
   return (
     <section className="section-shell grid gap-6 lg:grid-cols-2" id="problem">
