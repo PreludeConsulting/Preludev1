@@ -25,7 +25,8 @@ const media = {
   mentorLoop: `${mediaBase}media/mentor-lounge-loop.gif`,
   roadmapImage: `${mediaBase}media/roadmap-dashboard.png`,
   roadmapLoop: `${mediaBase}media/roadmap-dashboard-loop.gif`,
-  impactLoop: `${mediaBase}media/impact-desk-loop.gif`
+  impactLoop: `${mediaBase}media/impact-desk-loop.gif`,
+  admissionsSavings: `${mediaBase}media/admissions-savings-piggy.svg`
 };
 
 function Reveal({ children, className = "", delay = 0 }) {
@@ -67,25 +68,19 @@ export function AdmissionsCostBanner() {
     <section className="admissions-cost-banner" id="about-cost">
       <div className="admissions-cost-banner__inner">
         <Reveal className="admissions-cost-banner__visual">
-          <div className="admissions-cost-banner__card" aria-hidden="true">
-            <span className="admissions-cost-banner__eyebrow">Here lies</span>
-            <span className="admissions-cost-banner__price">$6,500</span>
-            <span className="admissions-cost-banner__caption">in avoidable consulting spend</span>
-          </div>
-          <div className="admissions-cost-banner__ring" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+          <img
+            src={media.admissionsSavings}
+            alt="Piggy bank wearing a graduation cap with a 6,500 plus cost callout"
+            className="admissions-cost-banner__image"
+          />
         </Reveal>
 
         <Reveal className="admissions-cost-banner__copy" delay={0.12}>
-          <p className="font-serif text-lg font-semibold leading-7 text-white md:text-xl">
-            American families spend over $6,500 on college admissions consulting every year.
+          <p className="max-w-md font-serif text-base leading-6 text-white md:text-lg md:leading-7">
+            American families spend over <span className="admissions-cost-banner__amount">$6,500</span> on college
+            admissions consulting every year.
           </p>
-          <h2 className="ivy-display mt-6 max-w-xl text-6xl font-extrabold uppercase leading-[0.86] tracking-[-0.035em] text-white md:text-8xl lg:text-[7.5rem]">
+          <h2 className="ivy-display mt-6 max-w-xl text-5xl font-extrabold uppercase leading-[0.88] tracking-[-0.035em] text-white md:text-7xl lg:text-[5.8rem]">
             Spend smarter, not more.
           </h2>
         </Reveal>

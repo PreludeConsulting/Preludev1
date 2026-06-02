@@ -1,0 +1,73 @@
+<svg width="1200" height="920" viewBox="0 0 1200 920" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(510 390) rotate(39) scale(830 690)">
+      <stop stop-color="#9C8CFF"/>
+      <stop offset="0.55" stop-color="#786AFF"/>
+      <stop offset="1" stop-color="#5B42E8"/>
+    </radialGradient>
+    <linearGradient id="pig" x1="422" y1="376" x2="834" y2="770" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB7C8"/>
+      <stop offset="0.5" stop-color="#F48FB1"/>
+      <stop offset="1" stop-color="#D9699A"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="456" y1="170" x2="850" y2="394" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9B8BFF"/>
+      <stop offset="1" stop-color="#4E34D8"/>
+    </linearGradient>
+    <filter id="shadow" x="120" y="120" width="960" height="780" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="32" stdDeviation="32" flood-color="#2B1E8E" flood-opacity="0.28"/>
+    </filter>
+    <filter id="soft" x="0" y="0" width="1200" height="920" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="920" rx="54" fill="url(#bgGlow)"/>
+  <circle cx="940" cy="120" r="250" fill="white" opacity="0.08" filter="url(#soft)"/>
+  <circle cx="250" cy="760" r="260" fill="white" opacity="0.08" filter="url(#soft)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="116" y="318" width="340" height="138" rx="34" transform="rotate(-14 116 318)" fill="#8978FF" stroke="#E7E1FF" stroke-width="12"/>
+    <text x="165" y="405" transform="rotate(-14 165 405)" fill="white" font-family="Barlow, Arial, sans-serif" font-size="74" font-weight="800" letter-spacing="2">6,500+</text>
+    <rect x="95" y="286" width="20" height="72" rx="10" transform="rotate(-32 95 286)" fill="#F3EFFF"/>
+    <rect x="61" y="342" width="20" height="72" rx="10" transform="rotate(-59 61 342)" fill="#F3EFFF"/>
+    <rect x="205" y="272" width="20" height="72" rx="10" transform="rotate(4 205 272)" fill="#F3EFFF"/>
+
+    <ellipse cx="590" cy="774" rx="255" ry="40" fill="#36229B" opacity="0.22"/>
+
+    <path d="M457 405C468 330 550 284 650 296C759 309 859 382 877 498C894 607 834 716 692 740C544 766 403 689 382 573C372 517 393 454 457 405Z" fill="url(#pig)"/>
+    <path d="M468 422C422 391 379 393 350 425C326 451 320 493 334 524C370 495 410 478 456 476L468 422Z" fill="#F5A0BE"/>
+    <path d="M620 310C647 257 706 265 733 317C697 313 663 313 620 310Z" fill="#F6A8C1"/>
+    <path d="M464 341C493 286 552 290 581 348C541 340 507 339 464 341Z" fill="#F6A8C1"/>
+    <ellipse cx="438" cy="573" rx="78" ry="64" fill="#F7A3BE"/>
+    <ellipse cx="410" cy="571" rx="15" ry="24" fill="#D75F8C" opacity="0.75"/>
+    <ellipse cx="463" cy="571" rx="15" ry="24" fill="#D75F8C" opacity="0.75"/>
+    <ellipse cx="535" cy="499" rx="19" ry="28" fill="#171333"/>
+    <ellipse cx="657" cy="505" rx="20" ry="29" fill="#171333"/>
+    <path d="M493 718C494 762 471 798 429 802C397 805 375 777 384 744C391 716 416 700 449 697L493 718Z" fill="#EE8DB0"/>
+    <path d="M733 716C746 758 730 799 689 807C657 813 630 790 635 756C639 728 662 709 695 702L733 716Z" fill="#E681A8"/>
+
+    <path d="M454 260L681 184L934 268L709 350L454 260Z" fill="url(#violet)"/>
+    <path d="M557 302C557 302 566 389 664 402C762 415 790 331 790 331L709 350L557 302Z" fill="#4D34CD"/>
+    <ellipse cx="677" cy="260" rx="48" ry="22" fill="#9787FF"/>
+    <path d="M715 265C835 295 853 345 842 468" stroke="#4F36D9" stroke-width="18" stroke-linecap="round"/>
+    <circle cx="840" cy="468" r="24" fill="#F7D7E1"/>
+    <path d="M837 492L811 610H887L862 492H837Z" fill="#5B3FE2"/>
+
+    <g>
+      <ellipse cx="928" cy="734" rx="102" ry="38" fill="#4F36D9"/>
+      <rect x="826" y="642" width="204" height="92" fill="#6F5AF6"/>
+      <ellipse cx="928" cy="642" rx="102" ry="38" fill="#8F80FF"/>
+      <ellipse cx="928" cy="642" rx="72" ry="24" stroke="#5A43DE" stroke-width="8" opacity="0.6"/>
+      <text x="902" y="664" fill="#D7D0FF" font-family="Barlow, Arial, sans-serif" font-size="54" font-weight="800">$</text>
+      <path d="M826 688C850 716 1004 716 1030 688" stroke="#4F36D9" stroke-width="8" opacity="0.45"/>
+      <path d="M826 724C850 752 1004 752 1030 724" stroke="#4F36D9" stroke-width="8" opacity="0.45"/>
+    </g>
+
+    <g transform="translate(744 726) rotate(-15)">
+      <ellipse cx="0" cy="0" rx="90" ry="42" fill="#8F80FF"/>
+      <ellipse cx="0" cy="0" rx="62" ry="26" stroke="#5A43DE" stroke-width="8" opacity="0.65"/>
+      <text x="-24" y="19" fill="#D7D0FF" font-family="Barlow, Arial, sans-serif" font-size="58" font-weight="800">$</text>
+    </g>
+  </g>
+</svg>

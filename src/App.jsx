@@ -100,6 +100,7 @@ function AppContent() {
       <div className="relative z-10">
         <Navbar />
         <Hero />
+        <div className="home-section-divider" aria-hidden="true" />
         <AdmissionsCostBanner />
         <ProblemSolution />
         <HowItWorks />
