@@ -23,14 +23,15 @@ function mapDatasetError(error, res) {
 }
 
 function handleCollegeSearch(url, res) {
-  const { results, count, limit } = searchColleges({
+  const { results, count, limit, offset } = searchColleges({
     q: url.searchParams.get("q") ?? "",
     state: url.searchParams.get("state") ?? "",
     maxNetPrice: url.searchParams.get("maxNetPrice") ?? "",
     major: url.searchParams.get("major") ?? "",
-    limit: url.searchParams.get("limit") ?? 10
+    limit: url.searchParams.get("limit") ?? 20,
+    offset: url.searchParams.get("offset") ?? 0
   });
-  sendJson(res, 200, { results, count, limit });
+  sendJson(res, 200, { results, count, limit, offset });
 }
 
 function handleCollegeCompare(url, res) {

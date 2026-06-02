@@ -1,6 +1,5 @@
 import AccountPanel from "./components/AccountPanel.jsx";
 import Navbar from "./components/Navbar.jsx";
-import PreludeChat from "./components/PreludeChat.jsx";
 import SignInModal from "./components/SignInModal.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { useEffect, useState } from "react";
@@ -68,7 +67,6 @@ function AppContent() {
           <Navbar />
           <UserDashboard />
         </div>
-        <PreludeChat />
         <SignInModal />
         <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
       </div>
@@ -83,7 +81,6 @@ function AppContent() {
           <Navbar />
           <QuestionnairePage />
         </div>
-        <PreludeChat />
         <SignInModal />
         <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
       </div>
@@ -105,7 +102,6 @@ function AppContent() {
         <LowerCta />
         <LowerFooter />
       </div>
-      <PreludeChat />
       <SignInModal />
       <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
     </div>

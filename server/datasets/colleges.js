@@ -1,6 +1,7 @@
 import { getDatabase } from "../db/sqlite.js";
 import { clampLimit, cleanText, likePattern, parseOptionalNumber, parseOptionalRate } from "../db/values.js";
 import { expandMajorSearchPattern } from "./majorSynonyms.js";
+import { expandCollegeSearchQuery } from "./collegeAliases.js";
 import { collegeSource } from "./sources.js";
 
 function formatCollegeRow(row) {
@@ -28,7 +29,7 @@ function formatCollegeRow(row) {
   };
 }
 
-export function searchColleges({ q = "", state = "", maxNetPrice = "", major = "", limit = 10 } = {}) {
+export function searchColleges({ q = "", state = "", maxNetPrice = "", major = "", limit = 20, offset = 0 } = {}) {
   const parsedLimit = clampLimit(limit, 10, 25);
   if (parsedLimit == null) {
     const error = new Error("limit must be a positive integer up to 25");
@@ -36,11 +37,13 @@ export function searchColleges({ q = "", state = "", maxNetPrice = "", major = "
     throw error;
   }
 
+  const parsedOffset = Math.max(0, Number.parseInt(String(offset), 10) || 0);
+
   const db = getDatabase();
   const conditions = [];
   const params = [];
 
-  const trimmedQuery = q.trim();
+  let trimmedQuery = expandCollegeSearchQuery(q);
   const majorTerm = expandMajorSearchPattern(major.trim());
   const stateCode = state.trim().toUpperCase();
   const maxPrice = parseOptionalNumber(maxNetPrice);
@@ -102,14 +105,15 @@ export function searchColleges({ q = "", state = "", maxNetPrice = "", major = "
       END,
       CAST(c.average_net_price AS REAL) ASC,
       c.name ASC
-    LIMIT ?
+    LIMIT ? OFFSET ?
   `;
 
-  const rows = db.prepare(sql).all(...params, parsedLimit);
+  const rows = db.prepare(sql).all(...params, parsedLimit, parsedOffset);
   return {
     results: rows.map(formatCollegeRow),
     count: rows.length,
-    limit: parsedLimit
+    limit: parsedLimit,
+    offset: parsedOffset
   };
 }
 

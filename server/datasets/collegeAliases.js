@@ -48,6 +48,12 @@ for (const entry of ALIAS_ENTRIES) {
   }
 }
 
+export function expandCollegeSearchQuery(input) {
+  const originalPhrase = String(input ?? "").trim();
+  const entry = ALIAS_LOOKUP.get(normalizeAliasKey(originalPhrase));
+  return entry?.canonicalName ?? originalPhrase;
+}
+
 export function resolveCollegeAlias(input) {
   const originalPhrase = String(input ?? "").trim();
   const normalized = normalizeAliasKey(originalPhrase);
