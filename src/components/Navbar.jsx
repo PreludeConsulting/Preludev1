@@ -3,13 +3,10 @@ import { motion, useScroll, useTransform } from "motion/react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { Button } from "./ui/button.jsx";
 
-const leftLinks = [
+const links = [
   ["About", "#home"],
   ["Admissions Counseling", "#how-it-works"],
-  ["Mentoring", "#mentorship"]
-];
-
-const rightLinks = [
+  ["Mentoring", "#mentorship"],
   ["Pricing", "#pricing"],
   ["Roadmap", "#roadmap"],
   ["Dashboard", "#dashboard"]
@@ -23,15 +20,7 @@ export default function Navbar() {
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 px-4 py-5 md:px-8 lg:px-4">
-      <div className="mx-auto grid max-w-[118rem] grid-cols-[1fr_auto] items-center gap-4 md:grid-cols-[1fr_auto_1fr]">
-        <nav className="hidden items-center gap-5 justify-self-start lg:flex" aria-label="Primary navigation left">
-          {leftLinks.map(([label, href]) => (
-            <a className="ivy-nav-link" href={href} key={label}>
-              {label}
-            </a>
-          ))}
-        </nav>
-
+      <div className="mx-auto flex max-w-[118rem] items-center justify-between gap-6">
         <motion.a
           href="#home"
           className="font-heading text-4xl font-semibold uppercase leading-none tracking-[-0.08em] text-foreground md:text-5xl"
@@ -41,9 +30,9 @@ export default function Navbar() {
           Prelude
         </motion.a>
 
-        <div className="flex items-center justify-end gap-4 justify-self-end">
-          <nav className="hidden items-center gap-5 lg:flex" aria-label="Primary navigation right">
-            {rightLinks.map(([label, href]) => (
+        <div className="flex items-center justify-end gap-4">
+          <nav className="hidden items-center gap-5 lg:flex" aria-label="Primary navigation">
+            {links.map(([label, href]) => (
               <a className="ivy-nav-link" href={href} key={label}>
                 {label}
               </a>
@@ -62,11 +51,11 @@ export default function Navbar() {
             <button
               type="button"
               onClick={openAccount}
-              className="hidden items-center gap-2 border border-foreground/15 bg-background/70 px-4 py-2 font-body text-sm font-semibold text-foreground transition hover:bg-primary/20 sm:inline-flex"
+              className="hidden items-center gap-2 border border-primary/20 bg-primary px-4 py-2 font-body text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 sm:inline-flex"
             >
               <User className="h-4 w-4" aria-hidden="true" />
               <span className="hidden xl:inline">{user.name.split(" ")[0]}</span>
-              <span className="hidden rounded-full bg-primary/35 px-2 py-0.5 text-xs text-foreground xl:inline">{user.planName}</span>
+              <span className="hidden rounded-full bg-primary-foreground/20 px-2 py-0.5 text-xs text-primary-foreground xl:inline">{user.planName}</span>
             </button>
           ) : (
             <button type="button" onClick={openSignIn} className="ivy-nav-link hidden sm:inline-flex">
