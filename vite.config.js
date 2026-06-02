@@ -2,19 +2,23 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 import { createChatApiMiddleware } from "./server/chatApi.js";
 import { createAuthApiMiddleware } from "./server/authApi.js";
+import { createBillingApiMiddleware } from "./server/billingApi.js";
 
 function preludeChatApiPlugin(env) {
   const middleware = createChatApiMiddleware(env);
   const authMiddleware = createAuthApiMiddleware(env);
+  const billingMiddleware = createBillingApiMiddleware(env);
 
   return {
     name: "prelude-chat-api",
     configureServer(server) {
       server.middlewares.use(authMiddleware);
+      server.middlewares.use(billingMiddleware);
       server.middlewares.use(middleware);
     },
     configurePreviewServer(server) {
       server.middlewares.use(authMiddleware);
+      server.middlewares.use(billingMiddleware);
       server.middlewares.use(middleware);
     }
   };

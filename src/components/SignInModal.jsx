@@ -3,7 +3,6 @@ import { motion } from "motion/react";
 import { X } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { DEMO_HINT } from "../lib/auth.js";
-import { PLAN_IDS, PLANS } from "../lib/plans.js";
 import { cn } from "../lib/utils.js";
 
 export default function SignInModal({ onSuccess }) {
@@ -14,7 +13,6 @@ export default function SignInModal({ onSuccess }) {
     email: "",
     password: "",
     name: "",
-    plan: "basic",
     role: "student",
     grade: "",
     focus: ""
@@ -93,16 +91,6 @@ export default function SignInModal({ onSuccess }) {
               <label className="prelude-field">
                 <span>Full name</span>
                 <input type="text" required value={form.name} onChange={update("name")} autoComplete="name" />
-              </label>
-              <label className="prelude-field">
-                <span>Your plan</span>
-                <select value={form.plan} onChange={update("plan")}>
-                  {PLAN_IDS.map((id) => (
-                    <option key={id} value={id}>
-                      {PLANS[id].name} — {PLANS[id].mentorSessions}
-                    </option>
-                  ))}
-                </select>
               </label>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="prelude-field">
