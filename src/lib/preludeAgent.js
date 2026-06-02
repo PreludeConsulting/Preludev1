@@ -1,3 +1,5 @@
+import { mapFallbackActionsToQuickReplies } from "./chatFallbackActions.js";
+import { sanitizeClientActions } from "./chatLinkSecurity.js";
 import { getOpeningMessage, getQuickMenuItems, SYSTEM_PROMPT } from "./agentPrompt.js";
 import { formatAnswerFirst, getBroadAnswer } from "./agentKnowledgeBase.js";
 import { getPersonalizedOpening, personalizeRuleBasedReply } from "./personalizedAgent.js";
@@ -8,6 +10,10 @@ export { SYSTEM_PROMPT };
 const QUICK_MENU_ITEMS = getQuickMenuItems();
 
 const PATTERNS = [
+  {
+    category: "collegeComparison",
+    re: /\b(compare|versus|vs\.?|better)\b.{0,40}\b(college|school|university|tech|uga|gt)\b|\b(gt|georgia tech)\b.{0,30}\b(uga|georgia)\b/i
+  },
   { category: "collegeList", re: /\b(college list|safety|target|reach|which school|where to apply|choosing colleges?|school list)\b/i },
   { category: "essay", re: /\b(essay|personal statement|supplement|common app|application writing|rewrite|edit my essay)\b/i },
   {
@@ -22,11 +28,11 @@ const PATTERNS = [
   { category: "mentorship", re: /\b(mentor|preludematch|match me|1-on-1|one on one|consultation|book a session)\b/i },
   { category: "transfer", re: /\b(transfer|community college|international student|visa|first.?gen)\b/i },
   { category: "parent", re: /\b(parent|guardian|my son|my daughter|my kid|help my student)\b/i },
-  { category: "stress", re: /\b(overwhelm|stressed|confused|anxious|don't know where|lost|help me)\b/i },
   {
     category: "gettingStarted",
     re: /\b(where do i start|don't know where to start|getting started|how do i begin|new to (the )?college|first time applying)\b/i
-  }
+  },
+  { category: "stress", re: /\b(overwhelm|stressed|confused|anxious|lost)\b/i }
 ];
 
 const MENU_MAP = {
@@ -82,7 +88,7 @@ export function classify(text) {
     return MENU_MAP[keys[idx - 1]] ?? "gettingStarted";
   }
 
-  return "stress";
+  return "collegeList";
 }
 
 const PRELUDE_NOTES = {
@@ -175,10 +181,22 @@ function buildResponse(category, userText) {
     };
   }
 
-  if (category === "stress" && !/\?/.test(userText)) {
+  if (category === "stress" && !/\?/.test(userText) && /\b(help me|don't know|confused|overwhelm|lost)\b/i.test(userText)) {
     return {
       text: `${getBroadAnswer("stress", userText)}\n\nWhich one sounds closest to what you need?`,
       quickReplies: QUICK_MENU_ITEMS
+    };
+  }
+
+  if (category === "collegeComparison") {
+    const broad =
+      "Comparisons depend on the specific schools, major, and what you prioritize — program depth, cost, admission selectivity, or campus fit. Name the colleges you want compared (for example UCLA and Georgia Tech for CS) and I can use verified College Scorecard data.";
+    return {
+      text: formatAnswerFirst({
+        broad,
+        preludeNote: PRELUDE_NOTES.collegeList,
+        closingQuestion: "Which two schools should I compare, and what major matters most?"
+      })
     };
   }
 
@@ -206,7 +224,10 @@ export function createInitialMessages(profile = null) {
     {
       id: "welcome",
       role: "assistant",
+      isWelcome: true,
+      showInitialQuickActions: true,
       text: profile ? getPersonalizedOpening(profile) : getOpeningMessage(),
+      quickReplies: getQuickMenuItems(),
       createdAt: Date.now()
     }
   ];
@@ -229,42 +250,47 @@ export function getRuleBasedReply(userText, _history = [], profile = null) {
   );
 }
 
-function toChatMessages(history) {
+const MAX_CONVERSATION_HISTORY = 12;
+
+function toConversationHistory(history) {
   return history
-    .filter((m) => m.role === "user" || m.role === "assistant")
+    .filter((m) => (m.role === "user" || m.role === "assistant") && !m.isWelcome && !m.isError)
+    .slice(-MAX_CONVERSATION_HISTORY)
     .map((m) => ({ role: m.role, content: m.text }));
 }
 
 async function getLLMReply(userText, history, profile = null) {
-  const prior = toChatMessages(history);
-  const last = prior[prior.length - 1];
-  const messages =
-    last?.role === "user" && last.content === userText
-      ? prior
-      : [...prior, { role: "user", content: userText }];
+  const conversationHistory = toConversationHistory(history);
 
   const response = await fetch("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, profile })
+    body: JSON.stringify({ message: userText, conversationHistory, profile })
   });
 
-  if (response.status === 503) {
+  const data = await response.json().catch(() => ({}));
+
+  if (response.status === 503 && data.error === "not_configured") {
     const error = new Error("Chat API not configured");
     error.code = "NOT_CONFIGURED";
     throw error;
   }
 
   if (!response.ok) {
-    throw new Error(`Chat API failed (${response.status})`);
+    const error = new Error(data.message ?? `Chat API failed (${response.status})`);
+    error.code = data.error ?? "CHAT_API_ERROR";
+    throw error;
   }
 
-  const data = await response.json();
-  const text = data.text?.trim();
+  const text = (data.answer ?? data.text)?.trim();
   if (!text) throw new Error("Empty model response");
 
   const category = classify(userText);
-  const enrichment = buildResponse(category, userText);
+  const fallbackQuickReplies = data.fallback
+    ? mapFallbackActionsToQuickReplies(data.fallback)
+    : [];
+
+  const actions = sanitizeClientActions(data.actions);
 
   return personalizeRuleBasedReply(
     {
@@ -272,19 +298,47 @@ async function getLLMReply(userText, history, profile = null) {
       role: "assistant",
       createdAt: Date.now(),
       text,
-      source: "llm",
+      source: data.fallback ? "fallback" : data.model === "business" ? "business" : "llm",
       category,
-      carousel: enrichment.carousel,
-      quickReplies: enrichment.quickReplies
+      sources: Array.isArray(data.sources) ? data.sources : [],
+      actions: actions.length ? actions : undefined,
+      fallback: data.fallback ?? null,
+      quickReplies: fallbackQuickReplies.length ? fallbackQuickReplies : undefined
     },
     profile
   );
+}
+
+export function getChatErrorReply(error) {
+  if (error.code === "not_configured" || error.code === "NOT_CONFIGURED") {
+    return null;
+  }
+
+  const message =
+    error.code === "database_not_found"
+      ? "Prelude's college and career reference data is not available right now. You can still ask general admissions questions, or try again after the datasets are set up."
+      : error.code === "ollama_not_running"
+        ? "Prelude AI could not reach Ollama. Start it with \"ollama serve\", then try again."
+        : error.code === "ollama_model_not_found"
+          ? "The local Ollama model is not installed yet. Run \"ollama pull gemma3\", then try again."
+          : "Prelude AI could not respond right now. Please check your connection and try again in a moment.";
+
+  return {
+    id: `err-${Date.now()}`,
+    role: "assistant",
+    createdAt: Date.now(),
+    text: message,
+    isError: true
+  };
 }
 
 export async function getAgentReply(userText, history = [], profile = null) {
   try {
     return await getLLMReply(userText, history, profile);
   } catch (error) {
+    const errorReply = getChatErrorReply(error);
+    if (errorReply) return errorReply;
+
     if (import.meta.env.DEV && error.code !== "NOT_CONFIGURED") {
       console.warn("[Prelude AI] Falling back to rule-based replies:", error.message);
     }

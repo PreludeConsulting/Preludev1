@@ -1,0 +1,80 @@
+{
+  "generated_on": "2026-06-02",
+  "purpose": "Official public datasets for Prelude college planning, school comparison, affordability, and major/career exploration.",
+  "recommended_first_run": [
+    "college_scorecard_institution",
+    "college_scorecard_field_of_study",
+    "onet_text_database"
+  ],
+  "datasets": [
+    {
+      "id": "college_scorecard_institution",
+      "name": "College Scorecard \u2014 Most Recent Institution-Level Data",
+      "publisher": "U.S. Department of Education",
+      "official_landing_page": "https://collegescorecard.ed.gov/data/",
+      "download_discovery_page": "https://collegescorecard.ed.gov/data/",
+      "fallback_download_url": "https://ed-public-download.scorecard.network/downloads/Most-Recent-Cohorts-Institution_03232026.zip",
+      "output_file": "data/processed/colleges.csv",
+      "use_cases": [
+        "college search",
+        "school comparison",
+        "location filtering",
+        "affordability",
+        "admissions context",
+        "graduation and retention context"
+      ],
+      "notes": "The script discovers the current official ZIP URL from the College Scorecard data page before using the fallback."
+    },
+    {
+      "id": "college_scorecard_field_of_study",
+      "name": "College Scorecard \u2014 Most Recent Field-of-Study Data",
+      "publisher": "U.S. Department of Education",
+      "official_landing_page": "https://collegescorecard.ed.gov/data/",
+      "download_discovery_page": "https://collegescorecard.ed.gov/data/",
+      "fallback_download_url": "https://ed-public-download.scorecard.network/downloads/Most-Recent-Cohorts-Field-of-Study_03232026.zip",
+      "output_file": "data/processed/fields_of_study.csv",
+      "use_cases": [
+        "major search",
+        "program comparison",
+        "school-by-major exploration",
+        "earnings and debt context"
+      ],
+      "notes": "The script discovers the current official ZIP URL from the College Scorecard data page before using the fallback."
+    },
+    {
+      "id": "onet_text_database",
+      "name": "O*NET Database \u2014 Tab-Delimited Text Files",
+      "publisher": "U.S. Department of Labor, Employment and Training Administration",
+      "official_landing_page": "https://www.onetcenter.org/database.html",
+      "download_discovery_page": "https://www.onetcenter.org/database.html",
+      "fallback_download_url": "https://www.onetcenter.org/dl_files/database/db_30_3_text.zip",
+      "output_files": [
+        "data/processed/onet_occupations.csv",
+        "data/processed/onet_essential_skills.csv",
+        "data/processed/onet_transferable_skills.csv",
+        "data/processed/onet_job_zones.csv",
+        "data/processed/onet_task_statements.csv",
+        "data/processed/onet_related_occupations.csv",
+        "data/processed/onet_software_skills.csv"
+      ],
+      "use_cases": [
+        "major and career exploration",
+        "occupation search",
+        "skills mapping",
+        "career interest conversations"
+      ],
+      "license": "CC BY 4.0. Attribute O*NET database content to USDOL/ETA and indicate modifications.",
+      "notes": "The script discovers the newest official text ZIP URL from the O*NET database page before using the fallback."
+    }
+  ],
+  "optional_later": [
+    {
+      "id": "ipeds",
+      "name": "IPEDS Complete Data Files",
+      "publisher": "National Center for Education Statistics",
+      "official_landing_page": "https://nces.ed.gov/ipeds/use-the-data",
+      "download_help_page": "https://nces.ed.gov/ipeds/help/complete-data-files",
+      "notes": "IPEDS downloads are selected by survey and year. Add specific IPEDS files later only when Prelude needs variables not already exposed through College Scorecard."
+    }
+  ]
+}

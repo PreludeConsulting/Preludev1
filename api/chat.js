@@ -1,4 +1,5 @@
-import { createChatCompletion } from "../server/chatHandler.js";
+import { createChatCompletion, createRagChatCompletion } from "../server/chatHandler.js";
+import { mapChatError, shouldLogChatError } from "../server/chatErrors.js";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -10,29 +11,40 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== "POST") {
-    res.status(405).json({ error: "Method not allowed" });
+    res.status(405).json({ error: "method_not_allowed" });
     return;
   }
 
   try {
+    if (typeof req.body?.message === "string") {
+      const result = await createRagChatCompletion(
+        {
+          message: req.body.message,
+          conversationHistory: req.body.conversationHistory ?? []
+        },
+        {},
+        req.body?.profile ?? null
+      );
+      res.status(200).json(result);
+      return;
+    }
+
     const messages = req.body?.messages;
     if (!Array.isArray(messages)) {
-      res.status(400).json({ error: "bad_request", message: "messages must be an array" });
+      res.status(400).json({
+        error: "bad_request",
+        message: "Provide message or messages in the request body."
+      });
       return;
     }
 
     const result = await createChatCompletion(messages, {}, req.body?.profile ?? null);
     res.status(200).json(result);
   } catch (error) {
-    if (error.code === "NOT_CONFIGURED") {
-      res.status(503).json({ error: "not_configured", message: error.message });
-      return;
+    if (shouldLogChatError(error)) {
+      console.error("[prelude-chat-api]", error.message ?? error);
     }
-
-    console.error("[prelude-chat-api]", error);
-    res.status(502).json({
-      error: "upstream_error",
-      message: error.message ?? "Chat request failed"
-    });
+    const mapped = mapChatError(error);
+    res.status(mapped.status).json(mapped.body);
   }
 }

@@ -30,4 +30,4 @@ export function getQuickMenuItems() {
 }
 
 const FALLBACK_OPENING =
-  "Hi, I'm Prelude AI. I can help you figure out what you need for college planning, applications, essays, scholarships, financial aid, or choosing the right schools. What are you most worried about right now?";
+  "Hi, I'm Prelude AI. I can help with college planning, applications, essays, scholarships, financial aid, or choosing the right schools. What are you most worried about right now?";

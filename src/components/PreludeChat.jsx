@@ -18,6 +18,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getUserBaseRecord } from "../lib/auth.js";
+import { CLARIFY_PROMPT, navigateChatAction, navigateFallbackAction } from "../lib/chatFallbackActions.js";
 import { createInitialMessages, getAgentReply, getTypingDelay } from "../lib/preludeAgent.js";
 import { applyChatInsights } from "../lib/userProfile.js";
 import { cn } from "../lib/utils.js";
@@ -159,7 +160,18 @@ function ResourceCarousel({ carousel }) {
   );
 }
 
-function ChatBubble({ message, onQuickReply }) {
+function shouldShowQuickReplies(message, showInitialQuickActions) {
+  if (!message.quickReplies?.length) return false;
+  if (message.showInitialQuickActions) return showInitialQuickActions;
+  if (message.fallback) return true;
+  return false;
+}
+
+function shouldShowChatActions(message) {
+  return Boolean(message.actions?.length);
+}
+
+function ChatBubble({ message, onQuickReply, onFallbackAction, onChatAction, showInitialQuickActions }) {
   const isUser = message.role === "user";
 
   return (
@@ -171,7 +183,9 @@ function ChatBubble({ message, onQuickReply }) {
             "rounded-2xl px-4 py-2.5 text-sm leading-6",
             isUser
               ? "bg-muted text-foreground"
-              : "border border-foreground/10 bg-background text-foreground shadow-sm"
+              : message.isError
+                ? "border border-destructive/30 bg-destructive/5 text-foreground"
+                : "border border-foreground/10 bg-background text-foreground shadow-sm"
           )}
         >
           {isUser ? (
@@ -183,14 +197,42 @@ function ChatBubble({ message, onQuickReply }) {
 
         {!isUser && message.carousel ? <ResourceCarousel carousel={message.carousel} /> : null}
 
-        {!isUser && message.quickReplies?.length ? (
+        {!isUser && message.sources?.length ? (
+          <div className="rounded-xl border border-foreground/8 bg-foreground/[0.02] px-3 py-2 text-xs text-muted-foreground">
+            <p className="mb-1 font-medium text-foreground/80">Official sources referenced</p>
+            <ul className="space-y-1">
+              {message.sources.map((source) => (
+                <li key={source}>{source}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {!isUser && shouldShowChatActions(message) ? (
+          <div className="flex flex-wrap gap-2">
+            {message.actions.map((action) => (
+              <button
+                key={`${action.label}-${action.href}`}
+                type="button"
+                className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-left text-xs font-medium text-foreground transition hover:bg-primary/15"
+                onClick={() => onChatAction(action)}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {!isUser && shouldShowQuickReplies(message, showInitialQuickActions) ? (
           <div className="flex flex-wrap gap-2">
             {message.quickReplies.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 className="rounded-full border border-foreground/12 bg-background px-3 py-1.5 text-left text-xs font-medium text-foreground transition hover:bg-foreground/[0.04]"
-                onClick={() => onQuickReply(item.label)}
+                onClick={() =>
+                  item.fallbackAction ? onFallbackAction(item.fallbackAction) : onQuickReply(item.label)
+                }
               >
                 {item.label}
               </button>
@@ -204,12 +246,15 @@ function ChatBubble({ message, onQuickReply }) {
 
 function TypingIndicator() {
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2" role="status" aria-live="polite">
       <PreludeAvatar className="mt-1 h-8 w-8" />
-      <div className="flex items-center gap-1 rounded-2xl border border-foreground/10 bg-background px-4 py-3 shadow-sm">
-        <span className="prelude-typing-dot" />
-        <span className="prelude-typing-dot prelude-typing-dot--delay" />
-        <span className="prelude-typing-dot prelude-typing-dot--delay-2" />
+      <div className="flex flex-col gap-1 rounded-2xl border border-foreground/10 bg-background px-4 py-3 shadow-sm">
+        <span className="sr-only">Prelude AI is thinking…</span>
+        <div className="flex items-center gap-1">
+          <span className="prelude-typing-dot" />
+          <span className="prelude-typing-dot prelude-typing-dot--delay" />
+          <span className="prelude-typing-dot prelude-typing-dot--delay-2" />
+        </div>
       </div>
     </div>
   );
@@ -222,19 +267,30 @@ export default function PreludeChat() {
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const listRef = useRef(null);
   const inputRef = useRef(null);
 
+  const initializeChat = useCallback(
+    (profile = user) => {
+      setMessages(createInitialMessages(profile));
+      setHasUserInteracted(false);
+      setTyping(false);
+      setInput("");
+    },
+    [user]
+  );
+
   useEffect(() => {
-    setMessages(createInitialMessages(user));
-  }, [user?.email, user?.plan]);
+    initializeChat(user);
+  }, [user?.email, user?.plan, initializeChat]);
 
   useEffect(() => {
     if (!personalizedAiRequest) return;
     setOpen(true);
-    setMessages(createInitialMessages(user));
+    initializeChat(user);
     setMenuOpen(false);
-  }, [personalizedAiRequest, user]);
+  }, [personalizedAiRequest, user, initializeChat]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -246,10 +302,37 @@ export default function PreludeChat() {
     if (open) scrollToBottom();
   }, [open, messages, typing, scrollToBottom]);
 
+  const dispatchReply = useCallback(
+    async (trimmed, historyWithUser, { replaceFromIndex = null } = {}) => {
+      const reply = await getAgentReply(trimmed, historyWithUser, user);
+      const delay = getTypingDelay(reply.text);
+      window.setTimeout(() => {
+        setMessages((prev) => {
+          if (replaceFromIndex != null) {
+            return [...prev.slice(0, replaceFromIndex), reply];
+          }
+          return [...prev, reply];
+        });
+        setTyping(false);
+        if (user?.email && reply.category) {
+          applyChatInsights(user.email, {
+            category: reply.category,
+            userText: trimmed,
+            baseRecord: getUserBaseRecord(user.email)
+          });
+          refreshUser();
+        }
+      }, delay);
+    },
+    [user, refreshUser]
+  );
+
   const sendMessage = useCallback(
     async (text) => {
       const trimmed = text.trim();
       if (!trimmed || typing) return;
+
+      setHasUserInteracted(true);
 
       const userMsg = {
         id: `u-${Date.now()}`,
@@ -267,25 +350,76 @@ export default function PreludeChat() {
       setTyping(true);
 
       try {
-        const reply = await getAgentReply(trimmed, historyWithUser, user);
-        const delay = getTypingDelay(reply.text);
-        window.setTimeout(() => {
-          setMessages((prev) => [...prev, reply]);
-          setTyping(false);
-          if (user?.email && reply.category) {
-            applyChatInsights(user.email, {
-              category: reply.category,
-              userText: trimmed,
-              baseRecord: getUserBaseRecord(user.email)
-            });
-            refreshUser();
-          }
-        }, delay);
-      } catch {
+        await dispatchReply(trimmed, historyWithUser);
+      } catch (error) {
+        const fallback = {
+          id: `err-${Date.now()}`,
+          role: "assistant",
+          createdAt: Date.now(),
+          text: "Something went wrong while sending your message. Please try again.",
+          isError: true
+        };
+        setMessages((prev) => [...prev, fallback]);
         setTyping(false);
+        if (import.meta.env.DEV) {
+          console.warn("[Prelude AI]", error);
+        }
       }
     },
-    [typing, user, refreshUser]
+    [typing, dispatchReply]
+  );
+
+  const handleQuickAction = useCallback(
+    (text) => {
+      sendMessage(text);
+    },
+    [sendMessage]
+  );
+
+  const handleChatAction = useCallback((action) => {
+    navigateChatAction(action);
+  }, []);
+
+  const handleFallbackAction = useCallback(
+    async (action) => {
+      if (typing) return;
+
+      if (
+        action === "open_plans" ||
+        action === "open_mentor_match" ||
+        action === "open_mentorship" ||
+        action === "sign_up" ||
+        action === "sign_in" ||
+        action === "open_dashboard"
+      ) {
+        navigateFallbackAction(action);
+        return;
+      }
+
+      if (action === "clarify") {
+        sendMessage(CLARIFY_PROMPT);
+        return;
+      }
+
+      if (action === "try_again") {
+        const lastUserIndex = messages.findLastIndex((message) => message.role === "user");
+        if (lastUserIndex < 0) return;
+
+        const lastUser = messages[lastUserIndex];
+        const history = messages.slice(0, lastUserIndex + 1);
+        setTyping(true);
+
+        try {
+          await dispatchReply(lastUser.text, history, { replaceFromIndex: lastUserIndex + 1 });
+        } catch (error) {
+          setTyping(false);
+          if (import.meta.env.DEV) {
+            console.warn("[Prelude AI]", error);
+          }
+        }
+      }
+    },
+    [typing, messages, sendMessage, dispatchReply]
   );
 
   const handleSubmit = (e) => {
@@ -294,9 +428,8 @@ export default function PreludeChat() {
   };
 
   const resetChat = () => {
-    setMessages(createInitialMessages(user));
+    initializeChat(user);
     setMenuOpen(false);
-    setTyping(false);
   };
 
   return (
@@ -436,7 +569,14 @@ export default function PreludeChat() {
               </p>
 
               {messages.map((message) => (
-                <ChatBubble key={message.id} message={message} onQuickReply={sendMessage} />
+                <ChatBubble
+                  key={message.id}
+                  message={message}
+                  onQuickReply={handleQuickAction}
+                  onFallbackAction={handleFallbackAction}
+                  onChatAction={handleChatAction}
+                  showInitialQuickActions={!hasUserInteracted}
+                />
               ))}
               {typing ? <TypingIndicator /> : null}
             </div>

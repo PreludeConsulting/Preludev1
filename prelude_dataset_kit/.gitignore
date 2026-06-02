@@ -1,0 +1,13 @@
+# Downloaded public datasets and generated database
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/db/*
+!data/db/.gitkeep
+data/rag/*
+!data/rag/.gitkeep
+
+__pycache__/
+*.pyc
+.DS_Store
