@@ -177,8 +177,9 @@ a {
 
 
 .home-section-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #786aff, transparent);
+  height: 8px;
+  width: 100%;
+  background: #786aff;
 }
 
 .admissions-cost-banner {
@@ -224,8 +225,8 @@ a {
 
 .admissions-cost-banner__image {
   display: block;
-  width: min(100%, 34rem);
-  border-radius: 2rem;
+  width: min(100%, 36rem);
+  border-radius: 2.25rem;
   box-shadow: 0 2rem 4rem rgb(40 28 150 / 0.28);
 }
 
