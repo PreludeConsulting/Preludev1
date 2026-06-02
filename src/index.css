@@ -226,8 +226,12 @@ a {
 .admissions-cost-banner__image {
   display: block;
   width: min(100%, 36rem);
-  border-radius: 2.25rem;
-  box-shadow: 0 2rem 4rem rgb(40 28 150 / 0.28);
+  max-width: 100%;
+  height: auto;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
 }
 
 .admissions-cost-banner__amount {

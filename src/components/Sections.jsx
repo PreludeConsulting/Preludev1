@@ -26,7 +26,7 @@ const media = {
   roadmapImage: `${mediaBase}media/roadmap-dashboard.png`,
   roadmapLoop: `${mediaBase}media/roadmap-dashboard-loop.gif`,
   impactLoop: `${mediaBase}media/impact-desk-loop.gif`,
-  admissionsSavings: `${mediaBase}media/admissions-savings-piggy.svg`
+  admissionsSavings: `${mediaBase}media/admissions-savings-piggy.png`
 };
 
 function Reveal({ children, className = "", delay = 0 }) {
