@@ -17,10 +17,16 @@ export default function Navbar() {
   const { scrollY } = useScroll();
   const logoOpacity = useTransform(scrollY, [0, 90, 170], [1, 0.55, 0.2]);
   const logoY = useTransform(scrollY, [0, 170], [0, -6]);
+  const barOpacity = useTransform(scrollY, [0, 48, 120], [0, 0.78, 0.96]);
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 px-4 py-5 md:px-8 lg:px-4">
-      <div className="mx-auto flex max-w-[118rem] items-center justify-between gap-6">
+      <motion.div
+        aria-hidden="true"
+        className="absolute inset-0 border-b border-foreground/10 bg-background/95 shadow-[0_18px_55px_rgba(34,36,118,0.10)] backdrop-blur-xl"
+        style={{ opacity: barOpacity }}
+      />
+      <div className="relative z-10 mx-auto flex max-w-[118rem] items-center justify-between gap-6">
         <motion.a
           href="#home"
           className="border-2 border-primary bg-background/80 px-3 py-2 font-heading text-3xl font-semibold uppercase leading-none tracking-[-0.08em] text-foreground shadow-[6px_6px_0_0_#786aff] backdrop-blur md:text-4xl"

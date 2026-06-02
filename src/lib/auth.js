@@ -112,6 +112,14 @@ export async function updateProfile(profile) {
   return api("/api/account/profile", { method: "PATCH", body: JSON.stringify(profile) });
 }
 
+export async function getPreludeMatchQuestionnaire() {
+  return api("/api/prelude-match-questionnaire");
+}
+
+export async function savePreludeMatchQuestionnaire(payload) {
+  return api("/api/prelude-match-questionnaire", { method: "POST", body: JSON.stringify(payload) });
+}
+
 export async function getSessions() {
   return api("/api/account/sessions");
 }
