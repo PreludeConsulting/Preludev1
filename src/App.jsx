@@ -5,6 +5,7 @@ import SignInModal from "./components/SignInModal.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { useEffect, useState } from "react";
 import Hero from "./components/Hero.jsx";
+import UniversityCarousel from "./components/UniversityCarousel.jsx";
 import QuestionnairePage from "./components/QuestionnairePage.jsx";
 import UserDashboard from "./components/UserDashboard.jsx";
 import { DashboardPage, ForgotPasswordPage, LoginPage, ProfilePage, RegisterPage, ResetPasswordPage, SettingsPage, VerifyEmailPage } from "./components/AuthPages.jsx";
@@ -95,7 +96,7 @@ function AppContent() {
       <div className="relative z-10">
         <Navbar />
         <Hero />
-        <div className="home-section-divider" aria-hidden="true" />
+        <UniversityCarousel />
         <AdmissionsCostBanner />
         <LowerFeatureIntro />
         <LowerSplitVisual />

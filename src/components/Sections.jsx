@@ -11,6 +11,7 @@ import {
 import { useState } from "react";
 import { motion } from "motion/react";
 import { Button } from "./ui/button.jsx";
+import PreludeLogo from "./PreludeLogo.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { startBillingCheckout } from "../lib/auth.js";
 
@@ -363,7 +364,7 @@ export function LowerFooter() {
       <div className="lower-landing__footer-inner">
         <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="font-body text-sm font-semibold text-foreground">Prelude</p>
+            <PreludeLogo className="prelude-logo--footer" />
             <p className="mt-2 max-w-xs font-body text-sm font-light leading-6 text-muted-foreground">
               Peer-powered college admissions counseling — smarter spending, real mentors, affordable support.
             </p>

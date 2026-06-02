@@ -44,7 +44,8 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background: hsl(var(--background));
+  background: linear-gradient(180deg, #ffffff 0%, #f6f4ff 42%, hsl(var(--background)) 100%);
+  background-attachment: fixed;
   color: hsl(var(--foreground));
   font-family: "Barlow", sans-serif;
   font-weight: 300;
@@ -161,17 +162,547 @@ a {
   color: hsl(var(--secondary));
 }
 
-.ivy-hero {
-  background: hsl(var(--background));
+.prelude-logo {
+  display: block;
+  width: auto;
+  max-width: min(11.5rem, 46vw);
+  height: auto;
+  object-fit: contain;
+  background: transparent;
 }
 
-.ivy-hero__wash {
+.prelude-logo--nav {
+  height: clamp(2.75rem, 7vw, 3.85rem);
+  max-width: min(15rem, 58vw);
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.nav-bar {
+  isolation: isolate;
+}
+
+.nav-bar__backdrop {
+  z-index: 0;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.88) 0%, rgb(246 244 255 / 0.92) 100%);
+  box-shadow: 0 12px 40px rgb(120 106 255 / 0.06);
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transform: translateZ(0);
+}
+
+.nav-bar__content {
+  position: relative;
+  z-index: 2;
+}
+
+.nav-bar__logo-link {
+  position: relative;
+  z-index: 3;
+  isolation: isolate;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  opacity: 1;
+}
+
+.prelude-logo--compact {
+  height: 1.35rem;
+  max-width: 5.5rem;
+}
+
+.prelude-logo--footer {
+  height: 2rem;
+}
+
+/* Shopify-inspired hero */
+.shopify-hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(6.5rem, 12vw, 8.5rem) 0 clamp(3rem, 6vw, 4.5rem);
+}
+
+.shopify-hero__bg {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 28% 16%, rgb(120 106 255 / 0.32), transparent 30%),
-    radial-gradient(circle at 74% 12%, rgb(120 106 255 / 0.22), transparent 34%),
-    linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background)) 68%, #786aff 100%);
+    radial-gradient(circle at 8% 20%, rgb(120 106 255 / 0.12), transparent 42%),
+    radial-gradient(circle at 92% 8%, rgb(120 106 255 / 0.08), transparent 36%),
+    linear-gradient(180deg, #ffffff 0%, #f6f4ff 48%, #ede9ff 100%);
+  pointer-events: none;
+}
+
+.shopify-hero__inner {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 76rem);
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 4rem);
+}
+
+.shopify-hero__grid {
+  display: grid;
+  align-items: center;
+  gap: clamp(2.5rem, 6vw, 4rem);
+}
+
+@media (min-width: 1024px) {
+  .shopify-hero__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: clamp(2rem, 4vw, 3.5rem);
+  }
+}
+
+.shopify-hero__headline {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(2.35rem, 5.2vw, 3.65rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: hsl(var(--foreground));
+}
+
+.shopify-hero__headline-accent {
+  color: hsl(var(--primary));
+}
+
+.shopify-hero__subcopy {
+  margin: 1.25rem 0 0;
+  max-width: 32rem;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1rem, 2vw, 1.125rem);
+  font-weight: 400;
+  line-height: 1.65;
+  color: hsl(var(--muted-foreground));
+}
+
+.shopify-hero__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  max-width: 28rem;
+}
+
+@media (min-width: 540px) {
+  .shopify-hero__form {
+    flex-direction: row;
+    align-items: stretch;
+    padding: 0.35rem;
+    border-radius: 999px;
+    border: 1px solid hsl(var(--foreground) / 0.1);
+    background: #ffffff;
+    box-shadow: 0 12px 40px hsl(var(--primary) / 0.08);
+  }
+}
+
+.shopify-hero__input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 0.95rem 1.25rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: hsl(var(--foreground));
+  outline: none;
+}
+
+@media (min-width: 540px) {
+  .shopify-hero__input {
+    border: none;
+    box-shadow: none;
+  }
+}
+
+.shopify-hero__input::placeholder {
+  color: hsl(var(--muted-foreground) / 0.75);
+}
+
+.shopify-hero__input:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.shopify-hero__cta {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  padding: 0.95rem 1.5rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.shopify-hero__cta:hover {
+  background: hsl(var(--primary-deep));
+}
+
+.shopify-hero__note {
+  margin: 0.85rem 0 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: hsl(var(--muted-foreground));
+}
+
+.shopify-hero__visual {
+  position: relative;
+  min-height: 20rem;
+}
+
+.shopify-hero__deco {
+  position: absolute;
+  border: 2px dotted hsl(var(--primary) / 0.22);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.shopify-hero__deco--one {
+  width: min(88%, 26rem);
+  height: min(88%, 26rem);
+  top: 6%;
+  right: -4%;
+  background-image: radial-gradient(hsl(var(--primary) / 0.14) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+.shopify-hero__deco--two {
+  width: min(62%, 18rem);
+  height: min(62%, 18rem);
+  bottom: 2%;
+  left: -6%;
+  opacity: 0.65;
+}
+
+/* Dashboard mockup */
+.dashboard-mockup {
+  position: relative;
+  z-index: 2;
+  margin-inline: auto;
+  max-width: 34rem;
+}
+
+.dashboard-mockup__shell {
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  background: #ffffff;
+  box-shadow:
+    0 4px 6px hsl(var(--foreground) / 0.04),
+    0 28px 72px hsl(var(--primary) / 0.14);
+}
+
+.dashboard-mockup__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.06);
+  padding: 0.75rem 1rem;
+}
+
+.dashboard-mockup__brand {
+  font-family: "Barlow", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: hsl(var(--foreground));
+}
+
+.dashboard-mockup__topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: hsl(var(--foreground));
+}
+
+.dashboard-mockup__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: #e85d5d;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.dashboard-mockup__body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  min-height: 16.5rem;
+}
+
+.dashboard-mockup__sidebar {
+  display: none;
+  flex-direction: column;
+  gap: 0.15rem;
+  border-right: 1px solid hsl(var(--foreground) / 0.06);
+  padding: 0.75rem 0.5rem;
+  background: hsl(var(--background) / 0.5);
+}
+
+@media (min-width: 640px) {
+  .dashboard-mockup__sidebar {
+    display: flex;
+  }
+}
+
+.dashboard-mockup__nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.dashboard-mockup__nav-item--active {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+.dashboard-mockup__main {
+  padding: 0.85rem 1rem 1rem;
+}
+
+.dashboard-mockup__greeting {
+  margin: 0 0 0.75rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.dashboard-mockup__card {
+  margin-bottom: 0.65rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--foreground) / 0.06);
+  background: hsl(var(--background) / 0.35);
+  padding: 0.65rem 0.75rem;
+}
+
+.dashboard-mockup__card-label {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.62rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: hsl(var(--muted-foreground));
+}
+
+.dashboard-mockup__card-title {
+  margin: 0.25rem 0 0.5rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: hsl(var(--foreground));
+}
+
+.dashboard-mockup__card-meta {
+  font-family: "Barlow", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+
+.dashboard-mockup__pill-btn {
+  display: inline-block;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  padding: 0.3rem 0.65rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: hsl(var(--primary-foreground));
+}
+
+.dashboard-mockup__progress {
+  margin-top: 0.45rem;
+  height: 0.35rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: hsl(var(--foreground) / 0.08);
+}
+
+.dashboard-mockup__progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, hsl(var(--primary)), #786aff);
+}
+
+.dashboard-mockup__section-label {
+  margin: 0.5rem 0 0.4rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.dashboard-mockup__colleges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.dashboard-mockup__college {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  background: #ffffff;
+  padding: 0.25rem 0.4rem 0.25rem 0.25rem;
+}
+
+.dashboard-mockup__college-logo {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.dashboard-mockup__college-name {
+  font-family: "Barlow", sans-serif;
+  font-size: 0.58rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.dashboard-mockup__ai-bubble {
+  position: absolute;
+  right: 0.5rem;
+  bottom: -0.75rem;
+  z-index: 3;
+  max-width: 11rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  background: #ffffff;
+  padding: 0.5rem 0.85rem;
+  box-shadow: 0 12px 32px hsl(var(--primary) / 0.12);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.dashboard-mockup__ai-bubble::after {
+  content: "";
+  position: absolute;
+  right: 1rem;
+  bottom: -0.35rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  box-shadow: 0 0 0 3px #ffffff;
+}
+
+/* University marquee — Shopify-style logo strip */
+.university-marquee {
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffffff 0%, #faf9ff 55%, #f6f4ff 100%);
+  padding: clamp(3rem, 7vw, 4.5rem) 0 clamp(3.5rem, 8vw, 5rem);
+}
+
+.university-marquee__header {
+  width: min(100%, 76rem);
+  margin: 0 auto clamp(2.25rem, 5vw, 3.25rem);
+  padding-inline: clamp(1.5rem, 5vw, 4rem);
+}
+
+.university-marquee__heading {
+  margin: 0;
+  text-align: center;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(0.9375rem, 2vw, 1.0625rem);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: hsl(var(--muted-foreground));
+}
+
+.university-marquee__viewport {
+  overflow: hidden;
+  width: 100%;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 4%, #000 96%, transparent 100%);
+}
+
+.university-marquee__track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: university-marquee-scroll 110s linear infinite;
+}
+
+.university-marquee__group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: clamp(4rem, 9vw, 7rem);
+  padding-right: clamp(4rem, 9vw, 7rem);
+}
+
+.university-marquee__logo {
+  display: block;
+  flex-shrink: 0;
+  height: clamp(1.625rem, 3.2vw, 2.5rem);
+  width: auto;
+  max-width: clamp(6.5rem, 14vw, 10.5rem);
+  object-fit: contain;
+  object-position: center;
+  opacity: 0.92;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.university-logo__img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+@keyframes university-marquee-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 
@@ -437,6 +968,7 @@ a {
 
 @media (prefers-reduced-motion: reduce) {
   .marquee-track,
+  .university-marquee__track,
   .dashboard-video__scan,
   .dashboard-video__column span,
   .dashboard-video__path i {

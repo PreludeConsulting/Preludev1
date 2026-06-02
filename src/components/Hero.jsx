@@ -1,52 +1,75 @@
-import { ArrowUpRight } from "lucide-react";
+import { useState } from "react";
 import { motion } from "motion/react";
-import { Button } from "./ui/button.jsx";
+import HeroDashboardMockup from "./HeroDashboardMockup.jsx";
+
+const registerPath = `${import.meta.env.BASE_URL}register`.replace(/\/+/g, "/");
 
 export default function Hero() {
+  const [email, setEmail] = useState("");
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    const trimmed = email.trim();
+    const target = trimmed
+      ? `${registerPath}?email=${encodeURIComponent(trimmed)}`
+      : registerPath;
+    window.location.href = target;
+  }
+
   return (
-    <section id="home" className="ivy-hero relative flex min-h-screen items-center overflow-hidden px-5 pb-14 pt-28 md:px-10 md:pb-20 md:pt-32 lg:px-16">
-      <div className="ivy-hero__wash" aria-hidden="true" />
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center text-center">
-        <motion.p
-          className="font-body text-sm font-semibold text-foreground md:text-base"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
-        >
-          Peer-Powered College Admissions Counseling
-        </motion.p>
+    <section id="home" className="shopify-hero">
+      <div className="shopify-hero__bg" aria-hidden="true" />
+      <div className="shopify-hero__inner">
+        <div className="shopify-hero__grid">
+          <motion.div
+            className="shopify-hero__copy"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: "easeOut" }}
+          >
+            <h1 className="shopify-hero__headline">
+              College admissions counseling,{" "}
+              <span className="shopify-hero__headline-accent">reimagined.</span>
+            </h1>
+            <p className="shopify-hero__subcopy">
+              Peer-powered mentorship, personalized strategy, and financial guidance to help students build standout
+              applications with confidence.
+            </p>
 
-        <motion.h1
-          className="ivy-display mt-16 max-w-4xl text-[4.5rem] font-extrabold uppercase leading-[0.84] tracking-[-0.045em] text-foreground md:mt-20 md:text-[7.75rem] lg:text-[8.75rem]"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08, duration: 0.6, ease: "easeOut" }}
-        >
-          Prelude: The modern college mentor network
-        </motion.h1>
+            <form className="shopify-hero__form" onSubmit={handleSubmit}>
+              <label className="sr-only" htmlFor="hero-email">
+                Email address
+              </label>
+              <input
+                id="hero-email"
+                type="email"
+                name="email"
+                autoComplete="email"
+                placeholder="Enter your email address"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="shopify-hero__input"
+              />
+              <button type="submit" className="shopify-hero__cta">
+                Start free trial
+              </button>
+            </form>
+            <p className="shopify-hero__note">
+              Start free, then get matched with a mentor from your dream school.
+            </p>
+          </motion.div>
 
-        <motion.p
-          className="mt-8 max-w-md font-serif text-base leading-6 text-foreground md:text-lg md:leading-7"
-          initial={{ filter: "blur(10px)", opacity: 0, y: 18 }}
-          animate={{ filter: "blur(0px)", opacity: 1, y: 0 }}
-          transition={{ delay: 0.22, duration: 0.6, ease: "easeOut" }}
-        >
-          At Prelude, students work with near-peer mentors, personalized strategy tools, and practical financial
-          guidance to build standout college applications with confidence.
-        </motion.p>
-
-        <motion.div
-          className="mt-14 flex flex-col items-center gap-6"
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.36, duration: 0.5, ease: "easeOut" }}
-        >
-          <span className="h-24 w-px bg-foreground/55" aria-hidden="true" />
-          <Button href="#preludematch" className="rounded-none px-7 py-4 text-xs font-extrabold uppercase tracking-[0.18em]">
-            Let&apos;s get started
-            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </motion.div>
+          <motion.div
+            className="shopify-hero__visual"
+            initial={{ opacity: 0, y: 28 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12, duration: 0.6, ease: "easeOut" }}
+          >
+            <div className="shopify-hero__deco shopify-hero__deco--one" aria-hidden="true" />
+            <div className="shopify-hero__deco shopify-hero__deco--two" aria-hidden="true" />
+            <HeroDashboardMockup />
+          </motion.div>
+        </div>
       </div>
     </section>
   );
