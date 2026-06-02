@@ -51,6 +51,7 @@
 
     <g filter="url(#tagShadow)">
       <rect x="128" y="374" width="394" height="151" rx="36" transform="rotate(-14 128 374)" fill="url(#tag)" stroke="#E9E4FF" stroke-width="12"/>
+      <rect x="151" y="392" width="346" height="48" rx="24" transform="rotate(-14 151 392)" fill="#FFFFFF" opacity="0.18"/>
       <text x="188" y="472" transform="rotate(-14 188 472)" fill="#FFFFFF" font-family="Barlow, Arial, sans-serif" font-size="80" font-weight="800" letter-spacing="2">6,500+</text>
       <text x="188" y="472" transform="rotate(-14 188 472)" fill="#FFFFFF" opacity="0.34" font-family="Barlow, Arial, sans-serif" font-size="80" font-weight="800" letter-spacing="2" dy="-7">6,500+</text>
       <rect x="108" y="326" width="22" height="78" rx="11" transform="rotate(-32 108 326)" fill="#F2EEFF"/>
@@ -76,8 +77,10 @@
     <path d="M829 828C849 883 824 935 774 941C733 946 699 915 708 872C715 836 748 814 790 806L829 828Z" fill="#E781A7"/>
     <path d="M895 426C963 430 1019 475 1027 544C985 519 946 511 903 520L895 426Z" fill="#D66B9A" opacity="0.62"/>
     <path d="M499 497C552 455 655 443 751 458" stroke="#FFD8DF" stroke-width="22" stroke-linecap="round" opacity="0.32"/>
+    <ellipse cx="705" cy="438" rx="148" ry="46" transform="rotate(10 705 438)" fill="#FFFFFF" opacity="0.12"/>
 
     <path d="M515 280L740 205L1035 305L809 395L515 280Z" fill="url(#capTop)"/>
+    <path d="M623 276L748 237L942 303L812 350L623 276Z" fill="#FFFFFF" opacity="0.12"/>
     <path d="M620 342C620 342 637 453 762 466C882 479 919 370 919 370L809 395L620 342Z" fill="#4329C1"/>
     <ellipse cx="797" cy="284" rx="54" ry="24" fill="#A99EFF" opacity="0.92"/>
     <path d="M842 290C978 330 1005 383 988 535" stroke="#4930C8" stroke-width="19" stroke-linecap="round"/>
