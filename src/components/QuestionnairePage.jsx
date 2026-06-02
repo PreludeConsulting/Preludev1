@@ -1,4 +1,6 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext.jsx";
+import { getPreludeMatchQuestionnaire, savePreludeMatchQuestionnaire } from "../lib/auth.js";
 import { Button } from "./ui/button.jsx";
 
 const QUESTIONS = [
@@ -30,17 +32,67 @@ const QUESTIONS = [
 
 const SCALE = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"];
 
+function answersFromSubmission(questionnaire) {
+  if (!Array.isArray(questionnaire?.answers)) return {};
+  return questionnaire.answers.reduce((nextAnswers, item) => {
+    if (Number.isInteger(item.index) && typeof item.answer === "string") nextAnswers[item.index] = item.answer;
+    return nextAnswers;
+  }, {});
+}
+
 export default function QuestionnairePage() {
+  const { isAuthenticated, openSignIn, ready } = useAuth();
   const [answers, setAnswers] = useState({});
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const completion = useMemo(() => Math.round((Object.keys(answers).length / QUESTIONS.length) * 100), [answers]);
 
-  const handleSubmit = (event) => {
+  useEffect(() => {
+    if (!ready || !isAuthenticated) return;
+    let cancelled = false;
+    getPreludeMatchQuestionnaire()
+      .then(({ questionnaire }) => {
+        if (!cancelled) setAnswers(answersFromSubmission(questionnaire));
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("Start fresh: we could not find a saved PreludeMatch Questionnaire yet.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, ready]);
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    if (Object.keys(answers).length < QUESTIONS.length) {
-      alert("Please answer all questions before continuing to pricing.");
+    setError("");
+    setStatus("");
+
+    if (!isAuthenticated) {
+      setError("Please sign in before saving your PreludeMatch Questionnaire so we can attach it to your user account.");
+      openSignIn();
       return;
     }
-    window.location.hash = "#pricing";
+
+    if (Object.keys(answers).length < QUESTIONS.length) {
+      setError("Please answer all questions before continuing to pricing.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        completionPercent: completion,
+        answers: QUESTIONS.map((question, index) => ({ index, question, answer: answers[index] }))
+      };
+      await savePreludeMatchQuestionnaire(payload);
+      setStatus("Saved to your Prelude account. Redirecting you to pricing…");
+      window.location.hash = "#pricing";
+    } catch (err) {
+      setError(err.message || "We could not save your PreludeMatch Questionnaire.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -50,9 +102,20 @@ export default function QuestionnairePage() {
         <h1 className="section-heading">Find mentors based on your goals, background, and target schools.</h1>
         <p className="body-copy mt-5">
           Complete this form to match with mentors by target schools, shared context, direct access style, and family
-          communication preferences. When you submit, we&apos;ll take you to pricing.
+          communication preferences. When you submit, we&apos;ll save it to your Prelude account and take you to pricing.
         </p>
         <p className="mt-4 font-body text-sm text-muted-foreground">Completion: {completion}%</p>
+        <p className="mt-2 font-body text-xs text-muted-foreground">
+          Your submitted answers are stored in PostgreSQL in the <code>prelude_match_questionnaires</code> table linked to
+          your <code>users</code> record.
+        </p>
+        {!isAuthenticated && ready ? (
+          <div className="mt-5 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm text-foreground">
+            Sign in or create a free account before submitting so your mentor-match answers are saved to your profile.
+          </div>
+        ) : null}
+        {error ? <div className="mt-5 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div> : null}
+        {status ? <div className="mt-5 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm text-foreground">{status}</div> : null}
 
         <form onSubmit={handleSubmit} className="mt-8 grid gap-6">
           {QUESTIONS.map((question, index) => (
@@ -81,7 +144,7 @@ export default function QuestionnairePage() {
           ))}
 
           <div className="flex justify-end">
-            <Button as="button" type="submit">See Pricing</Button>
+            <Button as="button" type="submit" disabled={saving}>{saving ? "Saving…" : "Save & See Pricing"}</Button>
           </div>
         </form>
       </div>

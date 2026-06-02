@@ -10,6 +10,7 @@ The Prisma schema in `prisma/schema.prisma` and SQL migration in `prisma/migrati
 - `password_reset_tokens` and `email_verification_tokens`: hashed, expiring, single-use account recovery and verification tokens.
 - `login_history`, `security_events`, `activity_logs`, and `rate_limit_buckets`: auditability, throttling, and incident response.
 - `organizations`, `student_profiles`, `mentor_profiles`, `counselor_profiles`, and `mentor_assignments`: role-specific admissions relationships used by backend authorization.
+- `prelude_match_questionnaires`: one current PreludeMatch Questionnaire submission per account, stored as JSONB answers and linked to `users.id` with an optional `student_profiles.id` for student-specific matching.
 - `notifications`, `messages`, `college_applications`, and `essays`: protected user data exposed through role-specific dashboards.
 
 ## Authorization-critical relationships
@@ -21,4 +22,4 @@ The Prisma schema in `prisma/schema.prisma` and SQL migration in `prisma/migrati
 
 ## Scaling notes
 
-All primary keys are UUIDs, high-volume history tables are indexed by user/route/event and timestamp, and JSONB is limited to flexible settings/progress/metadata fields. The schema is designed to work on standard PostgreSQL without paid extensions or managed add-ons.
+All primary keys are UUIDs, high-volume history tables are indexed by user/route/event and timestamp, and JSONB is limited to flexible settings/progress/metadata fields, including the variable PreludeMatch answer payload. The schema is designed to work on standard PostgreSQL without paid extensions or managed add-ons, so local development can use the free PostgreSQL service represented by `DATABASE_URL` in `.env.example`.
