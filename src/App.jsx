@@ -2,7 +2,9 @@ import AccountPanel from "./components/AccountPanel.jsx";
 import Navbar from "./components/Navbar.jsx";
 import PreludeChat from "./components/PreludeChat.jsx";
 import SignInModal from "./components/SignInModal.jsx";
+import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
+import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { useEffect, useState } from "react";
 import Hero from "./components/Hero.jsx";
 import UniversityCarousel from "./components/UniversityCarousel.jsx";
@@ -56,6 +58,7 @@ function AppContent() {
       <div className="min-h-screen bg-background text-foreground">
         <div className="pointer-events-none fixed inset-0 z-0 paper-grain" aria-hidden="true" />
         <div className="relative z-10">{authPage}</div>
+        <LanguageSwitcher />
       </div>
     );
   }
@@ -71,6 +74,7 @@ function AppContent() {
         <PreludeChat />
         <SignInModal />
         <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
+        <LanguageSwitcher />
       </div>
     );
   }
@@ -86,6 +90,7 @@ function AppContent() {
         <PreludeChat />
         <SignInModal />
         <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
+        <LanguageSwitcher />
       </div>
     );
   }
@@ -108,10 +113,15 @@ function AppContent() {
       <PreludeChat />
       <SignInModal />
       <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
+      <LanguageSwitcher />
     </div>
   );
 }
 
 export default function App() {
-  return <AppContent />;
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
+  );
 }

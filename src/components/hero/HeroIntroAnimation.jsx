@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useLanguage } from "../../context/LanguageContext.jsx";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
 
 const line = {
@@ -12,13 +13,15 @@ const line = {
 
 export function HeroHeadline() {
   const reducedMotion = useReducedMotion();
+  const { t } = useLanguage();
+  const [lineOne, lineTwo, lineThree] = t("hero.headline");
   if (reducedMotion) {
     return (
       <h1 className="shopify-hero__headline">
-        <span className="shopify-hero__headline-line">College admissions</span>
-        <span className="shopify-hero__headline-line">counseling,</span>
+        <span className="shopify-hero__headline-line">{lineOne}</span>
+        <span className="shopify-hero__headline-line">{lineTwo}</span>
         <span className="shopify-hero__headline-accent hero-headline-shimmer shopify-hero__headline-line">
-          reimagined.
+          {lineThree}
         </span>
       </h1>
     );
@@ -27,17 +30,17 @@ export function HeroHeadline() {
   return (
     <motion.h1 className="shopify-hero__headline" initial="hidden" animate="show">
       <motion.span className="shopify-hero__headline-line block" custom={0} variants={line}>
-        College admissions
+        {lineOne}
       </motion.span>
       <motion.span className="shopify-hero__headline-line block" custom={1} variants={line}>
-        counseling,
+        {lineTwo}
       </motion.span>
       <motion.span
         className="shopify-hero__headline-accent hero-headline-shimmer shopify-hero__headline-line block"
         custom={2}
         variants={line}
       >
-        reimagined.
+        {lineThree}
       </motion.span>
     </motion.h1>
   );

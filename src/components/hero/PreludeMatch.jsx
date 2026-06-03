@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { PRELUDE_MATCH_QUESTIONS } from "../../data/preludeMatchQuestions.js";
+import { useLanguage } from "../../context/LanguageContext.jsx";
 import {
   computeQuestionProgress,
   getQuestionIndex,
@@ -16,6 +17,7 @@ import PreludeMatchResults from "./PreludeMatchResults.jsx";
 
 export default function PreludeMatch() {
   const reducedMotion = useReducedMotion();
+  const { t } = useLanguage();
   const [phase, setPhase] = useState("intro");
   const [answers, setAnswers] = useState({});
   const [currentQuestionId, setCurrentQuestionId] = useState(null);
@@ -123,7 +125,7 @@ export default function PreludeMatch() {
       initial={reducedMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
-      aria-label="PreludeMatch interactive demo"
+      aria-label={t("match.ariaLabel")}
     >
       <div className="pm-card-wrap__glow" aria-hidden="true" />
 

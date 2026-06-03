@@ -1,3 +1,4 @@
+import { useLanguage } from "../context/LanguageContext.jsx";
 import { UNIVERSITIES } from "../data/universities.js";
 import UniversityLogo from "./UniversityLogo.jsx";
 
@@ -16,11 +17,13 @@ function UniversityGroup({ ariaHidden = false }) {
 }
 
 export default function UniversityCarousel() {
+  const { t } = useLanguage();
+
   return (
     <section className="university-marquee" aria-labelledby="university-marquee-heading">
       <div className="university-marquee__header">
         <h2 id="university-marquee-heading" className="university-marquee__heading">
-          Mentorship from students at top universities
+          {t("carousel.heading")}
         </h2>
       </div>
       <div className="university-marquee__viewport">
