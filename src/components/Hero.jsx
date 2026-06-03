@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import PreludeMatch from "./hero/PreludeMatch.jsx";
 import { HeroFormAnimation, HeroHeadline, HeroSubcopy, HeroVisualAnimation } from "./hero/HeroIntroAnimation.jsx";
 
@@ -6,6 +7,7 @@ const registerPath = `${import.meta.env.BASE_URL}register`.replace(/\/+/g, "/");
 
 export default function Hero() {
   const [email, setEmail] = useState("");
+  const { t } = useLanguage();
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -24,31 +26,30 @@ export default function Hero() {
           <div className="shopify-hero__copy">
             <HeroHeadline />
             <HeroSubcopy>
-              Peer-powered mentorship, personalized strategy, and financial guidance to help students build
-              standout applications with confidence.
+              {t("hero.subcopy")}
             </HeroSubcopy>
 
             <HeroFormAnimation>
               <form className="shopify-hero__form" onSubmit={handleSubmit}>
                 <label className="sr-only" htmlFor="hero-email">
-                  Email address
+                  {t("hero.emailLabel")}
                 </label>
                 <input
                   id="hero-email"
                   type="email"
                   name="email"
                   autoComplete="email"
-                  placeholder="Enter your email address"
+                  placeholder={t("hero.emailPlaceholder")}
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   className="shopify-hero__input"
                 />
                 <button type="submit" className="shopify-hero__cta">
-                  Start free trial
+                  {t("hero.cta")}
                 </button>
               </form>
               <p className="shopify-hero__note">
-                Start free, then get matched with a mentor from your dream school.
+                {t("hero.note")}
               </p>
             </HeroFormAnimation>
           </div>

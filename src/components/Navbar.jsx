@@ -1,20 +1,22 @@
 import { ArrowUpRight, Search, User } from "lucide-react";
 import { motion, useScroll, useTransform } from "motion/react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import { Button } from "./ui/button.jsx";
 import PreludeLogo from "./PreludeLogo.jsx";
 
 const links = [
-  ["About", "#home"],
-  ["Admissions Counseling", "#how-it-works"],
-  ["Mentoring", "#mentorship"],
-  ["Pricing", "#pricing"],
-  ["Roadmap", "#roadmap"],
-  ["Dashboard", "#dashboard"]
+  ["nav.links.about", "#home"],
+  ["nav.links.admissions", "#how-it-works"],
+  ["nav.links.mentoring", "#mentorship"],
+  ["nav.links.pricing", "#pricing"],
+  ["nav.links.roadmap", "#roadmap"],
+  ["nav.links.dashboard", "#dashboard"]
 ];
 
 export default function Navbar() {
   const { isAuthenticated, user, openSignIn, openAccount } = useAuth();
+  const { t } = useLanguage();
   const { scrollY } = useScroll();
   const barOpacity = useTransform(scrollY, [0, 48, 120], [0, 0.78, 0.96]);
 
@@ -26,15 +28,15 @@ export default function Navbar() {
         style={{ opacity: barOpacity }}
       />
       <div className="nav-bar__content relative z-10 mx-auto flex max-w-[118rem] items-center justify-between gap-6">
-        <a href="#home" className="nav-bar__logo-link" aria-label="Prelude home">
+        <a href="#home" className="nav-bar__logo-link" aria-label={t("nav.homeLabel")}>
           <PreludeLogo className="prelude-logo--nav" />
         </a>
 
         <div className="flex items-center justify-end gap-4">
-          <nav className="hidden items-center gap-5 lg:flex" aria-label="Primary navigation">
-            {links.map(([label, href]) => (
-              <a className="ivy-nav-link" href={href} key={label}>
-                {label}
+          <nav className="hidden items-center gap-5 lg:flex" aria-label={t("nav.primaryLabel")}>
+            {links.map(([labelKey, href]) => (
+              <a className="ivy-nav-link" href={href} key={labelKey}>
+                {t(labelKey)}
               </a>
             ))}
           </nav>
@@ -42,7 +44,7 @@ export default function Navbar() {
           <a
             href="#preludematch"
             className="hidden text-foreground transition hover:text-primary md:inline-flex"
-            aria-label="Search Prelude"
+            aria-label={t("nav.searchLabel")}
           >
             <Search className="h-6 w-6" aria-hidden="true" />
           </a>
@@ -59,12 +61,12 @@ export default function Navbar() {
             </button>
           ) : (
             <button type="button" onClick={openSignIn} className="ivy-nav-link hidden sm:inline-flex">
-              Sign in
+              {t("nav.signIn")}
             </button>
           )}
 
           <Button href="#contact" className="rounded-full px-5 py-3 text-xs font-extrabold uppercase tracking-[0.12em]">
-            Get Started
+            {t("nav.getStarted")}
             <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
