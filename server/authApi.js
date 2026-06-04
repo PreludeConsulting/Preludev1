@@ -5,6 +5,15 @@ import { randomBytes, createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { formatAuthApiError, logAuthApiError } from "./lib/dbErrors.js";
+import {
+  createOfflineSessionTokens,
+  devRateLimit,
+  findOfflineDemoUser,
+  getOfflineAuthFromTokenClaims,
+  isDatabaseReachable,
+  isDevOfflineAuthEnabled,
+  OFFLINE_LOGIN_HINT
+} from "./lib/devOfflineAuth.js";
 
 export function db() {
   if (!globalThis.__preludePrisma) globalThis.__preludePrisma = new PrismaClient();
@@ -225,7 +234,7 @@ async function securityEvent({ userId, eventType, severity = "INFO", req, metada
   });
 }
 
-async function rateLimit(req, route, limit, windowSeconds) {
+async function rateLimitDb(req, route, limit, windowSeconds) {
   const ip = getClientIp(req) || "unknown";
   const key = `${route}:${ip}`;
   const windowStart = new Date(Math.floor(Date.now() / (windowSeconds * 1000)) * windowSeconds * 1000);
@@ -240,6 +249,10 @@ async function rateLimit(req, route, limit, windowSeconds) {
     error.statusCode = 429;
     throw error;
   }
+}
+
+async function rateLimit(req, route, limit, windowSeconds) {
+  await devRateLimit(req, route, limit, windowSeconds, db(), rateLimitDb);
 }
 
 async function createRoleProfile(tx, userId, role, organizationId) {
@@ -304,6 +317,11 @@ async function getAuth(req) {
   if (!token) return null;
   try {
     const claims = jwt.verify(token, getJwtSecret(), { audience: "prelude-web", issuer: "prelude-api" });
+    const offlineAuth = getOfflineAuthFromTokenClaims(claims);
+    if (offlineAuth) return offlineAuth;
+
+    if (!(await isDatabaseReachable(db()))) return null;
+
     const session = await db().session.findFirst({
       where: { id: claims.sid, userId: claims.sub, status: "ACTIVE", expiresAt: { gt: new Date() } },
       include: { user: true }
@@ -396,6 +414,34 @@ async function handleLogin(req, res) {
   await rateLimit(req, "/api/auth/login", 10, 15 * 60);
   const payload = loginSchema.parse(await readJsonBody(req));
   const email = normalizeEmail(payload.email);
+
+  if (isDevOfflineAuthEnabled() && !(await isDatabaseReachable(db()))) {
+    const offlineUser = findOfflineDemoUser(email, payload.password);
+    if (!offlineUser) {
+      return sendJson(res, 401, {
+        error: "invalid_credentials",
+        message: "Invalid email or password. For local demo without a database, use student@prelude-demo.com / Student123! or mentor@prelude-demo.com / Mentor123!"
+      });
+    }
+    const tokens = createOfflineSessionTokens(offlineUser, {
+      randomToken,
+      ACCESS_TTL_SECONDS,
+      REFRESH_TTL_DAYS
+    });
+    console.warn("[prelude-auth-api] Offline demo login (PostgreSQL unavailable). Run: npm run db:start");
+    return sendJson(
+      res,
+      200,
+      {
+        user: publicUser(offlineUser),
+        csrfToken: tokens.csrfToken,
+        offlineMode: true,
+        message: OFFLINE_LOGIN_HINT
+      },
+      { "Set-Cookie": cookiesForTokens(tokens) }
+    );
+  }
+
   const user = await db().user.findUnique({ where: { email } });
   const fail = async (reason, userId = null) => {
     await db().loginHistory.create({

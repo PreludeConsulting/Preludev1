@@ -1,6 +1,6 @@
 import { Building2, GraduationCap, MessageCircle, Users } from "lucide-react";
 import { motion } from "motion/react";
-import NetworkMentorVisual from "./NetworkMentorVisual.jsx";
+import NetworkMessagesVisual from "./NetworkMessagesVisual.jsx";
 
 const METRIC_ROWS = [
   {
@@ -63,7 +63,7 @@ export default function NetworkSection() {
       <div className="network-section__inner">
         <div className="network-section__split">
           <Reveal className="network-section__visual-col">
-            <NetworkMentorVisual />
+            <NetworkMessagesVisual />
           </Reveal>
 
           <div className="network-section__content-col">

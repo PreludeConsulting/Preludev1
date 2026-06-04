@@ -3267,213 +3267,372 @@ a {
   color: hsl(var(--muted-foreground));
 }
 
-/* Mentor network visual (split layout left column) */
+/* Messages UI mockup (split layout left column) — mirrors dashboard Messages */
 .network-visual {
   width: 100%;
+  min-width: 0;
 }
 
 .network-visual__frame {
-  position: relative;
-  padding: clamp(1.5rem, 4vw, 2.5rem);
+  padding: clamp(1rem, 3vw, 1.75rem);
   border-radius: 1.5rem;
   background: linear-gradient(145deg, #f3f0fa 0%, #ebe6f8 55%, #f6f4ff 100%);
   overflow: hidden;
 }
 
-.network-visual__mesh {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.85;
-  pointer-events: none;
-}
-
-.network-visual__panel {
-  position: relative;
-  z-index: 1;
-  padding: clamp(1.25rem, 3vw, 1.75rem);
-  border-radius: 1.15rem;
-  border: 1px solid hsl(var(--foreground) / 0.06);
+.network-messages-mock {
+  display: grid;
+  grid-template-columns: minmax(0, 34%) minmax(0, 1fr);
+  min-height: clamp(16rem, 38vw, 22rem);
+  max-height: clamp(18rem, 42vw, 24rem);
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 1rem;
   background: #ffffff;
   box-shadow:
     0 1px 2px hsl(var(--foreground) / 0.04),
-    0 24px 56px hsl(var(--primary) / 0.1);
-}
-
-.network-visual__header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.network-visual__header-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.65rem;
-  background: hsl(var(--primary) / 0.1);
-  color: hsl(var(--primary));
-}
-
-.network-visual__eyebrow {
-  margin: 0;
+    0 20px 48px hsl(var(--primary) / 0.1);
+  overflow: hidden;
   font-family: "Barlow", sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: hsl(var(--primary));
 }
 
-.network-visual__title {
-  margin: 0.1rem 0 0;
-  font-family: "Barlow", sans-serif;
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: hsl(var(--foreground));
-}
-
-.network-visual__live {
-  margin-left: auto;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  background: hsl(var(--primary) / 0.08);
-  font-family: "Barlow", sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  color: hsl(var(--primary));
-}
-
-.network-visual__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 1rem;
-}
-
-.network-visual__tag {
-  padding: 0.28rem 0.6rem;
-  border-radius: 999px;
-  border: 1px solid hsl(var(--primary) / 0.14);
-  background: hsl(var(--primary) / 0.06);
-  font-family: "Barlow", sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  color: hsl(var(--foreground) / 0.85);
-}
-
-.network-visual__mentors {
+.network-messages-mock__sidebar {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  margin: 1rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.network-visual__mentor {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.6rem 0.7rem;
-  border-radius: 0.75rem;
-  border: 1px solid hsl(var(--foreground) / 0.06);
-  background: #faf9fc;
-}
-
-.network-visual__avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.125rem;
-  height: 2.125rem;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: linear-gradient(135deg, hsl(var(--primary) / 0.85), hsl(var(--primary-deep)));
-  font-family: "Barlow", sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: #ffffff;
-}
-
-.network-visual__mentor-body {
+  gap: 0.45rem;
   min-width: 0;
-  flex: 1;
+  padding: 0.55rem;
+  border-right: 1px solid hsl(var(--foreground) / 0.08);
+  background: #faf9ff;
 }
 
-.network-visual__mentor-top {
+.network-messages-mock__search {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  background: #ffffff;
 }
 
-.network-visual__mentor-name {
-  font-family: "Barlow", sans-serif;
-  font-size: 0.8125rem;
+.network-messages-mock__search-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.network-messages-mock__search-text {
+  font-size: clamp(0.5625rem, 1.2vw, 0.6875rem);
+  color: hsl(var(--muted-foreground) / 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.network-messages-mock__threads {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.network-messages-mock__thread {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+  padding: 0.45rem;
+  border-radius: 0.65rem;
+  background: transparent;
+}
+
+.network-messages-mock__thread--active {
+  background: #ede9ff;
+  box-shadow: 0 0 0 1px rgb(120 106 255 / 0.2);
+}
+
+.network-messages-mock__thread-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.network-messages-mock__thread-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.25rem;
+  font-size: clamp(0.625rem, 1.3vw, 0.75rem);
+}
+
+.network-messages-mock__thread-head strong {
   font-weight: 600;
   color: hsl(var(--foreground));
 }
 
-.network-visual__mentor-match {
-  font-family: "Barlow", sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  color: hsl(var(--primary));
+.network-messages-mock__thread-head time {
+  flex-shrink: 0;
+  font-size: clamp(0.5rem, 1vw, 0.625rem);
+  color: hsl(var(--muted-foreground));
+}
+
+.network-messages-mock__thread-meta {
+  display: block;
+  font-size: clamp(0.5rem, 1vw, 0.625rem);
+  color: hsl(var(--muted-foreground));
+}
+
+.network-messages-mock__thread-preview {
+  margin: 0.15rem 0 0;
+  font-size: clamp(0.5rem, 1.05vw, 0.625rem);
+  line-height: 1.35;
+  color: hsl(var(--muted-foreground));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.network-messages-mock__thread-badge {
+  flex-shrink: 0;
+  align-self: center;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #5b4fd6;
+  color: #ffffff;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+}
+
+.network-messages-mock__panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.network-messages-mock__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.08);
+  background: #ffffff;
+}
+
+.network-messages-mock__header-text {
+  flex: 1;
+  min-width: 5.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.network-messages-mock__header-text strong {
+  font-size: clamp(0.6875rem, 1.5vw, 0.875rem);
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.network-messages-mock__header-text span {
+  font-size: clamp(0.5625rem, 1.15vw, 0.6875rem);
+  color: hsl(var(--muted-foreground));
+}
+
+.network-messages-mock__status {
+  color: #5b4fd6 !important;
+  font-weight: 600;
+}
+
+.network-messages-mock__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  width: 100%;
+}
+
+@media (min-width: 480px) {
+  .network-messages-mock__header-actions {
+    width: auto;
+    margin-left: auto;
+  }
+}
+
+.network-messages-mock__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  padding: 0.3rem 0.55rem;
+  font-size: clamp(0.5rem, 1.05vw, 0.625rem);
+  font-weight: 700;
   white-space: nowrap;
 }
 
-.network-visual__mentor-meta {
-  display: flex;
+.network-messages-mock__btn svg {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex-shrink: 0;
+}
+
+.network-messages-mock__btn--secondary {
+  border: 1px solid hsl(var(--primary) / 0.25);
+  background: #ffffff;
+  color: hsl(var(--foreground));
+}
+
+.network-messages-mock__btn--primary {
+  background: linear-gradient(135deg, hsl(var(--primary)), #7c6cff);
+  color: hsl(var(--primary-foreground));
+}
+
+.network-messages-mock__avatar {
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.15rem;
-  font-family: "Barlow", sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 400;
-  color: hsl(var(--muted-foreground));
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, hsl(var(--primary)), #9b8cff);
+  color: #ffffff;
+  font-weight: 700;
 }
 
-.network-visual__school-logo {
-  display: block;
-  height: 0.875rem;
-  width: auto;
-  max-width: 2.75rem;
-  object-fit: contain;
-}
-
-.network-visual__schools {
-  margin-top: 1rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid hsl(var(--foreground) / 0.08);
-}
-
-.network-visual__schools-label {
-  display: block;
-  margin-bottom: 0.55rem;
-  font-family: "Barlow", sans-serif;
+.network-messages-mock__avatar--md {
+  width: 1.65rem;
+  height: 1.65rem;
   font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+}
+
+.network-messages-mock__avatar--sm {
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.5rem;
+}
+
+.network-messages-mock__messages {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem;
+  background: linear-gradient(180deg, #ffffff 0%, #faf9ff 100%);
+}
+
+.network-messages-mock__group {
+  display: flex;
+  gap: 0.35rem;
+  max-width: 92%;
+}
+
+.network-messages-mock__group--them {
+  align-self: flex-start;
+}
+
+.network-messages-mock__group--me {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.network-messages-mock__bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.network-messages-mock__bubble {
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.85rem;
+  font-size: clamp(0.5625rem, 1.15vw, 0.6875rem);
+  line-height: 1.4;
+}
+
+.network-messages-mock__bubble--them {
+  background: #ede9ff;
+  color: hsl(230 25% 18%);
+  border-bottom-left-radius: 0.2rem;
+}
+
+.network-messages-mock__bubble--me {
+  background: hsl(230 25% 18%);
+  color: #ffffff;
+  border-bottom-right-radius: 0.2rem;
+}
+
+.network-messages-mock__composer {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.45rem 0.55rem;
+  border-top: 1px solid hsl(var(--foreground) / 0.08);
+  background: #ffffff;
+}
+
+.network-messages-mock__composer-icon {
+  display: inline-flex;
   color: hsl(var(--muted-foreground));
 }
 
-.network-visual__schools-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem 0.85rem;
+.network-messages-mock__composer-icon svg {
+  width: 0.75rem;
+  height: 0.75rem;
 }
 
-.network-visual__schools-row .network-visual__school-logo {
-  height: 1rem;
-  max-width: 3.25rem;
-  opacity: 0.9;
+.network-messages-mock__composer-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  font-size: clamp(0.5625rem, 1.1vw, 0.6875rem);
+  color: hsl(var(--muted-foreground) / 0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.network-messages-mock__composer-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, hsl(var(--primary)), #7c6cff);
+  color: #ffffff;
+}
+
+.network-messages-mock__composer-send svg {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+@media (max-width: 520px) {
+  .network-messages-mock {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    max-height: none;
+  }
+
+  .network-messages-mock__sidebar {
+    border-right: none;
+    border-bottom: 1px solid hsl(var(--foreground) / 0.08);
+  }
+
+  .network-messages-mock__threads {
+    flex-direction: row;
+    gap: 0.35rem;
+  }
+
+  .network-messages-mock__thread:not(.network-messages-mock__thread--active) {
+    display: none;
+  }
 }
 
 .network-section__features-block {
@@ -3639,6 +3798,437 @@ a {
 }
 
 
+
+/* Student network feature panels (below cost banner) */
+.student-network-section {
+  background: linear-gradient(180deg, #ffffff 0%, #faf9ff 48%, #ffffff 100%);
+  color: hsl(var(--foreground));
+}
+
+.student-network-section__inner {
+  width: min(100%, 76rem);
+  margin-inline: auto;
+  padding: clamp(4rem, 9vw, 7rem) clamp(1.5rem, 5vw, 4rem);
+}
+
+.student-network-section__intro {
+  max-width: 46rem;
+  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+}
+
+.student-network-section__headline {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: hsl(var(--foreground));
+}
+
+.student-network-section__subheadline {
+  margin: clamp(1.25rem, 2.5vw, 1.75rem) 0 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  font-weight: 400;
+  line-height: 1.65;
+  color: hsl(var(--muted-foreground));
+}
+
+.student-network-section__panels {
+  display: grid;
+  gap: clamp(1.25rem, 3vw, 2rem);
+}
+
+@media (min-width: 1024px) {
+  .student-network-section__panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+}
+
+.student-network-panel {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 2vw, 1.35rem);
+  min-width: 0;
+  padding: clamp(1.75rem, 4vw, 2.5rem);
+  border-radius: 1.35rem;
+  border: 1px solid hsl(var(--foreground) / 0.06);
+  background: linear-gradient(165deg, #ffffff 0%, #f8f6fc 100%);
+  box-shadow:
+    0 1px 2px hsl(var(--foreground) / 0.04),
+    0 20px 48px hsl(var(--primary) / 0.08);
+}
+
+.student-network-panel__title {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: hsl(var(--foreground));
+}
+
+.student-network-panel__desc {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(0.9375rem, 1.7vw, 1.0625rem);
+  font-weight: 400;
+  line-height: 1.65;
+  color: hsl(var(--muted-foreground));
+}
+
+.student-network-panel--chat {
+  background: linear-gradient(165deg, #faf9ff 0%, #ffffff 55%, #f6f4ff 100%);
+}
+
+/* Network graphic (left panel) */
+.sn-network-graphic {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  flex: 1;
+}
+
+.sn-network-graphic__label {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--primary) / 0.18);
+  background: hsl(var(--primary) / 0.08);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+
+.sn-network-graphic__canvas {
+  position: relative;
+  flex: 1;
+  min-height: clamp(14rem, 32vw, 18rem);
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--foreground) / 0.06);
+  background: linear-gradient(145deg, #f3f0fa 0%, #ebe6f8 40%, #f6f4ff 100%);
+  overflow: hidden;
+}
+
+.sn-network-graphic__lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.sn-network-graphic__hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.sn-network-graphic__hub-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  background: hsl(230 25% 18%);
+  color: #ffffff;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  box-shadow: 0 8px 24px hsl(var(--primary) / 0.25);
+}
+
+.sn-network-graphic__hub-name {
+  font-family: "Barlow", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.sn-network-graphic__hub-meta {
+  font-family: "Barlow", sans-serif;
+  font-size: 0.625rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.sn-network-graphic__node {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transform: translate(-50%, -50%);
+  max-width: 42%;
+}
+
+.sn-network-graphic__node-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, hsl(var(--primary)), #9b8cff);
+  color: #ffffff;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.5625rem;
+  font-weight: 700;
+}
+
+.sn-network-graphic__node-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.55rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  background: #ffffff;
+  box-shadow: 0 4px 14px hsl(var(--primary) / 0.1);
+  font-family: "Barlow", sans-serif;
+  line-height: 1.2;
+}
+
+.sn-network-graphic__node-card strong {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.sn-network-graphic__node-card span {
+  font-size: 0.5625rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.sn-network-graphic__node-major {
+  color: hsl(var(--primary)) !important;
+  font-weight: 500;
+}
+
+.sn-network-graphic__tags {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sn-network-graphic__tag-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.sn-network-graphic__tag {
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+.sn-network-graphic__tag--school {
+  border: 1px solid hsl(var(--primary) / 0.14);
+  background: #ffffff;
+  color: hsl(var(--foreground) / 0.88);
+}
+
+.sn-network-graphic__tag--major {
+  border: 1px solid hsl(var(--primary) / 0.2);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary-deep));
+}
+
+/* Animated chat demo (right panel) */
+@keyframes sn-chat-msg-loop {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  5% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  76% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.sn-chat-demo {
+  display: flex;
+  flex-direction: column;
+  min-height: clamp(16rem, 36vw, 20rem);
+  margin-top: 0.5rem;
+  flex: 1;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 4px 20px hsl(var(--primary) / 0.06);
+}
+
+.sn-chat-demo__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.08);
+  background: #ffffff;
+}
+
+.sn-chat-demo__header-text {
+  flex: 1;
+  min-width: 6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.sn-chat-demo__header-text strong {
+  font-family: "Barlow", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.sn-chat-demo__header-text span {
+  font-family: "Barlow", sans-serif;
+  font-size: 0.6875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.sn-chat-demo__status {
+  color: #5b4fd6 !important;
+  font-weight: 600;
+}
+
+.sn-chat-demo__zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--primary) / 0.25);
+  background: #ffffff;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+}
+
+.sn-chat-demo__zoom-btn svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  color: hsl(var(--primary));
+}
+
+.sn-chat-demo__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: linear-gradient(135deg, hsl(var(--primary)), #9b8cff);
+  color: #ffffff;
+  font-family: "Barlow", sans-serif;
+  font-weight: 700;
+}
+
+.sn-chat-demo__avatar--mentor {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.6875rem;
+}
+
+.sn-chat-demo__avatar--sm {
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 0.5rem;
+}
+
+.sn-chat-demo__thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.85rem;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffffff 0%, #faf9ff 100%);
+}
+
+.sn-chat-demo__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  max-width: 92%;
+  opacity: 0;
+  animation-name: sn-chat-msg-loop;
+  animation-timing-function: ease;
+  animation-iteration-count: infinite;
+}
+
+.sn-chat-demo__row--maya {
+  align-self: flex-start;
+}
+
+.sn-chat-demo__row--jordan {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+  margin-left: auto;
+}
+
+.sn-chat-demo__bubble {
+  padding: 0.55rem 0.75rem;
+  border-radius: 1rem;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(0.6875rem, 1.4vw, 0.8125rem);
+  line-height: 1.45;
+}
+
+.sn-chat-demo__bubble--maya {
+  background: #ede9ff;
+  color: hsl(230 25% 18%);
+  border-bottom-left-radius: 0.25rem;
+}
+
+.sn-chat-demo__bubble--jordan {
+  background: hsl(230 25% 18%);
+  color: #ffffff;
+  border-bottom-right-radius: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sn-chat-demo__row {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
 
 .home-section-divider {
   height: 10px;

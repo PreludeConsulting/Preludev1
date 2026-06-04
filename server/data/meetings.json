@@ -3,11 +3,11 @@
     {
       "id": "demo-meet-jordan-zoom",
       "title": "College List Strategy Session",
-      "studentId": "82503d99-da8c-479a-8714-6d76644c6785",
-      "mentorId": "82aab757-ffcc-4014-b891-643cef4af3a2",
+      "studentId": "0825a40f-e986-45bb-bcee-5c1013565345",
+      "mentorId": "0e6910a5-80c9-4f98-b5bb-22af01b80f94",
       "meetingType": "zoom",
-      "startTime": "2026-06-12T20:00:00.000Z",
-      "endTime": "2026-06-12T20:45:00.000Z",
+      "startTime": "2026-06-13T20:00:00.000Z",
+      "endTime": "2026-06-13T20:45:00.000Z",
       "timeZone": "America/New_York",
       "zoomMeetingId": "1234567890",
       "zoomJoinUrl": "https://zoom.us/j/1234567890",
@@ -15,17 +15,17 @@
       "status": "scheduled",
       "notes": "Review reach/target/likely balance and summer essay plan.",
       "isPrivate": false,
-      "studentUserId": "1119aab8-989c-4084-9d19-ce59446f7d8e",
-      "mentorUserId": "0d917193-273d-4310-ad67-7f41cd29ec89"
+      "studentUserId": "4104ed32-87bc-45db-9166-b2f0e41ace9b",
+      "mentorUserId": "754393e8-87b1-43ef-9dc3-d8a09a52541b"
     },
     {
       "id": "demo-meet-alex-zoom",
       "title": "Scholarship & Essay Planning",
-      "studentId": "84e311b6-5711-40f3-a5c3-86257b90c54e",
-      "mentorId": "82aab757-ffcc-4014-b891-643cef4af3a2",
+      "studentId": "25d2edea-99d4-4ff1-891e-df2c0b502776",
+      "mentorId": "0e6910a5-80c9-4f98-b5bb-22af01b80f94",
       "meetingType": "zoom",
-      "startTime": "2026-06-17T19:30:00.000Z",
-      "endTime": "2026-06-17T20:15:00.000Z",
+      "startTime": "2026-06-18T19:30:00.000Z",
+      "endTime": "2026-06-18T20:15:00.000Z",
       "timeZone": "America/New_York",
       "zoomMeetingId": "9876543210",
       "zoomJoinUrl": "https://zoom.us/j/9876543210",
@@ -33,8 +33,8 @@
       "status": "scheduled",
       "notes": "Outline scholarship targets and personal statement themes.",
       "isPrivate": false,
-      "studentUserId": "075e0905-b6ca-4e05-ab7d-fdb9f44991df",
-      "mentorUserId": "0d917193-273d-4310-ad67-7f41cd29ec89"
+      "studentUserId": "e3195233-d248-4736-bcf2-a936124b8cff",
+      "mentorUserId": "754393e8-87b1-43ef-9dc3-d8a09a52541b"
     }
   ]
 }

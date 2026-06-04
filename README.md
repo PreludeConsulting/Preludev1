@@ -257,10 +257,17 @@ cp .env.example .env
 Requires Docker. Credentials in `compose.yml` and `.env.example` are development-only.
 
 ```bash
-npm run db:start
-npm run db:migrate
-npm run seed:demo
+npm run db:setup      # Start Postgres + apply migrations + seed (non-interactive)
+npm run db:reset      # Wipe local DB volume and run db:setup from scratch
+# Or step by step:
+npm run db:start      # Docker Compose — postgres:16 on localhost:5432
+npm run db:migrate:deploy  # Apply existing migrations (no prompts)
+npm run seed:demo     # Demo student/mentor accounts (local only)
 ```
+
+If `db:setup` reports **P3005** (schema not empty), it will baseline migrations automatically. Use `npm run db:reset` for a clean slate.
+
+Use `npm run db:migrate` only when you are **creating** a new Prisma migration (`migrate dev` prompts for a name).
 
 Ensure `.env` includes:
 

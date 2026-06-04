@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Hero from "./components/Hero.jsx";
 import NetworkSection from "./components/NetworkSection.jsx";
+import StudentNetworkSection from "./components/StudentNetworkSection.jsx";
 import UniversityCarousel from "./components/UniversityCarousel.jsx";
 import QuestionnairePage from "./components/QuestionnairePage.jsx";
 import { SCROLL_STORAGE_KEY } from "./lib/siteSearch.js";
@@ -79,6 +80,7 @@ function AppContent() {
         <Hero />
         <UniversityCarousel />
         <AdmissionsCostBanner />
+        <StudentNetworkSection />
         <NetworkSection />
         <LowerFeatureIntro />
         <LowerSplitVisual />
