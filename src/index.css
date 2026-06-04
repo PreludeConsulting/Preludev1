@@ -3016,6 +3016,152 @@ a {
   }
 }
 
+/* Network credibility — Shopify-inspired layout */
+.network-section {
+  background: linear-gradient(180deg, #faf9ff 0%, #ffffff 42%, #ffffff 100%);
+  color: hsl(var(--foreground));
+}
+
+.network-section__inner {
+  width: min(100%, 76rem);
+  margin-inline: auto;
+  padding: clamp(4rem, 9vw, 7rem) clamp(1.5rem, 5vw, 4rem);
+}
+
+.network-section__headline {
+  margin: 0;
+  max-width: 16ch;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(2.125rem, 4.8vw, 3.5rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: hsl(var(--foreground));
+}
+
+.network-section__stats {
+  display: grid;
+  gap: clamp(1rem, 2.5vw, 1.5rem);
+  margin: clamp(2.5rem, 5vw, 4rem) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 768px) {
+  .network-section__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.network-section__stat-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: clamp(1.5rem, 3vw, 2.25rem);
+  min-height: clamp(11rem, 24vw, 15rem);
+  padding: clamp(2rem, 4.5vw, 3rem);
+  border-radius: 1.35rem;
+  border: 1px solid hsl(var(--foreground) / 0.05);
+  background: #f4f3f7;
+  box-shadow: none;
+}
+
+.network-section__stat-metric {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(2rem, 3.8vw, 3.125rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  color: hsl(var(--foreground));
+}
+
+.network-section__stat-desc {
+  margin: 0;
+  max-width: 26ch;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(0.875rem, 1.5vw, 1rem);
+  font-weight: 400;
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+}
+
+.network-section__features-block {
+  margin-top: clamp(4.5rem, 10vw, 7.5rem);
+}
+
+.network-section__subheadline {
+  margin: 0;
+  max-width: 14ch;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(2.125rem, 4.8vw, 3.5rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: hsl(var(--foreground));
+}
+
+.network-section__features {
+  display: grid;
+  gap: clamp(2rem, 4vw, 3rem);
+  margin: clamp(2.5rem, 5vw, 4rem) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .network-section__features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(2.5rem, 4vw, 3.5rem) clamp(2rem, 4vw, 3rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .network-section__features {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.network-section__feature {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 18rem;
+}
+
+.network-section__feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: hsl(var(--foreground));
+}
+
+.network-section__feature-icon svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.network-section__feature-title {
+  margin: clamp(1rem, 2vw, 1.35rem) 0 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1.0625rem, 2vw, 1.25rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: hsl(var(--foreground));
+}
+
+.network-section__feature-desc {
+  margin: 0.65rem 0 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(0.9375rem, 1.6vw, 1rem);
+  font-weight: 400;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+
 /* University marquee — Shopify-style logo strip */
 .university-marquee {
   overflow: hidden;

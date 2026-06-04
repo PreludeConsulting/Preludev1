@@ -7,6 +7,7 @@ import { useAuth } from "./context/AuthContext.jsx";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { useEffect, useState } from "react";
 import Hero from "./components/Hero.jsx";
+import NetworkSection from "./components/NetworkSection.jsx";
 import UniversityCarousel from "./components/UniversityCarousel.jsx";
 import QuestionnairePage from "./components/QuestionnairePage.jsx";
 import UserDashboard from "./components/UserDashboard.jsx";
@@ -103,6 +104,7 @@ function AppContent() {
         <Hero />
         <UniversityCarousel />
         <AdmissionsCostBanner />
+        <NetworkSection />
         <LowerFeatureIntro />
         <LowerSplitVisual />
         <LowerBenefits />
