@@ -49,7 +49,7 @@ function PathNode({ node, state, index }) {
 
   if (node.type === "chest") {
     return (
-      <li className={cn("roadmap-node-wrap", offset)} key={node.id}>
+      <li className={cn("roadmap-node-wrap", offset)} id={`roadmap-${node.id}`} key={node.id}>
         <div className="roadmap-node roadmap-node--chest" data-state={state}>
           <ChestNode state={state} />
         </div>
@@ -58,7 +58,7 @@ function PathNode({ node, state, index }) {
   }
 
   return (
-    <li className={cn("roadmap-node-wrap", offset)} key={node.id}>
+    <li className={cn("roadmap-node-wrap", offset)} id={`roadmap-${node.id}`} key={node.id}>
       <button
         type="button"
         className={cn("roadmap-node", state === "current" && "roadmap-node--current")}

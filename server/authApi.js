@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { randomBytes, createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { formatAuthApiError, logAuthApiError } from "./lib/dbErrors.js";
 
 export function db() {
   if (!globalThis.__preludePrisma) globalThis.__preludePrisma = new PrismaClient();
@@ -610,7 +611,15 @@ async function handleStudentRead(req, res, url) {
 export function createAuthApiMiddleware() {
   return async function authApiMiddleware(req, res, next) {
     const url = new URL(req.url || "/", "http://localhost");
-    if (!url.pathname.startsWith("/api/auth") && !url.pathname.startsWith("/api/account") && !url.pathname.startsWith("/api/dashboard") && !url.pathname.startsWith("/api/students") && url.pathname !== "/api/prelude-match-questionnaire") return next();
+    if (
+      !url.pathname.startsWith("/api/auth") &&
+      !url.pathname.startsWith("/api/account") &&
+      !url.pathname.startsWith("/api/dashboard") &&
+      !url.pathname.startsWith("/api/students") &&
+      url.pathname !== "/api/prelude-match-questionnaire"
+    ) {
+      return next();
+    }
 
     if (req.method === "OPTIONS") {
       res.statusCode = 204;
@@ -624,6 +633,12 @@ export function createAuthApiMiddleware() {
       if (!["/api/auth/login", "/api/auth/register", "/api/auth/request-reset", "/api/auth/reset-password"].includes(url.pathname)) requireCsrf(req);
       if (url.pathname === "/api/auth/register" && req.method === "POST") return await handleRegister(req, res);
       if (url.pathname === "/api/auth/verify-email" && req.method === "GET") return await handleVerifyEmail(req, res, url);
+      if (url.pathname === "/api/auth/google/start" && req.method === "POST") {
+        return sendJson(res, 200, {
+          message:
+            "Google OAuth is not configured yet. Use email and password sign-in, or set GOOGLE_CLIENT_ID in the server environment."
+        });
+      }
       if (url.pathname === "/api/auth/login" && req.method === "POST") return await handleLogin(req, res);
       if (url.pathname === "/api/auth/refresh" && req.method === "POST") return await handleRefresh(req, res);
       if (url.pathname === "/api/auth/logout" && req.method === "POST") return await handleLogout(req, res);
@@ -639,11 +654,11 @@ export function createAuthApiMiddleware() {
       sendJson(res, 404, { error: "not_found" });
     } catch (error) {
       if (error instanceof z.ZodError) return sendJson(res, 400, { error: "validation_error", issues: error.issues });
-      const statusCode = error.statusCode || 500;
-      if (statusCode >= 500) console.error("[prelude-auth-api]", error);
-      sendJson(res, statusCode, {
-        error: statusCode === 401 ? "unauthenticated" : statusCode === 403 ? "forbidden" : statusCode >= 500 ? "server_error" : "request_failed",
-        message: error.message || "Request failed."
+      const formatted = formatAuthApiError(error);
+      logAuthApiError(error, formatted);
+      sendJson(res, formatted.statusCode, {
+        error: formatted.error,
+        message: formatted.message
       });
     }
   };

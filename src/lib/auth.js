@@ -1,5 +1,20 @@
 import { getPlan } from "./plans.js";
 
+const DB_UNAVAILABLE_UI =
+  "The local development database is unavailable. Start the database and try again.";
+
+function sanitizeClientErrorMessage(payload, fallback) {
+  if (payload?.error === "database_unavailable") return payload.message || DB_UNAVAILABLE_UI;
+  const raw = payload?.message || fallback || "Request failed.";
+  if (import.meta.env.PROD && /prisma|Can't reach database server/i.test(raw)) {
+    return "Something went wrong. Please try again later.";
+  }
+  if (import.meta.env.DEV && /prisma|Can't reach database server/i.test(raw)) {
+    return DB_UNAVAILABLE_UI;
+  }
+  return raw;
+}
+
 const CSRF_KEY = "prelude_csrf";
 const LEGACY_SESSION_KEY = "prelude_session";
 
@@ -21,7 +36,7 @@ export function getCsrfToken() {
   return sessionStorage.getItem(CSRF_KEY) || decodeURIComponent(readCookie("prelude_csrf") || "");
 }
 
-async function api(path, options = {}) {
+export async function api(path, options = {}) {
   const headers = { Accept: "application/json", ...(options.headers || {}) };
   if (options.body && !(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
   const csrf = getCsrfToken();
@@ -30,7 +45,8 @@ async function api(path, options = {}) {
   const payload = await response.json().catch(() => ({}));
   if (payload.csrfToken) storeCsrf(payload.csrfToken);
   if (!response.ok) {
-    const error = new Error(payload.message || payload.error || "Request failed.");
+    const message = sanitizeClientErrorMessage(payload, payload.error);
+    const error = new Error(message);
     error.status = response.status;
     error.payload = payload;
     throw error;

@@ -13,6 +13,22 @@ cp .env.example .env
 bash prelude_dataset_kit/scripts/setup_datasets.sh
 ```
 
+### Local PostgreSQL (auth + demo dashboards)
+
+Requires [Docker](https://docs.docker.com/get-docker/). Credentials live in `compose.yml` and `.env.example` only — do not commit a real `.env`.
+
+```bash
+npm run db:start      # Docker Compose — postgres:16 on localhost:5432
+npm run db:migrate    # Apply Prisma migrations
+npm run seed:demo     # Demo student/mentor accounts (local only)
+```
+
+Ensure `.env` includes:
+
+`DATABASE_URL="postgresql://prelude:prelude_dev_password@localhost:5432/prelude_dev?schema=public"`
+
+Demo logins (after seed): `student@prelude-demo.com` / `Student123!` and `mentor@prelude-demo.com` / `Mentor123!`
+
 ### Option A — one command (simplest)
 
 Runs the React app and all `/api/*` routes on the same dev port:
