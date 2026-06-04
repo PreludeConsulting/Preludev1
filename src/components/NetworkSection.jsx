@@ -1,18 +1,22 @@
 import { Building2, GraduationCap, MessageCircle, Users } from "lucide-react";
 import { motion } from "motion/react";
+import NetworkMentorVisual from "./NetworkMentorVisual.jsx";
 
-const STAT_CARDS = [
+const METRIC_ROWS = [
   {
-    metric: "25+ universities",
+    value: "25+",
+    title: "Universities",
     description: "Represented across the Prelude mentor network."
   },
   {
-    metric: "50+ student mentors",
-    description: "Providing firsthand admissions insights."
+    value: "<5 hr",
+    title: "Average mentor response",
+    description: "Get timely answers, feedback, and guidance when questions come up."
   },
   {
-    metric: "100+ unique perspectives",
-    description: "From different majors, backgrounds, and admissions journeys."
+    value: "50+",
+    title: "Unique perspectives",
+    description: "Learn from students with different majors, backgrounds, and admissions journeys."
   }
 ];
 
@@ -57,22 +61,36 @@ export default function NetworkSection() {
   return (
     <section className="network-section" aria-labelledby="network-section-heading">
       <div className="network-section__inner">
-        <Reveal>
-          <h2 id="network-section-heading" className="network-section__headline">
-            Access a network of students from top universities
-          </h2>
-        </Reveal>
+        <div className="network-section__split">
+          <Reveal className="network-section__visual-col">
+            <NetworkMentorVisual />
+          </Reveal>
 
-        <ul className="network-section__stats">
-          {STAT_CARDS.map((card, index) => (
-            <li key={card.metric}>
-              <Reveal className="network-section__stat-card" delay={index * 0.06}>
-                <p className="network-section__stat-metric">{card.metric}</p>
-                <p className="network-section__stat-desc">{card.description}</p>
-              </Reveal>
-            </li>
-          ))}
-        </ul>
+          <div className="network-section__content-col">
+            <Reveal>
+              <h2 id="network-section-heading" className="network-section__headline">
+                Access a network of students from top universities
+              </h2>
+            </Reveal>
+
+            <ul className="network-section__metrics">
+              {METRIC_ROWS.map((row, index) => (
+                <li
+                  className={`network-section__metric${index < METRIC_ROWS.length - 1 ? " network-section__metric--divided" : ""}`}
+                  key={row.title}
+                >
+                  <Reveal className="network-section__metric-inner" delay={index * 0.06}>
+                    <p className="network-section__metric-value">{row.value}</p>
+                    <div className="network-section__metric-copy">
+                      <h3 className="network-section__metric-title">{row.title}</h3>
+                      <p className="network-section__metric-desc">{row.description}</p>
+                    </div>
+                  </Reveal>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
         <Reveal className="network-section__features-block">
           <h2 className="network-section__subheadline">Built on a network, not a single advisor</h2>
