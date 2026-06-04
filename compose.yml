@@ -1,0 +1,24 @@
+# Local development only — PostgreSQL for Prelude auth and dashboard APIs.
+# Start: npm run db:start
+# Stop:  npm run db:stop
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: prelude
+      POSTGRES_PASSWORD: prelude_dev_password
+      POSTGRES_DB: prelude_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - prelude_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prelude -d prelude_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  prelude_postgres_data:

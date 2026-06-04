@@ -5,5 +5,5 @@ export const NAV_LINKS = [
   { labelKey: "nav.links.mentoring", href: "#mentorship" },
   { labelKey: "nav.links.pricing", href: "#pricing" },
   { labelKey: "nav.links.roadmap", href: "#roadmap" },
-  { labelKey: "nav.links.dashboard", href: "#dashboard" }
+  { labelKey: "nav.links.dashboard", href: "/dashboard" }
 ];

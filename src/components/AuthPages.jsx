@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
+import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
+import { startGoogleSignIn } from "../lib/googleAuth.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
+import DemoAccountsPanel from "./DemoAccountsPanel.jsx";
+import AppLink from "./AppLink.jsx";
 
 function Shell({ title, subtitle, children }) {
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-6 py-16 text-foreground">
-      <a href="/" className="text-sm text-muted-foreground hover:text-foreground">← Back to Prelude</a>
+      <AppLink href="/" className="text-sm text-muted-foreground hover:text-foreground">← Back to Prelude</AppLink>
       <section className="mt-8 rounded-3xl border border-border/70 bg-card/90 p-8 shadow-2xl shadow-black/20 backdrop-blur">
         <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
         {subtitle ? <p className="mt-2 text-muted-foreground">{subtitle}</p> : null}
@@ -30,19 +36,33 @@ function Alert({ children, tone = "info" }) {
 }
 
 export function LoginPage() {
+  const navigate = useNavigate();
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function onSubmit(event) {
-    event.preventDefault();
+  async function onGoogle() {
+    setError("");
+    try {
+      const result = await startGoogleSignIn();
+      if (result.url) {
+        window.location.href = result.url;
+        return;
+      }
+      setError(result.message || "Google sign-in is not configured yet.");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function loginWithCredentials(demoEmail, demoPassword) {
     setLoading(true);
     setError("");
     try {
-      await signIn(email, password);
-      window.location.href = "/dashboard";
+      const user = await signIn(demoEmail, demoPassword);
+      navigate(dashboardHomeForRole(user.role), { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -50,22 +70,54 @@ export function LoginPage() {
     }
   }
 
+  async function onSubmit(event) {
+    event.preventDefault();
+    await loginWithCredentials(email, password);
+  }
+
+  async function onDemoLogin(account) {
+    setEmail(account.email);
+    setPassword(account.password);
+    await loginWithCredentials(account.email, account.password);
+  }
+
   return (
     <Shell title="Log in" subtitle="Secure access uses HTTP-only cookies, CSRF protection, and server-side role checks.">
+      <DemoAccountsPanel onDemoLogin={onDemoLogin} loading={loading} />
+      <GoogleSignInButton onClick={onGoogle} disabled={loading} />
+      <p className="dash-auth-divider">or continue with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         <button disabled={loading} className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Logging in…" : "Log in"}</button>
-        <p className="text-sm text-muted-foreground"><a className="underline" href="/forgot-password">Forgot password?</a> · <a className="underline" href="/register">Create an account</a></p>
+        <p className="text-sm text-muted-foreground">
+          <AppLink className="underline" href="/forgot-password">Forgot password?</AppLink> ·{" "}
+          <AppLink className="underline" href="/register">Create an account</AppLink>
+        </p>
       </form>
     </Shell>
   );
 }
 
 export function RegisterPage() {
+  const navigate = useNavigate();
   const { signUp } = useAuth();
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", role: "STUDENT", termsAccepted: false });
+
+  async function onGoogle() {
+    setError("");
+    try {
+      const result = await startGoogleSignIn();
+      if (result.url) {
+        window.location.href = result.url;
+        return;
+      }
+      setMessage(result.message || "Google sign-up will be available once OAuth is configured.");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -77,8 +129,12 @@ export function RegisterPage() {
     setError("");
     setMessage("");
     try {
-      await signUp(form);
-      setMessage("Account created. Check your email for the verification link. In local development, the link appears in the server console for free.");
+      const user = await signUp(form);
+      if (user?.emailVerified) {
+        navigate(dashboardHomeForRole(user.role), { replace: true });
+        return;
+      }
+      setMessage("Account created. Check your email for the verification link. In local development, the link appears in the server console.");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -87,7 +143,9 @@ export function RegisterPage() {
   }
 
   return (
-    <Shell title="Create your free Prelude account" subtitle="No paid email, SMS, or identity provider is required for local startup operation.">
+    <Shell title="Create your free Prelude account" subtitle="Choose Student or Mentor to access the right Prelude dashboard after sign-up.">
+      <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} />
+      <p className="dash-auth-divider">or sign up with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
         {message ? <Alert>{message}</Alert> : null}
@@ -97,11 +155,10 @@ export function RegisterPage() {
         </div>
         <Field label="Email" type="email" value={form.email} onChange={update("email")} required />
         <Field label="Password" type="password" value={form.password} onChange={update("password")} required minLength={12} />
-        <label className="block text-sm font-medium">Role
+        <label className="block text-sm font-medium">I am a
           <select className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3" value={form.role} onChange={update("role")}>
             <option value="STUDENT">Student</option>
             <option value="MENTOR">Mentor</option>
-            <option value="COUNSELOR">Counselor</option>
           </select>
         </label>
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
@@ -153,15 +210,16 @@ export function VerifyEmailPage() {
     const token = new URLSearchParams(window.location.search).get("token") || "";
     verifyEmail(token).then((result) => setState({ loading: false, message: result.message, error: "" })).catch((err) => setState({ loading: false, message: "", error: err.message }));
   }, []);
-  return <Shell title="Email verification">{state.error ? <Alert tone="error">{state.error}</Alert> : <Alert>{state.message}</Alert>} {!state.loading && !state.error ? <a className="mt-6 inline-block rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground" href="/login">Continue to login</a> : null}</Shell>;
+  return <Shell title="Email verification">{state.error ? <Alert tone="error">{state.error}</Alert> : <Alert>{state.message}</Alert>} {!state.loading && !state.error ? <AppLink className="mt-6 inline-block rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground" href="/login">Continue to login</AppLink> : null}</Shell>;
 }
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { user, ready } = useAuth();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    if (ready && !user) window.location.href = "/login";
+    if (ready && !user) navigate("/login", { replace: true });
     if (ready && user) getDashboardData().then(setData).catch((err) => setError(err.message));
   }, [ready, user]);
   const cards = useMemo(() => {

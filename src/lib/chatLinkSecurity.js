@@ -1,3 +1,5 @@
+import { appPath } from "./appPaths.js";
+
 const TRUSTED_EXTERNAL_HOSTS = [
   "studentaid.gov",
   "www.studentaid.gov",
@@ -66,9 +68,7 @@ export function navigateChatHref(href) {
   }
 
   if (value.startsWith("/")) {
-    const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-    const path = base && !value.startsWith(base) ? `${base}${value}` : value;
-    window.location.href = path;
+    window.location.href = appPath(value);
     return true;
   }
 

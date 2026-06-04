@@ -1,7 +1,11 @@
-import { ArrowUpRight, Menu, Search, User, X } from "lucide-react";
+import { ArrowUpRight, Menu, Search, X } from "lucide-react";
+import AccountMenuButton from "./AccountMenuButton.jsx";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { isAppRoute } from "../lib/appPaths.js";
 import { NAV_LINKS } from "../data/navLinks.js";
+import AppLink from "./AppLink.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { Button } from "./ui/button.jsx";
@@ -54,44 +58,43 @@ export default function Navbar() {
           </a>
 
           <nav className="nav-bar__center hidden items-center gap-5 lg:flex" aria-label={t("nav.primaryLabel")}>
-            {NAV_LINKS.map(({ labelKey, href }) => (
-              <a className="ivy-nav-link" href={href} key={labelKey}>
-                {t(labelKey)}
-              </a>
-            ))}
+            {NAV_LINKS.map(({ labelKey, href }) =>
+              isAppRoute(href) ? (
+                <Link className="ivy-nav-link" to={href} key={labelKey}>
+                  {t(labelKey)}
+                </Link>
+              ) : (
+                <a className="ivy-nav-link" href={href} key={labelKey}>
+                  {t(labelKey)}
+                </a>
+              )
+            )}
           </nav>
 
           <div className="nav-bar__actions ml-auto flex items-center justify-end gap-3 sm:gap-4">
-            <button
-              type="button"
-              onClick={toggleSearch}
-              className="nav-bar__search-btn inline-flex text-foreground transition hover:text-primary"
-              aria-label={t("nav.searchLabel")}
-              aria-expanded={searchOpen}
-              aria-controls="site-search-panel"
-            >
-              <Search className="h-6 w-6" aria-hidden="true" />
-            </button>
-
-            {isAuthenticated ? (
+            <div id="site-search-panel" className="nav-bar__search-wrap">
               <button
                 type="button"
-                onClick={openAccount}
-                className="hidden items-center gap-2 border border-primary/20 bg-primary px-4 py-2 font-body text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 sm:inline-flex"
+                onClick={toggleSearch}
+                className="nav-bar__search-btn inline-flex text-foreground transition hover:text-primary"
+                aria-label={t("nav.searchLabel")}
+                aria-expanded={searchOpen}
+                aria-controls="site-search-dropdown"
               >
-                <User className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden xl:inline">{user.name.split(" ")[0]}</span>
-                <span className="hidden rounded-full bg-primary-foreground/20 px-2 py-0.5 text-xs text-primary-foreground xl:inline">
-                  {user.planName}
-                </span>
+                <Search className="h-6 w-6" aria-hidden="true" />
               </button>
-            ) : (
-              <button type="button" onClick={openSignIn} className="ivy-nav-link hidden sm:inline-flex">
-                {t("nav.signIn")}
-              </button>
-            )}
+              <SiteSearchPanel open={searchOpen} onClose={closeSearch} />
+            </div>
 
-            <Button href="#contact" className="rounded-full px-5 py-3 text-xs font-extrabold uppercase tracking-[0.12em]">
+            {isAuthenticated ? (
+              <AccountMenuButton onClick={openAccount} className="hidden sm:inline-flex" />
+            ) : (
+            <AppLink href="/login" className="ivy-nav-link hidden sm:inline-flex">
+              {t("nav.signIn")}
+            </AppLink>
+          )}
+
+          <Button as={Link} to="/register" className="rounded-full px-5 py-3 text-xs font-extrabold uppercase tracking-[0.12em]">
               {t("nav.getStarted")}
               <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </Button>
@@ -108,10 +111,6 @@ export default function Navbar() {
           </div>
         </div>
 
-        <div id="site-search-panel">
-          <SiteSearchPanel open={searchOpen} onClose={closeSearch} />
-        </div>
-
         <AnimatePresence>
           {mobileOpen ? (
             <motion.nav
@@ -122,11 +121,17 @@ export default function Navbar() {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
             >
-              {NAV_LINKS.map(({ labelKey, href }) => (
-                <a className="nav-bar__mobile-link ivy-nav-link" href={href} key={labelKey} onClick={closeMobile}>
-                  {t(labelKey)}
-                </a>
-              ))}
+              {NAV_LINKS.map(({ labelKey, href }) =>
+                isAppRoute(href) ? (
+                  <Link className="nav-bar__mobile-link ivy-nav-link" to={href} key={labelKey} onClick={closeMobile}>
+                    {t(labelKey)}
+                  </Link>
+                ) : (
+                  <a className="nav-bar__mobile-link ivy-nav-link" href={href} key={labelKey} onClick={closeMobile}>
+                    {t(labelKey)}
+                  </a>
+                )
+              )}
             </motion.nav>
           ) : null}
         </AnimatePresence>

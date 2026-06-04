@@ -1,0 +1,40 @@
+{
+  "meetings": [
+    {
+      "id": "demo-meet-jordan-zoom",
+      "title": "College List Strategy Session",
+      "studentId": "82503d99-da8c-479a-8714-6d76644c6785",
+      "mentorId": "82aab757-ffcc-4014-b891-643cef4af3a2",
+      "meetingType": "zoom",
+      "startTime": "2026-06-12T20:00:00.000Z",
+      "endTime": "2026-06-12T20:45:00.000Z",
+      "timeZone": "America/New_York",
+      "zoomMeetingId": "1234567890",
+      "zoomJoinUrl": "https://zoom.us/j/1234567890",
+      "zoomHostUrl": "https://zoom.us/s/demo-host-jordan",
+      "status": "scheduled",
+      "notes": "Review reach/target/likely balance and summer essay plan.",
+      "isPrivate": false,
+      "studentUserId": "1119aab8-989c-4084-9d19-ce59446f7d8e",
+      "mentorUserId": "0d917193-273d-4310-ad67-7f41cd29ec89"
+    },
+    {
+      "id": "demo-meet-alex-zoom",
+      "title": "Scholarship & Essay Planning",
+      "studentId": "84e311b6-5711-40f3-a5c3-86257b90c54e",
+      "mentorId": "82aab757-ffcc-4014-b891-643cef4af3a2",
+      "meetingType": "zoom",
+      "startTime": "2026-06-17T19:30:00.000Z",
+      "endTime": "2026-06-17T20:15:00.000Z",
+      "timeZone": "America/New_York",
+      "zoomMeetingId": "9876543210",
+      "zoomJoinUrl": "https://zoom.us/j/9876543210",
+      "zoomHostUrl": "https://zoom.us/s/demo-host-alex",
+      "status": "scheduled",
+      "notes": "Outline scholarship targets and personal statement themes.",
+      "isPrivate": false,
+      "studentUserId": "075e0905-b6ca-4e05-ab7d-fdb9f44991df",
+      "mentorUserId": "0d917193-273d-4310-ad67-7f41cd29ec89"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { appPath } from "./appPaths.js";
 import { NAV_LINKS } from "../data/navLinks.js";
 
 export const SCROLL_STORAGE_KEY = "preludeSearchScroll";
@@ -58,6 +59,11 @@ function scrollToElement(id) {
 
 /** Navigate to a search result and close the search panel. */
 export function navigateToSiteResult(item) {
+  if (item.href.startsWith("/")) {
+    window.location.href = appPath(item.href);
+    return;
+  }
+
   if (item.scrollTarget) {
     sessionStorage.setItem(SCROLL_STORAGE_KEY, item.scrollTarget);
   }

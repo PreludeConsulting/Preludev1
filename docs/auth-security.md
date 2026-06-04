@@ -66,10 +66,12 @@ During local and early production testing, verification and reset links are logg
 ## Required environment variables
 
 ```bash
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB?schema=public"
+DATABASE_URL="postgresql://prelude:prelude_dev_password@localhost:5432/prelude_dev?schema=public"
 JWT_ACCESS_SECRET="replace-with-a-long-random-secret"
 PUBLIC_APP_URL="http://localhost:5173"
 NODE_ENV="development"
 ```
+
+Local Docker setup: `npm run db:start` (see root `compose.yml`), then `npm run db:migrate` and `npm run seed:demo`.
 
 Use a strong `JWT_ACCESS_SECRET` before any public deployment. Run `npx prisma migrate deploy` after Prisma engines are available in the deployment environment.

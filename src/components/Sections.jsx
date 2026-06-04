@@ -14,6 +14,8 @@ import { useLanguage } from "../context/LanguageContext.jsx";
 import { Button } from "./ui/button.jsx";
 import PreludeLogo from "./PreludeLogo.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { getPricingPlans } from "../lib/plans.js";
+import PricingCard from "./PricingCard.jsx";
 import { startBillingCheckout } from "../lib/auth.js";
 
 const mediaBase = import.meta.env.BASE_URL;
@@ -181,12 +183,7 @@ export function LowerPlans() {
   const { t } = useLanguage();
   const [billingNotice, setBillingNotice] = useState("");
   const [loadingPlan, setLoadingPlan] = useState(null);
-  const translatedPlans = t("sections.plans.cards");
-  const plans = [
-    { paid: false },
-    { paid: true },
-    { paid: true, emphasized: true }
-  ].map((plan, index) => ({ ...plan, ...translatedPlans[index] }));
+  const plans = getPricingPlans();
   async function handlePlanClick(plan) {
     setBillingNotice("");
     if (!plan.paid) {
@@ -239,42 +236,16 @@ export function LowerPlans() {
         ) : null}
         <div className="mt-12 grid gap-6 lg:grid-cols-3 lg:gap-8">
           {plans.map((plan, index) => (
-            <Reveal
-              className={`lower-landing__plan ${plan.emphasized ? "lower-landing__plan--featured" : ""}`}
-              delay={index * 0.08}
-              key={plan.name}
-            >
-              {plan.emphasized ? (
-                <span className="mb-4 inline-flex w-fit rounded-full bg-primary/10 px-3 py-1 font-body text-xs font-medium text-primary">
-                  {t("sections.plans.mostPopular")}
-                </span>
-              ) : (
-                <span className="mb-4 block h-6" aria-hidden="true" />
-              )}
-              <h3 className="font-body text-2xl font-semibold tracking-tight text-foreground">{plan.name}</h3>
-              <p className="mt-3 font-body text-sm font-light leading-6 text-muted-foreground">{plan.description}</p>
-              <ul className="mt-6 flex flex-1 flex-col gap-2.5">
-                {plan.features.slice(0, 5).map((feature) => (
-                  <li className="flex gap-2.5 font-body text-sm font-light leading-6 text-foreground/80" key={feature}>
-                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-              <Button
-                as="button"
-                type="button"
-                variant="primary"
-                className="mt-8 w-full"
-                onClick={() => handlePlanClick(plan)}
-                disabled={loadingPlan === plan.id}
-              >
-                {loadingPlan === plan.id
-                  ? t("sections.plans.pleaseWait")
-                  : plan.paid
-                    ? t("sections.plans.choose", { plan: plan.name })
-                    : t("sections.plans.startFree")}
-              </Button>
+            <Reveal delay={index * 0.08} key={plan.id}>
+              <PricingCard
+                plan={plan}
+                onSelect={handlePlanClick}
+                loading={loadingPlan === plan.id}
+                mostPopularLabel={t("sections.plans.mostPopular")}
+                startFreeLabel={t("sections.plans.startFree")}
+                chooseLabel={t("sections.plans.choose")}
+                pleaseWaitLabel={t("sections.plans.pleaseWait")}
+              />
             </Reveal>
           ))}
         </div>
