@@ -11,6 +11,7 @@ import UniversityCarousel from "./components/UniversityCarousel.jsx";
 import QuestionnairePage from "./components/QuestionnairePage.jsx";
 import UserDashboard from "./components/UserDashboard.jsx";
 import { DashboardPage, ForgotPasswordPage, LoginPage, ProfilePage, RegisterPage, ResetPasswordPage, SettingsPage, VerifyEmailPage } from "./components/AuthPages.jsx";
+import { SCROLL_STORAGE_KEY } from "./lib/siteSearch.js";
 import {
   AdmissionsCostBanner,
   LowerBenefits,
@@ -35,7 +36,11 @@ function AppContent() {
   }, []);
   
   useEffect(() => {
-    if (hash === "#preludematch" || hash === "#dashboard") {
+    if (hash === "#preludematch") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      return;
+    }
+    if (hash === "#dashboard" && !sessionStorage.getItem(SCROLL_STORAGE_KEY)) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
   }, [hash]);

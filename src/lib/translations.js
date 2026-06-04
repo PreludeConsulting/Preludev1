@@ -16,8 +16,18 @@ export const translations = {
       homeLabel: "Prelude home",
       primaryLabel: "Primary navigation",
       searchLabel: "Search Prelude",
+      searchPlaceholder: "Search Prelude...",
+      searchNoResults: "No results found",
+      menuOpenLabel: "Open menu",
+      menuCloseLabel: "Close menu",
       signIn: "Sign in",
       getStarted: "Get Started",
+      searchItems: {
+        financialAid: "Financial Aid",
+        collegeList: "College List",
+        applicationStrategy: "Application Strategy",
+        mentorMatching: "Mentor Matching"
+      },
       links: {
         about: "About",
         admissions: "Admissions Counseling",
@@ -186,8 +196,18 @@ export const translations = {
       homeLabel: "Inicio de Prelude",
       primaryLabel: "Navegación principal",
       searchLabel: "Buscar en Prelude",
+      searchPlaceholder: "Buscar en Prelude...",
+      searchNoResults: "No se encontraron resultados",
+      menuOpenLabel: "Abrir menú",
+      menuCloseLabel: "Cerrar menú",
       signIn: "Iniciar sesión",
       getStarted: "Comenzar",
+      searchItems: {
+        financialAid: "Ayuda financiera",
+        collegeList: "Lista de universidades",
+        applicationStrategy: "Estrategia de solicitud",
+        mentorMatching: "Emparejamiento de mentores"
+      },
       links: {
         about: "Acerca de",
         admissions: "Asesoría de admisiones",

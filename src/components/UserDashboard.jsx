@@ -1,5 +1,7 @@
 import { ArrowUpRight, MessageCircle, Sparkles } from "lucide-react";
+import { useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { consumeSearchScrollTarget } from "../lib/siteSearch.js";
 import { getPlan } from "../lib/plans.js";
 import { PRELUDE_AI_NAME } from "../lib/preludeAi.js";
 import { getNodeById } from "../lib/roadmapData.js";
@@ -8,6 +10,15 @@ import RoadmapPath from "./RoadmapPath.jsx";
 
 export default function UserDashboard() {
   const { user, planDetails, openSignIn, requestPersonalizedAi } = useAuth();
+
+  useEffect(() => {
+    const target = consumeSearchScrollTarget();
+    if (!target) return undefined;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   if (!user) {
     return (
