@@ -1,7 +1,8 @@
 export const LANGUAGES = [
   { code: "en", label: "English", shortLabel: "EN" },
   { code: "es", label: "Español", shortLabel: "ES" },
-  { code: "ko", label: "한국어", shortLabel: "KO" }
+  { code: "ko", label: "한국어", shortLabel: "KO" },
+  { code: "zh", label: "中文（普通话）", shortLabel: "ZH" }
 ];
 
 export const DEFAULT_LANGUAGE = "en";
@@ -557,6 +558,283 @@ export const translations = {
           mentorship: "멘토링",
           pricing: "가격",
           contact: "문의"
+        }
+      }
+    }
+  },
+  zh: {
+    languageSwitcher: {
+      buttonLabel: "更改语言",
+      menuLabel: "选择网站语言",
+      current: "语言"
+    },
+    nav: {
+      homeLabel: "Prelude 首页",
+      primaryLabel: "主导航",
+      searchLabel: "搜索 Prelude",
+      searchPlaceholder: "搜索 Prelude...",
+      searchNoResults: "未找到结果",
+      menuOpenLabel: "打开菜单",
+      menuCloseLabel: "关闭菜单",
+      signIn: "登录",
+      getStarted: "开始使用",
+      searchItems: {
+        financialAid: "经济资助",
+        collegeList: "大学清单",
+        applicationStrategy: "申请策略",
+        mentorMatching: "导师匹配"
+      },
+      links: {
+        about: "关于我们",
+        admissions: "升学申请咨询",
+        mentoring: "导师辅导",
+        pricing: "价格",
+        roadmap: "路线图",
+        dashboard: "仪表板"
+      }
+    },
+    hero: {
+      headline: ["大学申请", "咨询，", "重新想象。"],
+      subcopy: "由同龄导师驱动的辅导、个性化策略和财务规划指导，帮助学生自信打造出色的申请材料。",
+      emailLabel: "电子邮箱地址",
+      emailPlaceholder: "输入你的电子邮箱地址",
+      cta: "免费开始试用",
+      note: "先免费开始，然后匹配来自你梦想学校的导师。"
+    },
+    carousel: {
+      heading: "来自顶尖大学学生的导师辅导"
+    },
+    studentNetwork: {
+      headline: "Prelude 的学生网络如何改变大学申请指导",
+      subheadline: "学生不必依赖过时的顾问，而是可以直接接触刚刚经历过申请过程的现代大学生导师。",
+      insightTitle: "真实学生。真实洞察。",
+      insightDescription: "Prelude 将高中生与大学生连接起来，这些大学生亲身了解当下的申请流程、校园文化、专业、文书和学生生活。",
+      helpTitle: "在你需要时获得帮助",
+      helpDescription: "问题不会等到下一次预约会议才出现。当学生需要真正的支持时，Prelude 导师可以介入、回复消息，并建议安排通话。",
+      graphic: {
+        label: "现代导师网络",
+        you: "你",
+        student: "高中生",
+        majors: {
+          business: "商科",
+          biology: "生物学",
+          engineering: "工程学"
+        }
+      },
+      chat: {
+        roleLine: "导师 · Georgia Tech · CS",
+        status: "在线",
+        scheduleZoom: "预约 Zoom",
+        messages: [
+          "嘿 Maya，我一直在改个人陈述，现在完全不知道它到底有没有变好。",
+          "哈哈，别担心~ 我觉得你只是盯着它看太久了。",
+          "这样吧，与其一直发消息来回说，不如这周找个时间快速开个 Zoom。我觉得一起聊你的故事、找出哪里不顺，会容易很多。",
+          "那真的太有帮助了！我已经为这个焦虑好几周了 🥲",
+          "别担心，我们会一起理清楚。我会发几个我方便的时间，我们一起安排。"
+        ]
+      }
+    },
+    network: {
+      headline: "连接顶尖大学学生网络",
+      subheadline: "建立在网络之上，而不是只依赖一位顾问",
+      metrics: [
+        {
+          value: "25+",
+          title: "大学",
+          description: "覆盖 Prelude 导师网络中的代表院校。"
+        },
+        {
+          value: "<5 hr",
+          title: "导师平均回复时间",
+          description: "当问题出现时，及时获得回答、反馈和指导。"
+        },
+        {
+          value: "50+",
+          title: "独特视角",
+          description: "向拥有不同专业、背景和申请经历的学生学习。"
+        }
+      ],
+      features: [
+        {
+          title: "顶尖大学学生",
+          description: "直接向就读于领先大学的学生学习。"
+        },
+        {
+          title: "多元洞察",
+          description: "从拥有不同目标、专业和经历的导师那里获得建议。"
+        },
+        {
+          title: "直接沟通",
+          description: "给导师发消息、提问，并获得个性化反馈。"
+        },
+        {
+          title: "学校定向指导",
+          description: "了解目标院校学生实际用过并奏效的申请方法。"
+        }
+      ],
+      messagesVisual: {
+        mentorMeta: "导师 · Georgia Tech · CS",
+        studentMeta: "学生 · 12 年级",
+        searchPlaceholder: "搜索对话…",
+        status: "在线",
+        scheduleZoom: "预约 Zoom",
+        joinZoom: "加入 Zoom",
+        composerPlaceholder: "写一条消息…",
+        threads: [
+          {
+            preview: "你的大学清单进展很好——接下来我们专注文书策略。",
+            time: "2 小时前"
+          },
+          {
+            preview: "我正在处理——明天早上会分享文档。",
+            time: "1 天前"
+          }
+        ],
+        messages: [
+          "嗨 Jordan——我们周四再细化一下你的冲刺校清单。",
+          "听起来不错。我今晚会更新大学清单分层。",
+          "你的大学清单进展很好——接下来我们专注文书策略。"
+        ]
+      }
+    },
+    match: {
+      ariaLabel: "PreludeMatch 互动演示",
+      intro: {
+        eyebrow: "PreludeMatch",
+        title: "找到适合你的近龄导师。",
+        body: "回答几个关于目标、目标院校、兴趣和偏好支持方式的快速问题。",
+        cta: "开始匹配",
+        footnote: "由 Prelude AI 支持的个性化导师匹配"
+      }
+    },
+    sections: {
+      cost: {
+        imageAlt: "戴着毕业帽的存钱罐，旁边标注 6,500 美元以上费用",
+        bodyBefore: "美国家庭每年在大学申请咨询上花费超过",
+        bodyAfter: "。",
+        headline: "花得更聪明，而不是更多。"
+      },
+      featureIntro: {
+        eyebrow: "Prelude 方法",
+        headline: "负担得起、真正个性化，而不是千篇一律的申请支持。",
+        body: "传统咨询费用高昂，而且常常与今天学生真实经历的申请过程脱节。Prelude 将你与近龄导师、实用的财务指导和保持流程有序的工具配对，让家庭投资于清晰，而不是混乱。"
+      },
+      split: {
+        eyebrow: "PreludeMatch",
+        headline: "认识已经到达你想去之处的导师。",
+        body: "按照目标院校、专业、活动和目标进行匹配。学生从最近走过同样道路的人那里获得指导，并可在课程之间继续发消息，家长也能看到进展更新。",
+        bullets: [
+          "来自你目标院校的在读学生",
+          "Zoom 课程之间也保持稳定推进",
+          "家庭可以看见的清晰进展"
+        ],
+        imageAlt: "PreludeMatch 导师辅导预览"
+      },
+      benefits: {
+        eyebrow: "为什么家庭选择 Prelude",
+        headline: "给学生清晰方向。给家长更多信心。",
+        body: "你来梦想，我们来规划——通过让每个人保持一致的路线图，完成匹配、构建和申请。",
+        cards: [
+          {
+            title: "学生信任的指导",
+            text: "与最近经历过申请、理解压力的导师交流，而不是照搬过时套路。"
+          },
+          {
+            title: "更聪明的支出",
+            text: "通过奖学金策略、资助方案比较和财务规划，让家庭知道每一美元花在哪里。"
+          },
+          {
+            title: "不只是履历，而是一个故事",
+            text: "将身份、文书和活动构建成有说服力的叙事，并由 AI 沿途整理截止日期。"
+          }
+        ]
+      },
+      plans: {
+        eyebrow: "方案",
+        headline: "随着你的目标一起成长的支持。",
+        body: "从免费的 Basic 开始。当你需要更多课程、文书支持和财务策略时再升级。",
+        mostPopular: "最受欢迎",
+        pleaseWait: "请稍候...",
+        priceLabels: {
+          free: "免费",
+          paid: "付费"
+        },
+        startFree: "免费开始",
+        choose: "选择 {{plan}}",
+        notices: {
+          basicFree: "Basic 免费。创建账户即可开始，等付费订阅可用后再升级。",
+          signInFirst: "请先创建或登录免费的 Basic 账户。Stripe 连接后，付费订阅会关联到该账户。",
+          comingSoon: "付费订阅即将推出。Basic 目前免费，Stripe 连接后将开启 Plus/Pro 结账。",
+          unavailable: "当前无法使用计费功能。"
+        },
+        cards: [
+          {
+            id: "basic",
+            name: "Basic",
+            description: "为刚开始大学申请旅程的学生提供基础指导。",
+            features: [
+              "每月一次小组导师辅导课程",
+              "通过 PreludeMatch 获得匹配导师",
+              "有限的直接消息",
+              "个性化大学路线图",
+              "进度追踪",
+              "一般文书头脑风暴支持",
+              "经济资助和奖学金资源",
+              "一般顾问支持"
+            ]
+          },
+          {
+            id: "plus",
+            name: "Plus",
+            description: "更个性化的指导和持续支持。",
+            features: [
+              "Basic 的全部内容",
+              "每月两次 1 对 1 导师课程",
+              "每月额外一次小组策略课程",
+              "更多直接消息",
+              "定制大学与申请路线图",
+              "身份构建辅导",
+              "文书反馈和修改支持",
+              "同龄人基准洞察"
+            ]
+          },
+          {
+            id: "pro",
+            name: "Pro",
+            description: "为追求顶尖结果的学生提供端到端支持。",
+            features: [
+              "Plus 的全部内容",
+              "每周或每两周一次 1 对 1 导师课程",
+              "优先导师匹配",
+              "优先直接消息",
+              "全面文书编辑",
+              "完整申请审核",
+              "面试准备",
+              "学校定向申请策略",
+              "高级财务咨询",
+              "家长策略课程",
+              "高级游戏化进度追踪"
+            ]
+          }
+        ]
+      },
+      cta: {
+        headline: "开始你的 Prelude。",
+        body: "预约一次免费策略通话，用清晰、自信和尊重预算的支持开启申请之路。",
+        primary: "预约免费通话",
+        secondary: "查看方案"
+      },
+      footer: {
+        body: "由同龄导师驱动的大学申请咨询——更聪明的支出、真实导师、负担得起的支持。",
+        label: "页脚",
+        copyright: "© 2026 Prelude. 保留所有权利。",
+        privacy: "隐私",
+        terms: "条款",
+        links: {
+          how: "运作方式",
+          mentorship: "导师辅导",
+          pricing: "价格",
+          contact: "联系"
         }
       }
     }
