@@ -37,6 +37,8 @@ const RESET_MS = 280;
 const FADE_S = 0.42;
 
 export default function AnimatedChatDemo() {
+  const { t } = useLanguage();
+  const messages = t("studentNetwork.chat.messages");
   const reduceMotion = useReducedMotion();
   const [visibleCount, setVisibleCount] = useState(reduceMotion ? CHAT_MESSAGES.length : 0);
 
@@ -99,7 +101,7 @@ export default function AnimatedChatDemo() {
       <div className="sn-chat-demo__thread">
         {CHAT_MESSAGES.map((msg, index) => (
           <motion.div
-            key={msg.text}
+            key={`${msg.name}-${index}`}
             className={`sn-chat-demo__row sn-chat-demo__row--${msg.from}`}
             initial={false}
             animate={{
