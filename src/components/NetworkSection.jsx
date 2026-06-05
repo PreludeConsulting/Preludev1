@@ -1,47 +1,9 @@
 import { Building2, GraduationCap, MessageCircle, Users } from "lucide-react";
 import { motion } from "motion/react";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import NetworkMessagesVisual from "./NetworkMessagesVisual.jsx";
 
-const METRIC_ROWS = [
-  {
-    value: "25+",
-    title: "Universities",
-    description: "Represented across the Prelude mentor network."
-  },
-  {
-    value: "<5 hr",
-    title: "Average mentor response",
-    description: "Get timely answers, feedback, and guidance when questions come up."
-  },
-  {
-    value: "50+",
-    title: "Unique perspectives",
-    description: "Learn from students with different majors, backgrounds, and admissions journeys."
-  }
-];
-
-const FEATURE_COLUMNS = [
-  {
-    icon: GraduationCap,
-    title: "Top university students",
-    description: "Learn directly from students at leading universities."
-  },
-  {
-    icon: Users,
-    title: "Diverse insights",
-    description: "Get advice from mentors with different goals, majors, and experiences."
-  },
-  {
-    icon: MessageCircle,
-    title: "Direct communication",
-    description: "Message mentors, ask questions, and receive personalized feedback."
-  },
-  {
-    icon: Building2,
-    title: "School-specific guidance",
-    description: "Understand what actually worked for students at the colleges you're aiming for."
-  }
-];
+const FEATURE_ICONS = [GraduationCap, Users, MessageCircle, Building2];
 
 function Reveal({ children, className = "", delay = 0 }) {
   return (
@@ -58,6 +20,10 @@ function Reveal({ children, className = "", delay = 0 }) {
 }
 
 export default function NetworkSection() {
+  const { t } = useLanguage();
+  const metrics = t("network.metrics");
+  const features = t("network.features");
+
   return (
     <section className="network-section" aria-labelledby="network-section-heading">
       <div className="network-section__inner">
@@ -69,14 +35,14 @@ export default function NetworkSection() {
           <div className="network-section__content-col">
             <Reveal>
               <h2 id="network-section-heading" className="network-section__headline">
-                Access a network of students from top universities
+                {t("network.headline")}
               </h2>
             </Reveal>
 
             <ul className="network-section__metrics">
-              {METRIC_ROWS.map((row, index) => (
+              {metrics.map((row, index) => (
                 <li
-                  className={`network-section__metric${index < METRIC_ROWS.length - 1 ? " network-section__metric--divided" : ""}`}
+                  className={`network-section__metric${index < metrics.length - 1 ? " network-section__metric--divided" : ""}`}
                   key={row.title}
                 >
                   <Reveal className="network-section__metric-inner" delay={index * 0.06}>
@@ -93,11 +59,11 @@ export default function NetworkSection() {
         </div>
 
         <Reveal className="network-section__features-block">
-          <h2 className="network-section__subheadline">Built on a network, not a single advisor</h2>
+          <h2 className="network-section__subheadline">{t("network.subheadline")}</h2>
 
           <ul className="network-section__features">
-            {FEATURE_COLUMNS.map((feature, index) => {
-              const Icon = feature.icon;
+            {features.map((feature, index) => {
+              const Icon = FEATURE_ICONS[index];
               return (
                 <li key={feature.title}>
                   <Reveal className="network-section__feature" delay={index * 0.05}>

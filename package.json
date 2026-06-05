@@ -22,16 +22,12 @@
     "train:agent": "node scripts/train-agent.mjs"
   },
   "dependencies": {
-<<<<<<< HEAD
-    "22": "^0.0.0",
-=======
     "@fullcalendar/core": "^6.1.20",
     "@fullcalendar/daygrid": "^6.1.20",
     "@fullcalendar/interaction": "^6.1.20",
     "@fullcalendar/list": "^6.1.20",
     "@fullcalendar/react": "^6.1.20",
     "@fullcalendar/timegrid": "^6.1.20",
->>>>>>> c90ae993d83dca3e3233e11969a873d01f7e044d
     "@prisma/client": "^5.22.0",
     "argon2": "^0.44.0",
     "clsx": "^2.1.1",
