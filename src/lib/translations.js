@@ -1,6 +1,7 @@
 export const LANGUAGES = [
   { code: "en", label: "English", shortLabel: "EN" },
-  { code: "es", label: "Español", shortLabel: "ES" }
+  { code: "es", label: "Español", shortLabel: "ES" },
+  { code: "ko", label: "한국어", shortLabel: "KO" }
 ];
 
 export const DEFAULT_LANGUAGE = "en";
@@ -279,6 +280,283 @@ export const translations = {
           mentorship: "Mentorship",
           pricing: "Pricing",
           contact: "Contact"
+        }
+      }
+    }
+  },
+  ko: {
+    languageSwitcher: {
+      buttonLabel: "언어 변경",
+      menuLabel: "웹사이트 언어 선택",
+      current: "언어"
+    },
+    nav: {
+      homeLabel: "Prelude 홈",
+      primaryLabel: "주요 내비게이션",
+      searchLabel: "Prelude 검색",
+      searchPlaceholder: "Prelude 검색...",
+      searchNoResults: "검색 결과가 없습니다",
+      menuOpenLabel: "메뉴 열기",
+      menuCloseLabel: "메뉴 닫기",
+      signIn: "로그인",
+      getStarted: "시작하기",
+      searchItems: {
+        financialAid: "재정 지원",
+        collegeList: "대학 리스트",
+        applicationStrategy: "지원 전략",
+        mentorMatching: "멘토 매칭"
+      },
+      links: {
+        about: "소개",
+        admissions: "입시 상담",
+        mentoring: "멘토링",
+        pricing: "가격",
+        roadmap: "로드맵",
+        dashboard: "대시보드"
+      }
+    },
+    hero: {
+      headline: ["대학 입시", "상담,", "새롭게."],
+      subcopy: "또래 멘토링, 개인 맞춤 전략, 재정 가이드를 통해 학생들이 자신 있게 돋보이는 지원서를 만들 수 있도록 돕습니다.",
+      emailLabel: "이메일 주소",
+      emailPlaceholder: "이메일 주소를 입력하세요",
+      cta: "무료로 시작하기",
+      note: "무료로 시작한 뒤 꿈꾸는 대학의 멘토와 매칭되세요."
+    },
+    carousel: {
+      heading: "최상위 대학 학생들에게 받는 멘토링"
+    },
+    studentNetwork: {
+      headline: "Prelude의 학생 네트워크가 대학 상담을 바꾸는 방식",
+      subheadline: "오래된 방식의 컨설턴트에 의존하는 대신, 학생들은 최근 입시 과정을 직접 경험한 현대적인 대학생 멘토들과 바로 연결됩니다.",
+      insightTitle: "진짜 학생. 진짜 인사이트.",
+      insightDescription: "Prelude는 고등학생을 오늘의 입시 과정, 캠퍼스 문화, 전공, 에세이, 학생 생활을 직접 이해하는 대학생들과 연결합니다.",
+      helpTitle: "필요할 때 받는 도움",
+      helpDescription: "질문은 다음 정기 미팅까지 기다려 주지 않습니다. 학생에게 실질적인 지원이 필요할 때 Prelude 멘토가 메시지로 답하고 통화를 제안할 수 있습니다.",
+      graphic: {
+        label: "현대적인 멘토 네트워크",
+        you: "나",
+        student: "고등학생",
+        majors: {
+          business: "비즈니스",
+          biology: "생물학",
+          engineering: "공학"
+        }
+      },
+      chat: {
+        roleLine: "멘토 · Georgia Tech · CS",
+        status: "온라인",
+        scheduleZoom: "Zoom 예약",
+        messages: [
+          "Maya, 자기소개서를 계속 고쳐 쓰고 있는데 이제 정말 나아지고 있는지 모르겠어.",
+          "하하, 괜찮아~ 너무 오래 들여다봐서 그런 것 같아.",
+          "메시지로 계속 주고받기보다 이번 주에 짧게 Zoom으로 이야기해 보자. 네 이야기를 같이 풀어 보고 어디가 잘 안 맞는지 찾는 게 훨씬 쉬울 것 같아.",
+          "그러면 정말 도움이 될 것 같아! 몇 주째 이것 때문에 스트레스였어 🥲",
+          "걱정하지 마, 같이 정리해 보자. 내가 가능한 시간을 몇 개 보내 줄게. 함께 맞춰 보자."
+        ]
+      }
+    },
+    network: {
+      headline: "최상위 대학 학생 네트워크에 접근하세요",
+      subheadline: "한 명의 상담사가 아닌 네트워크로 만들어진 지원",
+      metrics: [
+        {
+          value: "25+",
+          title: "대학",
+          description: "Prelude 멘토 네트워크에 포함된 대학들입니다."
+        },
+        {
+          value: "<5 hr",
+          title: "평균 멘토 응답 시간",
+          description: "질문이 생길 때 신속한 답변, 피드백, 가이드를 받을 수 있습니다."
+        },
+        {
+          value: "50+",
+          title: "다양한 관점",
+          description: "서로 다른 전공, 배경, 입시 여정을 가진 학생들에게 배울 수 있습니다."
+        }
+      ],
+      features: [
+        {
+          title: "최상위 대학 학생들",
+          description: "주요 대학에 재학 중인 학생들에게 직접 배웁니다."
+        },
+        {
+          title: "다양한 인사이트",
+          description: "서로 다른 목표, 전공, 경험을 가진 멘토들에게 조언을 받습니다."
+        },
+        {
+          title: "직접 소통",
+          description: "멘토에게 메시지를 보내고 질문하며 개인 맞춤 피드백을 받습니다."
+        },
+        {
+          title: "학교별 맞춤 가이드",
+          description: "목표 대학에 합격한 학생들에게 실제로 효과가 있었던 전략을 이해합니다."
+        }
+      ],
+      messagesVisual: {
+        mentorMeta: "멘토 · Georgia Tech · CS",
+        studentMeta: "학생 · 12학년",
+        searchPlaceholder: "대화 검색…",
+        status: "온라인",
+        scheduleZoom: "Zoom 예약",
+        joinZoom: "Zoom 참여",
+        composerPlaceholder: "메시지 작성…",
+        threads: [
+          {
+            preview: "대학 리스트가 많이 좋아졌어 — 다음에는 에세이 전략에 집중해 보자.",
+            time: "2시간 전"
+          },
+          {
+            preview: "진행 중이야 — 내일 아침에 문서를 공유할게.",
+            time: "1일 전"
+          }
+        ],
+        messages: [
+          "Jordan — 목요일에 상향 지원 학교 리스트를 더 다듬어 보자.",
+          "좋아. 오늘 밤에 대학 리스트 티어를 업데이트할게.",
+          "대학 리스트가 많이 좋아졌어 — 다음에는 에세이 전략에 집중해 보자."
+        ]
+      }
+    },
+    match: {
+      ariaLabel: "PreludeMatch 인터랙티브 데모",
+      intro: {
+        eyebrow: "PreludeMatch",
+        title: "나와 가까운 또래 멘토를 찾아보세요.",
+        body: "목표, 관심 대학, 관심사, 원하는 지원 스타일에 대한 몇 가지 빠른 질문에 답하세요.",
+        cta: "매칭 시작하기",
+        footnote: "Prelude AI가 지원하는 개인 맞춤 멘토 매칭"
+      }
+    },
+    sections: {
+      cost: {
+        imageAlt: "졸업모를 쓴 돼지저금통과 6,500달러 이상 비용 표시",
+        bodyBefore: "미국 가정은 매년 대학 입시 컨설팅에",
+        bodyAfter: "이상을 지출합니다.",
+        headline: "더 많이 쓰는 것이 아니라, 더 똑똑하게 쓰세요."
+      },
+      featureIntro: {
+        eyebrow: "Prelude 방식",
+        headline: "개인적이면서도 부담 없는 입시 지원, 획일적이지 않습니다.",
+        body: "전통적인 컨설팅은 비용이 높고 오늘날 학생들이 실제로 겪는 경험과 동떨어진 경우가 많습니다. Prelude는 가까운 또래 멘토, 실용적인 재정 가이드, 과정을 체계적으로 관리하는 도구를 연결해 가족이 혼란이 아닌 명확함에 투자하도록 돕습니다."
+      },
+      split: {
+        eyebrow: "PreludeMatch",
+        headline: "당신이 가고 싶은 곳에 이미 도착한 멘토를 만나세요.",
+        body: "목표 대학, 전공, 활동, 목표에 맞춰 매칭합니다. 학생들은 최근 같은 길을 지나온 사람에게 가이드를 받고, 세션 사이의 메시지와 학부모가 확인할 수 있는 업데이트까지 함께 받습니다.",
+        bullets: [
+          "목표 대학에 재학 중인 현재 학생들",
+          "Zoom 세션 사이에도 이어지는 꾸준한 추진력",
+          "가족이 확인할 수 있는 명확한 진행 상황"
+        ],
+        imageAlt: "PreludeMatch 멘토링 미리보기"
+      },
+      benefits: {
+        eyebrow: "가족들이 Prelude를 선택하는 이유",
+        headline: "학생에게는 명확함을. 부모에게는 확신을.",
+        body: "당신이 꿈꾸면, 우리는 길을 그립니다 — 매칭하고, 만들고, 지원하는 전 과정을 모두가 같은 방향으로 나아가도록 돕는 로드맵과 함께.",
+        cards: [
+          {
+            title: "학생들이 신뢰하는 가이드",
+            text: "낡은 전략이 아니라, 최근 입시를 직접 경험하고 그 압박을 이해하는 멘토와 이야기하세요."
+          },
+          {
+            title: "더 똑똑한 지출",
+            text: "장학금 전략, 재정 지원 비교, 재정 계획을 통해 가족이 모든 비용의 쓰임을 이해하도록 돕습니다."
+          },
+          {
+            title: "단순한 이력서가 아닌 하나의 이야기",
+            text: "정체성, 에세이, 활동을 설득력 있는 서사로 엮고, AI가 그 과정에서 마감일을 정리합니다."
+          }
+        ]
+      },
+      plans: {
+        eyebrow: "플랜",
+        headline: "목표와 함께 성장하는 지원.",
+        body: "Basic으로 무료 시작하세요. 더 많은 세션, 에세이 지원, 재정 전략이 필요할 때 업그레이드하세요.",
+        mostPopular: "가장 인기",
+        pleaseWait: "잠시만 기다려 주세요...",
+        priceLabels: {
+          free: "무료",
+          paid: "유료"
+        },
+        startFree: "무료로 시작하기",
+        choose: "{{plan}} 선택",
+        notices: {
+          basicFree: "Basic은 무료입니다. 계정을 만들어 시작한 뒤 유료 구독이 제공되면 업그레이드하세요.",
+          signInFirst: "먼저 무료 Basic 계정을 만들거나 로그인하세요. Stripe가 연결되면 유료 구독이 해당 계정에 연결됩니다.",
+          comingSoon: "유료 구독은 곧 제공됩니다. 현재 Basic은 무료이며 Stripe 연결 후 Plus/Pro 결제가 활성화됩니다.",
+          unavailable: "현재 결제를 사용할 수 없습니다."
+        },
+        cards: [
+          {
+            id: "basic",
+            name: "Basic",
+            description: "대학 여정을 시작하는 학생을 위한 기본 가이드.",
+            features: [
+              "월 1회 그룹 멘토링 세션",
+              "PreludeMatch를 통한 맞춤 멘토 접근",
+              "제한된 직접 메시지",
+              "개인 맞춤 대학 로드맵",
+              "진행 상황 추적",
+              "일반적인 에세이 브레인스토밍 지원",
+              "재정 지원 및 장학금 리소스",
+              "일반 컨설턴트 지원"
+            ]
+          },
+          {
+            id: "plus",
+            name: "Plus",
+            description: "더 개인화된 가이드와 꾸준한 지원.",
+            features: [
+              "Basic의 모든 항목",
+              "월 2회 1:1 멘토 세션",
+              "월 1회 추가 그룹 전략 세션",
+              "확장된 직접 메시지",
+              "맞춤형 대학 및 지원 로드맵",
+              "정체성 구축 코칭",
+              "에세이 피드백 및 수정 지원",
+              "또래 벤치마킹 인사이트"
+            ]
+          },
+          {
+            id: "pro",
+            name: "Pro",
+            description: "최상위 결과를 목표로 하는 학생을 위한 전방위 지원.",
+            features: [
+              "Plus의 모든 항목",
+              "매주 또는 격주 1:1 멘토 세션",
+              "우선 멘토 매칭",
+              "우선 직접 메시지",
+              "종합 에세이 편집",
+              "전체 지원서 검토",
+              "인터뷰 준비",
+              "학교별 입시 전략",
+              "고급 재정 컨설팅",
+              "학부모 전략 세션",
+              "프리미엄 게임화 진행 추적"
+            ]
+          }
+        ]
+      },
+      cta: {
+        headline: "당신의 Prelude를 시작하세요.",
+        body: "무료 전략 상담을 예약하고, 예산을 존중하는 명확함과 자신감, 지원으로 입시를 시작하세요.",
+        primary: "무료 상담 예약",
+        secondary: "플랜 보기"
+      },
+      footer: {
+        body: "또래 기반 대학 입시 상담 — 더 똑똑한 지출, 실제 멘토, 부담 없는 지원.",
+        label: "푸터",
+        copyright: "© 2026 Prelude. 모든 권리 보유.",
+        privacy: "개인정보 처리방침",
+        terms: "이용약관",
+        links: {
+          how: "작동 방식",
+          mentorship: "멘토링",
+          pricing: "가격",
+          contact: "문의"
         }
       }
     }
