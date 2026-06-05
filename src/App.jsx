@@ -6,11 +6,13 @@ import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Hero from "./components/Hero.jsx";
+import NetworkSection from "./components/NetworkSection.jsx";
+import StudentNetworkSection from "./components/StudentNetworkSection.jsx";
 import UniversityCarousel from "./components/UniversityCarousel.jsx";
 import QuestionnairePage from "./components/QuestionnairePage.jsx";
-import UserDashboard from "./components/UserDashboard.jsx";
-import { DashboardPage, ForgotPasswordPage, LoginPage, ProfilePage, RegisterPage, ResetPasswordPage, SettingsPage, VerifyEmailPage } from "./components/AuthPages.jsx";
+import { SCROLL_STORAGE_KEY } from "./lib/siteSearch.js";
 import {
   AdmissionsCostBanner,
   LowerBenefits,
@@ -23,6 +25,7 @@ import {
 
 function AppContent() {
   const { requestPersonalizedAi } = useAuth();
+  const navigate = useNavigate();
   const [hash, setHash] = useState(window.location.hash);
   const pathname = window.location.pathname.startsWith("/Preludev1")
     ? window.location.pathname.replace(/^\/Preludev1/, "") || "/"
@@ -35,48 +38,22 @@ function AppContent() {
   }, []);
   
   useEffect(() => {
-    if (hash === "#preludematch" || hash === "#dashboard") {
+    if (hash === "#preludematch") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      return;
+    }
+    if (hash === "#dashboard" && !sessionStorage.getItem(SCROLL_STORAGE_KEY)) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
   }, [hash]);
 
 
-  const route = pathname;
-  const authPage = {
-    "/register": <RegisterPage />,
-    "/login": <LoginPage />,
-    "/forgot-password": <ForgotPasswordPage />,
-    "/reset-password": <ResetPasswordPage />,
-    "/verify-email": <VerifyEmailPage />,
-    "/dashboard": <DashboardPage />,
-    "/profile": <ProfilePage />,
-    "/settings": <SettingsPage />
-  }[route];
-
-  if (authPage) {
-    return (
-      <div className="min-h-screen bg-background text-foreground">
-        <div className="pointer-events-none fixed inset-0 z-0 paper-grain" aria-hidden="true" />
-        <div className="relative z-10">{authPage}</div>
-        <LanguageSwitcher />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (hash === "#dashboard") navigate("/dashboard", { replace: true });
+  }, [hash, navigate]);
 
   if (hash === "#dashboard") {
-    return (
-      <div className="min-h-screen bg-background text-foreground">
-        <div className="pointer-events-none fixed inset-0 z-0 paper-grain" aria-hidden="true" />
-        <div className="relative z-10">
-          <Navbar />
-          <UserDashboard />
-        </div>
-        <PreludeChat />
-        <SignInModal />
-        <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
-        <LanguageSwitcher />
-      </div>
-    );
+    return null;
   }
 
   if (hash === "#preludematch") {
@@ -103,6 +80,8 @@ function AppContent() {
         <Hero />
         <UniversityCarousel />
         <AdmissionsCostBanner />
+        <StudentNetworkSection />
+        <NetworkSection />
         <LowerFeatureIntro />
         <LowerSplitVisual />
         <LowerBenefits />

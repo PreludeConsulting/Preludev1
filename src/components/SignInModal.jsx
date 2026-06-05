@@ -1,11 +1,16 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { X } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { DEMO_HINT } from "../lib/auth.js";
+import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
+import { startGoogleSignIn } from "../lib/googleAuth.js";
 import { cn } from "../lib/utils.js";
+import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 
 export default function SignInModal({ onSuccess }) {
+  const navigate = useNavigate();
   const { signInOpen, closeModals, signIn, signUp, authError } = useAuth();
   const [mode, setMode] = useState("signin");
   const [loading, setLoading] = useState(false);
@@ -26,14 +31,15 @@ export default function SignInModal({ onSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
+      let user;
       if (mode === "signin") {
-        await signIn(form.email, form.password);
+        user = await signIn(form.email, form.password);
       } else {
-        await signUp(form);
+        user = await signUp(form);
       }
-      onSuccess?.();
-      if (mode === "signin" || mode === "signup") {
-        window.location.hash = "dashboard";
+      onSuccess?.(user);
+      if (user) {
+        navigate(dashboardHomeForRole(user.role), { replace: true });
       }
     } catch {
       /* authError set in context */
@@ -85,7 +91,21 @@ export default function SignInModal({ onSuccess }) {
           ))}
         </div>
 
-        <form className="space-y-4 px-6 py-5" onSubmit={handleSubmit}>
+        <div className="space-y-4 px-6 py-5">
+          <GoogleSignInButton
+            disabled={loading}
+            onClick={async () => {
+              setLoading(true);
+              try {
+                const result = await startGoogleSignIn();
+                if (result.url) window.location.href = result.url;
+              } finally {
+                setLoading(false);
+              }
+            }}
+          />
+          <p className="dash-auth-divider">or use email</p>
+        <form className="space-y-4" onSubmit={handleSubmit}>
           {mode === "signup" ? (
             <>
               <label className="prelude-field">
@@ -98,7 +118,6 @@ export default function SignInModal({ onSuccess }) {
                   <select value={form.role} onChange={update("role")}>
                     <option value="student">Student</option>
                     <option value="mentor">Mentor</option>
-                    <option value="counselor">Counselor</option>
                   </select>
                 </label>
                 <label className="prelude-field">
@@ -143,6 +162,7 @@ export default function SignInModal({ onSuccess }) {
 
           <p className="font-body text-xs leading-5 text-muted-foreground">{DEMO_HINT}</p>
         </form>
+        </div>
       </motion.div>
     </div>
   );

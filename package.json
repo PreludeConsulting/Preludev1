@@ -7,6 +7,13 @@
     "dev": "vite",
     "server": "node server/standalone.js",
     "dev:all": "node scripts/dev-all.mjs",
+    "db:start": "docker compose up -d",
+    "db:stop": "docker compose down",
+    "db:setup": "node scripts/db-setup.mjs",
+    "db:reset": "docker compose down -v && npm run db:setup",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "seed:demo": "prisma db seed",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run && node --test tests/server/*.node.test.js && node scripts/test-api-routes.mjs",
@@ -15,7 +22,16 @@
     "train:agent": "node scripts/train-agent.mjs"
   },
   "dependencies": {
+<<<<<<< HEAD
     "22": "^0.0.0",
+=======
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/list": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
+>>>>>>> c90ae993d83dca3e3233e11969a873d01f7e044d
     "@prisma/client": "^5.22.0",
     "argon2": "^0.44.0",
     "clsx": "^2.1.1",
@@ -30,6 +46,9 @@
     "react-router-dom": "^6.30.1",
     "tailwind-merge": "^2.5.5",
     "zod": "^4.4.3"
+  },
+  "prisma": {
+    "seed": "node scripts/seed-demo-accounts.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.7.0",

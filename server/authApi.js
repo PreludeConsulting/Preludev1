@@ -4,6 +4,16 @@ import jwt from "jsonwebtoken";
 import { randomBytes, createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { formatAuthApiError, logAuthApiError } from "./lib/dbErrors.js";
+import {
+  createOfflineSessionTokens,
+  devRateLimit,
+  findOfflineDemoUser,
+  getOfflineAuthFromTokenClaims,
+  isDatabaseReachable,
+  isDevOfflineAuthEnabled,
+  OFFLINE_LOGIN_HINT
+} from "./lib/devOfflineAuth.js";
 
 export function db() {
   if (!globalThis.__preludePrisma) globalThis.__preludePrisma = new PrismaClient();
@@ -224,7 +234,7 @@ async function securityEvent({ userId, eventType, severity = "INFO", req, metada
   });
 }
 
-async function rateLimit(req, route, limit, windowSeconds) {
+async function rateLimitDb(req, route, limit, windowSeconds) {
   const ip = getClientIp(req) || "unknown";
   const key = `${route}:${ip}`;
   const windowStart = new Date(Math.floor(Date.now() / (windowSeconds * 1000)) * windowSeconds * 1000);
@@ -239,6 +249,10 @@ async function rateLimit(req, route, limit, windowSeconds) {
     error.statusCode = 429;
     throw error;
   }
+}
+
+async function rateLimit(req, route, limit, windowSeconds) {
+  await devRateLimit(req, route, limit, windowSeconds, db(), rateLimitDb);
 }
 
 async function createRoleProfile(tx, userId, role, organizationId) {
@@ -303,6 +317,11 @@ async function getAuth(req) {
   if (!token) return null;
   try {
     const claims = jwt.verify(token, getJwtSecret(), { audience: "prelude-web", issuer: "prelude-api" });
+    const offlineAuth = getOfflineAuthFromTokenClaims(claims);
+    if (offlineAuth) return offlineAuth;
+
+    if (!(await isDatabaseReachable(db()))) return null;
+
     const session = await db().session.findFirst({
       where: { id: claims.sid, userId: claims.sub, status: "ACTIVE", expiresAt: { gt: new Date() } },
       include: { user: true }
@@ -395,6 +414,34 @@ async function handleLogin(req, res) {
   await rateLimit(req, "/api/auth/login", 10, 15 * 60);
   const payload = loginSchema.parse(await readJsonBody(req));
   const email = normalizeEmail(payload.email);
+
+  if (isDevOfflineAuthEnabled() && !(await isDatabaseReachable(db()))) {
+    const offlineUser = findOfflineDemoUser(email, payload.password);
+    if (!offlineUser) {
+      return sendJson(res, 401, {
+        error: "invalid_credentials",
+        message: "Invalid email or password. For local demo without a database, use student@prelude-demo.com / Student123! or mentor@prelude-demo.com / Mentor123!"
+      });
+    }
+    const tokens = createOfflineSessionTokens(offlineUser, {
+      randomToken,
+      ACCESS_TTL_SECONDS,
+      REFRESH_TTL_DAYS
+    });
+    console.warn("[prelude-auth-api] Offline demo login (PostgreSQL unavailable). Run: npm run db:start");
+    return sendJson(
+      res,
+      200,
+      {
+        user: publicUser(offlineUser),
+        csrfToken: tokens.csrfToken,
+        offlineMode: true,
+        message: OFFLINE_LOGIN_HINT
+      },
+      { "Set-Cookie": cookiesForTokens(tokens) }
+    );
+  }
+
   const user = await db().user.findUnique({ where: { email } });
   const fail = async (reason, userId = null) => {
     await db().loginHistory.create({
@@ -610,7 +657,15 @@ async function handleStudentRead(req, res, url) {
 export function createAuthApiMiddleware() {
   return async function authApiMiddleware(req, res, next) {
     const url = new URL(req.url || "/", "http://localhost");
-    if (!url.pathname.startsWith("/api/auth") && !url.pathname.startsWith("/api/account") && !url.pathname.startsWith("/api/dashboard") && !url.pathname.startsWith("/api/students") && url.pathname !== "/api/prelude-match-questionnaire") return next();
+    if (
+      !url.pathname.startsWith("/api/auth") &&
+      !url.pathname.startsWith("/api/account") &&
+      !url.pathname.startsWith("/api/dashboard") &&
+      !url.pathname.startsWith("/api/students") &&
+      url.pathname !== "/api/prelude-match-questionnaire"
+    ) {
+      return next();
+    }
 
     if (req.method === "OPTIONS") {
       res.statusCode = 204;
@@ -624,6 +679,12 @@ export function createAuthApiMiddleware() {
       if (!["/api/auth/login", "/api/auth/register", "/api/auth/request-reset", "/api/auth/reset-password"].includes(url.pathname)) requireCsrf(req);
       if (url.pathname === "/api/auth/register" && req.method === "POST") return await handleRegister(req, res);
       if (url.pathname === "/api/auth/verify-email" && req.method === "GET") return await handleVerifyEmail(req, res, url);
+      if (url.pathname === "/api/auth/google/start" && req.method === "POST") {
+        return sendJson(res, 200, {
+          message:
+            "Google OAuth is not configured yet. Use email and password sign-in, or set GOOGLE_CLIENT_ID in the server environment."
+        });
+      }
       if (url.pathname === "/api/auth/login" && req.method === "POST") return await handleLogin(req, res);
       if (url.pathname === "/api/auth/refresh" && req.method === "POST") return await handleRefresh(req, res);
       if (url.pathname === "/api/auth/logout" && req.method === "POST") return await handleLogout(req, res);
@@ -639,11 +700,11 @@ export function createAuthApiMiddleware() {
       sendJson(res, 404, { error: "not_found" });
     } catch (error) {
       if (error instanceof z.ZodError) return sendJson(res, 400, { error: "validation_error", issues: error.issues });
-      const statusCode = error.statusCode || 500;
-      if (statusCode >= 500) console.error("[prelude-auth-api]", error);
-      sendJson(res, statusCode, {
-        error: statusCode === 401 ? "unauthenticated" : statusCode === 403 ? "forbidden" : statusCode >= 500 ? "server_error" : "request_failed",
-        message: error.message || "Request failed."
+      const formatted = formatAuthApiError(error);
+      logAuthApiError(error, formatted);
+      sendJson(res, formatted.statusCode, {
+        error: formatted.error,
+        message: formatted.message
       });
     }
   };
