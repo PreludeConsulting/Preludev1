@@ -3806,24 +3806,27 @@ a {
 }
 
 .student-network-section__inner {
-  width: min(100%, 76rem);
+  width: min(100%, 68rem);
   margin-inline: auto;
-  padding: clamp(4rem, 9vw, 7rem) clamp(1.5rem, 5vw, 4rem);
+  padding: clamp(4rem, 9vw, 7rem) clamp(1.5rem, 5vw, 3rem);
 }
 
 .student-network-section__intro {
-  max-width: 46rem;
+  max-width: 100%;
+  margin-inline: auto;
   margin-bottom: clamp(2.5rem, 5vw, 4rem);
+  text-align: center;
 }
 
 .student-network-section__headline {
   margin: 0;
   font-family: "Barlow", sans-serif;
-  font-size: clamp(2.25rem, 5vw, 3.75rem);
+  font-size: clamp(1.85rem, 4.2vw, 3.75rem);
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.03em;
   color: hsl(var(--foreground));
+  white-space: nowrap;
 }
 
 .student-network-section__subheadline {
@@ -3837,7 +3840,9 @@ a {
 
 .student-network-section__panels {
   display: grid;
-  gap: clamp(1.25rem, 3vw, 2rem);
+  gap: clamp(1.35rem, 2.8vw, 2.5rem);
+  max-width: min(100%, 62rem);
+  margin-inline: auto;
 }
 
 @media (min-width: 1024px) {
@@ -3880,203 +3885,121 @@ a {
   color: hsl(var(--muted-foreground));
 }
 
-.student-network-panel--chat {
-  background: linear-gradient(165deg, #faf9ff 0%, #ffffff 55%, #f6f4ff 100%);
-}
-
-/* Network graphic (left panel) */
-.sn-network-graphic {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 0.5rem;
-  flex: 1;
-}
-
-.sn-network-graphic__label {
-  align-self: flex-start;
-  margin: 0;
-  padding: 0.3rem 0.65rem;
-  border-radius: 999px;
-  border: 1px solid hsl(var(--primary) / 0.18);
-  background: hsl(var(--primary) / 0.08);
+.student-network-panel__caption {
+  margin: clamp(0.35rem, 0.8vw, 0.5rem) 0 0;
   font-family: "Barlow", sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: hsl(var(--primary));
+  font-size: clamp(0.98rem, 1.72vw, 1.125rem);
+  font-weight: 400;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
 }
 
-.sn-network-graphic__canvas {
+.student-network-panel--network {
+  --sn-network-canvas: #e7e2f9;
   position: relative;
-  flex: 1;
-  min-height: clamp(14rem, 32vw, 18rem);
-  border-radius: 1rem;
+  gap: 0;
+  padding: clamp(1.75rem, 4vw, 2.5rem) 0 0;
   border: 1px solid hsl(var(--foreground) / 0.06);
-  background: linear-gradient(145deg, #f3f0fa 0%, #ebe6f8 40%, #f6f4ff 100%);
+  background: #e7e2f9;
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px hsl(var(--foreground) / 0.04),
+    0 18px 42px hsl(var(--primary) / 0.07);
+}
+
+.student-network-panel--network .student-network-panel__title,
+.student-network-panel--network .student-network-panel__caption {
+  position: relative;
+  z-index: 2;
+  padding-inline: clamp(1.75rem, 4vw, 2.5rem);
+  background: transparent;
+}
+
+.student-network-panel--network .student-network-panel__title {
+  margin: 0;
+}
+
+.student-network-panel--chat {
+  gap: clamp(0.65rem, 1.4vw, 0.95rem);
+  padding: clamp(1.75rem, 4vw, 2.5rem);
+  border: 1.5px solid hsl(267 86% 50% / 0.42);
+  background: linear-gradient(165deg, #faf9ff 0%, #ffffff 55%, #f6f4ff 100%);
+  box-shadow:
+    0 1px 2px hsl(267 86% 50% / 0.06),
+    0 18px 42px hsl(267 86% 50% / 0.1);
+}
+
+.student-network-panel--chat .sn-chat-demo {
+  margin-top: 0;
+}
+
+/* Mentor team visual (left panel) */
+.student-network-panel--network .sn-network-graphic {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  min-height: clamp(20rem, 44vw, 28rem);
+  width: 100%;
+  margin-top: 0;
+  background: transparent;
+}
+
+.student-network-panel--network .sn-network-graphic__stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  margin: 0;
+  padding: 0;
+  line-height: 0;
+  background: transparent;
   overflow: hidden;
 }
 
-.sn-network-graphic__lines {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.sn-network-graphic__hub {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
-
-.sn-network-graphic__hub-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 999px;
-  background: hsl(230 25% 18%);
-  color: #ffffff;
-  font-family: "Barlow", sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  box-shadow: 0 8px 24px hsl(var(--primary) / 0.25);
-}
-
-.sn-network-graphic__hub-name {
-  font-family: "Barlow", sans-serif;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: hsl(var(--foreground));
-}
-
-.sn-network-graphic__hub-meta {
-  font-family: "Barlow", sans-serif;
-  font-size: 0.625rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.sn-network-graphic__node {
-  position: absolute;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  transform: translate(-50%, -50%);
-  max-width: 42%;
-}
-
-.sn-network-graphic__node-avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.65rem;
-  height: 1.65rem;
+.student-network-panel--network .sn-network-graphic__image {
+  display: block;
   flex-shrink: 0;
-  border-radius: 999px;
-  background: linear-gradient(135deg, hsl(var(--primary)), #9b8cff);
-  color: #ffffff;
-  font-family: "Barlow", sans-serif;
-  font-size: 0.5625rem;
-  font-weight: 700;
-}
-
-.sn-network-graphic__node-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.05rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: 0.55rem;
-  border: 1px solid hsl(var(--foreground) / 0.08);
-  background: #ffffff;
-  box-shadow: 0 4px 14px hsl(var(--primary) / 0.1);
-  font-family: "Barlow", sans-serif;
-  line-height: 1.2;
-}
-
-.sn-network-graphic__node-card strong {
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: hsl(var(--foreground));
-}
-
-.sn-network-graphic__node-card span {
-  font-size: 0.5625rem;
-  color: hsl(var(--muted-foreground));
-}
-
-.sn-network-graphic__node-major {
-  color: hsl(var(--primary)) !important;
-  font-weight: 500;
-}
-
-.sn-network-graphic__tags {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.sn-network-graphic__tag-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.sn-network-graphic__tag {
-  padding: 0.25rem 0.55rem;
-  border-radius: 999px;
-  font-family: "Barlow", sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 500;
-}
-
-.sn-network-graphic__tag--school {
-  border: 1px solid hsl(var(--primary) / 0.14);
-  background: #ffffff;
-  color: hsl(var(--foreground) / 0.88);
-}
-
-.sn-network-graphic__tag--major {
-  border: 1px solid hsl(var(--primary) / 0.2);
-  background: hsl(var(--primary) / 0.08);
-  color: hsl(var(--primary-deep));
+  width: 132%;
+  max-width: none;
+  height: auto;
+  margin: 0 0 0 -16%;
+  object-fit: contain;
+  object-position: center bottom;
+  transform: translateY(-2%) scale(1.08);
+  transform-origin: center bottom;
+  backface-visibility: hidden;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 76%,
+    rgb(0 0 0 / 0.98) 80%,
+    rgb(0 0 0 / 0.9) 84%,
+    rgb(0 0 0 / 0.76) 88%,
+    rgb(0 0 0 / 0.55) 92%,
+    rgb(0 0 0 / 0.32) 96%,
+    rgb(0 0 0 / 0.12) 98.5%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 76%,
+    rgb(0 0 0 / 0.98) 80%,
+    rgb(0 0 0 / 0.9) 84%,
+    rgb(0 0 0 / 0.76) 88%,
+    rgb(0 0 0 / 0.55) 92%,
+    rgb(0 0 0 / 0.32) 96%,
+    rgb(0 0 0 / 0.12) 98.5%,
+    transparent 100%
+  );
 }
 
 /* Animated chat demo (right panel) */
-@keyframes sn-chat-msg-loop {
-  0% {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  5% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  70% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  76% {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-}
-
 .sn-chat-demo {
   display: flex;
   flex-direction: column;
@@ -4186,10 +4109,6 @@ a {
   align-items: flex-end;
   gap: 0.4rem;
   max-width: 92%;
-  opacity: 0;
-  animation-name: sn-chat-msg-loop;
-  animation-timing-function: ease;
-  animation-iteration-count: infinite;
 }
 
 .sn-chat-demo__row--maya {
@@ -4224,9 +4143,8 @@ a {
 
 @media (prefers-reduced-motion: reduce) {
   .sn-chat-demo__row {
-    animation: none;
-    opacity: 1;
-    transform: none;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 
