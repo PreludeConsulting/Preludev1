@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { Calendar } from "lucide-react";
 
 const CHAT_MESSAGES = [
@@ -33,10 +35,56 @@ const CHAT_MESSAGES = [
   }
 ];
 
-const STAGGER_S = 2.6;
-const CYCLE_S = 22;
+const STAGGER_MS = 1200;
+const HOLD_MS = 1200;
+const RESET_MS = 280;
+const FADE_S = 0.42;
 
 export default function AnimatedChatDemo() {
+  const reduceMotion = useReducedMotion();
+  const [visibleCount, setVisibleCount] = useState(reduceMotion ? CHAT_MESSAGES.length : 0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      setVisibleCount(CHAT_MESSAGES.length);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timeouts = [];
+
+    const schedule = (fn, delay) => {
+      const id = window.setTimeout(() => {
+        if (!cancelled) {
+          fn();
+        }
+      }, delay);
+      timeouts.push(id);
+    };
+
+    const runCycle = () => {
+      setVisibleCount(0);
+      let elapsed = RESET_MS;
+
+      CHAT_MESSAGES.forEach((_, index) => {
+        schedule(() => setVisibleCount(index + 1), elapsed);
+        elapsed += STAGGER_MS;
+      });
+
+      schedule(() => {
+        setVisibleCount(0);
+        schedule(runCycle, RESET_MS);
+      }, elapsed + HOLD_MS);
+    };
+
+    runCycle();
+
+    return () => {
+      cancelled = true;
+      timeouts.forEach((id) => window.clearTimeout(id));
+    };
+  }, [reduceMotion]);
+
   return (
     <div className="sn-chat-demo" aria-hidden="true">
       <header className="sn-chat-demo__header">
@@ -54,13 +102,15 @@ export default function AnimatedChatDemo() {
 
       <div className="sn-chat-demo__thread">
         {CHAT_MESSAGES.map((msg, index) => (
-          <div
+          <motion.div
             key={msg.text}
             className={`sn-chat-demo__row sn-chat-demo__row--${msg.from}`}
-            style={{
-              animationDuration: `${CYCLE_S}s`,
-              animationDelay: `${index * STAGGER_S}s`
+            initial={false}
+            animate={{
+              opacity: index < visibleCount ? 1 : 0,
+              y: index < visibleCount ? 0 : 12
             }}
+            transition={{ duration: reduceMotion ? 0 : FADE_S, ease: "easeOut" }}
           >
             {msg.from === "maya" ? (
               <span className="sn-chat-demo__avatar sn-chat-demo__avatar--sm">{msg.initials}</span>
@@ -69,7 +119,7 @@ export default function AnimatedChatDemo() {
             {msg.from === "jordan" ? (
               <span className="sn-chat-demo__avatar sn-chat-demo__avatar--sm">{msg.initials}</span>
             ) : null}
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>
