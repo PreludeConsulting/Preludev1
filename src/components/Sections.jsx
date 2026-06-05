@@ -183,7 +183,15 @@ export function LowerPlans() {
   const { t } = useLanguage();
   const [billingNotice, setBillingNotice] = useState("");
   const [loadingPlan, setLoadingPlan] = useState(null);
-  const plans = getPricingPlans();
+  const translatedPlanCards = t("sections.plans.cards");
+  const plans = getPricingPlans().map((plan) => {
+    const translatedPlan = translatedPlanCards.find(({ id }) => id === plan.id);
+    return {
+      ...plan,
+      ...translatedPlan,
+      priceLabel: plan.paid ? t("sections.plans.priceLabels.paid") : t("sections.plans.priceLabels.free")
+    };
+  });
   async function handlePlanClick(plan) {
     setBillingNotice("");
     if (!plan.paid) {

@@ -1,37 +1,33 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Calendar } from "lucide-react";
+import { useLanguage } from "../../context/LanguageContext.jsx";
 
 const CHAT_MESSAGES = [
   {
     from: "jordan",
     name: "Jordan",
-    initials: "JL",
-    text: "Hey Maya, I keep rewriting my personal statement and now I have no idea if it's actually getting better."
+    initials: "JL"
   },
   {
     from: "maya",
     name: "Maya",
-    initials: "MP",
-    text: "Haha, you're good~ I think you've just been looking at it for too long."
+    initials: "MP"
   },
   {
     from: "maya",
     name: "Maya",
-    initials: "MP",
-    text: "Tell you what, instead of going back and forth over messages, let's hop on a quick Zoom call sometime this week. I think it'd be way easier to talk through your story together and figure out what's not clicking."
+    initials: "MP"
   },
   {
     from: "jordan",
     name: "Jordan",
-    initials: "JL",
-    text: "That would help so much! I've been stressing about this for weeks 🥲"
+    initials: "JL"
   },
   {
     from: "maya",
     name: "Maya",
-    initials: "MP",
-    text: "Don't worry, we'll get it sorted out. I'll send over a few times that work for me and we'll figure it out together."
+    initials: "MP"
   }
 ];
 
@@ -91,12 +87,12 @@ export default function AnimatedChatDemo() {
         <span className="sn-chat-demo__avatar sn-chat-demo__avatar--mentor">MP</span>
         <div className="sn-chat-demo__header-text">
           <strong>Maya Patel</strong>
-          <span>Mentor · Georgia Tech · CS</span>
-          <span className="sn-chat-demo__status">Online</span>
+          <span>{t("studentNetwork.chat.roleLine")}</span>
+          <span className="sn-chat-demo__status">{t("studentNetwork.chat.status")}</span>
         </div>
         <span className="sn-chat-demo__zoom-btn">
           <Calendar strokeWidth={2} aria-hidden="true" />
-          Schedule Zoom
+          {t("studentNetwork.chat.scheduleZoom")}
         </span>
       </header>
 
@@ -115,7 +111,7 @@ export default function AnimatedChatDemo() {
             {msg.from === "maya" ? (
               <span className="sn-chat-demo__avatar sn-chat-demo__avatar--sm">{msg.initials}</span>
             ) : null}
-            <div className={`sn-chat-demo__bubble sn-chat-demo__bubble--${msg.from}`}>{msg.text}</div>
+            <div className={`sn-chat-demo__bubble sn-chat-demo__bubble--${msg.from}`}>{messages[index]}</div>
             {msg.from === "jordan" ? (
               <span className="sn-chat-demo__avatar sn-chat-demo__avatar--sm">{msg.initials}</span>
             ) : null}

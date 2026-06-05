@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import AnimatedChatDemo from "./student-network/AnimatedChatDemo.jsx";
 import NetworkGraphic from "./student-network/NetworkGraphic.jsx";
 
@@ -17,6 +18,8 @@ function Reveal({ children, className = "", delay = 0 }) {
 }
 
 export default function StudentNetworkSection() {
+  const { t } = useLanguage();
+
   return (
     <section className="student-network-section" aria-labelledby="student-network-heading">
       <div className="student-network-section__inner">
