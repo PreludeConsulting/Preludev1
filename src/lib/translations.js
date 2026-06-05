@@ -48,6 +48,99 @@ export const translations = {
     carousel: {
       heading: "Mentorship from students at top universities"
     },
+    studentNetwork: {
+      headline: "How Prelude's student network changes college guidance",
+      subheadline: "Instead of relying on outdated consultants, students get direct access to modern college mentors who recently lived through the admissions process.",
+      insightTitle: "Real students. Real insight.",
+      insightDescription: "Prelude connects high schoolers with college students who understand today's admissions process, campus culture, majors, essays, and student life firsthand.",
+      helpTitle: "Help when you need it",
+      helpDescription: "Questions do not wait for the next scheduled meeting. Prelude mentors can step in, message back, and suggest a call when a student needs real support.",
+      graphic: {
+        label: "Modern mentor network",
+        you: "You",
+        student: "High school student",
+        majors: {
+          business: "Business",
+          biology: "Biology",
+          engineering: "Engineering"
+        }
+      },
+      chat: {
+        roleLine: "Mentor · Georgia Tech · CS",
+        status: "Online",
+        scheduleZoom: "Schedule Zoom",
+        messages: [
+          "Hey Maya, I keep rewriting my personal statement and now I have no idea if it's actually getting better.",
+          "Haha, you're good~ I think you've just been looking at it for too long.",
+          "Tell you what, instead of going back and forth over messages, let's hop on a quick Zoom call sometime this week. I think it'd be way easier to talk through your story together and figure out what's not clicking.",
+          "That would help so much! I've been stressing about this for weeks 🥲",
+          "Don't worry, we'll get it sorted out. I'll send over a few times that work for me and we'll figure it out together."
+        ]
+      }
+    },
+    network: {
+      headline: "Access a network of students from top universities",
+      subheadline: "Built on a network, not a single advisor",
+      metrics: [
+        {
+          value: "25+",
+          title: "Universities",
+          description: "Represented across the Prelude mentor network."
+        },
+        {
+          value: "<5 hr",
+          title: "Average mentor response",
+          description: "Get timely answers, feedback, and guidance when questions come up."
+        },
+        {
+          value: "50+",
+          title: "Unique perspectives",
+          description: "Learn from students with different majors, backgrounds, and admissions journeys."
+        }
+      ],
+      features: [
+        {
+          title: "Top university students",
+          description: "Learn directly from students at leading universities."
+        },
+        {
+          title: "Diverse insights",
+          description: "Get advice from mentors with different goals, majors, and experiences."
+        },
+        {
+          title: "Direct communication",
+          description: "Message mentors, ask questions, and receive personalized feedback."
+        },
+        {
+          title: "School-specific guidance",
+          description: "Understand what actually worked for students at the colleges you're aiming for."
+        }
+      ],
+      messagesVisual: {
+        mentorMeta: "Mentor · Georgia Tech · CS",
+        studentMeta: "Student · 12th grade",
+        searchPlaceholder: "Search conversations…",
+        status: "Online",
+        scheduleZoom: "Schedule Zoom",
+        joinZoom: "Join Zoom",
+        composerPlaceholder: "Write a message…",
+        threads: [
+          {
+            preview: "Great progress on your college list — let's focus on your essay strategy next.",
+            time: "2h ago"
+          },
+          {
+            preview: "Working on it — I'll share the doc tomorrow morning.",
+            time: "1d ago"
+          }
+        ],
+        messages: [
+          "Hi Jordan — let's refine your reach schools on Thursday.",
+          "Sounds good. I'll update my college list tiers tonight.",
+          "Great progress on your college list — let's focus on your essay strategy next."
+        ]
+      }
+    },
     match: {
       ariaLabel: "PreludeMatch interactive demo",
       intro: {
@@ -106,6 +199,10 @@ export const translations = {
         body: "Start free with Basic. Upgrade when you need more sessions, essay support, and financial strategy.",
         mostPopular: "Most popular",
         pleaseWait: "Please wait...",
+        priceLabels: {
+          free: "Free",
+          paid: "Paid"
+        },
         startFree: "Start free",
         choose: "Choose {{plan}}",
         notices: {
@@ -228,6 +325,99 @@ export const translations = {
     carousel: {
       heading: "Mentoría de estudiantes en universidades destacadas"
     },
+    studentNetwork: {
+      headline: "Cómo la red estudiantil de Prelude transforma la orientación universitaria",
+      subheadline: "En lugar de depender de consultores desactualizados, los estudiantes tienen acceso directo a mentores universitarios actuales que vivieron recientemente el proceso de admisión.",
+      insightTitle: "Estudiantes reales. Perspectiva real.",
+      insightDescription: "Prelude conecta a estudiantes de preparatoria con universitarios que entienden de primera mano el proceso de admisión actual, la cultura del campus, las carreras, los ensayos y la vida estudiantil.",
+      helpTitle: "Ayuda cuando la necesitas",
+      helpDescription: "Las preguntas no esperan a la próxima reunión programada. Los mentores de Prelude pueden intervenir, responder mensajes y sugerir una llamada cuando un estudiante necesita apoyo real.",
+      graphic: {
+        label: "Red moderna de mentores",
+        you: "Tú",
+        student: "Estudiante de preparatoria",
+        majors: {
+          business: "Negocios",
+          biology: "Biología",
+          engineering: "Ingeniería"
+        }
+      },
+      chat: {
+        roleLine: "Mentora · Georgia Tech · CS",
+        status: "En línea",
+        scheduleZoom: "Agendar Zoom",
+        messages: [
+          "Hola Maya, sigo reescribiendo mi ensayo personal y ya no sé si realmente está mejorando.",
+          "Jaja, vas bien~ creo que solo lo has mirado durante demasiado tiempo.",
+          "Te propongo algo: en vez de seguir hablando por mensajes, hagamos una llamada rápida por Zoom esta semana. Creo que será mucho más fácil conversar sobre tu historia y descubrir qué no está funcionando.",
+          "¡Eso me ayudaría muchísimo! Llevo semanas estresándome por esto 🥲",
+          "No te preocupes, lo vamos a resolver. Te enviaré algunos horarios que me funcionan y lo vemos juntos."
+        ]
+      }
+    },
+    network: {
+      headline: "Accede a una red de estudiantes de universidades destacadas",
+      subheadline: "Construido sobre una red, no un solo asesor",
+      metrics: [
+        {
+          value: "25+",
+          title: "Universidades",
+          description: "Representadas en la red de mentores de Prelude."
+        },
+        {
+          value: "<5 h",
+          title: "Respuesta promedio de mentores",
+          description: "Recibe respuestas, comentarios y orientación a tiempo cuando surgen preguntas."
+        },
+        {
+          value: "50+",
+          title: "Perspectivas únicas",
+          description: "Aprende de estudiantes con distintas carreras, contextos y recorridos de admisión."
+        }
+      ],
+      features: [
+        {
+          title: "Estudiantes de universidades líderes",
+          description: "Aprende directamente de estudiantes en universidades destacadas."
+        },
+        {
+          title: "Perspectivas diversas",
+          description: "Recibe consejos de mentores con diferentes metas, carreras y experiencias."
+        },
+        {
+          title: "Comunicación directa",
+          description: "Envía mensajes a mentores, haz preguntas y recibe comentarios personalizados."
+        },
+        {
+          title: "Guía específica por universidad",
+          description: "Entiende qué funcionó realmente para estudiantes en las universidades a las que aspiras."
+        }
+      ],
+      messagesVisual: {
+        mentorMeta: "Mentora · Georgia Tech · CS",
+        studentMeta: "Estudiante · 12.º grado",
+        searchPlaceholder: "Buscar conversaciones…",
+        status: "En línea",
+        scheduleZoom: "Agendar Zoom",
+        joinZoom: "Unirse a Zoom",
+        composerPlaceholder: "Escribe un mensaje…",
+        threads: [
+          {
+            preview: "Gran avance en tu lista de universidades; ahora enfoquémonos en tu estrategia de ensayos.",
+            time: "hace 2 h"
+          },
+          {
+            preview: "Estoy trabajando en eso; compartiré el documento mañana por la mañana.",
+            time: "hace 1 d"
+          }
+        ],
+        messages: [
+          "Hola Jordan: afinemos tus universidades de alcance el jueves.",
+          "Suena bien. Actualizaré los niveles de mi lista de universidades esta noche.",
+          "Gran avance en tu lista de universidades; ahora enfoquémonos en tu estrategia de ensayos."
+        ]
+      }
+    },
     match: {
       ariaLabel: "Demostración interactiva de PreludeMatch",
       intro: {
@@ -286,6 +476,10 @@ export const translations = {
         body: "Empieza gratis con Basic. Mejora cuando necesites más sesiones, apoyo con ensayos y estrategia financiera.",
         mostPopular: "Más popular",
         pleaseWait: "Espera un momento...",
+        priceLabels: {
+          free: "Gratis",
+          paid: "De pago"
+        },
         startFree: "Empieza gratis",
         choose: "Elegir {{plan}}",
         notices: {
