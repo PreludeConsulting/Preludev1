@@ -71,7 +71,7 @@ export const SERVICES = [
     title: "College list support",
     subtitle: "List building",
     description: "Balance safety, target, and reach with a mentor.",
-    href: "#mentorship",
+    href: "#how-it-works",
     icon: "compass"
   },
   {

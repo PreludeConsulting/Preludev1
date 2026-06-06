@@ -4,7 +4,7 @@ import { navigateChatHref } from "./chatLinkSecurity.js";
 export const CHAT_FALLBACK_LINKS = {
   open_plans: "#pricing",
   open_mentor_match: "#preludematch",
-  open_mentorship: "#mentorship",
+  open_mentorship: "#how-it-works",
   sign_up: "/register",
   sign_in: "/login",
   open_dashboard: "#dashboard"
