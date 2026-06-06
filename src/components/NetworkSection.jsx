@@ -1,7 +1,6 @@
 import { Building2, GraduationCap, MessageCircle, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useLanguage } from "../context/LanguageContext.jsx";
-import NetworkMessagesVisual from "./NetworkMessagesVisual.jsx";
 
 const FEATURE_ICONS = [GraduationCap, Users, MessageCircle, Building2];
 
@@ -27,36 +26,29 @@ export default function NetworkSection() {
   return (
     <section className="network-section" aria-labelledby="network-section-heading">
       <div className="network-section__inner">
-        <div className="network-section__split">
-          <Reveal className="network-section__visual-col">
-            <NetworkMessagesVisual />
-          </Reveal>
+        <Reveal className="network-section__intro">
+          <h2 id="network-section-heading" className="network-section__headline">
+            {t("network.headline").map((line) => (
+              <span className="network-section__headline-line" key={line}>
+                {line}
+              </span>
+            ))}
+          </h2>
+        </Reveal>
 
-          <div className="network-section__content-col">
-            <Reveal>
-              <h2 id="network-section-heading" className="network-section__headline">
-                {t("network.headline")}
-              </h2>
-            </Reveal>
-
-            <ul className="network-section__metrics">
-              {metrics.map((row, index) => (
-                <li
-                  className={`network-section__metric${index < metrics.length - 1 ? " network-section__metric--divided" : ""}`}
-                  key={row.title}
-                >
-                  <Reveal className="network-section__metric-inner" delay={index * 0.06}>
-                    <p className="network-section__metric-value">{row.value}</p>
-                    <div className="network-section__metric-copy">
-                      <h3 className="network-section__metric-title">{row.title}</h3>
-                      <p className="network-section__metric-desc">{row.description}</p>
-                    </div>
-                  </Reveal>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
+        <ul className="network-section__stats">
+          {metrics.map((row, index) => (
+            <li className="network-section__stat" key={row.title}>
+              <Reveal className="network-section__stat-inner" delay={index * 0.06}>
+                <p className="network-section__stat-value">{row.value}</p>
+                <div className="network-section__stat-copy">
+                  <h3 className="network-section__stat-title">{row.title}</h3>
+                  <p className="network-section__stat-desc">{row.description}</p>
+                </div>
+              </Reveal>
+            </li>
+          ))}
+        </ul>
 
         <Reveal className="network-section__features-block">
           <h2 className="network-section__subheadline">{t("network.subheadline")}</h2>

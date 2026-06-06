@@ -81,7 +81,7 @@ export const translations = {
       }
     },
     network: {
-      headline: "Access a network of students from top universities",
+      headline: ["Access a network of students", "from top universities"],
       subheadline: "Built on a network, not a single advisor",
       metrics: [
         {
@@ -91,13 +91,13 @@ export const translations = {
         },
         {
           value: "<5 hr",
-          title: "Average mentor response",
-          description: "Get timely answers, feedback, and guidance when questions come up."
+          title: "Mentor Response",
+          description: "Get fast answers and guidance whenever questions come up."
         },
         {
           value: "50+",
-          title: "Unique perspectives",
-          description: "Learn from students with different majors, backgrounds, and admissions journeys."
+          title: "Unique Perspectives",
+          description: "Learn from students with different backgrounds and admissions journeys."
         }
       ],
       features: [
@@ -358,7 +358,7 @@ export const translations = {
       }
     },
     network: {
-      headline: "최상위 대학 학생 네트워크에 접근하세요",
+      headline: ["최상위 대학 학생", "네트워크에 접근하세요"],
       subheadline: "한 명의 상담사가 아닌 네트워크로 만들어진 지원",
       metrics: [
         {
@@ -635,7 +635,7 @@ export const translations = {
       }
     },
     network: {
-      headline: "连接顶尖大学学生网络",
+      headline: ["连接顶尖大学", "学生网络"],
       subheadline: "建立在网络之上，而不是只依赖一位顾问",
       metrics: [
         {
@@ -912,7 +912,7 @@ export const translations = {
       }
     },
     network: {
-      headline: "Accede a una red de estudiantes de universidades destacadas",
+      headline: ["Accede a una red de estudiantes", "de universidades destacadas"],
       subheadline: "Construido sobre una red, no un solo asesor",
       metrics: [
         {

@@ -3178,92 +3178,98 @@ a {
 }
 
 .network-section__inner {
-  width: min(100%, 76rem);
+  width: min(100%, 68rem);
   margin-inline: auto;
-  padding: clamp(4rem, 9vw, 7rem) clamp(1.5rem, 5vw, 4rem);
+  padding: clamp(4rem, 9vw, 7rem) clamp(1.5rem, 5vw, 3rem);
 }
 
-.network-section__split {
-  display: grid;
-  align-items: center;
-  gap: clamp(2.75rem, 6vw, 4.5rem);
-}
-
-@media (min-width: 1024px) {
-  .network-section__split {
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-    gap: clamp(3rem, 5vw, 5rem);
-  }
-}
-
-.network-section__visual-col {
-  min-width: 0;
-}
-
-.network-section__content-col {
-  min-width: 0;
+.network-section__intro {
+  max-width: 100%;
+  margin-inline: auto;
+  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+  text-align: center;
 }
 
 .network-section__headline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   margin: 0;
-  max-width: 14ch;
   font-family: "Barlow", sans-serif;
-  font-size: clamp(2rem, 4.2vw, 3.25rem);
+  font-size: clamp(1.85rem, 4.2vw, 3.75rem);
   font-weight: 600;
-  line-height: 1.12;
+  line-height: 1.1;
   letter-spacing: -0.03em;
   color: hsl(var(--foreground));
 }
 
-.network-section__metrics {
-  margin: clamp(2.25rem, 4.5vw, 3.25rem) 0 0;
+.network-section__headline-line {
+  display: block;
+}
+
+.network-section__stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.network-section__metric--divided {
-  border-bottom: 1px solid hsl(var(--foreground) / 0.1);
+@media (min-width: 768px) {
+  .network-section__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
 }
 
-.network-section__metric-inner {
+.network-section__stat {
+  min-width: 0;
+}
+
+.network-section__stat-inner {
   display: grid;
-  grid-template-columns: minmax(4.5rem, 5.5rem) minmax(0, 1fr);
-  gap: clamp(1.25rem, 3vw, 2rem);
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(1rem, 2.5vw, 1.5rem);
   align-items: start;
-  padding: clamp(1.5rem, 3vw, 2rem) 0;
+  height: 100%;
+  padding: clamp(1.25rem, 2.5vw, 1.75rem);
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 1rem;
+  background: #ffffff;
 }
 
-.network-section__metric:first-child .network-section__metric-inner {
-  padding-top: 0;
-}
-
-.network-section__metric-value {
+.network-section__stat-value {
   margin: 0;
   font-family: "Barlow", sans-serif;
-  font-size: clamp(2rem, 3.6vw, 2.75rem);
-  font-weight: 500;
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: 600;
   line-height: 1;
   letter-spacing: -0.03em;
   color: hsl(var(--foreground));
   white-space: nowrap;
 }
 
-.network-section__metric-title {
+.network-section__stat-copy {
+  min-width: 0;
+}
+
+.network-section__stat-title {
   margin: 0;
   font-family: "Barlow", sans-serif;
-  font-size: clamp(1rem, 1.8vw, 1.125rem);
-  font-weight: 500;
+  font-size: clamp(1rem, 1.6vw, 1.125rem);
+  font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.015em;
   color: hsl(var(--foreground));
 }
 
-.network-section__metric-desc {
-  margin: 0.5rem 0 0;
+.network-section__stat-desc {
+  margin: 0.45rem 0 0;
   font-family: "Barlow", sans-serif;
-  font-size: clamp(0.875rem, 1.5vw, 1rem);
+  font-size: clamp(0.875rem, 1.4vw, 0.9375rem);
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.55;
   color: hsl(var(--muted-foreground));
 }
 
@@ -4157,7 +4163,7 @@ a {
 .admissions-cost-banner {
   position: relative;
   overflow: hidden;
-  background: #786aff;
+  background: #6a5bef;
   color: #ffffff;
 }
 
@@ -4167,7 +4173,7 @@ a {
   inset: 0;
   background:
     radial-gradient(circle at 18% 18%, rgb(255 255 255 / 0.16), transparent 28%),
-    radial-gradient(circle at 82% 84%, rgb(255 255 255 / 0.12), transparent 30%);
+    radial-gradient(circle at 82% 84%, rgb(62 48 175 / 0.48), transparent 38%);
   pointer-events: none;
 }
 
@@ -4210,9 +4216,9 @@ a {
   display: inline-block;
   border-radius: 0.35rem;
   background: #ffffff;
-  color: #786aff;
+  color: #6a5bef;
   padding: 0.02em 0.26em 0.08em;
-  font-family: "Barlow", sans-serif;
+  font-family: "Inter", sans-serif;
   font-weight: 800;
   letter-spacing: -0.02em;
   box-shadow: 0 0.4rem 1.2rem rgb(40 28 150 / 0.22);
@@ -4220,6 +4226,11 @@ a {
 
 .admissions-cost-banner__copy {
   color: #ffffff;
+}
+
+.admissions-cost-banner__body {
+  font-family: "Inter", sans-serif;
+  font-weight: 500;
 }
 
 /* Large display type — matches hero (Cormorant Garamond, not italic) */

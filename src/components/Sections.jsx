@@ -53,7 +53,7 @@ export function AdmissionsCostBanner() {
         </Reveal>
 
         <Reveal className="admissions-cost-banner__copy" delay={0.12}>
-          <p className="max-w-lg font-serif text-lg leading-7 text-white md:text-xl md:leading-8">
+          <p className="admissions-cost-banner__body max-w-lg text-lg leading-7 text-white md:text-xl md:leading-8">
             {t("sections.cost.bodyBefore")} <span className="admissions-cost-banner__amount">$6,500</span> {t("sections.cost.bodyAfter")}
           </p>
           <h2 className="ivy-display mt-6 max-w-xl text-5xl font-extrabold uppercase leading-[0.88] tracking-[-0.035em] text-white md:text-7xl lg:text-[5.8rem]">
