@@ -4,8 +4,11 @@
  * Use appPath() for <a href> and window.location when a full URL path is required.
  */
 
+const VITE_BASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.BASE_URL) || "/";
+
 export const ROUTER_BASENAME =
-  import.meta.env.BASE_URL === "/" ? "" : import.meta.env.BASE_URL.replace(/\/$/, "") || "/Preludev1";
+  VITE_BASE_URL === "/" ? "" : VITE_BASE_URL.replace(/\/$/, "") || "/Preludev1";
 
 /** True for in-app routes like /dashboard (not hash or external URLs). */
 export function isAppRoute(path) {
