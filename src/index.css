@@ -3175,6 +3175,7 @@ a {
 .network-section {
   background: linear-gradient(180deg, #ffffff 0%, #ffffff 42%, #ffffff 100%);
   color: hsl(var(--foreground));
+  scroll-margin-top: 6.5rem;
 }
 
 .network-section__inner {
@@ -3809,6 +3810,7 @@ a {
 .student-network-section {
   background: linear-gradient(180deg, #ffffff 0%, #faf9ff 48%, #ffffff 100%);
   color: hsl(var(--foreground));
+  scroll-margin-top: 6.5rem;
 }
 
 .student-network-section__inner {

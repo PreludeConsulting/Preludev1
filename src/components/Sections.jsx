@@ -276,7 +276,7 @@ export function LowerFooter() {
   const { t } = useLanguage();
   const links = [
     { label: t("sections.footer.links.how"), href: "#how-it-works" },
-    { label: t("sections.footer.links.mentorship"), href: "#how-it-works" },
+    { label: t("sections.footer.links.mentorship"), href: "#mentorship" },
     { label: t("sections.footer.links.pricing"), href: "#pricing" },
     { label: t("sections.footer.links.contact"), href: "#contact" }
   ];

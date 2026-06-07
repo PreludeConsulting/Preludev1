@@ -21,7 +21,7 @@ export default function StudentNetworkSection() {
   const { t } = useLanguage();
 
   return (
-    <section className="student-network-section" aria-labelledby="student-network-heading">
+    <section id="admissions-counseling" className="student-network-section" aria-labelledby="student-network-heading">
       <div className="student-network-section__inner">
         <Reveal className="student-network-section__intro">
           <h2 id="student-network-heading" className="student-network-section__headline">

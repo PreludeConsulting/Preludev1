@@ -34,6 +34,7 @@ export const translations = {
         about: "About",
         admissions: "Admissions Counseling",
         mentoring: "Mentoring",
+        mentoringClarity: "Mentoring & Clarity",
         pricing: "Pricing",
         clarity: "Clarity",
         dashboard: "Dashboard"
@@ -296,6 +297,7 @@ export const translations = {
         about: "소개",
         admissions: "입시 상담",
         mentoring: "멘토링",
+        mentoringClarity: "멘토링 및 명확성",
         pricing: "가격",
         clarity: "명확성",
         dashboard: "대시보드"
@@ -558,6 +560,7 @@ export const translations = {
         about: "关于我们",
         admissions: "升学申请咨询",
         mentoring: "导师辅导",
+        mentoringClarity: "导师辅导与清晰规划",
         pricing: "价格",
         clarity: "清晰规划",
         dashboard: "仪表板"
@@ -820,6 +823,7 @@ export const translations = {
         about: "Acerca de",
         admissions: "Asesoría de admisiones",
         mentoring: "Mentoría",
+        mentoringClarity: "Mentoría y claridad",
         pricing: "Precios",
         clarity: "Claridad",
         dashboard: "Panel"

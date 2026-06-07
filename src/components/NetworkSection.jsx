@@ -20,7 +20,7 @@ export default function NetworkSection() {
   const metrics = t("network.metrics");
 
   return (
-    <section className="network-section" aria-labelledby="network-section-heading">
+    <section id="mentorship" className="network-section" aria-labelledby="network-section-heading">
       <div className="network-section__inner">
         <Reveal className="network-section__intro">
           <h2 id="network-section-heading" className="network-section__headline">
