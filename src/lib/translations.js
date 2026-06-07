@@ -41,11 +41,11 @@ export const translations = {
       }
     },
     hero: {
-      headline: ["College admissions", "counseling,", "reimagined."],
-      subcopy: "Peer-powered mentorship, personalized strategy, and financial guidance to help students build standout applications with confidence.",
+      headline: ["College admissions,", "", "made simple."],
+      subcopy: "Access a network of students from top universities who guide you through every step of the admissions process.",
       emailLabel: "Email address",
       emailPlaceholder: "Enter your email address",
-      cta: "Start free trial",
+      cta: "Book free call",
       note: "Start free, then get matched with a mentor from your dream school."
     },
     carousel: {
