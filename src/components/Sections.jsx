@@ -18,7 +18,8 @@ const mediaBase = import.meta.env.BASE_URL;
 const media = {
   mentorLoop: `${mediaBase}media/mentor-lounge-loop.gif`,
   admissionsSavings: `${mediaBase}media/admissions-savings-piggy.png`,
-  parentShowcaseHq: `${mediaBase}media/parent-dashboard-showcase-hq.png`
+  parentShowcaseHq: `${mediaBase}media/parent-dashboard-showcase-hq.png`,
+  parentShowcaseDuplicate: `${mediaBase}media/parent-dashboard-showcase-duplicate.png`
 };
 
 function Reveal({ children, className = "", delay = 0 }) {
@@ -138,12 +139,14 @@ export function LowerBenefits() {
           </h2>
         </Reveal>
 
-        <Reveal className="parent-showcase__visual parent-showcase__visual--hq" delay={0.1}>
+        <Reveal className="parent-showcase__visual" delay={0.1}>
           <div className="parent-showcase__card parent-showcase__card--hq">
             <img
-              src={media.parentShowcaseHq}
+              src={media.parentShowcaseDuplicate}
+              srcSet={`${media.parentShowcaseHq} 1024w, ${media.parentShowcaseDuplicate} 2048w`}
+              sizes="(min-width: 896px) 896px, 100vw"
               alt={t("sections.benefits.imageAlt")}
-              className="parent-showcase__image"
+              className="parent-showcase__image parent-showcase__image--enhanced"
               loading="lazy"
               decoding="async"
             />

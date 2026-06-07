@@ -5231,6 +5231,10 @@ a {
   height: auto;
 }
 
+.parent-showcase__image--enhanced {
+  image-rendering: auto;
+}
+
 .lower-landing__plan {
   display: flex;
   flex-direction: column;
