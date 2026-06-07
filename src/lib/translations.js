@@ -177,23 +177,8 @@ export const translations = {
         imageAlt: "PreludeMatch mentorship preview"
       },
       benefits: {
-        eyebrow: "Why families choose Prelude",
-        headline: "Clarity for students. Confidence for parents.",
-        body: "You dream it. We map it — match, build, and apply with a roadmap that keeps everyone aligned.",
-        cards: [
-          {
-            title: "Guidance students trust",
-            text: "Talk to mentors who recently went through admissions and understand the pressure — not outdated playbooks."
-          },
-          {
-            title: "Smarter spending",
-            text: "Scholarship strategy, aid comparisons, and financial planning so families know where every dollar goes."
-          },
-          {
-            title: "A story, not just a resume",
-            text: "Build identity, essays, and activities into a compelling narrative — with AI organizing deadlines along the way."
-          }
-        ]
+        headline: "Built for Parents",
+        imageAlt: "Parent view of a student dashboard showing progress, savings, mentor match, and upcoming milestones."
       },
       plans: {
         eyebrow: "Plans",
@@ -454,23 +439,8 @@ export const translations = {
         imageAlt: "PreludeMatch 멘토링 미리보기"
       },
       benefits: {
-        eyebrow: "가족들이 Prelude를 선택하는 이유",
-        headline: "학생에게는 명확함을. 부모에게는 확신을.",
-        body: "당신이 꿈꾸면, 우리는 길을 그립니다 — 매칭하고, 만들고, 지원하는 전 과정을 모두가 같은 방향으로 나아가도록 돕는 로드맵과 함께.",
-        cards: [
-          {
-            title: "학생들이 신뢰하는 가이드",
-            text: "낡은 전략이 아니라, 최근 입시를 직접 경험하고 그 압박을 이해하는 멘토와 이야기하세요."
-          },
-          {
-            title: "더 똑똑한 지출",
-            text: "장학금 전략, 재정 지원 비교, 재정 계획을 통해 가족이 모든 비용의 쓰임을 이해하도록 돕습니다."
-          },
-          {
-            title: "단순한 이력서가 아닌 하나의 이야기",
-            text: "정체성, 에세이, 활동을 설득력 있는 서사로 엮고, AI가 그 과정에서 마감일을 정리합니다."
-          }
-        ]
+        headline: "학부모를 위해 설계되었습니다",
+        imageAlt: "학생 진행 상황, 절약, 멘토 매칭, 예정된 마일스톤을 보여주는 학부모용 대시보드 화면."
       },
       plans: {
         eyebrow: "플랜",
@@ -731,23 +701,8 @@ export const translations = {
         imageAlt: "PreludeMatch 导师辅导预览"
       },
       benefits: {
-        eyebrow: "为什么家庭选择 Prelude",
-        headline: "给学生清晰方向。给家长更多信心。",
-        body: "你来梦想，我们来规划——通过让每个人保持一致的路线图，完成匹配、构建和申请。",
-        cards: [
-          {
-            title: "学生信任的指导",
-            text: "与最近经历过申请、理解压力的导师交流，而不是照搬过时套路。"
-          },
-          {
-            title: "更聪明的支出",
-            text: "通过奖学金策略、资助方案比较和财务规划，让家庭知道每一美元花在哪里。"
-          },
-          {
-            title: "不只是履历，而是一个故事",
-            text: "将身份、文书和活动构建成有说服力的叙事，并由 AI 沿途整理截止日期。"
-          }
-        ]
+        headline: "为家长而打造",
+        imageAlt: "家长视角的学生仪表盘，展示进度、节省金额、导师匹配和即将到来的里程碑。"
       },
       plans: {
         eyebrow: "方案",
@@ -1008,23 +963,8 @@ export const translations = {
         imageAlt: "Vista previa de mentoría PreludeMatch"
       },
       benefits: {
-        eyebrow: "Por qué las familias eligen Prelude",
-        headline: "Claridad para estudiantes. Confianza para padres.",
-        body: "Tú lo sueñas. Nosotros lo trazamos: conectar, construir y aplicar con una ruta que mantiene a todos alineados.",
-        cards: [
-          {
-            title: "Orientación en la que confían los estudiantes",
-            text: "Habla con mentores que recientemente vivieron el proceso de admisión y entienden la presión, no con estrategias anticuadas."
-          },
-          {
-            title: "Gasto más inteligente",
-            text: "Estrategia de becas, comparación de ayuda financiera y planificación para que las familias sepan a dónde va cada dólar."
-          },
-          {
-            title: "Una historia, no solo un currículum",
-            text: "Construye identidad, ensayos y actividades en una narrativa convincente, con IA organizando fechas límite en el camino."
-          }
-        ]
+        headline: "Diseñado para padres",
+        imageAlt: "Vista para padres de un panel del estudiante con progreso, ahorros, mentor asignado y próximos hitos."
       },
       plans: {
         eyebrow: "Planes",

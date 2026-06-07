@@ -1,11 +1,7 @@
 import {
-  CheckCircle,
-  DollarSign,
   GraduationCap,
   MessageCircle,
-  Sparkles,
   Target,
-  Users,
   ArrowUpRight
 } from "lucide-react";
 import { useState } from "react";
@@ -21,7 +17,9 @@ import { startBillingCheckout } from "../lib/auth.js";
 const mediaBase = import.meta.env.BASE_URL;
 const media = {
   mentorLoop: `${mediaBase}media/mentor-lounge-loop.gif`,
-  admissionsSavings: `${mediaBase}media/admissions-savings-piggy.png`
+  admissionsSavings: `${mediaBase}media/admissions-savings-piggy.png`,
+  parentShowcaseHq: `${mediaBase}media/parent-dashboard-showcase-hq.png`,
+  parentShowcaseDuplicate: `${mediaBase}media/parent-dashboard-showcase-duplicate.png`
 };
 
 function Reveal({ children, className = "", delay = 0 }) {
@@ -130,51 +128,33 @@ export function LowerSplitVisual() {
 
 export function LowerBenefits() {
   const { t } = useLanguage();
-  const translatedBenefits = t("sections.benefits.cards");
-  const benefits = [
-    {
-      Icon: Users,
-      title: "Guidance students trust",
-      text: "Talk to mentors who recently went through admissions and understand the pressure — not outdated playbooks."
-    },
-    {
-      Icon: DollarSign,
-      title: "Smarter spending",
-      text: "Scholarship strategy, aid comparisons, and financial planning so families know where every dollar goes."
-    },
-    {
-      Icon: Sparkles,
-      title: "A story, not just a resume",
-      text: "Build identity, essays, and activities into a compelling narrative — with AI organizing deadlines along the way."
-    }
-  ].map((benefit, index) => ({ ...benefit, ...translatedBenefits[index] }));
 
   return (
-    <div className="lower-landing">
-      <section className="lower-landing__section scroll-mt-28" id="how-it-works">
-        <span id="clarity" className="sr-only" aria-hidden="true" />
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <p className="lower-landing__eyebrow">{t("sections.benefits.eyebrow")}</p>
-          <h2 className="lower-landing__headline lower-landing__headline--center">
+    <section className="parent-showcase scroll-mt-28" id="how-it-works" aria-labelledby="parent-showcase-heading">
+      <span id="roadmap" className="sr-only" aria-hidden="true" />
+      <span id="clarity" className="sr-only" aria-hidden="true" />
+      <div className="parent-showcase__inner">
+        <Reveal className="parent-showcase__intro">
+          <h2 id="parent-showcase-heading" className="parent-showcase__headline">
             {t("sections.benefits.headline")}
           </h2>
-          <p className="lower-landing__body lower-landing__body--center">
-            {t("sections.benefits.body")}
-          </p>
         </Reveal>
-        <div className="mt-14 grid gap-6 md:grid-cols-3 md:gap-8">
-          {benefits.map(({ Icon, title, text }, index) => (
-            <Reveal className="lower-landing__benefit" delay={index * 0.08} key={title}>
-              <span className="lower-landing__benefit-icon">
-                <Icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <h3 className="lower-landing__benefit-title">{title}</h3>
-              <p className="lower-landing__benefit-text">{text}</p>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-    </div>
+
+        <Reveal className="parent-showcase__visual" delay={0.1}>
+          <div className="parent-showcase__card parent-showcase__card--hq">
+            <img
+              src={media.parentShowcaseDuplicate}
+              srcSet={`${media.parentShowcaseHq} 1024w, ${media.parentShowcaseDuplicate} 2048w`}
+              sizes="(min-width: 896px) 896px, 100vw"
+              alt={t("sections.benefits.imageAlt")}
+              className="parent-showcase__image parent-showcase__image--enhanced"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        </Reveal>
+      </div>
+    </section>
   );
 }
 
@@ -227,10 +207,9 @@ export function LowerPlans() {
 
   return (
     <div className="lower-landing">
-      <section className="lower-landing__section !pt-0" id="pricing">
+      <section className="lower-landing__section" id="pricing">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <p className="lower-landing__eyebrow">{t("sections.plans.eyebrow")}</p>
-          <h2 className="lower-landing__headline lower-landing__headline--center">
+          <h2 className="lower-landing__headline lower-landing__headline--center lower-landing__headline--section">
             {t("sections.plans.headline")}
           </h2>
           <p className="lower-landing__body lower-landing__body--center">
@@ -297,7 +276,7 @@ export function LowerFooter() {
   const { t } = useLanguage();
   const links = [
     { label: t("sections.footer.links.how"), href: "#how-it-works" },
-    { label: t("sections.footer.links.mentorship"), href: "#mentorship" },
+    { label: t("sections.footer.links.mentorship"), href: "#how-it-works" },
     { label: t("sections.footer.links.pricing"), href: "#pricing" },
     { label: t("sections.footer.links.contact"), href: "#contact" }
   ];

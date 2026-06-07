@@ -1,8 +1,5 @@
-import { Building2, GraduationCap, MessageCircle, Users } from "lucide-react";
 import { motion } from "motion/react";
 import { useLanguage } from "../context/LanguageContext.jsx";
-
-const FEATURE_ICONS = [GraduationCap, Users, MessageCircle, Building2];
 
 function Reveal({ children, className = "", delay = 0 }) {
   return (
@@ -21,7 +18,6 @@ function Reveal({ children, className = "", delay = 0 }) {
 export default function NetworkSection() {
   const { t } = useLanguage();
   const metrics = t("network.metrics");
-  const features = t("network.features");
 
   return (
     <section className="network-section" aria-labelledby="network-section-heading">
@@ -49,27 +45,6 @@ export default function NetworkSection() {
             </li>
           ))}
         </ul>
-
-        <Reveal className="network-section__features-block">
-          <h2 className="network-section__subheadline">{t("network.subheadline")}</h2>
-
-          <ul className="network-section__features">
-            {features.map((feature, index) => {
-              const Icon = FEATURE_ICONS[index];
-              return (
-                <li key={feature.title}>
-                  <Reveal className="network-section__feature" delay={index * 0.05}>
-                    <span className="network-section__feature-icon" aria-hidden="true">
-                      <Icon strokeWidth={1.5} />
-                    </span>
-                    <h3 className="network-section__feature-title">{feature.title}</h3>
-                    <p className="network-section__feature-desc">{feature.description}</p>
-                  </Reveal>
-                </li>
-              );
-            })}
-          </ul>
-        </Reveal>
       </div>
     </section>
   );
