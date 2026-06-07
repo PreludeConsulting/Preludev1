@@ -70,7 +70,7 @@ export function LowerFeatureIntro() {
 
   return (
     <div className="lower-landing">
-      <section className="lower-landing__section" id="problem">
+      <section className="lower-landing__section" id="admissions-counseling">
         <Reveal>
           <p className="lower-landing__eyebrow">{t("sections.featureIntro.eyebrow")}</p>
           <h2 className="lower-landing__headline lower-landing__headline--wide">
