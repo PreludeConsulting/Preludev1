@@ -17,10 +17,8 @@ import {
   AdmissionsCostBanner,
   LowerBenefits,
   LowerCta,
-  LowerFeatureIntro,
   LowerFooter,
-  LowerPlans,
-  LowerSplitVisual
+  LowerPlans
 } from "./components/Sections.jsx";
 
 function AppContent() {
@@ -82,8 +80,6 @@ function AppContent() {
         <AdmissionsCostBanner />
         <StudentNetworkSection />
         <NetworkSection />
-        <LowerFeatureIntro />
-        <LowerSplitVisual />
         <LowerBenefits />
         <LowerPlans />
         <LowerCta />

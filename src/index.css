@@ -3173,8 +3173,9 @@ a {
 
 /* Network credibility — Shopify-inspired layout */
 .network-section {
-  background: linear-gradient(180deg, #faf9ff 0%, #ffffff 42%, #ffffff 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 42%, #ffffff 100%);
   color: hsl(var(--foreground));
+  scroll-margin-top: 6.5rem;
 }
 
 .network-section__inner {
@@ -3809,6 +3810,7 @@ a {
 .student-network-section {
   background: linear-gradient(180deg, #ffffff 0%, #faf9ff 48%, #ffffff 100%);
   color: hsl(var(--foreground));
+  scroll-margin-top: 6.5rem;
 }
 
 .student-network-section__inner {
@@ -5037,9 +5039,9 @@ a {
 }
 
 .lower-landing__section {
-  width: min(100%, 76rem);
+  width: min(100%, 68rem);
   margin-inline: auto;
-  padding: clamp(4.5rem, 10vw, 7.5rem) clamp(1.5rem, 5vw, 4rem);
+  padding: clamp(4rem, 9vw, 7rem) clamp(1.5rem, 5vw, 3rem);
 }
 
 .lower-landing__eyebrow {
@@ -5052,7 +5054,7 @@ a {
 }
 
 .lower-landing__headline {
-  margin: 1.25rem 0 0;
+  margin: 0;
   max-width: 14ch;
   font-family: "Barlow", sans-serif;
   font-size: clamp(2.25rem, 5vw, 3.75rem);
@@ -5069,6 +5071,14 @@ a {
 .lower-landing__headline--center {
   margin-inline: auto;
   text-align: center;
+}
+
+.lower-landing__headline--section {
+  font-size: clamp(1.85rem, 4.2vw, 3.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  max-width: none;
+  margin-bottom: clamp(2.5rem, 5vw, 4rem);
 }
 
 .lower-landing__body {
@@ -5143,6 +5153,88 @@ a {
   font-weight: 300;
   line-height: 1.6;
   color: hsl(var(--muted-foreground));
+}
+
+/* Parent showcase — replaces "Why families choose Prelude" */
+.parent-showcase {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffffff 0%, #faf9ff 46%, #ffffff 100%);
+  color: hsl(var(--foreground));
+}
+
+.parent-showcase::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, -50%);
+  width: min(92%, 72rem);
+  height: min(70%, 36rem);
+  background:
+    radial-gradient(ellipse at center, hsl(var(--primary) / 0.1), transparent 68%),
+    radial-gradient(ellipse at 50% 100%, hsl(var(--primary) / 0.05), transparent 72%);
+  pointer-events: none;
+}
+
+.parent-showcase__inner {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 68rem);
+  margin-inline: auto;
+  padding: clamp(4rem, 9vw, 7rem) clamp(1.5rem, 5vw, 3rem);
+  text-align: center;
+}
+
+.parent-showcase__intro {
+  margin-inline: auto;
+  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+}
+
+.parent-showcase__headline {
+  margin: 0 auto;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1.85rem, 4.2vw, 3.75rem);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: hsl(var(--foreground));
+}
+
+.parent-showcase__visual {
+  margin-top: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.parent-showcase__card {
+  width: 100%;
+  max-width: 52rem;
+  border-radius: clamp(1.25rem, 2.5vw, 1.75rem);
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow:
+    0 1px 2px hsl(var(--foreground) / 0.04),
+    0 16px 40px hsl(var(--primary) / 0.09),
+    0 32px 64px hsl(var(--foreground) / 0.05);
+}
+
+.parent-showcase__card--hq {
+  max-width: 56rem;
+  box-shadow:
+    0 1px 2px hsl(var(--foreground) / 0.04),
+    0 20px 48px hsl(var(--primary) / 0.1),
+    0 36px 72px hsl(var(--foreground) / 0.06);
+}
+
+.parent-showcase__image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.parent-showcase__image--enhanced {
+  image-rendering: auto;
 }
 
 .lower-landing__plan {

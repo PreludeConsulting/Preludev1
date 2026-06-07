@@ -71,7 +71,7 @@ export const SERVICES = [
     title: "College list support",
     subtitle: "List building",
     description: "Balance safety, target, and reach with a mentor.",
-    href: "#mentorship",
+    href: "#how-it-works",
     icon: "compass"
   },
   {
@@ -95,7 +95,7 @@ export const SERVICES = [
     title: "Application roadmap",
     subtitle: "Timelines",
     description: "Deadlines, EA/ED/RD, and milestone tracking.",
-    href: "#roadmap",
+    href: "#clarity",
     icon: "calendar"
   }
 ];
