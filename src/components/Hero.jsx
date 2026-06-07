@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import PreludeMatch from "./hero/PreludeMatch.jsx";
-import { HeroFormAnimation, HeroHeadline, HeroSubcopy, HeroVisualAnimation } from "./hero/HeroIntroAnimation.jsx";
+import { HeroFormAnimation, HeroHeadline, HeroNote, HeroSubcopy, HeroVisualAnimation } from "./hero/HeroIntroAnimation.jsx";
 
 const registerPath = `${import.meta.env.BASE_URL}register`.replace(/\/+/g, "/");
 
@@ -24,34 +24,35 @@ export default function Hero() {
       <div className="shopify-hero__inner">
         <div className="shopify-hero__grid">
           <div className="shopify-hero__copy">
-            <HeroHeadline />
-            <HeroSubcopy>
-              {t("hero.subcopy")}
-            </HeroSubcopy>
-
-            <HeroFormAnimation>
-              <form className="shopify-hero__form" onSubmit={handleSubmit}>
-                <label className="sr-only" htmlFor="hero-email">
-                  {t("hero.emailLabel")}
-                </label>
-                <input
-                  id="hero-email"
-                  type="email"
-                  name="email"
-                  autoComplete="email"
-                  placeholder={t("hero.emailPlaceholder")}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="shopify-hero__input"
-                />
-                <button type="submit" className="shopify-hero__cta">
-                  {t("hero.cta")}
-                </button>
-              </form>
-              <p className="shopify-hero__note">
+            <div className="shopify-hero__stack">
+              <HeroHeadline />
+              <HeroSubcopy>
+                {t("hero.subcopy")}
+              </HeroSubcopy>
+              <HeroFormAnimation>
+                <form className="shopify-hero__form" onSubmit={handleSubmit}>
+                  <label className="sr-only" htmlFor="hero-email">
+                    {t("hero.emailLabel")}
+                  </label>
+                  <input
+                    id="hero-email"
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    placeholder={t("hero.emailPlaceholder")}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="shopify-hero__input"
+                  />
+                  <button type="submit" className="shopify-hero__cta">
+                    {t("hero.cta")}
+                  </button>
+                </form>
+              </HeroFormAnimation>
+              <HeroNote>
                 {t("hero.note")}
-              </p>
-            </HeroFormAnimation>
+              </HeroNote>
+            </div>
           </div>
 
           <HeroVisualAnimation>

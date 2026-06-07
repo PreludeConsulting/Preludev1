@@ -15,33 +15,47 @@ export function HeroHeadline() {
   const reducedMotion = useReducedMotion();
   const { t } = useLanguage();
   const [lineOne, lineTwo, lineThree] = t("hero.headline");
+  const lines = [
+    { text: lineOne, accent: false },
+    { text: lineTwo, accent: false },
+    { text: lineThree, accent: true }
+  ].filter(({ text }) => text);
+
   if (reducedMotion) {
     return (
       <h1 className="shopify-hero__headline">
-        <span className="shopify-hero__headline-line">{lineOne}</span>
-        <span className="shopify-hero__headline-line">{lineTwo}</span>
-        <span className="shopify-hero__headline-accent hero-headline-shimmer shopify-hero__headline-line">
-          {lineThree}
-        </span>
+        {lines.map(({ text, accent }) => (
+          <span
+            key={text}
+            className={
+              accent
+                ? "shopify-hero__headline-accent hero-headline-shimmer shopify-hero__headline-line"
+                : "shopify-hero__headline-line"
+            }
+          >
+            {text}
+          </span>
+        ))}
       </h1>
     );
   }
 
   return (
     <motion.h1 className="shopify-hero__headline" initial="hidden" animate="show">
-      <motion.span className="shopify-hero__headline-line block" custom={0} variants={line}>
-        {lineOne}
-      </motion.span>
-      <motion.span className="shopify-hero__headline-line block" custom={1} variants={line}>
-        {lineTwo}
-      </motion.span>
-      <motion.span
-        className="shopify-hero__headline-accent hero-headline-shimmer shopify-hero__headline-line block"
-        custom={2}
-        variants={line}
-      >
-        {lineThree}
-      </motion.span>
+      {lines.map(({ text, accent }, index) => (
+        <motion.span
+          key={text}
+          className={
+            accent
+              ? "shopify-hero__headline-accent hero-headline-shimmer shopify-hero__headline-line block"
+              : "shopify-hero__headline-line block"
+          }
+          custom={index}
+          variants={line}
+        >
+          {text}
+        </motion.span>
+      ))}
     </motion.h1>
   );
 }
@@ -83,11 +97,28 @@ export function HeroFormAnimation({ children }) {
 
   return (
     <motion.div
+      className="shopify-hero__form-wrap"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.4 }}
     >
       {children}
     </motion.div>
+  );
+}
+
+export function HeroNote({ children }) {
+  const reducedMotion = useReducedMotion();
+  if (reducedMotion) return <p className="shopify-hero__note">{children}</p>;
+
+  return (
+    <motion.p
+      className="shopify-hero__note"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.34, duration: 0.4 }}
+    >
+      {children}
+    </motion.p>
   );
 }
