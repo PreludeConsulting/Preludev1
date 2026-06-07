@@ -35,7 +35,7 @@ export const translations = {
         admissions: "Admissions Counseling",
         mentoring: "Mentoring",
         pricing: "Pricing",
-        roadmap: "Roadmap",
+        clarity: "Clarity",
         dashboard: "Dashboard"
       }
     },
@@ -297,7 +297,7 @@ export const translations = {
         admissions: "입시 상담",
         mentoring: "멘토링",
         pricing: "가격",
-        roadmap: "로드맵",
+        clarity: "명확성",
         dashboard: "대시보드"
       }
     },
@@ -559,7 +559,7 @@ export const translations = {
         admissions: "升学申请咨询",
         mentoring: "导师辅导",
         pricing: "价格",
-        roadmap: "路线图",
+        clarity: "清晰规划",
         dashboard: "仪表板"
       }
     },
@@ -821,7 +821,7 @@ export const translations = {
         admissions: "Asesoría de admisiones",
         mentoring: "Mentoría",
         pricing: "Precios",
-        roadmap: "Ruta",
+        clarity: "Claridad",
         dashboard: "Panel"
       }
     },

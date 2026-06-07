@@ -68,7 +68,7 @@ export function LowerFeatureIntro() {
 
   return (
     <div className="lower-landing">
-      <section className="lower-landing__section" id="problem">
+      <section className="lower-landing__section" id="admissions-counseling">
         <Reveal>
           <p className="lower-landing__eyebrow">{t("sections.featureIntro.eyebrow")}</p>
           <h2 className="lower-landing__headline lower-landing__headline--wide">
@@ -132,6 +132,7 @@ export function LowerBenefits() {
   return (
     <section className="parent-showcase scroll-mt-28" id="how-it-works" aria-labelledby="parent-showcase-heading">
       <span id="roadmap" className="sr-only" aria-hidden="true" />
+      <span id="clarity" className="sr-only" aria-hidden="true" />
       <div className="parent-showcase__inner">
         <Reveal className="parent-showcase__intro">
           <h2 id="parent-showcase-heading" className="parent-showcase__headline">

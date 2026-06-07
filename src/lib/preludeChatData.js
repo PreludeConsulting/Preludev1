@@ -95,7 +95,7 @@ export const SERVICES = [
     title: "Application roadmap",
     subtitle: "Timelines",
     description: "Deadlines, EA/ED/RD, and milestone tracking.",
-    href: "#roadmap",
+    href: "#clarity",
     icon: "calendar"
   }
 ];
