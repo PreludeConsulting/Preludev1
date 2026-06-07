@@ -152,7 +152,7 @@ export function LowerBenefits() {
   return (
     <div className="lower-landing">
       <section className="lower-landing__section scroll-mt-28" id="how-it-works">
-        <span id="roadmap" className="sr-only" aria-hidden="true" />
+        <span id="clarity" className="sr-only" aria-hidden="true" />
         <Reveal className="mx-auto max-w-2xl text-center">
           <p className="lower-landing__eyebrow">{t("sections.benefits.eyebrow")}</p>
           <h2 className="lower-landing__headline lower-landing__headline--center">
