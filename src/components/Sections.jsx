@@ -225,14 +225,15 @@ export function LowerPlans() {
             {billingNotice}
           </p>
         ) : null}
-        <div className="mt-12 grid gap-6 lg:grid-cols-3 lg:gap-8">
+        <div className="pricing-grid">
           {plans.map((plan, index) => (
-            <Reveal delay={index * 0.08} key={plan.id}>
+            <Reveal delay={index * 0.08} key={plan.id} className="pricing-grid__item">
               <PricingCard
                 plan={plan}
                 onSelect={handlePlanClick}
                 loading={loadingPlan === plan.id}
                 mostPopularLabel={t("sections.plans.mostPopular")}
+                bestValueLabel={t("sections.plans.bestValue")}
                 startFreeLabel={t("sections.plans.startFree")}
                 chooseLabel={t("sections.plans.choose")}
                 pleaseWaitLabel={t("sections.plans.pleaseWait")}

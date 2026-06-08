@@ -14,9 +14,9 @@ export const PLANS = {
     id: "basic",
     name: "Basic",
     tagline: "Foundational guidance for students beginning their college journey.",
-    priceLabel: "Free",
+    priceLabel: "Paid",
     price: "$49.99",
-    paid: false,
+    paid: true,
     isRecommended: false,
     description: "Foundational guidance for students beginning their college journey.",
     features: [

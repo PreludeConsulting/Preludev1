@@ -1,17 +1,33 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import {
+  Award,
   Bot,
+  Building2,
   Calendar,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
   FileText,
   Flame,
   GraduationCap,
   LayoutGrid,
   ListTodo,
+  Lock,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Pencil,
   Sparkles,
-  Target
+  Target,
+  UserCheck,
+  Video
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { requestPasswordReset } from "../../../lib/auth.js";
+import { cn } from "../../../lib/utils.js";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import CalendarPanel from "../../components/CalendarPanel.jsx";
 import IntegrationConnect from "../../components/IntegrationConnect.jsx";
@@ -20,10 +36,13 @@ import PreludeChatPanel from "../../components/PreludeChatPanel.jsx";
 import ScheduleMeetingForm from "../../components/ScheduleMeetingForm.jsx";
 import { PLACEHOLDER_COLLEGES, PLACEHOLDER_ESSAYS } from "../../data/placeholders.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
+import { loadPreferences, savePreferences } from "../../lib/dashboardPreferences.js";
 import {
+  Avatar,
   DashBadge,
   DashTabs,
   DeadlineRow,
+  EmptyState,
   PrimaryButton,
   ProgressBar,
   SearchInput,
@@ -38,9 +57,98 @@ import {
   InsightList,
   MeetingCardPremium,
   MissionCard,
-  OverviewHero
+  OverviewHero,
+  ProgressRing
 } from "../../components/ui/gamification.jsx";
 import { useGamification } from "../../context/GamificationContext.jsx";
+
+/* ——— Shared presentational helpers for the redesigned pages ——— */
+
+function EmptyPrompt({ text }) {
+  return (
+    <p className="dash-empty-prompt">
+      <Sparkles className="h-4 w-4" aria-hidden="true" /> {text}
+    </p>
+  );
+}
+
+function SettingToggle({ id, checked, onChange, label, description }) {
+  return (
+    <div className="dash-setting-row">
+      <div className="dash-setting-row__text">
+        <label htmlFor={id} className="dash-setting-row__label">{label}</label>
+        {description ? <p className="dash-setting-row__desc">{description}</p> : null}
+      </div>
+      <button
+        type="button"
+        id={id}
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        className={cn("dash-toggle", checked && "dash-toggle--on")}
+        onClick={() => onChange(!checked)}
+      >
+        <span className="dash-toggle__thumb" />
+      </button>
+    </div>
+  );
+}
+
+const MEETING_TYPE_META = {
+  zoom: { label: "Zoom", icon: Video },
+  in_person: { label: "In person", icon: MapPin },
+  phone: { label: "Phone", icon: Clock }
+};
+
+const MEETING_STATUS_META = {
+  scheduled: { label: "Confirmed", variant: "success" },
+  confirmed: { label: "Confirmed", variant: "success" },
+  pending: { label: "Pending", variant: "gold" },
+  completed: { label: "Completed", variant: "muted" },
+  cancelled: { label: "Cancelled", variant: "urgent" },
+  canceled: { label: "Cancelled", variant: "urgent" }
+};
+
+function formatMeetingDate(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "Date TBD";
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+function formatMeetingTime(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function UpcomingMeetingCard({ meeting, mentorName }) {
+  const typeMeta = MEETING_TYPE_META[meeting.meetingType] || MEETING_TYPE_META.zoom;
+  const statusMeta = MEETING_STATUS_META[meeting.status] || MEETING_STATUS_META.scheduled;
+  const TypeIcon = typeMeta.icon;
+  return (
+    <article className="dash-upcoming-card">
+      <div className="dash-upcoming-card__date" aria-hidden="true">
+        <span className="dash-upcoming-card__day">{formatMeetingDate(meeting.startTime)}</span>
+        <span className="dash-upcoming-card__time">{formatMeetingTime(meeting.startTime)}</span>
+      </div>
+      <div className="dash-upcoming-card__body">
+        <p className="dash-upcoming-card__title">{meeting.title}</p>
+        <p className="dash-upcoming-card__meta">
+          {mentorName ? `with ${mentorName}` : ""}
+        </p>
+        <div className="dash-upcoming-card__tags">
+          <DashBadge variant="zoom"><TypeIcon className="h-3 w-3" /> {typeMeta.label}</DashBadge>
+          <DashBadge variant={statusMeta.variant}>{statusMeta.label}</DashBadge>
+        </div>
+      </div>
+      {meeting.meetingType === "zoom" && meeting.zoomJoinUrl ? (
+        <a href={meeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-btn dash-btn--secondary dash-btn--sm">
+          <Video className="h-4 w-4" /> Join
+        </a>
+      ) : null}
+    </article>
+  );
+}
 
 export function StudentOverview() {
   const { user } = useAuth();
@@ -143,30 +251,77 @@ export function StudentOverview() {
   );
 }
 
+const CALENDAR_LEGEND = [
+  { label: "Mentor meeting", color: "#7c6cff" },
+  { label: "Application deadline", color: "#232730" },
+  { label: "Essay deadline", color: "#2563eb" },
+  { label: "Scholarship deadline", color: "#9a6700" },
+  { label: "Mentor availability", color: "#5b4fd6" }
+];
+
 export function StudentCalendar() {
   const { meetings, integrations, connectGoogle, disconnectGoogle, scheduleMeeting, events, profile, mentor } = useDashboardData();
+  const upcoming = [...(meetings || [])].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
   return (
-    <div className="dash-page">
-      <div className="dash-split dash-split--calendar">
-        <CalendarPanel
-          role="student"
-          events={events}
-          studentId={profile?.slug}
-          meetings={meetings}
-          mentorName={mentor?.name}
-          googleConnected={integrations.googleCalendar?.connected}
-          onConnectGoogle={connectGoogle}
-          onDisconnectGoogle={disconnectGoogle}
-        />
-        <SectionCard title="Schedule a meeting" className="dash-schedule-card">
-          <ScheduleMeetingForm
-            compact
-            onSubmit={async (p) => {
-              await scheduleMeeting({ ...p, status: "pending" });
-            }}
+    <div className="dash-page dash-page--premium">
+      <div className="dash-calendar-layout">
+        <div className="dash-calendar-layout__main">
+          <CalendarPanel
+            role="student"
+            events={events}
+            studentId={profile?.slug}
+            meetings={meetings}
+            mentorName={mentor?.name}
+            googleConnected={integrations.googleCalendar?.connected}
+            onConnectGoogle={connectGoogle}
+            onDisconnectGoogle={disconnectGoogle}
           />
-        </SectionCard>
+        </div>
+
+        <aside className="dash-calendar-layout__side">
+          <SectionCard
+            title="Upcoming meetings"
+            className="dash-panel"
+            action={upcoming.length ? <DashBadge variant="soft">{upcoming.length}</DashBadge> : null}
+          >
+            {upcoming.length ? (
+              <div className="dash-upcoming-list">
+                {upcoming.map((meeting) => (
+                  <UpcomingMeetingCard key={meeting.id} meeting={meeting} mentorName={mentor?.name} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Calendar}
+                title="No meetings scheduled"
+                description="Request a meeting with your mentor and it will appear here and on your calendar."
+                action={<a href="#calendar-schedule" className="dash-btn dash-btn--primary dash-btn--sm">Schedule a meeting</a>}
+              />
+            )}
+          </SectionCard>
+
+          <SectionCard title="Schedule a meeting" className="dash-panel" id="calendar-schedule">
+            <p className="dash-muted">Pick a time and your mentor will confirm the request.</p>
+            <ScheduleMeetingForm
+              compact
+              onSubmit={async (p) => {
+                await scheduleMeeting({ ...p, status: "pending" });
+              }}
+            />
+          </SectionCard>
+
+          <SectionCard title="Legend" className="dash-panel">
+            <ul className="dash-legend-list">
+              {CALENDAR_LEGEND.map((item) => (
+                <li key={item.label}>
+                  <span className="dash-legend-list__dot" style={{ background: item.color }} aria-hidden="true" />
+                  {item.label}
+                </li>
+              ))}
+            </ul>
+          </SectionCard>
+        </aside>
       </div>
     </div>
   );
@@ -190,36 +345,148 @@ const PROFILE_SECTIONS = [
   { id: "work", title: "Work Experience", fields: ["Work experience"], textarea: true }
 ];
 
+function profileFieldValues(profile) {
+  return {
+    "Grade level": profile?.grade ?? "",
+    "Graduation year": profile?.graduationYear ?? "",
+    GPA: profile?.gpa ?? "",
+    "Weighted GPA": profile?.weightedGpa ?? "",
+    "SAT score": profile?.sat ?? "",
+    "Intended majors": profile?.majors?.join(", ") ?? "",
+    "Preferred colleges": profile?.colleges?.join(", ") ?? ""
+  };
+}
+
 export function StudentProfileStats() {
-  const { profile } = useDashboardData();
+  const { user } = useAuth();
+  const { profile, mentor } = useDashboardData();
   const [completion, setCompletion] = useState(profile?.profileCompletion ?? 62);
+  const [saved, setSaved] = useState(false);
+  const fieldValues = profileFieldValues(profile);
+  const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
+  const majors = profile?.majors || [];
+  const colleges = profile?.colleges || [];
+
+  function handleSave(e) {
+    e.preventDefault();
+    setCompletion((c) => Math.min(100, c + 6));
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2600);
+  }
 
   return (
-    <div className="dash-page">
-      <SectionCard title="Profile completion">
-        <ProgressBar label="Overall completion" value={completion} />
-        <p className="dash-muted">Mentor: {profile?.mentorName || "—"}</p>
+    <div className="dash-page dash-page--premium">
+      <SectionCard className="dash-profile-hero dash-panel" padding={false}>
+        <div className="dash-profile-hero__inner">
+          <Avatar name={user?.name} size="lg" />
+          <div className="dash-profile-hero__id">
+            <h2 className="dash-profile-hero__name">{user?.name || "Your name"}</h2>
+            <p className="dash-profile-hero__email"><Mail className="h-4 w-4" /> {user?.email || "Add your email"}</p>
+            <div className="dash-profile-hero__badges">
+              <DashBadge variant="soft">{roleLabel}</DashBadge>
+              {profile?.grade ? <DashBadge variant="lavender">{profile.grade}</DashBadge> : null}
+              {(mentor?.name || profile?.mentorName) ? (
+                <DashBadge variant="lavender"><GraduationCap className="h-3 w-3" /> {mentor?.name || profile?.mentorName}</DashBadge>
+              ) : null}
+            </div>
+          </div>
+          <div className="dash-profile-hero__completion">
+            <ProgressRing value={completion} size={76} />
+            <div className="dash-profile-hero__completion-text">
+              <p className="dash-profile-hero__completion-label">Profile completion</p>
+              <a href="#profile-edit" className="dash-btn dash-btn--primary dash-btn--sm">
+                <Pencil className="h-4 w-4" /> Edit profile
+              </a>
+            </div>
+          </div>
+        </div>
       </SectionCard>
 
-      <form
-        className="dash-profile-sections"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setCompletion(Math.min(100, completion + 6));
-        }}
-      >
-        {PROFILE_SECTIONS.map((section) => (
-          <SectionCard key={section.id} title={section.title}>
-            {section.fields.map((label) => (
-              <label key={label} className="prelude-field">
-                <span>{label}</span>
-                {section.textarea ? <textarea rows={3} /> : <input defaultValue={label === "Grade level" ? profile?.grade : label === "GPA" ? profile?.gpa : ""} />}
-              </label>
-            ))}
-            <SecondaryButton type="button" className="dash-btn--sm">Edit</SecondaryButton>
+      {completion < 100 ? (
+        <div className="dash-callout">
+          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          <p>You're {completion}% complete. Fill in the remaining sections so your mentor and Prelude AI can give sharper recommendations.</p>
+        </div>
+      ) : null}
+
+      <div className="dash-metric-row">
+        <CompactStatCard icon={GraduationCap} label="Grade" value={profile?.grade || "—"} />
+        <CompactStatCard icon={CalendarDays} label="Graduation Year" value={profile?.graduationYear || "—"} />
+        <CompactStatCard icon={Target} label="GPA" value={profile?.gpa != null ? String(profile.gpa) : "—"} />
+        <CompactStatCard icon={Award} label="SAT" value={profile?.sat != null ? String(profile.sat) : "—"} />
+      </div>
+
+      <div className="dash-overview-grid dash-overview-grid--premium">
+        <div className="dash-overview-grid__col">
+          <SectionCard title="Intended majors" className="dash-panel">
+            {majors.length ? (
+              <div className="dash-tags">{majors.map((mj) => <DashBadge key={mj} variant="lavender">{mj}</DashBadge>)}</div>
+            ) : (
+              <EmptyPrompt text="Add the majors you're considering so your mentor can tailor school suggestions." />
+            )}
           </SectionCard>
-        ))}
-        <PrimaryButton type="submit">Save profile</PrimaryButton>
+
+          <SectionCard
+            title="College goals"
+            className="dash-panel"
+            action={<ViewAllLink to={`${STUDENT_DASHBOARD_BASE}/workspace`}>Open workspace</ViewAllLink>}
+          >
+            {colleges.length ? (
+              <ul className="dash-goal-list">
+                {colleges.map((college) => (
+                  <li key={college}><Building2 className="h-4 w-4" /> {college}</li>
+                ))}
+              </ul>
+            ) : (
+              <EmptyPrompt text="Add target colleges to start building a balanced list." />
+            )}
+          </SectionCard>
+        </div>
+
+        <div className="dash-overview-grid__col">
+          <SectionCard title="Academic snapshot" className="dash-panel">
+            <dl className="dash-kv">
+              <div><dt>Grade</dt><dd>{profile?.grade || "—"}</dd></div>
+              <div><dt>Graduation</dt><dd>{profile?.graduationYear || "—"}</dd></div>
+              <div><dt>GPA</dt><dd>{profile?.gpa ?? "—"}</dd></div>
+              <div><dt>Weighted GPA</dt><dd>{profile?.weightedGpa ?? "—"}</dd></div>
+              <div><dt>SAT</dt><dd>{profile?.sat ?? "—"}</dd></div>
+              <div><dt>Mentor</dt><dd>{mentor?.name || profile?.mentorName || "—"}</dd></div>
+            </dl>
+          </SectionCard>
+        </div>
+      </div>
+
+      <form id="profile-edit" className="dash-profile-form" onSubmit={handleSave}>
+        <div className="dash-section-heading">
+          <h2 className="dash-section-heading__title">Edit profile details</h2>
+          <p className="dash-muted">Update each section, then save your changes.</p>
+        </div>
+
+        <div className="dash-profile-grid">
+          {PROFILE_SECTIONS.map((section) => (
+            <SectionCard key={section.id} title={section.title} className="dash-panel">
+              {section.fields.map((label) => (
+                <label key={label} className="prelude-field">
+                  <span>{label}</span>
+                  {section.textarea ? (
+                    <textarea rows={3} placeholder={`Add your ${section.title.toLowerCase()}…`} />
+                  ) : (
+                    <input defaultValue={fieldValues[label] ?? ""} placeholder={label} />
+                  )}
+                </label>
+              ))}
+              <SecondaryButton type="button" className="dash-btn--sm">Edit</SecondaryButton>
+            </SectionCard>
+          ))}
+        </div>
+
+        <div className="dash-form-actions">
+          {saved ? (
+            <span className="dash-save-state dash-save-state--ok"><Check className="h-4 w-4" /> Profile saved</span>
+          ) : null}
+          <PrimaryButton type="submit">Save profile</PrimaryButton>
+        </div>
       </form>
     </div>
   );
@@ -360,37 +627,175 @@ export function StudentWorkspace() {
   );
 }
 
+function MentorAvailabilityList({ availability }) {
+  const slots = (availability || "")
+    .split("·")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!slots.length) {
+    return <p className="dash-muted">Availability will appear here once your mentor sets their hours.</p>;
+  }
+  return (
+    <ul className="dash-slot-list">
+      {slots.map((slot) => (
+        <li key={slot}>
+          <span className="dash-slot-list__time"><Clock className="h-4 w-4" /> {slot}</span>
+          <DashBadge variant="soft">Open</DashBadge>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function MentorMessagePreview({ messages, mentorName }) {
+  if (!messages.length) {
+    return <p className="dash-muted">No messages yet. Start the conversation with your mentor.</p>;
+  }
+  return (
+    <ul className="dash-msg-preview">
+      {messages.map((msg) => (
+        <li key={msg.id} className={cn("dash-msg-preview__row", msg.sender === "me" && "dash-msg-preview__row--me")}>
+          <span className="dash-msg-preview__who">{msg.sender === "me" ? "You" : mentorName}</span>
+          <p className="dash-msg-preview__text">{msg.body || msg.text}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function StudentMentor() {
-  const { mentor, meetings, scheduleMeeting } = useDashboardData();
+  const { mentor, meetings, conversations, profile, scheduleMeeting } = useDashboardData();
   const m = mentor;
+  const upcoming = [...(meetings || [])].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+  const nextMeeting = upcoming[0];
+  const mentorThread = conversations?.[0];
+  const recentMessages = (mentorThread?.messages || []).slice(-3);
+  const completion = profile?.profileCompletion ?? null;
+
+  if (!m) {
+    return (
+      <div className="dash-page">
+        <SectionCard className="dash-panel">
+          <EmptyState
+            icon={UserCheck}
+            title="Mentor matching in progress"
+            description="We're matching you with a mentor based on your goals, intended majors, and target colleges. Completing your profile helps us find the best fit."
+            action={
+              <Link to={`${STUDENT_DASHBOARD_BASE}/profile-stats`} className="dash-btn dash-btn--primary">
+                <Pencil className="h-4 w-4" /> Complete your profile
+              </Link>
+            }
+          />
+        </SectionCard>
+      </div>
+    );
+  }
 
   return (
-    <div className="dash-page">
-      <SectionCard className="dash-mentor-hero">
-        <div className="dash-mentor-hero__head">
-          <span className="dash-avatar dash-avatar--lg">{m.name?.[0]}</span>
-          <div>
-            <h2 className="dash-section-card__title">{m.name}</h2>
-            <p className="dash-muted">{m.university} · {m.major} · Class of {m.graduationYear}</p>
+    <div className="dash-page dash-page--premium">
+      <SectionCard className="dash-mentor-hero dash-panel" padding={false}>
+        <div className="dash-mentor-hero__inner">
+          <Avatar name={m.name} size="lg" />
+          <div className="dash-mentor-hero__id">
+            <div className="dash-mentor-hero__namerow">
+              <h2 className="dash-mentor-hero__name">{m.name}</h2>
+              <DashBadge variant="success"><UserCheck className="h-3 w-3" /> Matched mentor</DashBadge>
+            </div>
+            <p className="dash-mentor-hero__role">Peer Mentor</p>
+            <div className="dash-mentor-hero__chips">
+              {m.university ? <span className="dash-mentor-hero__chip"><Building2 className="h-4 w-4" /> {m.university}</span> : null}
+              {m.major ? <span className="dash-mentor-hero__chip"><GraduationCap className="h-4 w-4" /> {m.major}</span> : null}
+              {m.graduationYear ? <span className="dash-mentor-hero__chip"><CalendarDays className="h-4 w-4" /> Class of {m.graduationYear}</span> : null}
+            </div>
+            {m.bio ? <p className="dash-mentor-hero__bio">{m.bio}</p> : null}
+            {m.expertise?.length ? (
+              <div className="dash-tags">
+                {m.expertise.map((e) => <DashBadge key={e} variant="lavender">{e}</DashBadge>)}
+              </div>
+            ) : null}
+            <div className="dash-mentor-hero__cta">
+              <Link to={`${STUDENT_DASHBOARD_BASE}/messages`} className="dash-btn dash-btn--primary dash-btn--sm">
+                <MessageCircle className="h-4 w-4" /> Send a message
+              </Link>
+              <a href="#mentor-schedule" className="dash-btn dash-btn--secondary dash-btn--sm">
+                <Calendar className="h-4 w-4" /> Schedule a call
+              </a>
+            </div>
           </div>
-        </div>
-        <p>{m.bio}</p>
-        <div className="dash-tags">{m.expertise?.map((e) => <DashBadge key={e} variant="lavender">{e}</DashBadge>)}</div>
-        <p className="dash-muted">Availability: {m.availability}</p>
-        <div className="dash-mentor-hero__actions">
-          <Link to={`${STUDENT_DASHBOARD_BASE}/messages`} className="dash-btn dash-btn--secondary">Send a message</Link>
         </div>
       </SectionCard>
 
-      <div className="dash-split">
-        <SectionCard title="Schedule a meeting">
-          <ScheduleMeetingForm compact onSubmit={(p) => scheduleMeeting({ ...p, status: "pending" })} />
-        </SectionCard>
-        <SectionCard title="Upcoming meetings">
-          {meetings.map((meet) => (
-            <MeetingPreviewCard key={meet.id} meeting={meet} mentorName={m.name} role="student" />
-          ))}
-        </SectionCard>
+      <div className="dash-metric-row">
+        <CompactStatCard icon={Calendar} label="Upcoming Sessions" value={String(upcoming.length)} />
+        <CompactStatCard icon={Clock} label="Next Session" value={nextMeeting ? formatMeetingDate(nextMeeting.startTime) : "—"} />
+        <CompactStatCard icon={MessageCircle} label="Conversations" value={String(conversations?.length || 0)} />
+        {completion != null ? (
+          <CompactStatCard icon={Target} label="Profile Completion" value={`${completion}%`} progress={completion} />
+        ) : null}
+      </div>
+
+      <div className="dash-overview-grid dash-overview-grid--premium">
+        <div className="dash-overview-grid__col">
+          <SectionCard
+            title="Upcoming Sessions"
+            className="dash-panel"
+            action={<ViewAllLink to={`${STUDENT_DASHBOARD_BASE}/calendar`}>Open calendar</ViewAllLink>}
+          >
+            {upcoming.length ? (
+              upcoming.map((meet) => (
+                <MeetingCardPremium
+                  key={meet.id}
+                  meeting={meet}
+                  mentorName={m.name}
+                  role="student"
+                  messagePath={`${STUDENT_DASHBOARD_BASE}/messages`}
+                />
+              ))
+            ) : (
+              <EmptyState
+                icon={Calendar}
+                title="No sessions scheduled"
+                description="Request a meeting with your mentor and it will show up here."
+                action={<a href="#mentor-schedule" className="dash-btn dash-btn--primary dash-btn--sm">Schedule a session</a>}
+              />
+            )}
+          </SectionCard>
+
+          <SectionCard title="Schedule a session" className="dash-panel" id="mentor-schedule">
+            <p className="dash-muted">Request a time and your mentor will confirm the meeting.</p>
+            <ScheduleMeetingForm compact onSubmit={(p) => scheduleMeeting({ ...p, status: "pending" })} />
+          </SectionCard>
+        </div>
+
+        <div className="dash-overview-grid__col">
+          <SectionCard title="Mentor Availability" className="dash-panel">
+            <MentorAvailabilityList availability={m.availability} />
+            <a href="#mentor-schedule" className="dash-btn dash-btn--secondary dash-btn--sm">
+              <Calendar className="h-4 w-4" /> Request a time
+            </a>
+          </SectionCard>
+
+          <SectionCard
+            title="Recent Messages"
+            className="dash-panel"
+            action={<ViewAllLink to={`${STUDENT_DASHBOARD_BASE}/messages`}>Open inbox</ViewAllLink>}
+          >
+            <MentorMessagePreview messages={recentMessages} mentorName={m.name} />
+            <Link to={`${STUDENT_DASHBOARD_BASE}/messages`} className="dash-btn dash-btn--secondary dash-btn--sm">
+              <MessageCircle className="h-4 w-4" /> Reply
+            </Link>
+          </SectionCard>
+
+          <SectionCard title="How your mentor can help" className="dash-panel">
+            <ul className="dash-help-list">
+              {(m.expertise?.length ? m.expertise : ["College list strategy", "Essay feedback", "Application planning"]).map((item) => (
+                <li key={item}>
+                  <CheckCircle2 className="h-4 w-4" /> {item}
+                </li>
+              ))}
+            </ul>
+          </SectionCard>
+        </div>
       </div>
     </div>
   );
@@ -410,14 +815,279 @@ export function StudentMessages() {
   );
 }
 
-export function StudentProfileSettings() {
-  const { integrations, connectGoogle, disconnectGoogle, connectZoomAccount, disconnectZoomAccount } = useDashboardData();
+const SETTINGS_TABS = [
+  { id: "profile", label: "Profile" },
+  { id: "notifications", label: "Notifications" },
+  { id: "calendar", label: "Calendar & meetings" },
+  { id: "display", label: "Display" },
+  { id: "integrations", label: "Connected accounts" },
+  { id: "security", label: "Privacy & security" },
+  { id: "support", label: "Support" }
+];
+
+function SettingSelect({ id, label, description, value, onChange, options }) {
   return (
-    <div className="dash-page">
-      <SectionCard title="Integrations">
-        <IntegrationConnect label="Google Calendar" connectLabel="Connect Google Calendar" connected={integrations.googleCalendar?.connected} onConnect={connectGoogle} onDisconnect={disconnectGoogle} />
-        <IntegrationConnect label="Zoom" connectLabel="Connect Zoom Account" connected={integrations.zoom?.connected} onConnect={connectZoomAccount} onDisconnect={disconnectZoomAccount} description="Required for virtual mentor meetings." />
+    <div className="dash-setting-row">
+      <div className="dash-setting-row__text">
+        <label htmlFor={id} className="dash-setting-row__label">{label}</label>
+        {description ? <p className="dash-setting-row__desc">{description}</p> : null}
+      </div>
+      <select id={id} className="dash-select" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function SaveRow({ section, savedSection, onSave }) {
+  return (
+    <div className="dash-form-actions">
+      {savedSection === section ? (
+        <span className="dash-save-state dash-save-state--ok"><Check className="h-4 w-4" /> Saved</span>
+      ) : null}
+      <PrimaryButton type="button" className="dash-btn--sm" onClick={() => onSave(section)}>Save changes</PrimaryButton>
+    </div>
+  );
+}
+
+export function StudentProfileSettings() {
+  const { user, planDetails, openAccount, signOut } = useAuth();
+  const { integrations, connectGoogle, disconnectGoogle, connectZoomAccount, disconnectZoomAccount } = useDashboardData();
+  const [tab, setTab] = useState("profile");
+  const [prefs, setPrefs] = useState(() => loadPreferences());
+  const [savedSection, setSavedSection] = useState("");
+  const [resetState, setResetState] = useState("idle");
+
+  const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
+  const planName = planDetails?.name || user?.planName || "Basic";
+
+  function setPref(key, value) {
+    setPrefs((p) => ({ ...p, [key]: value }));
+  }
+
+  function saveSection(section) {
+    savePreferences(prefs);
+    setSavedSection(section);
+    window.setTimeout(() => setSavedSection(""), 2600);
+  }
+
+  async function handlePasswordReset() {
+    if (!user?.email) return;
+    setResetState("sending");
+    try {
+      await requestPasswordReset(user.email);
+      setResetState("sent");
+    } catch {
+      setResetState("error");
+    }
+  }
+
+  return (
+    <div className="dash-page dash-page--premium">
+      <SectionCard className="dash-settings-id dash-panel" padding={false}>
+        <div className="dash-settings-id__inner">
+          <Avatar name={user?.name} size="lg" />
+          <div className="dash-settings-id__text">
+            <h2 className="dash-settings-id__name">{user?.name || "Your account"}</h2>
+            <p className="dash-settings-id__email"><Mail className="h-4 w-4" /> {user?.email || "—"}</p>
+            <div className="dash-settings-id__badges">
+              <DashBadge variant="soft">{roleLabel}</DashBadge>
+              <DashBadge variant="lavender">{planName} plan</DashBadge>
+            </div>
+          </div>
+          <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" onClick={openAccount}>
+            Account &amp; plan
+          </button>
+        </div>
       </SectionCard>
+
+      <div className="dash-settings">
+        <div className="dash-settings__nav">
+          <DashTabs tabs={SETTINGS_TABS} active={tab} onChange={setTab} />
+        </div>
+
+        <div className="dash-settings__panel">
+          {tab === "profile" ? (
+            <>
+              <SectionCard
+                title="Profile information"
+                className="dash-panel"
+                action={
+                  <Link to={`${STUDENT_DASHBOARD_BASE}/profile-stats`} className="dash-btn dash-btn--secondary dash-btn--sm">
+                    <Pencil className="h-4 w-4" /> Edit full profile
+                  </Link>
+                }
+              >
+                <dl className="dash-kv">
+                  <div><dt>Name</dt><dd>{user?.name || "—"}</dd></div>
+                  <div><dt>Email</dt><dd>{user?.email || "—"}</dd></div>
+                  <div><dt>Role</dt><dd>{roleLabel}</dd></div>
+                  <div><dt>Plan</dt><dd>{planName}</dd></div>
+                </dl>
+                <p className="dash-muted">Manage academic details, intended majors, and college goals on your profile page.</p>
+              </SectionCard>
+
+              <SectionCard title="Account management" className="dash-panel">
+                <button type="button" className="dash-setting-link" onClick={openAccount}>
+                  <span><span className="dash-setting-link__label">Account &amp; plan</span><span className="dash-setting-link__desc">View your subscription and billing details.</span></span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button type="button" className="dash-setting-link" onClick={() => signOut()}>
+                  <span><span className="dash-setting-link__label">Sign out</span><span className="dash-setting-link__desc">Sign out of Prelude on this device.</span></span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </SectionCard>
+            </>
+          ) : null}
+
+          {tab === "notifications" ? (
+            <SectionCard title="Email &amp; notifications" className="dash-panel">
+              <p className="dash-muted">Choose what Prelude notifies you about. Preferences are saved to this browser.</p>
+              <SettingToggle id="emailUpdates" label="Product &amp; account emails" description="Important updates about your account." checked={prefs.emailUpdates} onChange={(v) => setPref("emailUpdates", v)} />
+              <SettingToggle id="meetingReminders" label="Meeting reminders" description="Reminders before mentor sessions." checked={prefs.meetingReminders} onChange={(v) => setPref("meetingReminders", v)} />
+              <SettingToggle id="mentorMessages" label="Mentor message alerts" description="Notify me when my mentor sends a message." checked={prefs.mentorMessages} onChange={(v) => setPref("mentorMessages", v)} />
+              <SettingToggle id="weeklyDigest" label="Weekly progress digest" description="A summary of deadlines and progress each week." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />
+              <SettingToggle id="productTips" label="Tips &amp; best practices" description="Occasional admissions tips from Prelude." checked={prefs.productTips} onChange={(v) => setPref("productTips", v)} />
+              <SaveRow section="notifications" savedSection={savedSection} onSave={saveSection} />
+            </SectionCard>
+          ) : null}
+
+          {tab === "calendar" ? (
+            <SectionCard title="Calendar &amp; meeting preferences" className="dash-panel">
+              <p className="dash-muted">Defaults for how your calendar and meeting reminders behave.</p>
+              <SettingSelect
+                id="defaultCalendarView"
+                label="Default calendar view"
+                description="The view your calendar opens in."
+                value={prefs.defaultCalendarView}
+                onChange={(v) => setPref("defaultCalendarView", v)}
+                options={[
+                  { value: "month", label: "Month" },
+                  { value: "week", label: "Week" },
+                  { value: "day", label: "Day" },
+                  { value: "agenda", label: "Agenda" }
+                ]}
+              />
+              <SettingSelect
+                id="reminderLeadTime"
+                label="Meeting reminder"
+                description="How far ahead to remind you about sessions."
+                value={prefs.reminderLeadTime}
+                onChange={(v) => setPref("reminderLeadTime", v)}
+                options={[
+                  { value: "10", label: "10 minutes before" },
+                  { value: "30", label: "30 minutes before" },
+                  { value: "60", label: "1 hour before" },
+                  { value: "1440", label: "1 day before" }
+                ]}
+              />
+              <SettingSelect
+                id="weekStart"
+                label="Week starts on"
+                value={prefs.weekStart}
+                onChange={(v) => setPref("weekStart", v)}
+                options={[
+                  { value: "sunday", label: "Sunday" },
+                  { value: "monday", label: "Monday" }
+                ]}
+              />
+              <SaveRow section="calendar" savedSection={savedSection} onSave={saveSection} />
+            </SectionCard>
+          ) : null}
+
+          {tab === "display" ? (
+            <SectionCard title="Display &amp; accessibility" className="dash-panel">
+              <p className="dash-muted">These apply to your dashboard on this device.</p>
+              <SettingSelect
+                id="density"
+                label="Layout density"
+                description="Comfortable adds more spacing; compact fits more on screen."
+                value={prefs.density}
+                onChange={(v) => setPref("density", v)}
+                options={[
+                  { value: "comfortable", label: "Comfortable" },
+                  { value: "compact", label: "Compact" }
+                ]}
+              />
+              <SettingToggle
+                id="reduceMotion"
+                label="Reduce motion"
+                description="Minimize animations and transitions across the dashboard."
+                checked={prefs.reduceMotion}
+                onChange={(v) => setPref("reduceMotion", v)}
+              />
+              <SaveRow section="display" savedSection={savedSection} onSave={saveSection} />
+            </SectionCard>
+          ) : null}
+
+          {tab === "integrations" ? (
+            <SectionCard title="Connected accounts" className="dash-panel">
+              <p className="dash-muted">Connect the tools you use for scheduling and meetings.</p>
+              <IntegrationConnect
+                label="Google Calendar"
+                connectLabel="Connect Google Calendar"
+                connected={integrations.googleCalendar?.connected}
+                onConnect={connectGoogle}
+                onDisconnect={disconnectGoogle}
+                description="Sync Prelude meetings and deadlines to your Google Calendar."
+              />
+              <IntegrationConnect
+                label="Zoom"
+                connectLabel="Connect Zoom Account"
+                connected={integrations.zoom?.connected}
+                onConnect={connectZoomAccount}
+                onDisconnect={disconnectZoomAccount}
+                description="Required for virtual mentor meetings."
+              />
+            </SectionCard>
+          ) : null}
+
+          {tab === "security" ? (
+            <>
+              <SectionCard title="Password &amp; login" className="dash-panel">
+                <div className="dash-setting-row">
+                  <div className="dash-setting-row__text">
+                    <span className="dash-setting-row__label"><Lock className="h-4 w-4" /> Password</span>
+                    <p className="dash-setting-row__desc">We'll email a secure link to reset your password.</p>
+                  </div>
+                  <SecondaryButton type="button" className="dash-btn--sm" onClick={handlePasswordReset} disabled={resetState === "sending"}>
+                    {resetState === "sending" ? "Sending…" : "Send reset link"}
+                  </SecondaryButton>
+                </div>
+                {resetState === "sent" ? (
+                  <span className="dash-save-state dash-save-state--ok"><Check className="h-4 w-4" /> Reset link sent to {user?.email}</span>
+                ) : null}
+                {resetState === "error" ? (
+                  <span className="dash-save-state dash-save-state--err">Couldn't send a reset link. Please try again.</span>
+                ) : null}
+              </SectionCard>
+
+              <SectionCard title="Privacy" className="dash-panel">
+                <p className="dash-muted">Your profile is visible to your matched mentor so they can support your applications. Manage your account and data from Account &amp; plan.</p>
+                <button type="button" className="dash-setting-link" onClick={openAccount}>
+                  <span><span className="dash-setting-link__label">Manage account &amp; data</span><span className="dash-setting-link__desc">Subscription, billing, and account options.</span></span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </SectionCard>
+            </>
+          ) : null}
+
+          {tab === "support" ? (
+            <SectionCard title="Support &amp; account management" className="dash-panel">
+              <a className="dash-setting-link" href="mailto:hello@preludeconsulting.com">
+                <span><span className="dash-setting-link__label"><Mail className="h-4 w-4" /> Contact support</span><span className="dash-setting-link__desc">hello@preludeconsulting.com</span></span>
+                <ChevronRight className="h-4 w-4" />
+              </a>
+              <button type="button" className="dash-setting-link" onClick={openAccount}>
+                <span><span className="dash-setting-link__label">Account &amp; plan</span><span className="dash-setting-link__desc">View or change your subscription.</span></span>
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </SectionCard>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }

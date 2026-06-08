@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db, readJsonBody, requireAuth, requireCsrf, sendJson } from "./authApi.js";
 import { billingNotConfiguredPayload, getAppBaseUrl, getBillingConfig, getPlanPriceId, PAID_PLAN_IDS } from "./billingConfig.js";
 
-const checkoutSchema = z.object({ planId: z.enum(["plus", "pro"]) });
+const checkoutSchema = z.object({ planId: z.enum(["basic", "plus", "pro"]) });
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 
 function isBillingPath(pathname) {

@@ -1,4 +1,4 @@
--- Stripe-ready billing scaffold. Basic remains the default free plan.
+-- Stripe-ready billing scaffold. Basic is the default plan tier for new accounts.
 CREATE TYPE "subscription_plan" AS ENUM ('BASIC', 'PLUS', 'PRO');
 
 ALTER TABLE "users"

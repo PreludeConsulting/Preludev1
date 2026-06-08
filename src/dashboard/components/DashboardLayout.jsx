@@ -1,11 +1,16 @@
 import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { useHoverSidebar } from "../hooks/useHoverSidebar.js";
+import { applyPreferences } from "../lib/dashboardPreferences.js";
 import DashboardHeader from "./DashboardHeader.jsx";
 import DashboardSidebar from "./DashboardSidebar.jsx";
 
 export default function DashboardLayout({ navItems, basePath, routeMeta = {} }) {
   const { expanded, mobileOpen, setMobileOpen, onSidebarEnter, onSidebarLeave, onEdgeEnter } = useHoverSidebar();
+
+  useEffect(() => {
+    applyPreferences();
+  }, []);
 
   useEffect(() => {
     if (!mobileOpen) return undefined;

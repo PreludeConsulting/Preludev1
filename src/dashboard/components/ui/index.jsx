@@ -60,9 +60,9 @@ export function StatCard({ icon: Icon, label, value, hint, badge }) {
   );
 }
 
-export function SectionCard({ title, action, children, className, padding = true }) {
+export function SectionCard({ title, action, children, className, padding = true, id }) {
   return (
-    <section className={cn("dash-section-card", className)}>
+    <section id={id} className={cn("dash-section-card", className)}>
       {title || action ? (
         <div className="dash-section-card__head">
           {title ? <h2 className="dash-section-card__title">{title}</h2> : <span />}

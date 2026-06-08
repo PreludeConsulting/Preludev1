@@ -184,8 +184,9 @@ export const translations = {
       plans: {
         eyebrow: "Plans",
         headline: "Support that grows with your goals.",
-        body: "Start free with Basic. Upgrade when you need more sessions, essay support, and financial strategy.",
+        body: "Start with Basic. Upgrade when you need more sessions, essay support, and financial strategy.",
         mostPopular: "Most popular",
+        bestValue: "Best Value",
         pleaseWait: "Please wait...",
         priceLabels: {
           free: "Free",
@@ -195,9 +196,9 @@ export const translations = {
         startFree: "Start free",
         choose: "Choose {{plan}}",
         notices: {
-          basicFree: "Basic is free. Create an account to start, then upgrade when paid subscriptions are available.",
-          signInFirst: "Create or sign into a free Basic account first. Paid subscriptions will attach to that account when Stripe is connected.",
-          comingSoon: "Paid subscriptions are coming soon. Basic is free today, and Plus/Pro checkout will turn on after Stripe is connected.",
+          basicFree: "Create an account to choose the Basic plan, then complete checkout to get started.",
+          signInFirst: "Create or sign into an account first. Your subscription will attach to that account when Stripe is connected.",
+          comingSoon: "Paid subscriptions are coming soon. Plan checkout will turn on after Stripe is connected.",
           unavailable: "Billing is not available right now."
         },
         cards: [
@@ -448,8 +449,9 @@ export const translations = {
       plans: {
         eyebrow: "플랜",
         headline: "목표와 함께 성장하는 지원.",
-        body: "Basic으로 무료 시작하세요. 더 많은 세션, 에세이 지원, 재정 전략이 필요할 때 업그레이드하세요.",
+        body: "Basic으로 시작하세요. 더 많은 세션, 에세이 지원, 재정 전략이 필요할 때 업그레이드하세요.",
         mostPopular: "가장 인기",
+        bestValue: "최고의 가치",
         pleaseWait: "잠시만 기다려 주세요...",
         priceLabels: {
           free: "무료",
@@ -459,9 +461,9 @@ export const translations = {
         startFree: "무료로 시작하기",
         choose: "{{plan}} 선택",
         notices: {
-          basicFree: "Basic은 무료입니다. 계정을 만들어 시작한 뒤 유료 구독이 제공되면 업그레이드하세요.",
-          signInFirst: "먼저 무료 Basic 계정을 만들거나 로그인하세요. Stripe가 연결되면 유료 구독이 해당 계정에 연결됩니다.",
-          comingSoon: "유료 구독은 곧 제공됩니다. 현재 Basic은 무료이며 Stripe 연결 후 Plus/Pro 결제가 활성화됩니다.",
+          basicFree: "계정을 만들어 Basic 플랜을 선택한 뒤 결제를 완료하여 시작하세요.",
+          signInFirst: "먼저 계정을 만들거나 로그인하세요. Stripe가 연결되면 구독이 해당 계정에 연결됩니다.",
+          comingSoon: "유료 구독은 곧 제공됩니다. Stripe 연결 후 플랜 결제가 활성화됩니다.",
           unavailable: "현재 결제를 사용할 수 없습니다."
         },
         cards: [
@@ -712,8 +714,9 @@ export const translations = {
       plans: {
         eyebrow: "方案",
         headline: "随着你的目标一起成长的支持。",
-        body: "从免费的 Basic 开始。当你需要更多课程、文书支持和财务策略时再升级。",
+        body: "从 Basic 开始。当你需要更多课程、文书支持和财务策略时再升级。",
         mostPopular: "最受欢迎",
+        bestValue: "超值之选",
         pleaseWait: "请稍候...",
         priceLabels: {
           free: "免费",
@@ -723,9 +726,9 @@ export const translations = {
         startFree: "免费开始",
         choose: "选择 {{plan}}",
         notices: {
-          basicFree: "Basic 免费。创建账户即可开始，等付费订阅可用后再升级。",
-          signInFirst: "请先创建或登录免费的 Basic 账户。Stripe 连接后，付费订阅会关联到该账户。",
-          comingSoon: "付费订阅即将推出。Basic 目前免费，Stripe 连接后将开启 Plus/Pro 结账。",
+          basicFree: "创建账户以选择 Basic 方案，然后完成结账即可开始。",
+          signInFirst: "请先创建或登录账户。Stripe 连接后，订阅会关联到该账户。",
+          comingSoon: "付费订阅即将推出。Stripe 连接后将开启方案结账。",
           unavailable: "当前无法使用计费功能。"
         },
         cards: [
@@ -976,8 +979,9 @@ export const translations = {
       plans: {
         eyebrow: "Planes",
         headline: "Apoyo que crece con tus metas.",
-        body: "Empieza gratis con Basic. Mejora cuando necesites más sesiones, apoyo con ensayos y estrategia financiera.",
+        body: "Empieza con Basic. Mejora cuando necesites más sesiones, apoyo con ensayos y estrategia financiera.",
         mostPopular: "Más popular",
+        bestValue: "Mejor valor",
         pleaseWait: "Espera un momento...",
         priceLabels: {
           free: "Gratis",
@@ -987,9 +991,9 @@ export const translations = {
         startFree: "Empieza gratis",
         choose: "Elegir {{plan}}",
         notices: {
-          basicFree: "Basic es gratis. Crea una cuenta para empezar y mejora cuando las suscripciones pagadas estén disponibles.",
-          signInFirst: "Crea o inicia sesión en una cuenta Basic gratis primero. Las suscripciones pagadas se asociarán a esa cuenta cuando Stripe esté conectado.",
-          comingSoon: "Las suscripciones pagadas estarán disponibles pronto. Basic es gratis hoy y el pago de Plus/Pro se activará cuando Stripe esté conectado.",
+          basicFree: "Crea una cuenta para elegir el plan Basic y completa el pago para empezar.",
+          signInFirst: "Crea o inicia sesión en una cuenta primero. Tu suscripción se asociará a esa cuenta cuando Stripe esté conectado.",
+          comingSoon: "Las suscripciones pagadas estarán disponibles pronto. El pago de los planes se activará cuando Stripe esté conectado.",
           unavailable: "La facturación no está disponible en este momento."
         },
         cards: [
