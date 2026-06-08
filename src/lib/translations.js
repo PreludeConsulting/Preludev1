@@ -184,7 +184,7 @@ export const translations = {
       plans: {
         eyebrow: "Plans",
         headline: "Support that grows with your goals.",
-        body: "Start free with Basic. Upgrade when you need more sessions, essay support, and financial strategy.",
+        body: "Book a free call with us. Upgrade for more sessions, essay support, financial strategy, and more.",
         mostPopular: "Most popular",
         pleaseWait: "Please wait...",
         priceLabels: {
@@ -192,7 +192,7 @@ export const translations = {
           paid: "Paid",
           perMonth: "/month"
         },
-        startFree: "Start free",
+        startFree: "Choose Basic",
         choose: "Choose {{plan}}",
         notices: {
           basicFree: "Basic is free. Create an account to start, then upgrade when paid subscriptions are available.",
@@ -253,12 +253,12 @@ export const translations = {
       },
       cta: {
         headline: "Start your Prelude.",
-        body: "Book a free strategy call and begin admissions with clarity, confidence, and support that respects your budget.",
+        body: "Book a free call and learn how Prelude can help you reach your college goals.",
         primary: "Book a free call",
         secondary: "View plans"
       },
       footer: {
-        body: "Peer-powered college admissions counseling — smarter spending, real mentors, affordable support.",
+        body: "Student-led college admissions counseling — smarter spending, real mentors, affordable support.",
         label: "Footer",
         copyright: "© 2026 Prelude. All rights reserved.",
         privacy: "Privacy",

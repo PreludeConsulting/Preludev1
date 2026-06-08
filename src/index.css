@@ -5149,6 +5149,28 @@ a {
   text-align: center;
 }
 
+.pricing-section__stack {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2rem, 4vw, 3rem);
+}
+
+#pricing .lower-landing__headline--section {
+  margin-bottom: 0;
+}
+
+#pricing .lower-landing__body {
+  margin: 0;
+}
+
+.pricing-section__cards {
+  width: 100%;
+}
+
+.pricing-section__notice {
+  margin: 0;
+}
+
 .lower-landing__visual {
   overflow: hidden;
   border-radius: 1.5rem;
