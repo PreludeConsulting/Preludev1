@@ -212,20 +212,23 @@ export function LowerPlans() {
   return (
     <div className="lower-landing">
       <section className="lower-landing__section" id="pricing">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="lower-landing__headline lower-landing__headline--center lower-landing__headline--section">
-            {t("sections.plans.headline")}
-          </h2>
-          <p className="lower-landing__body lower-landing__body--center">
-            {t("sections.plans.body")}
-          </p>
-        </Reveal>
-        {billingNotice ? (
-          <p className="mx-auto mt-8 max-w-xl rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-center font-body text-sm text-muted-foreground">
-            {billingNotice}
-          </p>
-        ) : null}
-        <div className="mt-12 grid gap-6 lg:grid-cols-3 lg:gap-8">
+        <div className="pricing-section__stack">
+          <Reveal className="mx-auto max-w-2xl text-center">
+            <h2 className="lower-landing__headline lower-landing__headline--center lower-landing__headline--section">
+              {t("sections.plans.headline")}
+            </h2>
+          </Reveal>
+          <Reveal className="mx-auto max-w-2xl text-center">
+            <p className="lower-landing__body lower-landing__body--center">
+              {t("sections.plans.body")}
+            </p>
+          </Reveal>
+          {billingNotice ? (
+            <p className="pricing-section__notice mx-auto max-w-xl rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-center font-body text-sm text-muted-foreground">
+              {billingNotice}
+            </p>
+          ) : null}
+          <div className="pricing-section__cards grid gap-6 lg:grid-cols-3 lg:gap-8">
           {plans.map((plan, index) => (
             <Reveal delay={index * 0.08} key={plan.id}>
               <PricingCard
@@ -239,6 +242,7 @@ export function LowerPlans() {
               />
             </Reveal>
           ))}
+          </div>
         </div>
       </section>
     </div>

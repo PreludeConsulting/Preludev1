@@ -18,13 +18,17 @@ export default function PricingCard({
 
   return (
     <article className={`pricing-card ${plan.isRecommended ? "pricing-card--featured" : ""}`}>
-      {plan.isRecommended ? (
-        <span className="pricing-card__badge">{mostPopularLabel}</span>
-      ) : (
-        <span className="pricing-card__badge-spacer" aria-hidden="true" />
-      )}
-      <h3 className="pricing-card__name shopify-hero__headline">{plan.name}</h3>
-      <p className="pricing-card__price">{plan.priceLabel}</p>
+      <header className="pricing-card__header">
+        <div className="pricing-card__badge-row">
+          {plan.isRecommended ? (
+            <span className="pricing-card__badge">{mostPopularLabel}</span>
+          ) : null}
+        </div>
+        <div className="pricing-card__title-block">
+          <h3 className="pricing-card__name shopify-hero__headline">{plan.name}</h3>
+          <p className="pricing-card__price">{plan.priceLabel}</p>
+        </div>
+      </header>
       <p className="pricing-card__desc">{plan.description}</p>
       <ul className="pricing-card__features">
         {plan.features.slice(0, 6).map((feature) => (
