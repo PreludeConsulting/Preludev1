@@ -615,7 +615,17 @@ html[lang="es"] .shopify-hero__headline-line {
   flex-shrink: 0;
   border: none;
   border-radius: 999px;
-  background: hsl(var(--primary));
+  background-image: linear-gradient(
+    100deg,
+    hsl(var(--primary)) 0%,
+    hsl(250 80% 50%) 25%,
+    hsl(var(--secondary)) 50%,
+    hsl(250 80% 50%) 75%,
+    hsl(var(--primary)) 100%
+  );
+  background-size: 200% 100%;
+  background-position: 0% 50%;
+  animation: heroCtaGradientFlow 9s linear infinite;
   color: hsl(var(--primary-foreground));
   padding: 0.95rem 1.5rem;
   font-family: "Barlow", sans-serif;
@@ -624,11 +634,41 @@ html[lang="es"] .shopify-hero__headline-line {
   text-align: center;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 8px 22px hsl(var(--primary) / 0.18);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+  will-change: background-position, transform;
+}
+
+@keyframes heroCtaGradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
 }
 
 .shopify-hero__cta:hover {
-  background: hsl(var(--primary-deep));
+  transform: translateY(-1px) scale(1.03);
+  filter: saturate(1.12) brightness(1.05);
+  box-shadow: 0 14px 34px hsl(var(--primary) / 0.32);
+}
+
+.shopify-hero__cta:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shopify-hero__cta {
+    animation: none;
+    background-position: 50% 50%;
+    will-change: auto;
+  }
+
+  .shopify-hero__cta:hover {
+    transform: none;
+  }
 }
 
 .shopify-hero__note {

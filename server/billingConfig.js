@@ -1,9 +1,10 @@
 export const BILLING_PROVIDER_DISABLED = "disabled";
 export const BILLING_PROVIDER_STRIPE = "stripe";
 
-export const PAID_PLAN_IDS = ["plus", "pro"];
+export const PAID_PLAN_IDS = ["basic", "plus", "pro"];
 
 const PRICE_ENV_BY_PLAN = {
+  basic: "STRIPE_PRICE_BASIC_MONTHLY",
   plus: "STRIPE_PRICE_PLUS_MONTHLY",
   pro: "STRIPE_PRICE_PRO_MONTHLY"
 };
@@ -13,6 +14,7 @@ export function getBillingConfig(env = process.env) {
   const stripeSecretKey = env.STRIPE_SECRET_KEY || "";
   const stripeWebhookSecret = env.STRIPE_WEBHOOK_SECRET || "";
   const prices = {
+    basic: env.STRIPE_PRICE_BASIC_MONTHLY || "",
     plus: env.STRIPE_PRICE_PLUS_MONTHLY || "",
     pro: env.STRIPE_PRICE_PRO_MONTHLY || ""
   };
@@ -55,7 +57,7 @@ export function getAppBaseUrl(req) {
 export function billingNotConfiguredPayload(config = getBillingConfig()) {
   return {
     error: "billing_not_configured",
-    message: "Paid subscriptions are not connected yet. Basic accounts are still free to use.",
+    message: "Paid subscriptions are not connected yet. Please try again once billing is configured.",
     provider: config.provider,
     missing: config.provider === BILLING_PROVIDER_STRIPE ? config.missing : []
   };

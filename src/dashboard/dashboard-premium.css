@@ -5,9 +5,9 @@
 }
 
 .dash-topbar--slim {
-  padding: 0.65rem 1rem;
-  margin-bottom: 1rem;
-  border-radius: 0.85rem;
+  padding: clamp(0.75rem, 1.5vw, 1rem) clamp(1rem, 2vw, 1.5rem);
+  margin-bottom: clamp(1rem, 2vw, 1.5rem);
+  border-radius: 1rem;
   box-shadow: 0 1px 3px rgb(35 39 48 / 0.06);
 }
 
@@ -16,12 +16,12 @@
 }
 
 .dash-topbar__page-title {
-  font-size: 1.05rem;
+  font-size: clamp(1.05rem, 1.6vw, 1.3rem);
   font-weight: 700;
 }
 
 .dash-page--premium {
-  gap: 1rem;
+  gap: clamp(1.25rem, 2.5vw, 1.85rem);
 }
 
 .dash-hero {
@@ -29,25 +29,32 @@
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1.1rem 1.25rem;
+  gap: clamp(1rem, 2.5vw, 1.5rem);
+  padding: clamp(1.25rem, 2.5vw, 1.85rem) clamp(1.25rem, 3vw, 2.1rem);
   background: #fff;
   border: 1px solid rgb(35 39 48 / 0.08);
-  border-radius: 1rem;
-  box-shadow: 0 2px 12px rgb(35 39 48 / 0.05);
+  border-radius: 1.25rem;
+  box-shadow: 0 2px 14px rgb(35 39 48 / 0.05);
+}
+
+.dash-hero__main {
+  min-width: 0;
+  flex: 1 1 18rem;
 }
 
 .dash-hero__title {
   margin: 0;
-  font-size: clamp(1.5rem, 3vw, 2rem) !important;
-  line-height: 1.15 !important;
+  font-size: clamp(1.6rem, 3vw, 2.1rem) !important;
+  line-height: 1.18 !important;
   color: hsl(230 25% 18%);
+  text-wrap: balance;
 }
 
 .dash-hero__welcome {
-  margin: 0.35rem 0 0;
+  margin: 0.5rem 0 0;
   font-family: "Barlow", sans-serif;
-  font-size: 0.9rem;
+  font-size: clamp(0.9rem, 1.2vw, 1rem);
+  line-height: 1.55;
   color: hsl(var(--muted-foreground));
 }
 
@@ -55,9 +62,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.65rem;
-  margin-top: 0.75rem;
-  max-width: 28rem;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  max-width: 30rem;
 }
 
 .dash-hero__xp {
@@ -134,22 +141,22 @@
 
 .dash-metric-row {
   display: grid;
-  gap: 0.65rem;
-  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: clamp(0.75rem, 1.5vw, 1.1rem);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
 }
 
 .dash-metric-row--5 {
-  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
 }
 
 .dash-metric-card {
   display: flex;
-  gap: 0.55rem;
-  align-items: flex-start;
-  padding: 0.75rem 0.85rem;
+  gap: 0.75rem;
+  align-items: center;
+  padding: clamp(0.9rem, 1.6vw, 1.15rem);
   background: #fff;
   border: 1px solid rgb(35 39 48 / 0.07);
-  border-radius: 0.85rem;
+  border-radius: 1rem;
   box-shadow: 0 1px 4px rgb(35 39 48 / 0.04);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
@@ -159,12 +166,17 @@
   box-shadow: 0 6px 16px rgb(120 106 255 / 0.08);
 }
 
+.dash-metric-card > div:not(.dash-metric-card__icon) {
+  min-width: 0;
+  flex: 1;
+}
+
 .dash-metric-card__icon {
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 0.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.7rem;
   background: #f6f4ff;
   color: #5b4fd6;
   flex-shrink: 0;
@@ -173,26 +185,27 @@
 .dash-metric-card__value {
   margin: 0;
   font-family: "Barlow", sans-serif;
-  font-size: 1.2rem;
+  font-size: clamp(1.25rem, 2vw, 1.55rem);
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.15;
   color: hsl(230 25% 18%);
 }
 
 .dash-metric-card__label {
-  margin: 0.1rem 0 0;
-  font-size: 0.68rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
   font-weight: 600;
+  line-height: 1.35;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: hsl(var(--muted-foreground));
 }
 
 .dash-metric-card__track {
-  height: 3px;
+  height: 4px;
   border-radius: 999px;
   background: hsl(var(--foreground) / 0.06);
-  margin-top: 0.35rem;
+  margin-top: 0.5rem;
   overflow: hidden;
 }
 
@@ -205,28 +218,28 @@
 }
 
 .dash-panel {
-  border-radius: 0.9rem;
+  border-radius: 1.1rem;
 }
 
 .dash-panel .dash-section-card__head {
-  padding: 0.7rem 1rem;
+  padding: clamp(0.9rem, 1.6vw, 1.15rem) clamp(1rem, 1.8vw, 1.35rem);
 }
 
 .dash-panel .dash-section-card__body {
-  padding: 0.75rem 1rem;
-  gap: 0.55rem;
+  padding: clamp(1rem, 1.8vw, 1.3rem) clamp(1rem, 1.8vw, 1.35rem);
+  gap: 0.85rem;
 }
 
 .dash-overview-grid--premium {
-  gap: 1rem;
+  gap: clamp(1.25rem, 2.5vw, 1.85rem);
 }
 
 .dash-mission {
   display: flex;
   align-items: flex-start;
-  gap: 0.6rem;
-  padding: 0.55rem 0.65rem;
-  border-radius: 0.65rem;
+  gap: 0.7rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.75rem;
   border: 1px solid transparent;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
@@ -250,20 +263,28 @@
   accent-color: #5b4fd6;
 }
 
+.dash-mission__body {
+  min-width: 0;
+  flex: 1;
+}
+
 .dash-mission__title {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 600;
+  line-height: 1.45;
 }
 
 .dash-mission__meta {
   display: flex;
-  gap: 0.35rem;
-  margin-top: 0.2rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
 }
 
 .dash-mission__due {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   color: hsl(var(--muted-foreground));
 }
 
@@ -317,30 +338,39 @@
 .dash-activity-feed__item {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 0.5rem;
-  padding: 0.45rem 0;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 0;
   border-bottom: 1px solid hsl(var(--foreground) / 0.05);
   font-size: 0.8125rem;
+}
+
+.dash-activity-feed__item > div {
+  min-width: 0;
 }
 
 .dash-activity-feed__icon {
   display: grid;
   place-items: center;
-  width: 1.65rem;
-  height: 1.65rem;
-  border-radius: 0.45rem;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.5rem;
   background: #f6f4ff;
   color: #5b4fd6;
+  flex-shrink: 0;
 }
 
 .dash-activity-feed__text {
   margin: 0;
   font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.45;
 }
 
 .dash-activity-feed__sub {
-  margin: 0.1rem 0 0;
-  font-size: 0.72rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
   color: hsl(var(--muted-foreground));
 }
 
@@ -389,11 +419,11 @@
 
 .dash-insights li {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.5rem;
   align-items: flex-start;
-  padding: 0.35rem 0;
-  font-size: 0.8125rem;
-  line-height: 1.4;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
 }
 
 .dash-insights li svg {
@@ -403,33 +433,41 @@
 }
 
 .dash-meeting-card-premium {
-  padding: 0.65rem;
-  border-radius: 0.75rem;
+  padding: clamp(0.85rem, 1.5vw, 1.1rem);
+  border-radius: 0.9rem;
   background: #faf9ff;
   border: 1px solid rgb(120 106 255 / 0.1);
 }
 
 .dash-meeting-card-premium__head {
   display: flex;
-  gap: 0.55rem;
+  gap: 0.7rem;
   align-items: flex-start;
+}
+
+.dash-meeting-card-premium__head > div {
+  min-width: 0;
+  flex: 1;
 }
 
 .dash-meeting-card-premium__title {
   margin: 0;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
 }
 
 .dash-meeting-card-premium__with {
-  margin: 0.1rem 0 0;
-  font-size: 0.75rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
   color: hsl(var(--muted-foreground));
 }
 
 .dash-meeting-card-premium__time {
-  margin: 0.45rem 0;
-  font-size: 0.75rem;
+  margin: 0.6rem 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
   color: hsl(var(--muted-foreground));
 }
 
@@ -600,10 +638,84 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  padding: 0.3rem 0.6rem;
+  padding: 0.4rem 0.75rem;
   border-radius: 999px;
   background: #f6f4ff;
   color: hsl(230 25% 28%);
+}
+
+/* ——————————————————————————————————————————————
+   Dashboard responsive refinement
+   Cleaner spacing, fluid text, and no horizontal overflow
+   across 1440 / 1280 / 1024 / 768 / 375 widths.
+   —————————————————————————————————————————————— */
+
+/* Guard against horizontal scroll from the off-canvas sidebar
+   and any wide flex/grid children. */
+.dash-shell {
+  overflow-x: hidden;
+}
+
+.dash-main,
+.dash-content {
+  min-width: 0;
+}
+
+/* Let long words/links wrap instead of forcing the layout wider. */
+.dash-section-card__body,
+.dash-hero__main,
+.dash-metric-card,
+.dash-deadline-row__main,
+.dash-mission__body,
+.dash-meeting-card-premium {
+  overflow-wrap: anywhere;
+}
+
+/* Comfortable, fluid CTA buttons that wrap cleanly on small screens. */
+.dash-hero__actions .dash-btn {
+  padding: 0.6rem clamp(0.9rem, 1.6vw, 1.2rem);
+}
+
+@media (max-width: 640px) {
+  .dash-hero__actions {
+    width: 100%;
+  }
+
+  .dash-hero__actions .dash-btn {
+    flex: 1 1 12rem;
+  }
+}
+
+/* On the narrowest phones keep two readable metric cards per row
+   rather than shrinking the text. */
+@media (max-width: 360px) {
+  .dash-metric-row,
+  .dash-metric-row--5 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Slightly tighter—but still spacious—rhythm on tablet so the two
+   overview columns have room to breathe. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .dash-overview-grid--premium {
+    gap: 1.4rem;
+  }
+}
+
+/* Honor reduced-motion preferences for the dashboard's hover lifts. */
+@media (prefers-reduced-motion: reduce) {
+  .dash-metric-card,
+  .dash-progress-card,
+  .dash-section-card,
+  .dash-stat-card {
+    transition: none;
+  }
+
+  .dash-metric-card:hover,
+  .dash-progress-card:hover {
+    transform: none;
+  }
 }
