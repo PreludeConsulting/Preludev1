@@ -305,7 +305,7 @@ export const translations = {
       }
     },
     hero: {
-      headline: ["대학 입시", "상담,", "새롭게."],
+      headline: ["대학 입시,", "", "새롭게."],
       subcopy: "또래 멘토링, 개인 맞춤 전략, 재정 가이드를 통해 학생들이 자신 있게 돋보이는 지원서를 만들 수 있도록 돕습니다.",
       emailLabel: "이메일 주소",
       emailPlaceholder: "이메일 주소를 입력하세요",
@@ -569,7 +569,7 @@ export const translations = {
       }
     },
     hero: {
-      headline: ["大学申请", "咨询，", "重新想象。"],
+      headline: ["大学申请，", "", "更简单。"],
       subcopy: "由同龄导师驱动的辅导、个性化策略和财务规划指导，帮助学生自信打造出色的申请材料。",
       emailLabel: "电子邮箱地址",
       emailPlaceholder: "输入你的电子邮箱地址",
@@ -833,8 +833,8 @@ export const translations = {
       }
     },
     hero: {
-      headline: ["Asesoría de", "admisiones", "reinventada."],
-      subcopy: "Mentoría entre pares, estrategia personalizada y orientación financiera para ayudar a los estudiantes a crear solicitudes destacadas con confianza.",
+      headline: ["Admisiones,", "", "más simples."],
+      subcopy: "Accede a una red de estudiantes de universidades líderes que te guían en cada paso del proceso de admisión.",
       emailLabel: "Correo electrónico",
       emailPlaceholder: "Ingresa tu correo electrónico",
       cta: "Empieza gratis",
