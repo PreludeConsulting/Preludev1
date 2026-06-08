@@ -41,11 +41,11 @@ export const translations = {
       }
     },
     hero: {
-      headline: ["College admissions", "counseling,", "reimagined."],
-      subcopy: "Peer-powered mentorship, personalized strategy, and financial guidance to help students build standout applications with confidence.",
+      headline: ["College admissions,", "", "made simple."],
+      subcopy: "Access a network of students from top universities who guide you through every step of the admissions process.",
       emailLabel: "Email address",
       emailPlaceholder: "Enter your email address",
-      cta: "Start free trial",
+      cta: "Book free call",
       note: "Start free, then get matched with a mentor from your dream school."
     },
     carousel: {
@@ -184,7 +184,7 @@ export const translations = {
       plans: {
         eyebrow: "Plans",
         headline: "Support that grows with your goals.",
-        body: "Start with Basic. Upgrade when you need more sessions, essay support, and financial strategy.",
+        body: "Book a free call with us. Upgrade for more sessions, essay support, financial strategy, and more.",
         mostPopular: "Most popular",
         bestValue: "Best Value",
         pleaseWait: "Please wait...",
@@ -193,7 +193,7 @@ export const translations = {
           paid: "Paid",
           perMonth: "/month"
         },
-        startFree: "Start free",
+        startFree: "Choose Basic",
         choose: "Choose {{plan}}",
         notices: {
           basicFree: "Create an account to choose the Basic plan, then complete checkout to get started.",
@@ -254,12 +254,12 @@ export const translations = {
       },
       cta: {
         headline: "Start your Prelude.",
-        body: "Book a free strategy call and begin admissions with clarity, confidence, and support that respects your budget.",
+        body: "Book a free call and learn how Prelude can help you reach your college goals.",
         primary: "Book a free call",
         secondary: "View plans"
       },
       footer: {
-        body: "Peer-powered college admissions counseling — smarter spending, real mentors, affordable support.",
+        body: "Student-led college admissions counseling — smarter spending, real mentors, affordable support.",
         label: "Footer",
         copyright: "© 2026 Prelude. All rights reserved.",
         privacy: "Privacy",
@@ -306,7 +306,7 @@ export const translations = {
       }
     },
     hero: {
-      headline: ["대학 입시", "상담,", "새롭게."],
+      headline: ["대학 입시,", "", "새롭게."],
       subcopy: "또래 멘토링, 개인 맞춤 전략, 재정 가이드를 통해 학생들이 자신 있게 돋보이는 지원서를 만들 수 있도록 돕습니다.",
       emailLabel: "이메일 주소",
       emailPlaceholder: "이메일 주소를 입력하세요",
@@ -571,7 +571,7 @@ export const translations = {
       }
     },
     hero: {
-      headline: ["大学申请", "咨询，", "重新想象。"],
+      headline: ["大学申请，", "", "更简单。"],
       subcopy: "由同龄导师驱动的辅导、个性化策略和财务规划指导，帮助学生自信打造出色的申请材料。",
       emailLabel: "电子邮箱地址",
       emailPlaceholder: "输入你的电子邮箱地址",
@@ -836,8 +836,8 @@ export const translations = {
       }
     },
     hero: {
-      headline: ["Asesoría de", "admisiones", "reinventada."],
-      subcopy: "Mentoría entre pares, estrategia personalizada y orientación financiera para ayudar a los estudiantes a crear solicitudes destacadas con confianza.",
+      headline: ["Admisiones,", "", "más simples."],
+      subcopy: "Accede a una red de estudiantes de universidades líderes que te guían en cada paso del proceso de admisión.",
       emailLabel: "Correo electrónico",
       emailPlaceholder: "Ingresa tu correo electrónico",
       cta: "Empieza gratis",
