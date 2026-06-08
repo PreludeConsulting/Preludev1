@@ -67,7 +67,7 @@ const INTENT_PATTERNS = [
   },
   {
     intent: "guarantee_refusal",
-    re: /\b(guarantee|guaranteed|100%|surely get in|will i get in|chances of getting in|admission chances)\b/i
+    re: /\b(?:guarantee|guaranteed|100%|surely get in|will i (?:get|be) (?:in|into|accepted|admitted)|chances? of (?:getting|being) (?:in|into|accepted|admitted)|what are my chances|my chances of|odds of (?:getting|being) (?:in|into|accepted|admitted)|admission chances|chance of admission)/i
   },
   {
     intent: "high_school_search",

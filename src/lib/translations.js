@@ -189,7 +189,8 @@ export const translations = {
         pleaseWait: "Please wait...",
         priceLabels: {
           free: "Free",
-          paid: "Paid"
+          paid: "Paid",
+          perMonth: "/month"
         },
         startFree: "Start free",
         choose: "Choose {{plan}}",
@@ -452,7 +453,8 @@ export const translations = {
         pleaseWait: "잠시만 기다려 주세요...",
         priceLabels: {
           free: "무료",
-          paid: "유료"
+          paid: "유료",
+          perMonth: "/월"
         },
         startFree: "무료로 시작하기",
         choose: "{{plan}} 선택",
@@ -715,7 +717,8 @@ export const translations = {
         pleaseWait: "请稍候...",
         priceLabels: {
           free: "免费",
-          paid: "付费"
+          paid: "付费",
+          perMonth: "/月"
         },
         startFree: "免费开始",
         choose: "选择 {{plan}}",
@@ -978,7 +981,8 @@ export const translations = {
         pleaseWait: "Espera un momento...",
         priceLabels: {
           free: "Gratis",
-          paid: "De pago"
+          paid: "De pago",
+          perMonth: "/mes"
         },
         startFree: "Empieza gratis",
         choose: "Elegir {{plan}}",

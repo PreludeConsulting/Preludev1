@@ -169,7 +169,11 @@ export function LowerPlans() {
     return {
       ...plan,
       ...translatedPlan,
-      priceLabel: plan.paid ? t("sections.plans.priceLabels.paid") : t("sections.plans.priceLabels.free")
+      priceLabel: plan.price
+        ? `${plan.price}${t("sections.plans.priceLabels.perMonth")}`
+        : plan.paid
+          ? t("sections.plans.priceLabels.paid")
+          : t("sections.plans.priceLabels.free")
     };
   });
   async function handlePlanClick(plan) {
