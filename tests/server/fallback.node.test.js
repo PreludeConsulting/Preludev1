@@ -60,6 +60,46 @@ describe("fallback classification", () => {
     assert.ok(fallback.fallback.actions.some((item) => item.action === "open_plans"));
   });
 
+
+  it("returns mentor_referral for personalized strategy-heavy requests", () => {
+    for (const message of [
+      "Help me write my essay about moving schools",
+      "Can you make my Common App essay?",
+      "Help me create a plan for my future",
+      "What should I do with my life?",
+      "Build my college list",
+      "Tell me what major I should choose",
+      "Make my application strategy",
+      "Can you review my essay?",
+      "Help me pick extracurriculars",
+      "What schools should I apply to?"
+    ]) {
+      const fallback = classifyPreLlmFallback({
+        message,
+        conversationHistory: [],
+        retrieval: { blocks: [], sources: [] },
+        intent: classifyIntent(message).intent
+      });
+
+      assert.ok(fallback, message);
+      assert.equal(fallback.responseType, "mentor_referral");
+      assert.equal(fallback.model, "mentor_referral");
+      assert.match(fallback.text, /mentor/i);
+      assert.ok(fallback.actions.some((item) => item.href === "#preludematch"));
+    }
+  });
+
+  it("does not mentor-refer simple process explanation questions", () => {
+    const message = "What is the difference between Early Action and Early Decision?";
+    const fallback = classifyPreLlmFallback({
+      message,
+      conversationHistory: [],
+      retrieval: { blocks: [], sources: [] },
+      intent: classifyIntent(message).intent
+    });
+
+    assert.equal(fallback, null);
+  });
   it("does not fallback for normal Early Action vs Early Decision questions", () => {
     const message = "What is the difference between Early Action and Early Decision?";
     const fallback = classifyPreLlmFallback({
@@ -117,41 +157,43 @@ describe("createRagChatCompletion fallback integration", () => {
     assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
   });
 
-  it("continues essay mode when the user says scratch", async () => {
-    const result = await createRagChatCompletion({
-      message: "scratch",
-      conversationHistory: [
-        { role: "user", content: "I need help with essays" },
-        {
-          role: "assistant",
-          content:
-            "Absolutely — I can help with your Common App essay, supplementals, topic ideas, outlines, or editing. Are you starting from scratch or revising a draft?"
-        }
-      ]
-    });
+  it("continues essay mode when the user says scratch variants", async () => {
+    const baseHistory = [
+      { role: "user", content: "I need help with essays" },
+      {
+        role: "assistant",
+        content:
+          "Absolutely — I can help with your Common App essay, supplementals, topic ideas, outlines, or editing. Are you starting from scratch or revising a draft?"
+      }
+    ];
 
-    assert.equal(result.model, "flow");
-    assert.match(result.answer, /topic discovery|experience|personal value/i);
-    assert.doesNotMatch(result.answer, /Absolutely — I can help with your Common App essay/i);
-    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+    for (const message of ["scratch", "starting from scratch", "from scratch", "new essay", "I haven't started"]) {
+      const result = await createRagChatCompletion({ message, conversationHistory: baseHistory });
+
+      assert.equal(result.model, "flow");
+      assert.match(result.answer, /start from scratch|strong topic|experience|challenge|interest/i);
+      assert.doesNotMatch(result.answer, /Absolutely — I can help with your Common App essay/i);
+      assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+    }
   });
 
-  it("continues essay mode when the user says draft", async () => {
-    const result = await createRagChatCompletion({
-      message: "draft",
-      conversationHistory: [
-        { role: "user", content: "I need help with essays" },
-        {
-          role: "assistant",
-          content:
-            "Absolutely — I can help with your Common App essay, supplementals, topic ideas, outlines, or editing. Are you starting from scratch or revising a draft?"
-        }
-      ]
-    });
+  it("continues essay mode when the user says draft variants", async () => {
+    const baseHistory = [
+      { role: "user", content: "I need help with essays" },
+      {
+        role: "assistant",
+        content:
+          "Absolutely — I can help with your Common App essay, supplementals, topic ideas, outlines, or editing. Are you starting from scratch or revising a draft?"
+      }
+    ];
 
-    assert.equal(result.model, "flow");
-    assert.match(result.answer, /paste the draft|structure|voice/i);
-    assert.doesNotMatch(result.answer, /starting from scratch or revising a draft/i);
+    for (const message of ["revising", "draft", "I have a draft"]) {
+      const result = await createRagChatCompletion({ message, conversationHistory: baseHistory });
+
+      assert.equal(result.model, "flow");
+      assert.match(result.answer, /paste the draft|structure|voice/i);
+      assert.doesNotMatch(result.answer, /starting from scratch or revising a draft/i);
+    }
   });
 
   it("keeps yes and no replies inside essay mode", async () => {

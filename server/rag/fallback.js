@@ -20,7 +20,9 @@ const PATTERNS = {
   profileEvaluation:
     /\b(evaluate|review|audit)\b.{0,20}\b(my (?:full )?profile|entire application|complete application)\b|\bdeep (?:profile|application) review\b/i,
   outsideScope:
-    /\b(legal advice|immigration lawyer|visa guarantee|investment advice|medical diagnosis|therapy for)\b/i
+    /\b(legal advice|immigration lawyer|visa guarantee|investment advice|medical diagnosis|therapy for)\b/i,
+  mentorReferral:
+    /\b(?:help me|can you|could you|please|i need help)\b.{0,30}\b(?:write|make|create|draft|review|edit)\b.{0,80}\b(?:my )?(?:common app )?(?:essay|personal statement)\b|\b(?:write|make|create|draft|review|edit)\b.{0,50}\b(?:my )?(?:common app )?(?:essay|personal statement)\b|\bhelp me write my essay about\b|\b(?:help me )?(?:create|make|build)\b.{0,30}\b(?:plan for my future|future plan|life plan)\b|\bwhat should i do with my life\b|\b(?:build|create|make|help me build)\b.{0,40}\b(?:college list|school list)\b|\bwhat schools should i apply to\b|\b(?:tell me what major i should|what major should i|which major should i) (?:choose|pick)\b|\b(?:pick|choose) (?:a )?major for me\b|\b(?:make|create|build|help me with)\b.{0,40}\b(?:application strategy|admissions strategy|application plan)\b|\b(?:help me pick|pick|choose|what)\b.{0,40}\bextracurriculars?\b|\bextracurricular strategy\b/i
 };
 
 function hasNoVerifiedHighSchoolMatch(retrieval) {
@@ -101,6 +103,61 @@ function buildGuidancePayload(reason, text) {
     fallback: null,
     guidanceReason: reason,
     actions: []
+  };
+}
+
+function mentorReferralDetails(message) {
+  if (/\b(essay|personal statement|common app)\b/i.test(message)) {
+    return {
+      reason: "essay_guidance",
+      label: "Get essay help from a mentor",
+      text:
+        "I can help you get started, but I should not write or fully review the essay for you. This is exactly where a real mentor can help better: choosing the strongest story, shaping the structure, and revising it with you while keeping it in your voice. Want me to match you with a mentor?"
+    };
+  }
+
+  if (/\b(major|life|future|career)\b/i.test(message)) {
+    return {
+      reason: "future_major_guidance",
+      label: "Talk to a student mentor",
+      text:
+        "I can give you a quick framework, but choosing a major or future path depends on your interests, strengths, values, classes, budget, and goals. A student mentor can talk through your real situation and help you compare options without pretending there is one perfect answer. Want me to match you with a mentor?"
+    };
+  }
+
+  if (/\b(extracurricular|activity|activities)\b/i.test(message)) {
+    return {
+      reason: "extracurricular_strategy",
+      label: "Talk to a student mentor",
+      text:
+        "I can share general extracurricular tips, but picking activities strategically should be based on your interests, time, school options, and application story. A mentor can help you choose a realistic plan and avoid doing activities just for appearances. Want me to match you with a mentor?"
+    };
+  }
+
+  return {
+    reason: "personalized_strategy",
+    label: "Match me with a mentor",
+    text:
+      "I can help you get started, but building a college list, application strategy, or personal plan needs details about your grades, activities, goals, budget, location, and preferences. This is exactly where a real mentor can help better by building a plan with you instead of giving a generic answer. Want me to match you with a mentor?"
+  };
+}
+
+function buildMentorReferralPayload(message) {
+  const details = mentorReferralDetails(message);
+  return {
+    text: details.text,
+    provider: "prelude",
+    model: "mentor_referral",
+    responseType: "mentor_referral",
+    mentorReferralReason: details.reason,
+    fallback: null,
+    actions: [
+      {
+        label: details.label,
+        href: FALLBACK_LINKS.mentorMatch,
+        type: "internal"
+      }
+    ]
   };
 }
 
@@ -222,6 +279,10 @@ export function classifyPreLlmFallback({
 
   if (/\b(i said|i meant|not uga|not ucla|wrong school)\b/i.test(message)) {
     return null;
+  }
+
+  if (PATTERNS.mentorReferral.test(message)) {
+    return buildMentorReferralPayload(message);
   }
 
   if (PATTERNS.fullEssayRewrite.test(message)) {
