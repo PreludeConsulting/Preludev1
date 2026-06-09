@@ -12,6 +12,7 @@ import {
   ResetPasswordPage,
   VerifyEmailPage
 } from "./components/AuthPages.jsx";
+import SupabaseAuthRoutes from "./components/SupabaseAuthRoutes.jsx";
 import { ROUTER_BASENAME } from "./lib/appPaths.js";
 import "./index.css";
 import "./dashboard/dashboard.css";
@@ -32,6 +33,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/dashboard/*" element={<DashboardRouter />} />
           <Route path="/mentors" element={<MentorsPage />} />
+          {/* Optional Supabase auth stack (isolated; lazy-loaded). */}
+          <Route path="/auth/*" element={<SupabaseAuthRoutes />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
