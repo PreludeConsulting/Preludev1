@@ -1,3 +1,4 @@
+import { detectChatIntent, getIntentFallbackText, getMentorReferralDetails } from "../../shared/chatIntentRouter.js";
 import { mapFallbackActionsToQuickReplies } from "./chatFallbackActions.js";
 import { sanitizeClientActions } from "./chatLinkSecurity.js";
 import { getOpeningMessage, getQuickMenuItems, SYSTEM_PROMPT } from "./agentPrompt.js";
@@ -44,6 +45,35 @@ const MENU_MAP = {
   parent: "parent"
 };
 
+function buildMentorReferralReply(category) {
+  const details = getMentorReferralDetails(category);
+  return {
+    category: details.category,
+    text: details.text,
+    type: "mentor_referral",
+    responseType: "mentor_referral",
+    mentorReferralReason: details.reason,
+    ctaLabel: details.ctaLabel,
+    ctaTarget: details.ctaTarget,
+    actions: [
+      {
+        label: details.ctaLabel,
+        href: details.ctaTarget,
+        type: "internal"
+      }
+    ]
+  };
+}
+
+function buildIntentFallbackReply(category) {
+  return {
+    category,
+    text: getIntentFallbackText(category),
+    type: "intent_fallback",
+    responseType: "intent_fallback"
+  };
+}
+
 function pickMentors(filterFn, count = 4) {
   return MENTORS.filter(filterFn).slice(0, count).length >= 2
     ? MENTORS.filter(filterFn).slice(0, count)
@@ -89,6 +119,81 @@ export function classify(text) {
   }
 
   return "collegeList";
+}
+
+function normalizeFlowText(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[.!?]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getRecentConversationMessages(history = []) {
+  return history
+    .filter((message) => message?.role === "user" || message?.role === "assistant")
+    .slice(-8)
+    .map((message) => ({
+      role: message.role,
+      content: String(message.content ?? message.text ?? "").trim()
+    }))
+    .filter((message) => message.content.length > 0);
+}
+
+function getLastAssistantMessage(history = []) {
+  return [...getRecentConversationMessages(history)].reverse().find((message) => message.role === "assistant") ?? null;
+}
+
+function wasAskedForEssayDraftStatus(history = []) {
+  const lastAssistant = getLastAssistantMessage(history);
+  return /starting from scratch or revising a draft/i.test(lastAssistant?.content ?? "");
+}
+
+function isClearlyNewTopicReply(reply) {
+  return /\b(colleges?|schools?|major|career|fafsa|financial aid|scholarships?|tuition|cost|deadline|sat|act|mentor|parent|transfer)\b/i.test(
+    reply
+  );
+}
+
+function buildEssayDraftStatusReply(userText, history = []) {
+  if (!wasAskedForEssayDraftStatus(history)) return null;
+
+  const reply = normalizeFlowText(userText);
+  if (!reply || reply.split(" ").filter(Boolean).length > 8 || isClearlyNewTopicReply(reply)) return null;
+
+  if (/^(scratch|from scratch|starting from scratch|start from scratch|start|new|new essay|brainstorm|i haven'?t started|haven'?t started|not started|i have not started)$/.test(reply)) {
+    return {
+      category: "essay",
+      text:
+        "Great — let’s start from scratch. First, we’ll find a strong topic. What’s one experience, challenge, interest, family responsibility, community, or part of your life that feels important to who you are?"
+    };
+  }
+
+  if (/^(draft|a draft|revising|revision|revise|editing|edit|i have a draft|have a draft|i already have a draft|already have a draft)$/.test(reply)) {
+    return {
+      category: "essay",
+      text:
+        "Perfect — since you’re revising a draft, paste the draft or a paragraph you want help with. I can help with structure, clarity, voice, and whether the story is showing the right qualities without rewriting it for you."
+    };
+  }
+
+  if (/^(yes|yeah|yep|sure|ok|okay)$/.test(reply)) {
+    return {
+      category: "essay",
+      text:
+        "Great — are you **starting from scratch** or **revising a draft**? Reply with `scratch` or `draft`, and I’ll take the right next step."
+    };
+  }
+
+  if (/^(no|nope|not sure|idk|i don'?t know)$/.test(reply)) {
+    return {
+      category: "essay",
+      text:
+        "No problem — we can start with brainstorming. What is one activity, responsibility, challenge, community, or interest that has shaped how you think or act? Even a rough idea is enough."
+    };
+  }
+
+  return null;
 }
 
 const PRELUDE_NOTES = {
@@ -234,9 +339,17 @@ export function createInitialMessages(profile = null) {
 }
 
 /** Rule-based replies — answer-first using agentKnowledgeBase; LLM uses AGENT.md + AGENT_KNOWLEDGE.md via /api/chat. */
-export function getRuleBasedReply(userText, _history = [], profile = null) {
-  const category = classify(userText);
-  const payload = buildResponse(category, userText);
+export function getRuleBasedReply(userText, history = [], profile = null) {
+  const flowReply = buildEssayDraftStatusReply(userText, history);
+  const routedIntent = flowReply ? { type: "normal" } : detectChatIntent(userText, { conversationHistory: history });
+  const routedReply =
+    routedIntent.type === "mentor_referral"
+      ? buildMentorReferralReply(routedIntent.category)
+      : routedIntent.type === "fallback"
+        ? buildIntentFallbackReply(routedIntent.category)
+        : null;
+  const category = flowReply?.category ?? routedReply?.category ?? classify(userText);
+  const payload = flowReply ?? routedReply ?? buildResponse(category, userText);
 
   return personalizeRuleBasedReply(
     {
@@ -253,10 +366,12 @@ export function getRuleBasedReply(userText, _history = [], profile = null) {
 const MAX_CONVERSATION_HISTORY = 12;
 
 function toConversationHistory(history) {
-  return history
+  const priorHistory = history.at(-1)?.role === "user" ? history.slice(0, -1) : history;
+
+  return priorHistory
     .filter((m) => (m.role === "user" || m.role === "assistant") && !m.isWelcome && !m.isError)
     .slice(-MAX_CONVERSATION_HISTORY)
-    .map((m) => ({ role: m.role, content: m.text }));
+    .map((m) => ({ role: m.role, content: m.text ?? m.content }));
 }
 
 async function getLLMReply(userText, history, profile = null) {
@@ -303,6 +418,11 @@ async function getLLMReply(userText, history, profile = null) {
       sources: Array.isArray(data.sources) ? data.sources : [],
       actions: actions.length ? actions : undefined,
       fallback: data.fallback ?? null,
+      type: data.type ?? data.responseType ?? null,
+      responseType: data.responseType ?? data.type ?? null,
+      mentorReferralReason: data.mentorReferralReason ?? null,
+      ctaLabel: data.ctaLabel ?? null,
+      ctaTarget: data.ctaTarget ?? null,
       quickReplies: fallbackQuickReplies.length ? fallbackQuickReplies : undefined
     },
     profile

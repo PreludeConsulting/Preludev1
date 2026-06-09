@@ -16,6 +16,7 @@ export function routeActiveConversation({ message, conversationHistory = [] }) {
         ...result,
         conversationState: {
           ...flowState.knownContext,
+          recentMessages: flowState.recentMessages,
           activeFlow: result.activeFlow ?? {
             mode: flowState.mode,
             stage: flowState.stage

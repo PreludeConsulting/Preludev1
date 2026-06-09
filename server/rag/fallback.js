@@ -1,3 +1,5 @@
+import { detectChatIntent, getIntentFallbackText, getMentorReferralDetails, hasRecentEssayContext } from "../../shared/chatIntentRouter.js";
+
 /** Verified site anchors — must match src/lib/preludeChatData.js and Navbar. */
 export const FALLBACK_LINKS = {
   plans: "#pricing",
@@ -104,6 +106,42 @@ function buildGuidancePayload(reason, text) {
   };
 }
 
+function buildMentorReferralPayload(category) {
+  const details = getMentorReferralDetails(category);
+  return {
+    text: details.text,
+    provider: "prelude",
+    model: "mentor_referral",
+    type: "mentor_referral",
+    responseType: "mentor_referral",
+    category: details.category,
+    mentorReferralReason: details.reason,
+    ctaLabel: details.ctaLabel,
+    ctaTarget: details.ctaTarget,
+    fallback: null,
+    actions: [
+      {
+        label: details.ctaLabel,
+        href: details.ctaTarget,
+        type: "internal"
+      }
+    ]
+  };
+}
+
+function buildIntentFallbackPayload(category) {
+  return {
+    text: getIntentFallbackText(category),
+    provider: "prelude",
+    model: "intent_fallback",
+    type: "intent_fallback",
+    responseType: "intent_fallback",
+    category,
+    fallback: null,
+    actions: []
+  };
+}
+
 function formatKnownContext(conversationState = {}) {
   const parts = [];
   if (conversationState.state) parts.push(`state: **${conversationState.state}**`);
@@ -114,7 +152,10 @@ function formatKnownContext(conversationState = {}) {
 }
 
 function hasEarlyIntentGuidance(message, intent, conversationState = {}) {
-  if (intent === "essays" || /\b(essays?|personal statement|common app|supplementals?|supplemental essays?)\b/i.test(message)) {
+  if (
+    (intent === "essays" || /\b(essays?|personal statement|common app|supplementals?|supplemental essays?)\b/i.test(message)) &&
+    !/\b(what is|how long|how many words|examples?|topic examples?|explain|define)\b/i.test(message)
+  ) {
     return buildGuidancePayload(
       "essay_help",
       "Absolutely — I can help with your Common App essay, supplementals, topic ideas, outlines, or editing. Are you starting from scratch or revising a draft?"
@@ -224,6 +265,14 @@ export function classifyPreLlmFallback({
     return null;
   }
 
+  const routedIntent = detectChatIntent(message, { conversationHistory });
+  if (routedIntent.type === "mentor_referral") {
+    return buildMentorReferralPayload(routedIntent.category);
+  }
+  if (routedIntent.type === "fallback") {
+    return buildIntentFallbackPayload(routedIntent.category);
+  }
+
   if (PATTERNS.fullEssayRewrite.test(message)) {
     return buildFallbackPayload("unsupported_request", COPY.essay_rewrite);
   }
@@ -247,7 +296,8 @@ export function classifyPreLlmFallback({
   }
 
   if (isVagueRequest(message, historyLength)) {
-    return buildFallbackPayload("ambiguous_request", COPY.ambiguous_request);
+    const fallbackCategory = hasRecentEssayContext?.(conversationHistory, message) ? "essay_unclear" : "general_unclear";
+    return buildIntentFallbackPayload(fallbackCategory);
   }
 
   if (PATTERNS.outsideScope.test(message)) {
