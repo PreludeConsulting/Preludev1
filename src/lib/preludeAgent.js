@@ -44,6 +44,68 @@ const MENU_MAP = {
   parent: "parent"
 };
 
+const MENTOR_REFERRAL_PATTERN =
+  /\b(?:help me|can you|could you|please|i need help)\b.{0,30}\b(?:write|make|create|draft|review|edit)\b.{0,80}\b(?:my )?(?:common app )?(?:essay|personal statement)\b|\b(?:write|make|create|draft|review|edit)\b.{0,50}\b(?:my )?(?:common app )?(?:essay|personal statement)\b|\bhelp me write my essay about\b|\b(?:help me )?(?:create|make|build)\b.{0,30}\b(?:plan for my future|future plan|life plan)\b|\bwhat should i do with my life\b|\b(?:build|create|make|help me build)\b.{0,40}\b(?:college list|school list)\b|\bwhat schools should i apply to\b|\b(?:tell me what major i should|what major should i|which major should i) (?:choose|pick)\b|\b(?:pick|choose) (?:a )?major for me\b|\b(?:make|create|build|help me with)\b.{0,40}\b(?:application strategy|admissions strategy|application plan)\b|\b(?:help me pick|pick|choose|what)\b.{0,40}\bextracurriculars?\b|\bextracurricular strategy\b/i;
+
+function mentorReferralDetails(userText) {
+  if (/\b(essay|personal statement|common app)\b/i.test(userText)) {
+    return {
+      category: "essay",
+      reason: "essay_guidance",
+      label: "Get essay help from a mentor",
+      text:
+        "I can help you get started, but I should not write or fully review the essay for you. This is exactly where a real mentor can help better: choosing the strongest story, shaping the structure, and revising it with you while keeping it in your voice. Want me to match you with a mentor?"
+    };
+  }
+
+  if (/\b(major|life|future|career)\b/i.test(userText)) {
+    return {
+      category: "major",
+      reason: "future_major_guidance",
+      label: "Talk to a student mentor",
+      text:
+        "I can give you a quick framework, but choosing a major or future path depends on your interests, strengths, values, classes, budget, and goals. A student mentor can talk through your real situation and help you compare options without pretending there is one perfect answer. Want me to match you with a mentor?"
+    };
+  }
+
+  if (/\b(extracurricular|activity|activities)\b/i.test(userText)) {
+    return {
+      category: "gettingStarted",
+      reason: "extracurricular_strategy",
+      label: "Talk to a student mentor",
+      text:
+        "I can share general extracurricular tips, but picking activities strategically should be based on your interests, time, school options, and application story. A mentor can help you choose a realistic plan and avoid doing activities just for appearances. Want me to match you with a mentor?"
+    };
+  }
+
+  return {
+    category: "collegeList",
+    reason: "personalized_strategy",
+    label: "Match me with a mentor",
+    text:
+      "I can help you get started, but building a college list, application strategy, or personal plan needs details about your grades, activities, goals, budget, location, and preferences. This is exactly where a real mentor can help better by building a plan with you instead of giving a generic answer. Want me to match you with a mentor?"
+  };
+}
+
+function buildMentorReferralReply(userText) {
+  if (!MENTOR_REFERRAL_PATTERN.test(userText)) return null;
+
+  const details = mentorReferralDetails(userText);
+  return {
+    category: details.category,
+    text: details.text,
+    responseType: "mentor_referral",
+    mentorReferralReason: details.reason,
+    actions: [
+      {
+        label: details.label,
+        href: "#preludematch",
+        type: "internal"
+      }
+    ]
+  };
+}
+
 function pickMentors(filterFn, count = 4) {
   return MENTORS.filter(filterFn).slice(0, count).length >= 2
     ? MENTORS.filter(filterFn).slice(0, count)
@@ -89,6 +151,81 @@ export function classify(text) {
   }
 
   return "collegeList";
+}
+
+function normalizeFlowText(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[.!?]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getRecentConversationMessages(history = []) {
+  return history
+    .filter((message) => message?.role === "user" || message?.role === "assistant")
+    .slice(-8)
+    .map((message) => ({
+      role: message.role,
+      content: String(message.content ?? message.text ?? "").trim()
+    }))
+    .filter((message) => message.content.length > 0);
+}
+
+function getLastAssistantMessage(history = []) {
+  return [...getRecentConversationMessages(history)].reverse().find((message) => message.role === "assistant") ?? null;
+}
+
+function wasAskedForEssayDraftStatus(history = []) {
+  const lastAssistant = getLastAssistantMessage(history);
+  return /starting from scratch or revising a draft/i.test(lastAssistant?.content ?? "");
+}
+
+function isClearlyNewTopicReply(reply) {
+  return /\b(colleges?|schools?|major|career|fafsa|financial aid|scholarships?|tuition|cost|deadline|sat|act|mentor|parent|transfer)\b/i.test(
+    reply
+  );
+}
+
+function buildEssayDraftStatusReply(userText, history = []) {
+  if (!wasAskedForEssayDraftStatus(history)) return null;
+
+  const reply = normalizeFlowText(userText);
+  if (!reply || reply.split(" ").filter(Boolean).length > 8 || isClearlyNewTopicReply(reply)) return null;
+
+  if (/^(scratch|from scratch|starting from scratch|start from scratch|start|new|new essay|brainstorm|i haven'?t started|haven'?t started|not started|i have not started)$/.test(reply)) {
+    return {
+      category: "essay",
+      text:
+        "Great — let’s start from scratch. First, we’ll find a strong topic. What’s one experience, challenge, interest, family responsibility, community, or part of your life that feels important to who you are?"
+    };
+  }
+
+  if (/^(draft|a draft|revising|revision|revise|editing|edit|i have a draft|have a draft|i already have a draft|already have a draft)$/.test(reply)) {
+    return {
+      category: "essay",
+      text:
+        "Perfect — since you’re revising a draft, paste the draft or a paragraph you want help with. I can help with structure, clarity, voice, and whether the story is showing the right qualities without rewriting it for you."
+    };
+  }
+
+  if (/^(yes|yeah|yep|sure|ok|okay)$/.test(reply)) {
+    return {
+      category: "essay",
+      text:
+        "Great — are you **starting from scratch** or **revising a draft**? Reply with `scratch` or `draft`, and I’ll take the right next step."
+    };
+  }
+
+  if (/^(no|nope|not sure|idk|i don'?t know)$/.test(reply)) {
+    return {
+      category: "essay",
+      text:
+        "No problem — we can start with brainstorming. What is one activity, responsibility, challenge, community, or interest that has shaped how you think or act? Even a rough idea is enough."
+    };
+  }
+
+  return null;
 }
 
 const PRELUDE_NOTES = {
@@ -234,9 +371,11 @@ export function createInitialMessages(profile = null) {
 }
 
 /** Rule-based replies — answer-first using agentKnowledgeBase; LLM uses AGENT.md + AGENT_KNOWLEDGE.md via /api/chat. */
-export function getRuleBasedReply(userText, _history = [], profile = null) {
-  const category = classify(userText);
-  const payload = buildResponse(category, userText);
+export function getRuleBasedReply(userText, history = [], profile = null) {
+  const flowReply = buildEssayDraftStatusReply(userText, history);
+  const mentorReferral = flowReply ? null : buildMentorReferralReply(userText);
+  const category = flowReply?.category ?? mentorReferral?.category ?? classify(userText);
+  const payload = flowReply ?? mentorReferral ?? buildResponse(category, userText);
 
   return personalizeRuleBasedReply(
     {
@@ -253,10 +392,12 @@ export function getRuleBasedReply(userText, _history = [], profile = null) {
 const MAX_CONVERSATION_HISTORY = 12;
 
 function toConversationHistory(history) {
-  return history
+  const priorHistory = history.at(-1)?.role === "user" ? history.slice(0, -1) : history;
+
+  return priorHistory
     .filter((m) => (m.role === "user" || m.role === "assistant") && !m.isWelcome && !m.isError)
     .slice(-MAX_CONVERSATION_HISTORY)
-    .map((m) => ({ role: m.role, content: m.text }));
+    .map((m) => ({ role: m.role, content: m.text ?? m.content }));
 }
 
 async function getLLMReply(userText, history, profile = null) {
@@ -303,6 +444,8 @@ async function getLLMReply(userText, history, profile = null) {
       sources: Array.isArray(data.sources) ? data.sources : [],
       actions: actions.length ? actions : undefined,
       fallback: data.fallback ?? null,
+      responseType: data.responseType ?? null,
+      mentorReferralReason: data.mentorReferralReason ?? null,
       quickReplies: fallbackQuickReplies.length ? fallbackQuickReplies : undefined
     },
     profile

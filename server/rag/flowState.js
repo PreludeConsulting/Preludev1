@@ -10,23 +10,30 @@ function normalizeText(value) {
     .trim();
 }
 
+function getRecentConversationMessages(history = []) {
+  return history.slice(-MAX_FLOW_HISTORY);
+}
+
+function getLastAssistantMessage(history = []) {
+  return [...getRecentConversationMessages(history)].reverse().find((item) => item.role === "assistant") ?? null;
+}
+
 function inferEssayStage(history) {
-  for (let index = history.length - 1; index >= Math.max(0, history.length - MAX_FLOW_HISTORY); index -= 1) {
-    const item = history[index];
-    const text = normalizeText(item.content);
-    if (item.role !== "assistant") continue;
+  const lastAssistant = getLastAssistantMessage(history);
+  if (!lastAssistant) return null;
 
-    if (/starting from scratch or revising a draft/.test(text)) {
-      return "awaiting_draft_status";
-    }
+  const text = normalizeText(lastAssistant.content);
 
-    if (/topic discovery|brainstorm|meaningful story|values/.test(text)) {
-      return "topic_discovery";
-    }
+  if (/starting from scratch or revising a draft/.test(text)) {
+    return "awaiting_draft_status";
+  }
 
-    if (/paste your draft|share your draft|revising a draft/.test(text)) {
-      return "awaiting_draft";
-    }
+  if (/topic discovery|brainstorm|strong topic|meaningful story|values/.test(text)) {
+    return "topic_discovery";
+  }
+
+  if (/paste your draft|share your draft|revising a draft/.test(text)) {
+    return "awaiting_draft";
   }
 
   return null;
@@ -43,13 +50,15 @@ function inferMode(history) {
 
 export function deriveActiveConversationState(message, conversationHistory = []) {
   const history = sanitizeConversationHistory(conversationHistory);
-  const { mode, stage } = inferMode(history);
+  const recentMessages = getRecentConversationMessages(history);
+  const { mode, stage } = inferMode(recentMessages);
   const knownContext = deriveConversationState(message, history);
 
   return {
     mode,
     stage,
     knownContext,
+    recentMessages,
     active: Boolean(mode && stage)
   };
 }
