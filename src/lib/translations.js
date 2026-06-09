@@ -261,6 +261,9 @@ export const translations = {
       footer: {
         body: "Student-led college admissions counseling — smarter spending, real mentors, affordable support.",
         label: "Footer",
+        discoverLabel: "Discover footer links",
+        discover: "Discover",
+        follow: "Follow",
         copyright: "© 2026 Prelude. All rights reserved.",
         privacy: "Privacy",
         terms: "Terms",
@@ -526,6 +529,9 @@ export const translations = {
       footer: {
         body: "또래 기반 대학 입시 상담 — 더 똑똑한 지출, 실제 멘토, 부담 없는 지원.",
         label: "푸터",
+        discoverLabel: "푸터 탐색 링크",
+        discover: "둘러보기",
+        follow: "팔로우",
         copyright: "© 2026 Prelude. 모든 권리 보유.",
         privacy: "개인정보 처리방침",
         terms: "이용약관",
@@ -791,6 +797,9 @@ export const translations = {
       footer: {
         body: "由同龄导师驱动的大学申请咨询——更聪明的支出、真实导师、负担得起的支持。",
         label: "页脚",
+        discoverLabel: "页脚探索链接",
+        discover: "探索",
+        follow: "关注",
         copyright: "© 2026 Prelude. 保留所有权利。",
         privacy: "隐私",
         terms: "条款",
@@ -1056,6 +1065,9 @@ export const translations = {
       footer: {
         body: "Asesoría de admisiones universitarias entre pares: gasto inteligente, mentores reales y apoyo accesible.",
         label: "Pie de página",
+        discoverLabel: "Enlaces de descubrimiento del pie de página",
+        discover: "Descubre",
+        follow: "Síguenos",
         copyright: "© 2026 Prelude. Todos los derechos reservados.",
         privacy: "Privacidad",
         terms: "Términos",
