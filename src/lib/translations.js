@@ -35,6 +35,7 @@ export const translations = {
         admissions: "Admissions Counseling",
         mentoring: "Mentoring",
         mentoringClarity: "Mentoring & Clarity",
+        mentors: "Mentors",
         pricing: "Pricing",
         clarity: "Clarity",
         dashboard: "Dashboard"
@@ -47,6 +48,17 @@ export const translations = {
       emailPlaceholder: "Enter your email address",
       cta: "Book free call",
       note: "Start free, then get matched with a mentor from your dream school."
+    },
+    mentors: {
+      eyebrow: "Mentor directory",
+      headline: "Meet example mentors from standout universities.",
+      body: "Explore the kind of college students who can help with essays, school lists, majors, and the day-to-day questions that come up during admissions.",
+      primaryCta: "Get matched",
+      secondaryCta: "View plans",
+      heroCardTitle: "Student mentors",
+      heroCardStat: "Front-facing guidance",
+      directoryEyebrow: "Example mentors",
+      directoryTitle: "A preview of the Prelude network"
     },
     carousel: {
       heading: "Mentorship from students at top universities"
@@ -261,6 +273,9 @@ export const translations = {
       footer: {
         body: "Student-led college admissions counseling — smarter spending, real mentors, affordable support.",
         label: "Footer",
+        discoverLabel: "Discover footer links",
+        discover: "Discover",
+        follow: "Follow",
         copyright: "© 2026 Prelude. All rights reserved.",
         privacy: "Privacy",
         terms: "Terms",
@@ -300,6 +315,7 @@ export const translations = {
         admissions: "입시 상담",
         mentoring: "멘토링",
         mentoringClarity: "멘토링 및 명확성",
+        mentors: "멘토",
         pricing: "가격",
         clarity: "명확성",
         dashboard: "대시보드"
@@ -312,6 +328,17 @@ export const translations = {
       emailPlaceholder: "이메일 주소를 입력하세요",
       cta: "무료로 시작하기",
       note: "무료로 시작한 뒤 꿈꾸는 대학의 멘토와 매칭되세요."
+    },
+    mentors: {
+      eyebrow: "멘토 디렉터리",
+      headline: "뛰어난 대학의 예시 멘토를 만나보세요.",
+      body: "에세이, 학교 리스트, 전공, 입시 과정에서 생기는 일상적인 질문을 도와줄 수 있는 대학생 멘토 유형을 살펴보세요.",
+      primaryCta: "매칭 시작하기",
+      secondaryCta: "플랜 보기",
+      heroCardTitle: "학생 멘토",
+      heroCardStat: "직접적인 안내",
+      directoryEyebrow: "예시 멘토",
+      directoryTitle: "Prelude 네트워크 미리보기"
     },
     carousel: {
       heading: "최상위 대학 학생들에게 받는 멘토링"
@@ -526,6 +553,9 @@ export const translations = {
       footer: {
         body: "또래 기반 대학 입시 상담 — 더 똑똑한 지출, 실제 멘토, 부담 없는 지원.",
         label: "푸터",
+        discoverLabel: "푸터 탐색 링크",
+        discover: "둘러보기",
+        follow: "팔로우",
         copyright: "© 2026 Prelude. 모든 권리 보유.",
         privacy: "개인정보 처리방침",
         terms: "이용약관",
@@ -565,6 +595,7 @@ export const translations = {
         admissions: "升学申请咨询",
         mentoring: "导师辅导",
         mentoringClarity: "导师辅导与清晰规划",
+        mentors: "导师",
         pricing: "价格",
         clarity: "清晰规划",
         dashboard: "仪表板"
@@ -577,6 +608,17 @@ export const translations = {
       emailPlaceholder: "输入你的电子邮箱地址",
       cta: "免费开始试用",
       note: "先免费开始，然后匹配来自你梦想学校的导师。"
+    },
+    mentors: {
+      eyebrow: "导师目录",
+      headline: "认识来自优秀大学的示例导师。",
+      body: "了解 Prelude 大学生导师如何帮助学生处理文书、选校名单、专业方向和申请过程中出现的日常问题。",
+      primaryCta: "开始匹配",
+      secondaryCta: "查看方案",
+      heroCardTitle: "学生导师",
+      heroCardStat: "面对面式指导",
+      directoryEyebrow: "示例导师",
+      directoryTitle: "Prelude 导师网络预览"
     },
     carousel: {
       heading: "来自顶尖大学学生的导师辅导"
@@ -791,6 +833,9 @@ export const translations = {
       footer: {
         body: "由同龄导师驱动的大学申请咨询——更聪明的支出、真实导师、负担得起的支持。",
         label: "页脚",
+        discoverLabel: "页脚探索链接",
+        discover: "探索",
+        follow: "关注",
         copyright: "© 2026 Prelude. 保留所有权利。",
         privacy: "隐私",
         terms: "条款",
@@ -830,6 +875,7 @@ export const translations = {
         admissions: "Asesoría de admisiones",
         mentoring: "Mentoría",
         mentoringClarity: "Mentoría y claridad",
+        mentors: "Mentores",
         pricing: "Precios",
         clarity: "Claridad",
         dashboard: "Panel"
@@ -842,6 +888,17 @@ export const translations = {
       emailPlaceholder: "Ingresa tu correo electrónico",
       cta: "Empieza gratis",
       note: "Comienza gratis y luego encuentra un mentor de la universidad de tus sueños."
+    },
+    mentors: {
+      eyebrow: "Directorio de mentores",
+      headline: "Conoce mentores de ejemplo de universidades destacadas.",
+      body: "Explora el tipo de estudiantes universitarios que pueden ayudar con ensayos, listas de universidades, carreras y preguntas cotidianas de admisiones.",
+      primaryCta: "Encontrar mentor",
+      secondaryCta: "Ver planes",
+      heroCardTitle: "Mentores estudiantes",
+      heroCardStat: "Orientación cercana",
+      directoryEyebrow: "Mentores de ejemplo",
+      directoryTitle: "Una vista previa de la red Prelude"
     },
     carousel: {
       heading: "Mentoría de estudiantes en universidades destacadas"
@@ -1056,6 +1113,9 @@ export const translations = {
       footer: {
         body: "Asesoría de admisiones universitarias entre pares: gasto inteligente, mentores reales y apoyo accesible.",
         label: "Pie de página",
+        discoverLabel: "Enlaces de descubrimiento del pie de página",
+        discover: "Descubre",
+        follow: "Síguenos",
         copyright: "© 2026 Prelude. Todos los derechos reservados.",
         privacy: "Privacidad",
         terms: "Términos",

@@ -42,6 +42,12 @@ function AppContent() {
     }
     if (hash === "#dashboard" && !sessionStorage.getItem(SCROLL_STORAGE_KEY)) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      return;
+    }
+    if (hash) {
+      window.requestAnimationFrame(() => {
+        document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
+      });
     }
   }, [hash]);
 

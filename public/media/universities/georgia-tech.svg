@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Georgia Tech emblem">
+  <rect width="128" height="128" rx="28" fill="#fff8dc"/>
+  <path d="M26 32h76v18H78v46H56V50H26z" fill="#b3a369"/>
+  <path d="M76 58h28v38H88V74H76z" fill="#003057"/>
+  <path d="M28 100h76" stroke="#003057" stroke-width="8" stroke-linecap="round"/>
+</svg>

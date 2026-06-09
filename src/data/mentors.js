@@ -1,0 +1,49 @@
+const mediaBase = (import.meta.env?.BASE_URL ?? "/");
+
+export const EXAMPLE_MENTORS = [
+  {
+    name: "Declan Brooks",
+    university: "Brown University",
+    institutionShort: "Brown",
+    major: "Engineering",
+    description: "Mechanical engineering mentor who helps students turn technical interests into clear project stories.",
+    emblem: `${mediaBase}media/universities/brown.svg`,
+    photoClass: "mentors-page__photo--declan"
+  },
+  {
+    name: "Ryan Morales",
+    university: "University of Pennsylvania",
+    institutionShort: "Penn",
+    major: "Computer Science",
+    description: "Computer science student focused on application strategy, campus fit, and building a balanced school list.",
+    emblem: `${mediaBase}media/universities/upenn.svg`,
+    photoClass: "mentors-page__photo--ryan"
+  },
+  {
+    name: "Asim Patel",
+    university: "Georgia Tech",
+    institutionShort: "Georgia Tech",
+    major: "Computer Science",
+    description: "CS mentor who guides students through research interests, technical activities, and essay positioning.",
+    emblem: `${mediaBase}media/universities/georgia-tech.svg`,
+    photoClass: "mentors-page__photo--asim"
+  },
+  {
+    name: "Harrison Kim",
+    university: "University of Georgia",
+    institutionShort: "UGA",
+    major: "Business",
+    description: "Business mentor who helps students connect leadership, entrepreneurship, and community impact.",
+    emblem: `${mediaBase}media/universities/georgia.svg`,
+    photoClass: "mentors-page__photo--harrison"
+  },
+  {
+    name: "Jess Lin",
+    university: "Brown University",
+    institutionShort: "Brown",
+    major: "English",
+    description: "English mentor who specializes in personal statements, voice, and shaping memorable application narratives.",
+    emblem: `${mediaBase}media/universities/brown.svg`,
+    photoClass: "mentors-page__photo--jess"
+  }
+];
