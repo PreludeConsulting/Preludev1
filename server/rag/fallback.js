@@ -22,7 +22,9 @@ const PATTERNS = {
   profileEvaluation:
     /\b(evaluate|review|audit)\b.{0,20}\b(my (?:full )?profile|entire application|complete application)\b|\bdeep (?:profile|application) review\b/i,
   outsideScope:
-    /\b(legal advice|immigration lawyer|visa guarantee|investment advice|medical diagnosis|therapy for)\b/i
+    /\b(legal advice|immigration lawyer|visa guarantee|investment advice|medical diagnosis|therapy for)\b/i,
+  mentorReferral:
+    /\b(?:help me|can you|could you|please|i need help)\b.{0,30}\b(?:write|make|create|draft|review|edit)\b.{0,80}\b(?:my )?(?:common app )?(?:essay|personal statement)\b|\b(?:write|make|create|draft|review|edit)\b.{0,50}\b(?:my )?(?:common app )?(?:essay|personal statement)\b|\bhelp me write my essay about\b|\b(?:help me )?(?:create|make|build)\b.{0,30}\b(?:plan for my future|future plan|life plan)\b|\bwhat should i do with my life\b|\b(?:build|create|make|help me build)\b.{0,40}\b(?:college list|school list)\b|\bwhat schools should i apply to\b|\b(?:tell me what major i should|what major should i|which major should i) (?:choose|pick)\b|\b(?:pick|choose) (?:a )?major for me\b|\b(?:make|create|build|help me with)\b.{0,40}\b(?:application strategy|admissions strategy|application plan)\b|\b(?:help me pick|pick|choose|what)\b.{0,40}\bextracurriculars?\b|\bextracurricular strategy\b/i
 };
 
 function hasNoVerifiedHighSchoolMatch(retrieval) {
