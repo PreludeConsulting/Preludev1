@@ -1,5 +1,5 @@
 import { normalizeMajorTerm } from "../datasets/majorSynonyms.js";
-import { resolveCollegesFromText } from "../datasets/collegeAliases.js";
+import { lookupCollegeByAliasOrName, resolveCollegesFromText } from "../datasets/collegeAliases.js";
 import { extractAffordabilityCap, extractMajorTerms, extractState } from "./intent.js";
 
 const PRIORITY_PATTERNS = [
@@ -27,6 +27,48 @@ function parseBudgetFromText(message) {
 function mergeField(previous, next) {
   if (next != null && next !== "") return next;
   return previous ?? null;
+}
+
+function mergeSchools(existingSchools, newSchools) {
+  const merged = new Map(existingSchools.map((school) => [school.unitid, school]));
+  for (const school of newSchools) {
+    if (school?.unitid) merged.set(school.unitid, school);
+  }
+  return [...merged.values()];
+}
+
+function schoolFromLookupPhrase(phrase) {
+  const lookup = lookupCollegeByAliasOrName(phrase);
+  if (!lookup.college) return null;
+  return {
+    canonicalName: lookup.canonicalName ?? lookup.college.name,
+    aliasUsed: phrase,
+    unitid: lookup.unitid,
+    confidence: lookup.confidence,
+    verifiedCollegeRecord: lookup.college
+  };
+}
+
+function extractAssistantSchoolMentions(text) {
+  const schools = [];
+  const seenPhrases = new Set();
+  const patterns = [
+    /verified data for \*\*([^*]+)\*\*/gi,
+    /verified (?:College Scorecard )?record(?: for [^:\n]+)?:\s*\n\s*- \*\*([^*]+)\*\*/gi,
+    /- \*\*([^*]+)\*\*:/gi
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const phrase = String(match[1] ?? "").trim();
+      if (!phrase || seenPhrases.has(phrase)) continue;
+      seenPhrases.add(phrase);
+      const school = schoolFromLookupPhrase(phrase);
+      if (school) schools.push(school);
+    }
+  }
+
+  return schools;
 }
 
 export function deriveConversationState(message, conversationHistory = []) {
@@ -69,11 +111,12 @@ export function deriveConversationState(message, conversationHistory = []) {
 
       const schools = resolveCollegesFromText(text);
       if (schools.length) {
-        const merged = new Map(state.schoolsUnderDiscussion.map((school) => [school.unitid, school]));
-        for (const school of schools) {
-          merged.set(school.unitid, school);
-        }
-        state.schoolsUnderDiscussion = [...merged.values()];
+        state.schoolsUnderDiscussion = mergeSchools(state.schoolsUnderDiscussion, schools);
+      }
+    } else if (role === "assistant") {
+      const schools = extractAssistantSchoolMentions(text);
+      if (schools.length) {
+        state.schoolsUnderDiscussion = mergeSchools(state.schoolsUnderDiscussion, schools);
       }
     }
   }

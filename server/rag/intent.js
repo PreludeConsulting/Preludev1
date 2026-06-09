@@ -103,7 +103,7 @@ const INTENT_PATTERNS = [
   },
   {
     intent: "school_search",
-    re: /\b(school|college|universit\w*)\b.{0,30}\b(for|in)\b.{0,25}\b(cs|computer science|engineering|nursing|business|biology)\b/i
+    re: /\b(school|college|universit\w*)\b.{0,30}\b(for|in)\b.{0,25}\b(cs|computer science|electrical engineering|engineering|nursing|business|biology)\b/i
   },
   { intent: "major_program_search", re: /\b(major|program|degree|study|field of study|cip)\b/i },
   {
@@ -225,8 +225,8 @@ export function extractMajorTerms(message) {
   const terms = [];
   const patterns = [
     /\b(?:major(?:ing)? in|study|program in|degree in)\s+([a-z0-9][a-z0-9\s/&-]{2,40})/i,
-    /\b(?:for|in)\s+(cs|computer science|engineering|nursing|business|biology|psychology|data science)\b/i,
-    /\b(computer science|engineering|nursing|business|biology|psychology|data science)\b/i,
+    /\b(?:for|in)\s+(cs|computer science|electrical engineering|engineering|nursing|business|biology|psychology|data science)\b/i,
+    /\b(computer science|electrical engineering|engineering|nursing|business|biology|psychology|data science)\b/i,
     /\b(cs)\b/i
   ];
 

@@ -94,6 +94,28 @@ describe("fallback classification", () => {
 });
 
 describe("createRagChatCompletion fallback integration", () => {
+
+  it("returns contextual essay help without generic intake", async () => {
+    const result = await createRagChatCompletion({
+      message: "I need help with essays",
+      conversationHistory: []
+    });
+
+    assert.equal(result.model, "guidance");
+    assert.match(result.answer, /Common App essay|supplementals|topic ideas/i);
+    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+  });
+
+  it("returns contextual admission chances guidance without generic intake", async () => {
+    const result = await createRagChatCompletion({
+      message: "What are my chances?",
+      conversationHistory: []
+    });
+
+    assert.equal(result.model, "guidance");
+    assert.match(result.answer, /can’t predict|reach\/target\/likely/i);
+    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+  });
   it("short-circuits LLM for unknown school location questions", async () => {
     const result = await createRagChatCompletion({
       message: "Where is Example Imaginary Academy located?",

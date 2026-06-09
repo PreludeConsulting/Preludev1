@@ -13,6 +13,11 @@ const ALIAS_ENTRIES = [
     unitid: "139959"
   },
   {
+    aliases: ["gsu", "georgia state", "georgia state university"],
+    canonicalName: "Georgia State University",
+    unitid: "139940"
+  },
+  {
     aliases: ["ucla", "university of california los angeles", "university of california-los angeles"],
     canonicalName: "University of California-Los Angeles",
     unitid: "110662"
@@ -73,6 +78,19 @@ export function resolveCollegeAlias(input) {
       canonicalName: entry.canonicalName,
       unitid: entry.unitid ?? null,
       confidence: "high",
+      originalPhrase,
+      ambiguous: false
+    };
+  }
+
+  const canUseFuzzyCollegeSearch =
+    /\b(university|college|institute|campus)\b/i.test(originalPhrase) ||
+    normalized.split(" ").length >= 3;
+  if (!canUseFuzzyCollegeSearch) {
+    return {
+      canonicalName: null,
+      unitid: null,
+      confidence: "none",
       originalPhrase,
       ambiguous: false
     };
@@ -147,19 +165,6 @@ export function lookupCollegeByAliasOrName(nameOrAlias) {
     }
   }
 
-  const { results } = searchColleges({ q: nameOrAlias, limit: 1 });
-  if (results[0]) {
-    return {
-      canonicalName: results[0].name,
-      unitid: results[0].unitid,
-      confidence: "medium",
-      originalPhrase: nameOrAlias,
-      ambiguous: false,
-      college: results[0],
-      verifiedCollegeRecord: results[0]
-    };
-  }
-
   return {
     ...resolved,
     college: null,
@@ -192,15 +197,19 @@ export function extractCollegeAliasPhrases(text) {
     phrases.add(match[0].trim());
   }
 
-  const comparisonChunk = text.split(COMPARISON_SPLIT);
-  for (const chunk of comparisonChunk) {
-    const trimmed = chunk
-      .replace(/\b(which is better|which one|compare|better|for|cs|computer science|major|program)\b/gi, " ")
-      .trim();
-    if (trimmed.length >= 2 && trimmed.length <= 60) {
-      const tokens = trimmed.split(/[,;]/).map((part) => part.trim()).filter(Boolean);
-      for (const token of tokens) {
-        if (token.length >= 2) phrases.add(token);
+  const hasComparisonLanguage =
+    /\b(compare|versus|vs\.?|better than|which is better|between|compared to|compared with)\b/i.test(text);
+  if (hasComparisonLanguage) {
+    const comparisonChunk = text.split(COMPARISON_SPLIT);
+    for (const chunk of comparisonChunk) {
+      const trimmed = chunk
+        .replace(/\b(which is better|which one|compare|better|for|cs|computer science|major|program)\b/gi, " ")
+        .trim();
+      if (trimmed.length >= 2 && trimmed.length <= 60) {
+        const tokens = trimmed.split(/[,;]/).map((part) => part.trim()).filter(Boolean);
+        for (const token of tokens) {
+          if (token.length >= 2) phrases.add(token);
+        }
       }
     }
   }

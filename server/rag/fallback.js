@@ -93,6 +93,62 @@ function buildFallbackPayload(reason, text) {
   };
 }
 
+function buildGuidancePayload(reason, text) {
+  return {
+    text,
+    provider: "prelude",
+    model: "guidance",
+    fallback: null,
+    guidanceReason: reason,
+    actions: []
+  };
+}
+
+function formatKnownContext(conversationState = {}) {
+  const parts = [];
+  if (conversationState.state) parts.push(`state: **${conversationState.state}**`);
+  if (conversationState.intendedMajor) parts.push(`major: **${conversationState.intendedMajor}**`);
+  if (conversationState.priority) parts.push(`priority: **${conversationState.priority}**`);
+  if (conversationState.budget != null) parts.push(`budget: **$${conversationState.budget.toLocaleString()}**`);
+  return parts.length ? ` I’ll keep using your context (${parts.join(", ")}).` : "";
+}
+
+function hasEarlyIntentGuidance(message, intent, conversationState = {}) {
+  if (intent === "essays" || /\b(essays?|personal statement|common app|supplementals?|supplemental essays?)\b/i.test(message)) {
+    return buildGuidancePayload(
+      "essay_help",
+      "Absolutely — I can help with your Common App essay, supplementals, topic ideas, outlines, or editing. Are you starting from scratch or revising a draft?"
+    );
+  }
+
+  if (intent === "guarantee_refusal") {
+    return buildGuidancePayload(
+      "admissions_chances",
+      `I can’t predict admission outcomes or guarantee a result, but I can help you think about reach/target/likely fit using academics, activities, essays, major, cost, and school selectivity.${formatKnownContext(conversationState)} Which school are you asking about?`
+    );
+  }
+
+  return null;
+}
+
+function hasIntentfulGuidance(message, intent, conversationState = {}) {
+  if (intent === "financial_aid" || intent === "affordability") {
+    return buildGuidancePayload(
+      "cost_financial_aid",
+      `I can help with cost and financial aid — net price, in-state vs. out-of-state cost, FAFSA/CSS Profile, scholarships, and lower-cost alternatives.${formatKnownContext(conversationState)} What school or cost question should we look at first?`
+    );
+  }
+
+  if (intent === "major_program_search") {
+    return buildGuidancePayload(
+      "major_program_search",
+      `I can help find colleges or programs for **${conversationState.intendedMajor || "that major"}** and compare fit, cost, and selectivity.${formatKnownContext(conversationState)} Do you want a school list, program examples, or help comparing two options?`
+    );
+  }
+
+  return null;
+}
+
 const COPY = {
   insufficient_verified_information: `I could not find a verified record for that school, so I do not want to guess. A Prelude mentor can help you confirm the details and figure out the best next step.
 
@@ -168,8 +224,26 @@ export function classifyPreLlmFallback({
     return null;
   }
 
+  if (PATTERNS.fullEssayRewrite.test(message)) {
+    return buildFallbackPayload("unsupported_request", COPY.essay_rewrite);
+  }
+
+  if (PATTERNS.exactChances.test(message)) {
+    return buildFallbackPayload("needs_personalized_guidance", COPY.exact_chances);
+  }
+
+  const earlyIntentGuidance = hasEarlyIntentGuidance(message, intent, conversationState);
+  if (earlyIntentGuidance) {
+    return earlyIntentGuidance;
+  }
+
   if (hasActionableContext(conversationState, retrieval, intent)) {
     return null;
+  }
+
+  const intentGuidance = hasIntentfulGuidance(message, intent, conversationState);
+  if (intentGuidance) {
+    return intentGuidance;
   }
 
   if (isVagueRequest(message, historyLength)) {
@@ -178,14 +252,6 @@ export function classifyPreLlmFallback({
 
   if (PATTERNS.outsideScope.test(message)) {
     return buildFallbackPayload("unsupported_request", COPY.generic);
-  }
-
-  if (intent === "guarantee_refusal" || PATTERNS.exactChances.test(message)) {
-    return buildFallbackPayload("needs_personalized_guidance", COPY.exact_chances);
-  }
-
-  if (PATTERNS.fullEssayRewrite.test(message)) {
-    return buildFallbackPayload("unsupported_request", COPY.essay_rewrite);
   }
 
   if (PATTERNS.personalizedStrategy.test(message) || PATTERNS.profileEvaluation.test(message)) {
