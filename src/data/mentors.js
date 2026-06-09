@@ -26,7 +26,6 @@ export const EXAMPLE_MENTORS = [
     major: "Computer Science",
     description: "CS mentor who guides students through research interests, technical activities, and essay positioning.",
     emblem: `${mediaBase}media/universities/georgia-tech.svg`,
-    fallbackEmblem: "GT",
     photoClass: "mentors-page__photo--asim"
   },
   {
@@ -36,7 +35,6 @@ export const EXAMPLE_MENTORS = [
     major: "Business",
     description: "Business mentor who helps students connect leadership, entrepreneurship, and community impact.",
     emblem: `${mediaBase}media/universities/georgia.svg`,
-    fallbackEmblem: "UGA",
     photoClass: "mentors-page__photo--harrison"
   },
   {

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="University of Georgia emblem">
+  <rect width="128" height="128" rx="28" fill="#ffffff"/>
+  <ellipse cx="64" cy="64" rx="47" ry="36" fill="#ba0c2f"/>
+  <ellipse cx="64" cy="64" rx="33" ry="23" fill="#111111"/>
+  <path d="M78 49c-6-5-28-5-34 5-7 11 3 25 20 25 9 0 18-3 23-8l-9-10c-3 3-8 5-14 5-7 0-11-3-11-7 0-5 5-8 13-8 5 0 9 1 12 4z" fill="#ffffff"/>
+</svg>

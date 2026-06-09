@@ -77,12 +77,14 @@ function MentorsPageContent() {
             <div className="mentors-page__grid">
               {EXAMPLE_MENTORS.map((mentor) => (
                 <article className="mentors-page__card" key={mentor.name} tabIndex={0}>
-                  <div
-                    className={`mentors-page__photo ${mentor.photoClass}`}
-                    style={{ backgroundImage: `url(${mentorCardsImage})` }}
-                    role="img"
-                    aria-label={`${mentor.name}, ${mentor.university}`}
-                  />
+                  <div className="mentors-page__photo-shell">
+                    <div
+                      className={`mentors-page__photo ${mentor.photoClass}`}
+                      style={{ backgroundImage: `url(${mentorCardsImage})` }}
+                      role="img"
+                      aria-label={`${mentor.name}, ${mentor.university}`}
+                    />
+                  </div>
                   <div className="mentors-page__card-body">
                     <div className="mentors-page__institution-row">
                       <MentorEmblem mentor={mentor} />
