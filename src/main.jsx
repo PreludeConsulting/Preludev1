@@ -5,6 +5,8 @@ import App from "./App.jsx";
 import DashboardRouter from "./dashboard/DashboardRouter.jsx";
 import MentorsPage from "./components/MentorsPage.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { LegalModalProvider } from "./context/LegalModalContext.jsx";
+import LegalModal from "./components/LegalModal.jsx";
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -23,16 +25,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter basename={ROUTER_BASENAME || undefined}>
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={<App />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/dashboard/*" element={<DashboardRouter />} />
-          <Route path="/mentors" element={<MentorsPage />} />
-        </Routes>
+        <LegalModalProvider>
+          <Routes>
+            <Route path="/" element={<App />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/dashboard/*" element={<DashboardRouter />} />
+            <Route path="/mentors" element={<MentorsPage />} />
+          </Routes>
+          <LegalModal />
+        </LegalModalProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

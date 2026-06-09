@@ -16,6 +16,7 @@ import PricingCard from "./PricingCard.jsx";
 import { startBillingCheckout } from "../lib/auth.js";
 import { NAV_LINKS } from "../data/navLinks.js";
 import AppLink from "./AppLink.jsx";
+import { useLegalModal } from "../context/LegalModalContext.jsx";
 
 const mediaBase = import.meta.env.BASE_URL;
 const media = {
@@ -285,6 +286,7 @@ export function LowerCta() {
 
 export function LowerFooter() {
   const { t } = useLanguage();
+  const { openLegal } = useLegalModal();
   const discoverLinks = NAV_LINKS.map(({ labelKey, href }) => ({
     label: t(labelKey),
     href
@@ -334,12 +336,20 @@ export function LowerFooter() {
         <div className="mt-10 flex flex-col gap-3 border-t border-foreground/8 pt-6 font-body text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">
           <p>{t("sections.footer.copyright")}</p>
           <div className="flex gap-6">
-            <a href="#contact" className="hover:text-foreground">
+            <button
+              type="button"
+              className="lower-landing__footer-legal-link"
+              onClick={() => openLegal("privacy")}
+            >
               {t("sections.footer.privacy")}
-            </a>
-            <a href="#contact" className="hover:text-foreground">
+            </button>
+            <button
+              type="button"
+              className="lower-landing__footer-legal-link"
+              onClick={() => openLegal("terms")}
+            >
               {t("sections.footer.terms")}
-            </a>
+            </button>
           </div>
         </div>
       </div>

@@ -17,6 +17,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useLegalModal } from "../context/LegalModalContext.jsx";
 import { getUserBaseRecord } from "../lib/auth.js";
 import { CLARIFY_PROMPT, navigateChatAction, navigateFallbackAction } from "../lib/chatFallbackActions.js";
 import { createInitialMessages, getAgentReply, getTypingDelay } from "../lib/preludeAgent.js";
@@ -262,6 +263,7 @@ function TypingIndicator() {
 
 export default function PreludeChat() {
   const { user, isAuthenticated, openSignIn, openAccount, personalizedAiRequest, refreshUser } = useAuth();
+  const { openLegal } = useLegalModal();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState(() => createInitialMessages());
   const [input, setInput] = useState("");
@@ -558,13 +560,13 @@ export default function PreludeChat() {
             <div ref={listRef} className="prelude-chat-messages">
               <p className="prelude-chat-disclaimer">
                 This conversation may be recorded to improve Prelude services. See our{" "}
-                <a href="#contact" className="underline underline-offset-2">
+                <button type="button" className="prelude-chat-disclaimer__link" onClick={() => openLegal("terms")}>
                   Terms
-                </a>{" "}
+                </button>{" "}
                 and{" "}
-                <a href="#contact" className="underline underline-offset-2">
+                <button type="button" className="prelude-chat-disclaimer__link" onClick={() => openLegal("privacy")}>
                   Privacy Policy
-                </a>
+                </button>
                 .
               </p>
 

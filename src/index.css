@@ -4913,6 +4913,135 @@ html[lang="es"] .shopify-hero__headline-line {
   border-radius: 1.25rem;
 }
 
+.prelude-legal-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 36rem);
+  max-height: min(88vh, 34rem);
+  overflow: hidden;
+}
+
+.prelude-legal-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem 0.85rem 1.25rem;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.08);
+  flex-shrink: 0;
+}
+
+.prelude-legal-modal__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.prelude-legal-modal__tab {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.prelude-legal-modal__tab:hover,
+.prelude-legal-modal__tab:focus-visible {
+  color: hsl(var(--foreground));
+  background: hsl(var(--foreground) / 0.05);
+}
+
+.prelude-legal-modal__tab.is-active {
+  color: hsl(var(--foreground));
+  background: hsl(var(--foreground) / 0.08);
+}
+
+.prelude-legal-modal__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.45rem;
+  color: hsl(var(--foreground) / 0.7);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.prelude-legal-modal__close:hover,
+.prelude-legal-modal__close:focus-visible {
+  background: hsl(var(--foreground) / 0.05);
+}
+
+.prelude-legal-modal__body {
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.prelude-legal-modal__intro {
+  margin-bottom: 1.25rem;
+}
+
+.prelude-legal-modal__title {
+  font-family: "Instrument Serif", serif;
+  font-size: 1.65rem;
+  line-height: 1.15;
+  color: hsl(var(--foreground));
+}
+
+.prelude-legal-modal__updated {
+  margin-top: 0.35rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.prelude-legal-modal__section + .prelude-legal-modal__section {
+  margin-top: 1.15rem;
+}
+
+.prelude-legal-modal__heading {
+  margin-bottom: 0.45rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.prelude-legal-modal__paragraph {
+  font-family: "Barlow", sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+
+.prelude-legal-modal__paragraph + .prelude-legal-modal__paragraph {
+  margin-top: 0.45rem;
+}
+
+.prelude-chat-disclaimer__link {
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.prelude-chat-disclaimer__link:hover,
+.prelude-chat-disclaimer__link:focus-visible {
+  color: hsl(var(--foreground));
+}
+
 .prelude-field {
   display: grid;
   gap: 0.35rem;
@@ -5503,6 +5632,21 @@ html[lang="es"] .shopify-hero__headline-line {
 
 .lower-landing__footer-link--button {
   cursor: default;
+}
+
+.lower-landing__footer-legal-link {
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.lower-landing__footer-legal-link:hover,
+.lower-landing__footer-legal-link:focus-visible {
+  color: hsl(var(--foreground));
 }
 
 @media (max-width: 640px) {
