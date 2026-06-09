@@ -49,13 +49,22 @@ function formatCollegeComparison(records, majorHint = "", priority = "", state =
   return `${intro}\n\n${lines.join("\n")}\n\n${focus}${pathwayNote}\n\nWhat should we compare next — exact program/pathway, net price, admissions fit, or transfer options?`.trim();
 }
 
-function formatSingleCollege(record, majorHint = "") {
-  const majorLine = majorHint ? ` for **${majorHint}**` : "";
-  return `I found a verified College Scorecard record${majorLine}:
+function formatSingleCollege(record, majorHint = "", priority = "") {
+  const name = collegeLabel(record.summary);
+  const majorLine = majorHint ? ` For **${majorHint}**,` : "";
+  const costLine =
+    priority === "cost"
+      ? " Since you said cost matters, we should look at in-state tuition, aid, net price, and lower-cost backup options."
+      : "";
+  const georgiaTechLine = /Georgia Institute of Technology|Georgia Tech/i.test(name)
+    ? " Georgia Tech is a public research university in Atlanta known especially for engineering, computer science, and applied sciences. It is a strong but competitive option."
+    : "";
 
-- **${collegeLabel(record.summary)}**: ${record.summary ?? ""}${sourceSuffix(record)}
+  return `Got it — I’m treating that as **${name}**.${majorLine}${georgiaTechLine}${costLine}
 
-Do you want to focus next on cost, admissions fit, or program details?`;
+- **${name}**: ${record.summary ?? ""}${sourceSuffix(record)}
+
+What should we look at next — program fit, cost, admissions selectivity, or backup schools?`;
 }
 
 function formatAffordabilityComparison(records) {
@@ -190,7 +199,7 @@ export function buildRetrievalAssistedAnswer(message, retrieval, conversationSta
     colleges.length
   ) {
     if (colleges.length === 1) {
-      return formatSingleCollege(colleges[0], majorHint);
+      return formatSingleCollege(colleges[0], majorHint, conversationState.priority ?? retrieval.priority ?? "");
     }
     return formatCollegeList(
       colleges,

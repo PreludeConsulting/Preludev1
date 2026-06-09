@@ -13,7 +13,7 @@ const ALIAS_ENTRIES = [
     unitid: "139959"
   },
   {
-    aliases: ["gsu", "georgia state", "georgia state university", "gerogia state university"],
+    aliases: ["gsu", "georgia state", "georgia state university"],
     canonicalName: "Georgia State University",
     unitid: "139940"
   },

@@ -55,7 +55,7 @@ describe("conversation state and corrections", () => {
   });
 
   it("extracts a verified school mentioned by the assistant", () => {
-    const state = deriveConversationState("Gerogia state university", [
+    const state = deriveConversationState("Georgia state university", [
       {
         role: "assistant",
         content:
@@ -123,9 +123,34 @@ describe("UCLA vs GT chat flows", () => {
     assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
   });
 
+  it("uses prior state major and cost context for a Georgia Tech school info request", async () => {
+    const result = await createRagChatCompletion({
+      message: "I want to go to georgia tech",
+      conversationHistory: [
+        { role: "user", content: "Georgia, Electrical engineering, cost matters" }
+      ]
+    });
+
+    assert.match(result.answer, /Georgia Institute of Technology|Georgia Tech/i);
+    assert.match(result.answer, /electrical engineering/i);
+    assert.match(result.answer, /cost matters|in-state tuition|lower-cost backup|net price/i);
+    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+  });
+
+  it("answers a Georgia Tech more-info request without generic fallback", async () => {
+    const result = await createRagChatCompletion({
+      message: "Tell me a bit more about georgia tech",
+      conversationHistory: []
+    });
+
+    assert.match(result.answer, /Georgia Institute of Technology|Georgia Tech/i);
+    assert.match(result.answer, /public research university|engineering|computer science|applied sciences/i);
+    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+  });
+
   it("compares Wiregrass with Georgia State when the user supplies the second school", async () => {
     const result = await createRagChatCompletion({
-      message: "Gerogia state university",
+      message: "Georgia state university",
       conversationHistory: [
         { role: "user", content: "I need help with essays" },
         {
@@ -151,7 +176,7 @@ describe("UCLA vs GT chat flows", () => {
 
   it("answers a corrected Georgia State follow-up without restarting intake", async () => {
     const result = await createRagChatCompletion({
-      message: "Gerogia state university",
+      message: "Georgia state university",
       conversationHistory: [
         { role: "user", content: "I need help with essays" },
         {
