@@ -42,7 +42,7 @@ function MiniBarChart({ values, labels }) {
 
 export default function StudentOverviewProduct() {
   const { user } = useAuth();
-  const { meetings, mentor, summaryCards, aiSuggestions, deadlines, applicationProgress } = useDashboardData();
+  const { meetings, mentor, events, summaryCards, aiSuggestions, deadlines, applicationProgress } = useDashboardData();
   const gamification = useGamification();
   const firstName = user?.name?.split(" ")[0] || "Jordan";
   const progress = applicationProgress || { collegeList: 72, essays: 68, extracurriculars: 55, scholarships: 40, profile: 78 };
@@ -79,7 +79,12 @@ export default function StudentOverviewProduct() {
 
       <div className="dash-product-split">
         <section className="dash-product-split__visual" aria-label="Admissions calendar">
-          <AdmissionsCalendarVisual deadlines={deadlines} meetings={meetings} />
+          <AdmissionsCalendarVisual
+            deadlines={deadlines}
+            meetings={meetings}
+            events={events}
+            mentorName={mentor?.name}
+          />
         </section>
 
         <section className="dash-product-split__cards" aria-label="Dashboard summary">
