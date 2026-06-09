@@ -14,8 +14,8 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { getPricingPlans } from "../lib/plans.js";
 import PricingCard from "./PricingCard.jsx";
 import { startBillingCheckout } from "../lib/auth.js";
-import { isAppRoute } from "../lib/appPaths.js";
 import { NAV_LINKS } from "../data/navLinks.js";
+import AppLink from "./AppLink.jsx";
 
 const mediaBase = import.meta.env.BASE_URL;
 const media = {
@@ -305,17 +305,11 @@ export function LowerFooter() {
             <nav className="lower-landing__footer-link-group" aria-label={t("sections.footer.discoverLabel")}>
               <h2 className="lower-landing__footer-heading">{t("sections.footer.discover")}</h2>
               <div className="lower-landing__footer-links">
-                {discoverLinks.map(({ label, href }) =>
-                  isAppRoute(href) ? (
-                    <Link key={label} to={href} className="lower-landing__footer-link">
-                      {label}
-                    </Link>
-                  ) : (
-                    <a key={label} href={href} className="lower-landing__footer-link">
-                      {label}
-                    </a>
-                  )
-                )}
+                {discoverLinks.map(({ label, href }) => (
+                  <AppLink key={label} href={href} className="lower-landing__footer-link">
+                    {label}
+                  </AppLink>
+                ))}
               </div>
             </nav>
 
