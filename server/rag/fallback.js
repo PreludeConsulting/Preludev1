@@ -1,3 +1,5 @@
+import { detectChatIntent, getIntentFallbackText, getMentorReferralDetails, hasRecentEssayContext } from "../../shared/chatIntentRouter.js";
+
 /** Verified site anchors — must match src/lib/preludeChatData.js and Navbar. */
 export const FALLBACK_LINKS = {
   plans: "#pricing",
@@ -106,58 +108,39 @@ function buildGuidancePayload(reason, text) {
   };
 }
 
-function mentorReferralDetails(message) {
-  if (/\b(essay|personal statement|common app)\b/i.test(message)) {
-    return {
-      reason: "essay_guidance",
-      label: "Get essay help from a mentor",
-      text:
-        "I can help you get started, but I should not write or fully review the essay for you. This is exactly where a real mentor can help better: choosing the strongest story, shaping the structure, and revising it with you while keeping it in your voice. Want me to match you with a mentor?"
-    };
-  }
-
-  if (/\b(major|life|future|career)\b/i.test(message)) {
-    return {
-      reason: "future_major_guidance",
-      label: "Talk to a student mentor",
-      text:
-        "I can give you a quick framework, but choosing a major or future path depends on your interests, strengths, values, classes, budget, and goals. A student mentor can talk through your real situation and help you compare options without pretending there is one perfect answer. Want me to match you with a mentor?"
-    };
-  }
-
-  if (/\b(extracurricular|activity|activities)\b/i.test(message)) {
-    return {
-      reason: "extracurricular_strategy",
-      label: "Talk to a student mentor",
-      text:
-        "I can share general extracurricular tips, but picking activities strategically should be based on your interests, time, school options, and application story. A mentor can help you choose a realistic plan and avoid doing activities just for appearances. Want me to match you with a mentor?"
-    };
-  }
-
-  return {
-    reason: "personalized_strategy",
-    label: "Match me with a mentor",
-    text:
-      "I can help you get started, but building a college list, application strategy, or personal plan needs details about your grades, activities, goals, budget, location, and preferences. This is exactly where a real mentor can help better by building a plan with you instead of giving a generic answer. Want me to match you with a mentor?"
-  };
-}
-
-function buildMentorReferralPayload(message) {
-  const details = mentorReferralDetails(message);
+function buildMentorReferralPayload(category) {
+  const details = getMentorReferralDetails(category);
   return {
     text: details.text,
     provider: "prelude",
     model: "mentor_referral",
+    type: "mentor_referral",
     responseType: "mentor_referral",
+    category: details.category,
     mentorReferralReason: details.reason,
+    ctaLabel: details.ctaLabel,
+    ctaTarget: details.ctaTarget,
     fallback: null,
     actions: [
       {
-        label: details.label,
-        href: FALLBACK_LINKS.mentorMatch,
+        label: details.ctaLabel,
+        href: details.ctaTarget,
         type: "internal"
       }
     ]
+  };
+}
+
+function buildIntentFallbackPayload(category) {
+  return {
+    text: getIntentFallbackText(category),
+    provider: "prelude",
+    model: "intent_fallback",
+    type: "intent_fallback",
+    responseType: "intent_fallback",
+    category,
+    fallback: null,
+    actions: []
   };
 }
 
@@ -171,7 +154,10 @@ function formatKnownContext(conversationState = {}) {
 }
 
 function hasEarlyIntentGuidance(message, intent, conversationState = {}) {
-  if (intent === "essays" || /\b(essays?|personal statement|common app|supplementals?|supplemental essays?)\b/i.test(message)) {
+  if (
+    (intent === "essays" || /\b(essays?|personal statement|common app|supplementals?|supplemental essays?)\b/i.test(message)) &&
+    !/\b(what is|how long|how many words|examples?|topic examples?|explain|define)\b/i.test(message)
+  ) {
     return buildGuidancePayload(
       "essay_help",
       "Absolutely — I can help with your Common App essay, supplementals, topic ideas, outlines, or editing. Are you starting from scratch or revising a draft?"
@@ -281,8 +267,12 @@ export function classifyPreLlmFallback({
     return null;
   }
 
-  if (PATTERNS.mentorReferral.test(message)) {
-    return buildMentorReferralPayload(message);
+  const routedIntent = detectChatIntent(message, { conversationHistory });
+  if (routedIntent.type === "mentor_referral") {
+    return buildMentorReferralPayload(routedIntent.category);
+  }
+  if (routedIntent.type === "fallback") {
+    return buildIntentFallbackPayload(routedIntent.category);
   }
 
   if (PATTERNS.fullEssayRewrite.test(message)) {
@@ -308,7 +298,8 @@ export function classifyPreLlmFallback({
   }
 
   if (isVagueRequest(message, historyLength)) {
-    return buildFallbackPayload("ambiguous_request", COPY.ambiguous_request);
+    const fallbackCategory = hasRecentEssayContext?.(conversationHistory, message) ? "essay_unclear" : "general_unclear";
+    return buildIntentFallbackPayload(fallbackCategory);
   }
 
   if (PATTERNS.outsideScope.test(message)) {

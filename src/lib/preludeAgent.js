@@ -1,3 +1,4 @@
+import { detectChatIntent, getIntentFallbackText, getMentorReferralDetails } from "../../shared/chatIntentRouter.js";
 import { mapFallbackActionsToQuickReplies } from "./chatFallbackActions.js";
 import { sanitizeClientActions } from "./chatLinkSecurity.js";
 import { getOpeningMessage, getQuickMenuItems, SYSTEM_PROMPT } from "./agentPrompt.js";
@@ -44,65 +45,32 @@ const MENU_MAP = {
   parent: "parent"
 };
 
-const MENTOR_REFERRAL_PATTERN =
-  /\b(?:help me|can you|could you|please|i need help)\b.{0,30}\b(?:write|make|create|draft|review|edit)\b.{0,80}\b(?:my )?(?:common app )?(?:essay|personal statement)\b|\b(?:write|make|create|draft|review|edit)\b.{0,50}\b(?:my )?(?:common app )?(?:essay|personal statement)\b|\bhelp me write my essay about\b|\b(?:help me )?(?:create|make|build)\b.{0,30}\b(?:plan for my future|future plan|life plan)\b|\bwhat should i do with my life\b|\b(?:build|create|make|help me build)\b.{0,40}\b(?:college list|school list)\b|\bwhat schools should i apply to\b|\b(?:tell me what major i should|what major should i|which major should i) (?:choose|pick)\b|\b(?:pick|choose) (?:a )?major for me\b|\b(?:make|create|build|help me with)\b.{0,40}\b(?:application strategy|admissions strategy|application plan)\b|\b(?:help me pick|pick|choose|what)\b.{0,40}\bextracurriculars?\b|\bextracurricular strategy\b/i;
-
-function mentorReferralDetails(userText) {
-  if (/\b(essay|personal statement|common app)\b/i.test(userText)) {
-    return {
-      category: "essay",
-      reason: "essay_guidance",
-      label: "Get essay help from a mentor",
-      text:
-        "I can help you get started, but I should not write or fully review the essay for you. This is exactly where a real mentor can help better: choosing the strongest story, shaping the structure, and revising it with you while keeping it in your voice. Want me to match you with a mentor?"
-    };
-  }
-
-  if (/\b(major|life|future|career)\b/i.test(userText)) {
-    return {
-      category: "major",
-      reason: "future_major_guidance",
-      label: "Talk to a student mentor",
-      text:
-        "I can give you a quick framework, but choosing a major or future path depends on your interests, strengths, values, classes, budget, and goals. A student mentor can talk through your real situation and help you compare options without pretending there is one perfect answer. Want me to match you with a mentor?"
-    };
-  }
-
-  if (/\b(extracurricular|activity|activities)\b/i.test(userText)) {
-    return {
-      category: "gettingStarted",
-      reason: "extracurricular_strategy",
-      label: "Talk to a student mentor",
-      text:
-        "I can share general extracurricular tips, but picking activities strategically should be based on your interests, time, school options, and application story. A mentor can help you choose a realistic plan and avoid doing activities just for appearances. Want me to match you with a mentor?"
-    };
-  }
-
-  return {
-    category: "collegeList",
-    reason: "personalized_strategy",
-    label: "Match me with a mentor",
-    text:
-      "I can help you get started, but building a college list, application strategy, or personal plan needs details about your grades, activities, goals, budget, location, and preferences. This is exactly where a real mentor can help better by building a plan with you instead of giving a generic answer. Want me to match you with a mentor?"
-  };
-}
-
-function buildMentorReferralReply(userText) {
-  if (!MENTOR_REFERRAL_PATTERN.test(userText)) return null;
-
-  const details = mentorReferralDetails(userText);
+function buildMentorReferralReply(category) {
+  const details = getMentorReferralDetails(category);
   return {
     category: details.category,
     text: details.text,
+    type: "mentor_referral",
     responseType: "mentor_referral",
     mentorReferralReason: details.reason,
+    ctaLabel: details.ctaLabel,
+    ctaTarget: details.ctaTarget,
     actions: [
       {
-        label: details.label,
-        href: "#preludematch",
+        label: details.ctaLabel,
+        href: details.ctaTarget,
         type: "internal"
       }
     ]
+  };
+}
+
+function buildIntentFallbackReply(category) {
+  return {
+    category,
+    text: getIntentFallbackText(category),
+    type: "intent_fallback",
+    responseType: "intent_fallback"
   };
 }
 
@@ -373,9 +341,15 @@ export function createInitialMessages(profile = null) {
 /** Rule-based replies — answer-first using agentKnowledgeBase; LLM uses AGENT.md + AGENT_KNOWLEDGE.md via /api/chat. */
 export function getRuleBasedReply(userText, history = [], profile = null) {
   const flowReply = buildEssayDraftStatusReply(userText, history);
-  const mentorReferral = flowReply ? null : buildMentorReferralReply(userText);
-  const category = flowReply?.category ?? mentorReferral?.category ?? classify(userText);
-  const payload = flowReply ?? mentorReferral ?? buildResponse(category, userText);
+  const routedIntent = flowReply ? { type: "normal" } : detectChatIntent(userText, { conversationHistory: history });
+  const routedReply =
+    routedIntent.type === "mentor_referral"
+      ? buildMentorReferralReply(routedIntent.category)
+      : routedIntent.type === "fallback"
+        ? buildIntentFallbackReply(routedIntent.category)
+        : null;
+  const category = flowReply?.category ?? routedReply?.category ?? classify(userText);
+  const payload = flowReply ?? routedReply ?? buildResponse(category, userText);
 
   return personalizeRuleBasedReply(
     {
@@ -444,8 +418,11 @@ async function getLLMReply(userText, history, profile = null) {
       sources: Array.isArray(data.sources) ? data.sources : [],
       actions: actions.length ? actions : undefined,
       fallback: data.fallback ?? null,
-      responseType: data.responseType ?? null,
+      type: data.type ?? data.responseType ?? null,
+      responseType: data.responseType ?? data.type ?? null,
       mentorReferralReason: data.mentorReferralReason ?? null,
+      ctaLabel: data.ctaLabel ?? null,
+      ctaTarget: data.ctaTarget ?? null,
       quickReplies: fallbackQuickReplies.length ? fallbackQuickReplies : undefined
     },
     profile

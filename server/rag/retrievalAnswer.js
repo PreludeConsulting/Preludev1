@@ -2,6 +2,7 @@
  * Compose substantive answers from retrieved records when the LLM returns a stub.
  */
 
+import { detectChatIntent, getIntentFallbackText } from "../../shared/chatIntentRouter.js";
 import { normalizeMajorTerm } from "../datasets/majorSynonyms.js";
 
 const STUB_ACKNOWLEDGEMENTS =
@@ -246,5 +247,13 @@ export function buildMandatoryFallbackAnswer(message, conversationState = {}) {
     return "Which two colleges would you like me to compare? Use school names or common abbreviations such as UCLA or GT.";
   }
 
-  return "I want to give you a useful answer rather than a vague reply. Tell me your state, intended major, and whether cost or program strength matters more, and I will help you narrow the next step.";
+  const routedIntent = detectChatIntent(message, {
+    conversationHistory: conversationState.recentMessages ?? []
+  });
+
+  if (routedIntent.type === "fallback") {
+    return getIntentFallbackText(routedIntent.category);
+  }
+
+  return getIntentFallbackText("general_unclear");
 }

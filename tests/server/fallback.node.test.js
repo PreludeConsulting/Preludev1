@@ -61,18 +61,34 @@ describe("fallback classification", () => {
   });
 
 
+  it("returns essay mentor_referral with mentor-plan CTA metadata", () => {
+    const fallback = classifyPreLlmFallback({
+      message: "help me with essays",
+      conversationHistory: [],
+      retrieval: { blocks: [], sources: [] },
+      intent: classifyIntent("help me with essays").intent
+    });
+
+    assert.ok(fallback);
+    assert.equal(fallback.type, "mentor_referral");
+    assert.equal(fallback.responseType, "mentor_referral");
+    assert.equal(fallback.category, "essay");
+    assert.equal(fallback.ctaLabel, "View mentor plans");
+    assert.equal(fallback.ctaTarget, "#pricing");
+    assert.match(fallback.text, /Essay support|mentor plans/i);
+    assert.ok(fallback.actions.some((item) => item.label === "View mentor plans" && item.href === "#pricing"));
+  });
+
   it("returns mentor_referral for personalized strategy-heavy requests", () => {
     for (const message of [
       "Help me write my essay about moving schools",
       "Can you make my Common App essay?",
       "Help me create a plan for my future",
       "What should I do with my life?",
-      "Build my college list",
       "Tell me what major I should choose",
       "Make my application strategy",
       "Can you review my essay?",
-      "Help me pick extracurriculars",
-      "What schools should I apply to?"
+      "Help me pick extracurriculars"
     ]) {
       const fallback = classifyPreLlmFallback({
         message,
@@ -85,20 +101,45 @@ describe("fallback classification", () => {
       assert.equal(fallback.responseType, "mentor_referral");
       assert.equal(fallback.model, "mentor_referral");
       assert.match(fallback.text, /mentor/i);
-      assert.ok(fallback.actions.some((item) => item.href === "#preludematch"));
     }
   });
 
-  it("does not mentor-refer simple process explanation questions", () => {
-    const message = "What is the difference between Early Action and Early Decision?";
-    const fallback = classifyPreLlmFallback({
-      message,
-      conversationHistory: [],
-      retrieval: { blocks: [], sources: [] },
-      intent: classifyIntent(message).intent
-    });
+  it("routes unclear, college-list, and financial-aid fallback messages by intent", () => {
+    const cases = [
+      ["asdf", "general_unclear", /didn’t fully understand/i],
+      ["what colleges should I apply to", "college_list", /state, intended major/i],
+      ["I need scholarships", "financial_aid", /scholarships|FAFSA|college costs/i]
+    ];
 
-    assert.equal(fallback, null);
+    for (const [message, category, pattern] of cases) {
+      const fallback = classifyPreLlmFallback({
+        message,
+        conversationHistory: [],
+        retrieval: { blocks: [], sources: [] },
+        intent: classifyIntent(message).intent
+      });
+
+      assert.ok(fallback, message);
+      assert.equal(fallback.responseType, "intent_fallback");
+      assert.equal(fallback.category, category);
+      assert.match(fallback.text, pattern);
+    }
+  });
+
+  it("does not mentor-refer simple essay or process explanation questions", () => {
+    for (const message of [
+      "what is the common app essay",
+      "What is the difference between Early Action and Early Decision?"
+    ]) {
+      const fallback = classifyPreLlmFallback({
+        message,
+        conversationHistory: [],
+        retrieval: { blocks: [], sources: [] },
+        intent: classifyIntent(message).intent
+      });
+
+      assert.equal(fallback, null);
+    }
   });
   it("does not fallback for normal Early Action vs Early Decision questions", () => {
     const message = "What is the difference between Early Action and Early Decision?";

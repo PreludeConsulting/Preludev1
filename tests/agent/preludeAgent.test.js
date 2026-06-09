@@ -94,32 +94,63 @@ describe("Prelude AI local essay flow", () => {
   });
 });
 
-describe("Prelude AI mentor referral flow", () => {
+describe("Prelude AI intent routing", () => {
+  it("routes essay help to a mentor referral with mentor-plan CTA metadata", () => {
+    const reply = getRuleBasedReply("help me with essays", []);
+
+    expect(reply.responseType).toBe("mentor_referral");
+    expect(reply.category).toBe("essay");
+    expect(reply.ctaLabel).toBe("View mentor plans");
+    expect(reply.ctaTarget).toBe("#pricing");
+    expect(reply.text).toMatch(/Essay support|Prelude mentor|mentor plans/i);
+    expect(reply.actions?.[0]).toMatchObject({ label: "View mentor plans", href: "#pricing" });
+  });
+
   it.each([
     "Help me write my essay about moving schools",
     "Can you make my Common App essay?",
     "Help me create a plan for my future",
     "What should I do with my life?",
-    "Build my college list",
     "Tell me what major I should choose",
     "Make my application strategy",
     "Can you review my essay?",
-    "Help me pick extracurriculars",
-    "What schools should I apply to?"
+    "Help me pick extracurriculars"
   ])("refers personalized request to a mentor: %s", (userMessage) => {
     const reply = getRuleBasedReply(userMessage, []);
 
     expect(reply.responseType).toBe("mentor_referral");
     expect(reply.text).toMatch(/mentor/i);
-    expect(reply.text).not.toMatch(/650-word essay|complete strategy|full college list/i);
-    expect(reply.actions?.[0]).toMatchObject({ href: "#preludematch" });
   });
 
-  it("keeps simple explanation questions in normal AI help", () => {
-    const reply = getRuleBasedReply("How long should my Common App personal statement be?", []);
+  it("keeps simple essay explanation questions in normal AI help", () => {
+    const reply = getRuleBasedReply("what is the common app essay", []);
 
     expect(reply.responseType).not.toBe("mentor_referral");
-    expect(reply.text).toMatch(/650|word|personal statement/i);
+    expect(reply.text).toMatch(/personal statement|common app/i);
     expect(reply.actions).toBeUndefined();
+  });
+
+  it("uses the general unclear fallback for unrecognized messages", () => {
+    const reply = getRuleBasedReply("asdf", []);
+
+    expect(reply.responseType).toBe("intent_fallback");
+    expect(reply.category).toBe("general_unclear");
+    expect(reply.text).toMatch(/didn’t fully understand/i);
+  });
+
+  it("uses the college-list fallback only for college selection requests", () => {
+    const reply = getRuleBasedReply("what colleges should I apply to", []);
+
+    expect(reply.responseType).toBe("intent_fallback");
+    expect(reply.category).toBe("college_list");
+    expect(reply.text).toMatch(/state, intended major.*cost or program strength/i);
+  });
+
+  it("uses the financial-aid fallback for money questions", () => {
+    const reply = getRuleBasedReply("I need scholarships", []);
+
+    expect(reply.responseType).toBe("intent_fallback");
+    expect(reply.category).toBe("financial_aid");
+    expect(reply.text).toMatch(/scholarships|FAFSA|college costs/i);
   });
 });
