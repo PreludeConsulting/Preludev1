@@ -56,8 +56,8 @@ http://localhost:5173/Preludev1/
 Authentication → **URL Configuration → Redirect URLs** (add each):
 
 ```
-http://localhost:5173/Preludev1/auth/login
-http://localhost:5173/Preludev1/auth/reset-password
+http://localhost:5173/Preludev1/login
+http://localhost:5173/Preludev1/reset-password
 ```
 
 **Production later:** after deploying, also add your live origin, e.g.

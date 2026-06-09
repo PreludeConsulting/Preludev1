@@ -4,6 +4,9 @@ const DB_UNAVAILABLE_UI =
   "The local development database is unavailable. Start the database and try again.";
 
 function sanitizeClientErrorMessage(payload, fallback) {
+  if (payload?.error === "validation_error" && Array.isArray(payload.issues) && payload.issues.length) {
+    return payload.issues.map((issue) => issue.message).filter(Boolean).join(" ") || "Please check your entries and try again.";
+  }
   if (payload?.error === "database_unavailable") return payload.message || DB_UNAVAILABLE_UI;
   const raw = payload?.message || fallback || "Request failed.";
   if (import.meta.env.PROD && /prisma|Can't reach database server/i.test(raw)) {

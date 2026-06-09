@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { supabase } from "../lib/supabase.js";
+import { getSupabase } from "../lib/supabase.js";
 
 export default function SupabaseProtectedRoute({ children, redirectTo = "/auth/login" }) {
   const [status, setStatus] = useState("loading"); // "loading" | "authed" | "guest"
@@ -22,7 +22,7 @@ export default function SupabaseProtectedRoute({ children, redirectTo = "/auth/l
   useEffect(() => {
     let active = true;
 
-    supabase.auth
+    getSupabase().auth
       .getSession()
       .then(({ data }) => {
         if (!active) return;
@@ -34,7 +34,7 @@ export default function SupabaseProtectedRoute({ children, redirectTo = "/auth/l
 
     const {
       data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = getSupabase().auth.onAuthStateChange((_event, session) => {
       if (!active) return;
       setStatus(session ? "authed" : "guest");
     });

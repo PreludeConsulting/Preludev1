@@ -1,41 +1,41 @@
 /**
- * Supabase browser client.
- *
- * This is part of an OPTIONAL, parallel Supabase auth stack that lives under
- * the `/auth/*` routes. It is intentionally isolated from the existing
- * Prisma/JWT auth system (src/lib/auth.js + /api/auth/*), which still powers
- * the current dashboard. Nothing here runs unless a `/auth/*` route is opened,
- * because every importer of this module is lazy-loaded.
- *
- * Only PUBLIC client credentials belong here:
- *   - VITE_SUPABASE_URL            (your project URL)
- *   - VITE_SUPABASE_PUBLISHABLE_KEY (publishable / anon key)
- *
- * NEVER put a service_role key, secret key, SMTP password, or any other
- * private credential in frontend code.
+ * Supabase browser client (public credentials only).
+ * Use getSupabase() after checking isSupabaseConfigured().
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { isSupabaseConfigured } from "./supabaseConfig.js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+let client = null;
 
-if (!supabaseUrl || !supabasePublishableKey) {
-  throw new Error(
-    [
-      "Supabase is not configured.",
-      "Add the following to your .env.local and restart `npm run dev`:",
-      "  VITE_SUPABASE_URL=<your project URL>",
-      "  VITE_SUPABASE_PUBLISHABLE_KEY=<your publishable/anon key>",
-      "See SUPABASE_AUTH_SETUP.md for where to find these values."
-    ].join("\n")
-  );
+export function getSupabase() {
+  if (!isSupabaseConfigured()) {
+    throw new Error(
+      [
+        "Supabase is not configured.",
+        "Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to .env.local, then restart npm run dev.",
+        "See SUPABASE_AUTH_MANUAL_SETUP.md."
+      ].join("\n")
+    );
+  }
+  if (!client) {
+    client = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
+  }
+  return client;
 }
 
-export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true
+/** @deprecated Prefer getSupabase() — kept for modules that already import `supabase`. */
+export const supabase = new Proxy(
+  {},
+  {
+    get(_target, prop) {
+      return getSupabase()[prop];
+    }
   }
-});
+);

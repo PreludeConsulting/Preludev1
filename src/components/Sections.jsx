@@ -163,7 +163,7 @@ export function LowerBenefits() {
 }
 
 export function LowerPlans() {
-  const { isAuthenticated, openSignIn } = useAuth();
+  const { isAuthenticated, openRegister } = useAuth();
   const { t } = useLanguage();
   const [billingNotice, setBillingNotice] = useState("");
   const [loadingPlan, setLoadingPlan] = useState(null);
@@ -187,14 +187,14 @@ export function LowerPlans() {
         window.location.hash = "dashboard";
       } else {
         setBillingNotice(t("sections.plans.notices.basicFree"));
-        openSignIn();
+        openRegister();
       }
       return;
     }
 
     if (!isAuthenticated) {
       setBillingNotice(t("sections.plans.notices.signInFirst"));
-      openSignIn();
+      openRegister();
       return;
     }
 

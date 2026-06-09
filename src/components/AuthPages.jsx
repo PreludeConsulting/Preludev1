@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
 import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
 import { startGoogleSignIn } from "../lib/googleAuth.js";
+import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 import DemoAccountsPanel from "./DemoAccountsPanel.jsx";
@@ -38,6 +39,7 @@ function Alert({ children, tone = "info" }) {
 export function LoginPage() {
   const navigate = useNavigate();
   const { signIn } = useAuth();
+  const supabaseAuth = isSupabaseConfigured();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -82,8 +84,11 @@ export function LoginPage() {
   }
 
   return (
-    <Shell title="Log in" subtitle="Secure access uses HTTP-only cookies, CSRF protection, and server-side role checks.">
-      <DemoAccountsPanel onDemoLogin={onDemoLogin} loading={loading} />
+    <Shell
+      title="Log in"
+      subtitle={supabaseAuth ? "Sign in to your Prelude account." : "Secure access uses HTTP-only cookies, CSRF protection, and server-side role checks."}
+    >
+      {!supabaseAuth ? <DemoAccountsPanel onDemoLogin={onDemoLogin} loading={loading} /> : null}
       <GoogleSignInButton onClick={onGoogle} disabled={loading} />
       <p className="dash-auth-divider">or continue with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
@@ -103,6 +108,7 @@ export function LoginPage() {
 export function RegisterPage() {
   const navigate = useNavigate();
   const { signUp } = useAuth();
+  const supabaseAuth = isSupabaseConfigured();
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", role: "STUDENT", termsAccepted: false });
 
   async function onGoogle() {
@@ -129,12 +135,20 @@ export function RegisterPage() {
     setError("");
     setMessage("");
     try {
-      const user = await signUp(form);
-      if (user?.emailVerified) {
-        navigate(dashboardHomeForRole(user.role), { replace: true });
+      const result = await signUp(form);
+      if (result?.needsEmailConfirmation) {
+        setMessage("Account created! Check your email and confirm your address, then log in.");
         return;
       }
-      setMessage("Account created. Check your email for the verification link. In local development, the link appears in the server console.");
+      if (result?.emailVerified) {
+        navigate(dashboardHomeForRole(result.role), { replace: true });
+        return;
+      }
+      setMessage(
+        supabaseAuth
+          ? "Account created! You can now log in."
+          : "Account created. Check your email for the verification link. In local development, the link appears in the server console."
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -154,7 +168,14 @@ export function RegisterPage() {
           <Field label="Last name" value={form.lastName} onChange={update("lastName")} required />
         </div>
         <Field label="Email" type="email" value={form.email} onChange={update("email")} required />
-        <Field label="Password" type="password" value={form.password} onChange={update("password")} required minLength={12} />
+        <Field label="Password" type="password" value={form.password} onChange={update("password")} required minLength={supabaseAuth ? 6 : 12} />
+        {!supabaseAuth ? (
+          <p className="text-xs text-muted-foreground">
+            At least 12 characters with uppercase, lowercase, a number, and a symbol.
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground">At least 6 characters.</p>
+        )}
         <label className="block text-sm font-medium">I am a
           <select className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3" value={form.role} onChange={update("role")}>
             <option value="STUDENT">Student</option>
@@ -163,45 +184,152 @@ export function RegisterPage() {
         </label>
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
         <button disabled={loading} className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>
+        <p className="text-sm text-muted-foreground">
+          Already have an account? <AppLink className="underline" href="/login">Log in</AppLink>
+        </p>
       </form>
     </Shell>
   );
 }
 
 export function ForgotPasswordPage() {
+  const supabaseAuth = isSupabaseConfigured();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
   async function onSubmit(event) {
     event.preventDefault();
+    setLoading(true);
+    setError("");
+    setMessage("");
     try {
+      if (supabaseAuth) {
+        const { resetPassword: supabaseReset } = await import("../lib/supabaseAuth.js");
+        const { error: resetError } = await supabaseReset(email.trim());
+        if (resetError) throw new Error(resetError);
+        setMessage("If an account exists for that email, a password reset link is on its way.");
+        return;
+      }
       const result = await requestPasswordReset(email);
       setMessage(result.message);
-      setError("");
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }
-  return <Shell title="Reset password" subtitle="Reset links are one-time use and expire quickly."><form className="space-y-5" onSubmit={onSubmit}>{error ? <Alert tone="error">{error}</Alert> : null}{message ? <Alert>{message}</Alert> : null}<Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /><button className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground">Send reset link</button></form></Shell>;
+
+  return (
+    <Shell title="Reset password" subtitle="We'll email you a link to choose a new password.">
+      <form className="space-y-5" onSubmit={onSubmit}>
+        {error ? <Alert tone="error">{error}</Alert> : null}
+        {message ? <Alert>{message}</Alert> : null}
+        <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <button disabled={loading} className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
+          {loading ? "Sending…" : "Send reset link"}
+        </button>
+        <p className="text-sm text-muted-foreground">
+          <AppLink className="underline" href="/login">Back to login</AppLink>
+        </p>
+      </form>
+    </Shell>
+  );
 }
 
 export function ResetPasswordPage() {
+  const navigate = useNavigate();
+  const supabaseAuth = isSupabaseConfigured();
   const params = new URLSearchParams(window.location.search);
   const [token, setToken] = useState(params.get("token") || "");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [hasRecoverySession, setHasRecoverySession] = useState(false);
+
+  useEffect(() => {
+    if (!supabaseAuth) return undefined;
+    let active = true;
+    let unsubscribe = () => {};
+
+    import("../lib/supabaseAuth.js").then(({ getCurrentSession, onAuthStateChange }) => {
+      getCurrentSession().then(({ session }) => {
+        if (active) setHasRecoverySession(Boolean(session));
+      });
+      const { data } = onAuthStateChange((_event, session) => {
+        if (active) setHasRecoverySession(Boolean(session));
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [supabaseAuth]);
+
   async function onSubmit(event) {
     event.preventDefault();
+    setError("");
+    setMessage("");
+    setLoading(true);
     try {
+      if (supabaseAuth) {
+        if (password !== confirmPassword) {
+          throw new Error("Passwords don't match.");
+        }
+        const { updatePassword: supabaseUpdate } = await import("../lib/supabaseAuth.js");
+        const { error: updateError } = await supabaseUpdate(password);
+        if (updateError) throw new Error(updateError);
+        setMessage("Your password has been updated. Redirecting to login…");
+        setTimeout(() => navigate("/login", { replace: true }), 1800);
+        return;
+      }
       const result = await resetPassword(token, password);
       setMessage(result.message);
-      setError("");
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }
-  return <Shell title="Choose a new password" subtitle="All existing sessions are revoked after reset."><form className="space-y-5" onSubmit={onSubmit}>{error ? <Alert tone="error">{error}</Alert> : null}{message ? <Alert>{message}</Alert> : null}<Field label="Reset token" value={token} onChange={(e) => setToken(e.target.value)} required /><Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={12} /><button className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground">Reset password</button></form></Shell>;
+
+  if (supabaseAuth) {
+    return (
+      <Shell title="Choose a new password" subtitle="Enter a new password for your account.">
+        <form className="space-y-5" onSubmit={onSubmit}>
+          {error ? <Alert tone="error">{error}</Alert> : null}
+          {message ? <Alert>{message}</Alert> : null}
+          {!hasRecoverySession && !message ? (
+            <Alert>
+              Open this page from the reset link in your email, or request a new link on the{" "}
+              <AppLink className="underline" href="/forgot-password">forgot password</AppLink> page.
+            </Alert>
+          ) : null}
+          <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+          <Field label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} />
+          <button disabled={loading} className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
+            {loading ? "Updating…" : "Update password"}
+          </button>
+        </form>
+      </Shell>
+    );
+  }
+
+  return (
+    <Shell title="Choose a new password" subtitle="All existing sessions are revoked after reset.">
+      <form className="space-y-5" onSubmit={onSubmit}>
+        {error ? <Alert tone="error">{error}</Alert> : null}
+        {message ? <Alert>{message}</Alert> : null}
+        <Field label="Reset token" value={token} onChange={(e) => setToken(e.target.value)} required />
+        <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={12} />
+        <button disabled={loading} className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">Reset password</button>
+      </form>
+    </Shell>
+  );
 }
 
 export function VerifyEmailPage() {

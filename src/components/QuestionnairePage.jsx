@@ -41,7 +41,7 @@ function answersFromSubmission(questionnaire) {
 }
 
 export default function QuestionnairePage() {
-  const { isAuthenticated, openSignIn, ready } = useAuth();
+  const { isAuthenticated, openRegister, ready } = useAuth();
   const [answers, setAnswers] = useState({});
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -69,8 +69,8 @@ export default function QuestionnairePage() {
     setStatus("");
 
     if (!isAuthenticated) {
-      setError("Please sign in before saving your PreludeMatch Questionnaire so we can attach it to your user account.");
-      openSignIn();
+      setError("Please create or sign into an account before saving your PreludeMatch Questionnaire so we can attach it to your user account.");
+      openRegister();
       return;
     }
 
