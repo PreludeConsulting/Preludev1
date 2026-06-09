@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Video, X } from "lucide-react";
+import { cn } from "../../lib/utils.js";
 import { EVENT_CATEGORY_LABELS } from "../data/placeholders.js";
 import { IconButton, Modal, PrimaryButton, SecondaryButton } from "./ui/index.jsx";
 
@@ -13,6 +14,11 @@ const CATEGORIES = [
   { value: "mentor_private", label: "Mentor-Only Private Event" }
 ];
 
+function joinMeetingLabel(meetingType) {
+  if (meetingType === "google_meet") return "Join Google Meet";
+  return "Join Zoom";
+}
+
 export function CalendarEventDetailModal({ event, role, mentorName, studentName, students = [], onClose, onEdit, onDelete }) {
   if (!event) return null;
 
@@ -20,11 +26,14 @@ export function CalendarEventDetailModal({ event, role, mentorName, studentName,
   const end = event.end ? new Date(event.end) : start;
   const isMeeting = event.extendedProps?.meeting || event.category === "mentor_meeting";
   const meeting = event.extendedProps?.meeting;
-  const zoomJoin = event.extendedProps?.zoomJoinUrl || meeting?.zoomJoinUrl;
+  const meetingType = event.extendedProps?.meetingType || meeting?.meetingType;
+  const joinUrl = event.extendedProps?.zoomJoinUrl || meeting?.zoomJoinUrl;
   const zoomHost = meeting?.zoomHostUrl;
   const isPrivate = event.extendedProps?.mentorOnly || event.category === "mentor_private";
-  const canEdit = role === "mentor" || !isPrivate;
-  const canDelete = role === "mentor" || (event.category === "personal_task" && role === "student");
+  const manageable = event.extendedProps?.manageable;
+  const canEdit = manageable ?? (role === "mentor" || !isPrivate);
+  const canDelete = manageable ?? (role === "mentor" || (event.category === "personal_task" && role === "student"));
+  const showJoin = Boolean(joinUrl && meetingType !== "in_person");
 
   return (
     <Modal
@@ -32,20 +41,26 @@ export function CalendarEventDetailModal({ event, role, mentorName, studentName,
       onClose={onClose}
       title={event.title}
       footer={
-        <>
-          {zoomJoin && event.extendedProps?.meetingType !== "in_person" ? (
-            <a href={zoomJoin} target="_blank" rel="noopener noreferrer" className="dash-btn dash-btn--primary">
-              <Video className="h-4 w-4" /> Join Zoom Meeting
+        <div className="dash-modal__footer-actions">
+          {showJoin ? (
+            <a
+              href={joinUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dash-btn dash-btn--primary dash-modal__join-btn"
+            >
+              <Video className="h-4 w-4" aria-hidden="true" />
+              <span>{joinMeetingLabel(meetingType)}</span>
             </a>
           ) : null}
-          {canEdit ? <SecondaryButton type="button" onClick={() => onEdit?.(event)}>Edit</SecondaryButton> : null}
-          {canDelete ? (
-            <button type="button" className="dash-btn dash-btn--danger" onClick={() => onDelete?.(event)}>
+          {canEdit && onEdit ? <SecondaryButton type="button" onClick={() => onEdit(event)}>Edit</SecondaryButton> : null}
+          {canDelete && onDelete ? (
+            <button type="button" className="dash-btn dash-btn--danger" onClick={() => onDelete(event)}>
               Delete
             </button>
           ) : null}
           <SecondaryButton type="button" onClick={onClose}>Close</SecondaryButton>
-        </>
+        </div>
       }
     >
       <dl className="dash-detail-list dash-detail-list--grid">
@@ -62,7 +77,12 @@ export function CalendarEventDetailModal({ event, role, mentorName, studentName,
         {event.extendedProps?.description ? <div><dt>Description</dt><dd>{event.extendedProps.description}</dd></div> : null}
         {studentName ? <div><dt>Student</dt><dd>{studentName}</dd></div> : null}
         {mentorName ? <div><dt>Mentor</dt><dd>{mentorName}</dd></div> : null}
-        {isMeeting ? <div><dt>Meeting type</dt><dd>{meeting?.meetingType || "zoom"}</dd></div> : null}
+        {isMeeting || meetingType ? (
+          <div>
+            <dt>Meeting type</dt>
+            <dd>{meetingType === "google_meet" ? "Google Meet" : meetingType === "zoom" ? "Zoom" : meetingType || "—"}</dd>
+          </div>
+        ) : null}
         {role === "mentor" && zoomHost ? (
           <div>
             <dt>Host link</dt>
@@ -74,29 +94,85 @@ export function CalendarEventDetailModal({ event, role, mentorName, studentName,
   );
 }
 
-export function CalendarAddEventModal({ open, onClose, role, students = [], onSave }) {
-  const [form, setForm] = useState({
-    title: "",
-    category: "personal_task",
-    date: "",
-    startTime: "",
-    endTime: "",
-    description: "",
-    meetingType: "zoom",
-    studentId: "",
-    shared: true,
-    zoom: true
-  });
+const DEFAULT_FORM = {
+  title: "",
+  category: "personal_task",
+  date: "",
+  startTime: "",
+  endTime: "",
+  description: "",
+  meetingType: "zoom",
+  studentId: "",
+  shared: true,
+  zoom: true
+};
+
+function toDateInputValue(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function toTimeInputValue(date) {
+  return date.toTimeString().slice(0, 5);
+}
+
+function buildFormFromEvent(initialEvent, initialCategory) {
+  const start = new Date(initialEvent.start);
+  const end = new Date(initialEvent.end || initialEvent.start);
+
+  return {
+    ...DEFAULT_FORM,
+    title: initialEvent.title || "",
+    category: initialEvent.category || initialCategory,
+    date: toDateInputValue(start),
+    startTime: toTimeInputValue(start),
+    endTime: toTimeInputValue(end),
+    description: initialEvent.description || "",
+    meetingType: initialEvent.meetingType || "zoom"
+  };
+}
+
+export function CalendarAddEventModal({
+  open,
+  onClose,
+  role,
+  students = [],
+  onSave,
+  initialCategory = "personal_task",
+  initialEvent = null,
+  modalTitle = "Add event",
+  formVariant = "full",
+  submitLabel
+}) {
+  const [form, setForm] = useState({ ...DEFAULT_FORM, category: initialCategory });
   const [errors, setErrors] = useState({});
+  const isEventForm = formVariant === "event";
+  const isTaskForm = formVariant === "task";
+  const isSimplifiedForm = isEventForm || isTaskForm;
+  useEffect(() => {
+    if (!open) return;
+    if (initialEvent) {
+      setForm(buildFormFromEvent(initialEvent, initialCategory));
+    } else {
+      setForm({ ...DEFAULT_FORM, category: initialCategory });
+    }
+    setErrors({});
+  }, [open, initialCategory, initialEvent]);
 
   function validate() {
     const next = {};
     if (!form.title.trim()) next.title = "Title is required.";
     if (!form.date) next.date = "Date is required.";
-    if (!form.startTime) next.startTime = "Start time is required.";
-    if (!form.endTime) next.endTime = "End time is required.";
-    if (form.startTime && form.endTime && form.endTime <= form.startTime) next.endTime = "End must be after start.";
-    if (role === "mentor" && form.category === "mentor_meeting" && !form.studentId) next.studentId = "Select a student.";
+    if (!isTaskForm) {
+      if (!form.startTime) next.startTime = "Start time is required.";
+      if (!form.endTime) next.endTime = "End time is required.";
+      if (form.startTime && form.endTime && form.endTime <= form.startTime) next.endTime = "End must be after start.";
+    }
+    if (role === "mentor" && !isSimplifiedForm && form.category === "mentor_meeting" && !form.studentId) {
+      next.studentId = "Select a student.";
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -104,10 +180,25 @@ export function CalendarAddEventModal({ open, onClose, role, students = [], onSa
   function handleSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
-    const start = new Date(`${form.date}T${form.startTime}`);
-    const end = new Date(`${form.date}T${form.endTime}`);
+
+    const start = isTaskForm
+      ? new Date(`${form.date}T09:00:00`)
+      : new Date(`${form.date}T${form.startTime}`);
+    const end = isTaskForm
+      ? new Date(`${form.date}T09:00:00`)
+      : new Date(`${form.date}T${form.endTime}`);
+
+    const meetingType = isEventForm ? form.meetingType : form.zoom ? "zoom" : "in_person";
+    const zoomJoinUrl = isEventForm && form.meetingType === "zoom"
+      ? "https://zoom.us/j/placeholder-new"
+      : isEventForm && form.meetingType === "google_meet"
+        ? "https://meet.google.com/placeholder-new"
+        : !isSimplifiedForm && form.zoom && form.category === "mentor_meeting"
+          ? "https://zoom.us/j/placeholder-new"
+          : initialEvent?.zoomJoinUrl;
+
     onSave?.({
-      id: `evt-${Date.now()}`,
+      id: initialEvent?.id || `evt-${Date.now()}`,
       title: form.title.trim(),
       category: form.category,
       start: start.toISOString(),
@@ -116,59 +207,73 @@ export function CalendarAddEventModal({ open, onClose, role, students = [], onSa
       studentId: form.studentId || undefined,
       shared: form.shared,
       mentorOnly: !form.shared && role === "mentor",
-      meetingType: form.zoom ? "zoom" : "in_person",
-      zoomJoinUrl: form.zoom && form.category === "mentor_meeting" ? "https://zoom.us/j/placeholder-new" : undefined
+      meetingType,
+      zoomJoinUrl
     });
     onClose();
-    setForm({ title: "", category: "personal_task", date: "", startTime: "", endTime: "", description: "", meetingType: "zoom", studentId: "", shared: true, zoom: true });
+    setForm({ ...DEFAULT_FORM, category: initialCategory });
     setErrors({});
   }
 
   if (!open) return null;
 
+  const titleLabel = isTaskForm ? "Task title" : "Event title";
+  const resolvedSubmitLabel = submitLabel ?? (isTaskForm ? "Save task" : "Save event");
+
   return (
     <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
       <div className="dash-modal dash-modal--wide" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div className="dash-modal__head">
-          <h2 className="dash-modal__title">Add event</h2>
+          <h2 className="dash-modal__title">{modalTitle}</h2>
           <IconButton label="Close" onClick={onClose}><X className="h-4 w-4" /></IconButton>
         </div>
-        <form className="dash-modal__body dash-event-form" onSubmit={handleSubmit}>
+        <form
+          className={cn(
+            "dash-modal__body dash-event-form",
+            isTaskForm && "dash-event-form--task",
+            isEventForm && "dash-event-form--event"
+          )}
+          onSubmit={handleSubmit}
+        >
           <label className="prelude-field">
-            <span>Event title</span>
+            <span>{titleLabel}</span>
             <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
             {errors.title ? <em className="dash-field-error">{errors.title}</em> : null}
           </label>
-          <label className="prelude-field">
-            <span>Category</span>
-            <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
-              {CATEGORIES.filter((c) => role === "mentor" || c.value !== "mentor_private").map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          </label>
+          {!isSimplifiedForm ? (
+            <label className="prelude-field">
+              <span>Category</span>
+              <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
+                {CATEGORIES.filter((c) => role === "mentor" || c.value !== "mentor_private").map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <label className="prelude-field">
             <span>Date</span>
             <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
             {errors.date ? <em className="dash-field-error">{errors.date}</em> : null}
           </label>
-          <div className="dash-event-form__row">
-            <label className="prelude-field">
-              <span>Start time</span>
-              <input type="time" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
-              {errors.startTime ? <em className="dash-field-error">{errors.startTime}</em> : null}
-            </label>
-            <label className="prelude-field">
-              <span>End time</span>
-              <input type="time" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
-              {errors.endTime ? <em className="dash-field-error">{errors.endTime}</em> : null}
-            </label>
-          </div>
-          <label className="prelude-field dash-form-full">
+          {!isTaskForm ? (
+            <div className="dash-event-form__row">
+              <label className="prelude-field">
+                <span>Start time</span>
+                <input type="time" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
+                {errors.startTime ? <em className="dash-field-error">{errors.startTime}</em> : null}
+              </label>
+              <label className="prelude-field">
+                <span>End time</span>
+                <input type="time" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
+                {errors.endTime ? <em className="dash-field-error">{errors.endTime}</em> : null}
+              </label>
+            </div>
+          ) : null}
+          <label className="prelude-field dash-form-full dash-event-form__description">
             <span>Description</span>
             <textarea rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </label>
-          {role === "mentor" ? (
+          {role === "mentor" && !isSimplifiedForm ? (
             <>
               <label className="prelude-field">
                 <span>Student (for meetings)</span>
@@ -186,20 +291,33 @@ export function CalendarAddEventModal({ open, onClose, role, students = [], onSa
               </label>
             </>
           ) : null}
-          <label className="prelude-field">
-            <span>Meeting type</span>
-            <select value={form.meetingType} onChange={(e) => setForm((f) => ({ ...f, meetingType: e.target.value }))}>
-              <option value="zoom">Zoom</option>
-              <option value="in_person">In person</option>
-            </select>
-          </label>
-          <label className="dash-check-label">
-            <input type="checkbox" checked={form.zoom} onChange={(e) => setForm((f) => ({ ...f, zoom: e.target.checked }))} />
-            Create Zoom meeting link
-          </label>
+          {isEventForm ? (
+            <label className="prelude-field">
+              <span>Meeting type</span>
+              <select value={form.meetingType} onChange={(e) => setForm((f) => ({ ...f, meetingType: e.target.value }))}>
+                <option value="zoom">Zoom</option>
+                <option value="google_meet">Google Meet</option>
+              </select>
+            </label>
+          ) : null}
+          {!isSimplifiedForm ? (
+            <>
+              <label className="prelude-field">
+                <span>Meeting type</span>
+                <select value={form.meetingType} onChange={(e) => setForm((f) => ({ ...f, meetingType: e.target.value }))}>
+                  <option value="zoom">Zoom</option>
+                  <option value="in_person">In person</option>
+                </select>
+              </label>
+              <label className="dash-check-label">
+                <input type="checkbox" checked={form.zoom} onChange={(e) => setForm((f) => ({ ...f, zoom: e.target.checked }))} />
+                Create Zoom meeting link
+              </label>
+            </>
+          ) : null}
           <div className="dash-modal__footer dash-modal__footer--inline">
             <SecondaryButton type="button" onClick={onClose}>Cancel</SecondaryButton>
-            <PrimaryButton type="submit">Save event</PrimaryButton>
+            <PrimaryButton type="submit">{resolvedSubmitLabel}</PrimaryButton>
           </div>
         </form>
       </div>
