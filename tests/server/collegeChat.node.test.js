@@ -123,6 +123,22 @@ describe("UCLA vs GT chat flows", () => {
     assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
   });
 
+
+  it("keeps school comparison context for cheaper options follow-up", async () => {
+    const result = await createRagChatCompletion({
+      message: "cheaper options",
+      conversationHistory: [
+        { role: "user", content: "Compare Georgia Tech and UGA for electrical engineering" },
+        { role: "assistant", content: "Georgia Tech and UGA are both Georgia options for engineering." }
+      ]
+    });
+
+    assert.match(result.answer, /Georgia Institute of Technology|Georgia Tech/i);
+    assert.match(result.answer, /University of Georgia|UGA/i);
+    assert.match(result.answer, /cost|net price|cheaper|affordable/i);
+    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+  });
+
   it("uses prior state major and cost context for a Georgia Tech school info request", async () => {
     const result = await createRagChatCompletion({
       message: "I want to go to georgia tech",

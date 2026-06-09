@@ -18,6 +18,7 @@ import {
 } from "./rag/fallback.js";
 import { classifyIntent, isPreludeBusinessIntent } from "./rag/intent.js";
 import { buildPreludeBusinessAnswer } from "./rag/preludeBusiness.js";
+import { routeActiveConversation } from "./rag/intentRouter.js";
 import { retrieveContext } from "./rag/retrieval.js";
 import {
   buildMandatoryFallbackAnswer,
@@ -69,6 +70,15 @@ export async function createRagChatCompletion({ message, conversationHistory = [
   }
 
   const history = sanitizeConversationHistory(conversationHistory);
+  const activeFlow = routeActiveConversation({
+    message: trimmedMessage,
+    conversationHistory: history
+  });
+
+  if (activeFlow) {
+    return normalizeChatResponse(activeFlow);
+  }
+
   const { intentMessage } = buildRetrievalQuery(trimmedMessage, history);
   const { intent: classifiedIntent } = classifyIntent(intentMessage);
 
