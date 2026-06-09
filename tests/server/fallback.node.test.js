@@ -94,6 +94,93 @@ describe("fallback classification", () => {
 });
 
 describe("createRagChatCompletion fallback integration", () => {
+
+  it("returns contextual essay help without generic intake", async () => {
+    const result = await createRagChatCompletion({
+      message: "I need help with essays",
+      conversationHistory: []
+    });
+
+    assert.equal(result.model, "guidance");
+    assert.match(result.answer, /Common App essay|supplementals|topic ideas/i);
+    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+  });
+
+  it("returns contextual admission chances guidance without generic intake", async () => {
+    const result = await createRagChatCompletion({
+      message: "What are my chances?",
+      conversationHistory: []
+    });
+
+    assert.equal(result.model, "guidance");
+    assert.match(result.answer, /can’t predict|reach\/target\/likely/i);
+    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+  });
+
+  it("continues essay mode when the user says scratch", async () => {
+    const result = await createRagChatCompletion({
+      message: "scratch",
+      conversationHistory: [
+        { role: "user", content: "I need help with essays" },
+        {
+          role: "assistant",
+          content:
+            "Absolutely — I can help with your Common App essay, supplementals, topic ideas, outlines, or editing. Are you starting from scratch or revising a draft?"
+        }
+      ]
+    });
+
+    assert.equal(result.model, "flow");
+    assert.match(result.answer, /topic discovery|experience|personal value/i);
+    assert.doesNotMatch(result.answer, /Absolutely — I can help with your Common App essay/i);
+    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+  });
+
+  it("continues essay mode when the user says draft", async () => {
+    const result = await createRagChatCompletion({
+      message: "draft",
+      conversationHistory: [
+        { role: "user", content: "I need help with essays" },
+        {
+          role: "assistant",
+          content:
+            "Absolutely — I can help with your Common App essay, supplementals, topic ideas, outlines, or editing. Are you starting from scratch or revising a draft?"
+        }
+      ]
+    });
+
+    assert.equal(result.model, "flow");
+    assert.match(result.answer, /paste the draft|structure|voice/i);
+    assert.doesNotMatch(result.answer, /starting from scratch or revising a draft/i);
+  });
+
+  it("keeps yes and no replies inside essay mode", async () => {
+    const baseHistory = [
+      { role: "user", content: "I need help with essays" },
+      {
+        role: "assistant",
+        content:
+          "Absolutely — I can help with your Common App essay, supplementals, topic ideas, outlines, or editing. Are you starting from scratch or revising a draft?"
+      }
+    ];
+
+    const yesResult = await createRagChatCompletion({
+      message: "yes",
+      conversationHistory: baseHistory
+    });
+    assert.equal(yesResult.model, "flow");
+    assert.match(yesResult.answer, /scratch.*draft|draft.*scratch/i);
+    assert.doesNotMatch(yesResult.answer, /Tell me your state, intended major/i);
+
+    const noResult = await createRagChatCompletion({
+      message: "no",
+      conversationHistory: baseHistory
+    });
+    assert.equal(noResult.model, "flow");
+    assert.match(noResult.answer, /brainstorming|activity|challenge|interest/i);
+    assert.doesNotMatch(noResult.answer, /Tell me your state, intended major/i);
+  });
+
   it("short-circuits LLM for unknown school location questions", async () => {
     const result = await createRagChatCompletion({
       message: "Where is Example Imaginary Academy located?",
