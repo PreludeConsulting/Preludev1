@@ -229,12 +229,15 @@ export function retrieveContext(message, conversationHistory = []) {
   const majors = extractMajorTerms(query);
   const major = normalizeMajorTerm(conversationState.intendedMajor || majors[0] || "");
   const maxNetPrice = conversationState.budget ?? extractAffordabilityCap(query);
+  const currentMessageSchools = resolveCollegesFromText(message);
   const comparisonNames = extractInstitutionNamesFromComparison(query, conversationState);
   const comparisonQuery = isComparisonQuery(query) || comparisonNames.length >= 2;
+  const recognizedCurrentCollege = currentMessageSchools.length >= 1;
 
   const shouldRetrieve =
     needsRetrieval ||
     comparisonQuery ||
+    (recognizedCurrentCollege && intent !== "guarantee_refusal") ||
     (comparisonNames.length >= 1 &&
       /\b(cheaper|more affordable|afford|cost|net price|tuition|compare|better|worse|stronger|located|address|vs\.?|versus)\b/i.test(
         query
@@ -291,6 +294,20 @@ export function retrieveContext(message, conversationHistory = []) {
       return {
         intent: "college_comparison",
         blocks: [{ heading: "Colleges referenced in conversation", records }],
+        sources: [sourceEntry(COLLEGE_SCORECARD_SOURCE, records)],
+        major,
+        conversationState,
+        priority: conversationState.priority
+      };
+    }
+  }
+
+  if (recognizedCurrentCollege && comparisonNames.length === 1) {
+    const records = retrieveCollegesByNames(comparisonNames, state);
+    if (records.length) {
+      return {
+        intent: "school_search",
+        blocks: [{ heading: "College referenced in conversation", records }],
         sources: [sourceEntry(COLLEGE_SCORECARD_SOURCE, records)],
         major,
         conversationState,
