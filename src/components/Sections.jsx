@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "motion/react";
+import { Link } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { Button } from "./ui/button.jsx";
 import PreludeLogo from "./PreludeLogo.jsx";
@@ -13,6 +14,8 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { getPricingPlans } from "../lib/plans.js";
 import PricingCard from "./PricingCard.jsx";
 import { startBillingCheckout } from "../lib/auth.js";
+import { isAppRoute } from "../lib/appPaths.js";
+import { NAV_LINKS } from "../data/navLinks.js";
 
 const mediaBase = import.meta.env.BASE_URL;
 const media = {
@@ -282,34 +285,57 @@ export function LowerCta() {
 
 export function LowerFooter() {
   const { t } = useLanguage();
-  const links = [
-    { label: t("sections.footer.links.how"), href: "#how-it-works" },
-    { label: t("sections.footer.links.mentorship"), href: "#mentorship" },
-    { label: t("sections.footer.links.pricing"), href: "#pricing" },
-    { label: t("sections.footer.links.contact"), href: "#contact" }
-  ];
+  const discoverLinks = NAV_LINKS.map(({ labelKey, href }) => ({
+    label: t(labelKey),
+    href
+  }));
+  const followLinks = ["Instagram", "X", "Youtube", "Email", "LinkedIn"];
 
   return (
     <footer className="lower-landing lower-landing__footer">
       <div className="lower-landing__footer-inner">
-        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div>
             <PreludeLogo className="prelude-logo--footer" />
             <p className="mt-2 max-w-xs font-body text-sm font-light leading-6 text-muted-foreground">
               {t("sections.footer.body")}
             </p>
           </div>
-          <nav className="flex flex-wrap gap-x-8 gap-y-3" aria-label={t("sections.footer.label")}>
-            {links.map(({ label, href }) => (
-              <a
-                key={label}
-                href={href}
-                className="font-body text-sm text-muted-foreground no-underline transition-colors hover:text-foreground"
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
+          <div className="lower-landing__footer-link-groups">
+            <nav className="lower-landing__footer-link-group" aria-label={t("sections.footer.discoverLabel")}>
+              <h2 className="lower-landing__footer-heading">{t("sections.footer.discover")}</h2>
+              <div className="lower-landing__footer-links">
+                {discoverLinks.map(({ label, href }) =>
+                  isAppRoute(href) ? (
+                    <Link key={label} to={href} className="lower-landing__footer-link">
+                      {label}
+                    </Link>
+                  ) : (
+                    <a key={label} href={href} className="lower-landing__footer-link">
+                      {label}
+                    </a>
+                  )
+                )}
+              </div>
+            </nav>
+
+            <section className="lower-landing__footer-link-group" aria-labelledby="footer-follow-heading">
+              <h2 id="footer-follow-heading" className="lower-landing__footer-heading">
+                {t("sections.footer.follow")}
+              </h2>
+              <div className="lower-landing__footer-links">
+                {followLinks.map((label) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="lower-landing__footer-link lower-landing__footer-link--button"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
         </div>
         <div className="mt-10 flex flex-col gap-3 border-t border-foreground/8 pt-6 font-body text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">
           <p>{t("sections.footer.copyright")}</p>

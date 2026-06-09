@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import App from "./App.jsx";
 import DashboardRouter from "./dashboard/DashboardRouter.jsx";
+import MentorsPage from "./components/MentorsPage.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import {
   ForgotPasswordPage,
@@ -29,6 +30,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/dashboard/*" element={<DashboardRouter />} />
+          <Route path="/mentors" element={<MentorsPage />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
