@@ -12,21 +12,50 @@ function collegeLabel(summary) {
   return name || "this school";
 }
 
-function formatCollegeComparison(records, majorHint = "", priority = "") {
-  const lines = records.slice(0, 4).map((record) => `- **${collegeLabel(record.summary)}**: ${record.summary ?? ""}`);
+function sourceSuffix(record) {
+  return record?.source ? ` _(Source: ${record.source})_` : "";
+}
+
+function isTechnicalCollege(record) {
+  return /\btechnical college\b/i.test(record?.summary ?? "");
+}
+
+function formatCollegeComparison(records, majorHint = "", priority = "", state = "") {
+  const lines = records
+    .slice(0, 4)
+    .map((record) => `- **${collegeLabel(record.summary)}**: ${record.summary ?? ""}${sourceSuffix(record)}`);
   const names = records.map((record) => collegeLabel(record.summary));
-  const majorLine = majorHint
-    ? `For **${majorHint}**, here is a comparison based on verified College Scorecard data:`
-    : "Here is a comparison based on verified College Scorecard data:";
+  const statePhrase = state ? ` in **${state}**` : "";
+  const priorityPhrase = priority ? `, with **${priority}** prioritized` : "";
+  const majorPhrase = majorHint ? ` for **${majorHint}**` : "";
+  const intro =
+    names.length >= 2
+      ? `Got it — comparing **${names[0]}** and **${names[1]}**${majorPhrase}${statePhrase}${priorityPhrase}. Here is what the verified College Scorecard records show:`
+      : "Here is a comparison based on verified College Scorecard data:";
 
   const focus =
     priority === "cost"
-      ? "Focus on average net price and tuition below.\n\n"
+      ? "Because cost is your priority, start with average net price, then confirm current aid and tuition on each school's official site."
       : priority === "program strength"
-        ? "Focus on program fit and institutional strengths below — confirm specific major details on each school's site.\n\n"
-        : "";
+        ? "Because program strength is your priority, use this as a starting point and confirm the exact major requirements on each school's site."
+        : "Use this as a starting point, then confirm current costs and program details on each school's official site.";
+  const pathwayNote =
+    /electrical engineering/i.test(majorHint) &&
+      records.some(isTechnicalCollege) &&
+      records.some((record) => !isTechnicalCollege(record))
+      ? "\n\n**Important fit check:** one option is a technical college and one is a university, so confirm whether you mean **electrical engineering**, **electrical engineering technology**, or a **transfer pathway** before deciding."
+      : "";
 
-  return `${majorLine}\n\n${lines.join("\n")}\n\n${focus}Both ${names.join(" and ")} can be strong options depending on whether you prioritize specialized computing depth, broader university resources, cost, or campus environment.\n\nWhich matters more to you right now — CS program strength, cost, or campus experience?`.trim();
+  return `${intro}\n\n${lines.join("\n")}\n\n${focus}${pathwayNote}\n\nWhat should we compare next — exact program/pathway, net price, admissions fit, or transfer options?`.trim();
+}
+
+function formatSingleCollege(record, majorHint = "") {
+  const majorLine = majorHint ? ` for **${majorHint}**` : "";
+  return `I found a verified College Scorecard record${majorLine}:
+
+- **${collegeLabel(record.summary)}**: ${record.summary ?? ""}${sourceSuffix(record)}
+
+Do you want to focus next on cost, admissions fit, or program details?`;
 }
 
 function formatAffordabilityComparison(records) {
@@ -35,7 +64,7 @@ function formatAffordabilityComparison(records) {
     const priceB = Number(String(b.summary).match(/avg net price \$(\d+)/)?.[1] ?? Infinity);
     return priceA - priceB;
   });
-  const lines = sorted.map((record) => `- ${record.summary ?? ""}`);
+  const lines = sorted.map((record) => `- ${record.summary ?? ""}${sourceSuffix(record)}`);
   const cheapest = collegeLabel(sorted[0]?.summary);
   const priciest = collegeLabel(sorted.at(-1)?.summary);
 
@@ -43,7 +72,9 @@ function formatAffordabilityComparison(records) {
 }
 
 function formatCollegeList(records, majorHint = "", budget = null, priority = "") {
-  const lines = records.slice(0, 6).map((record, index) => `${index + 1}. ${record.summary ?? ""}`);
+  const lines = records
+    .slice(0, 6)
+    .map((record, index) => `${index + 1}. ${record.summary ?? ""}${sourceSuffix(record)}`);
   const majorLine = majorHint
     ? `Here are verified Georgia colleges with **${majorHint}** programs`
     : "Here are verified colleges to explore from College Scorecard data";
@@ -139,7 +170,12 @@ export function buildRetrievalAssistedAnswer(message, retrieval, conversationSta
     const prefix = retrieval.correctionAcknowledgment ? `${retrieval.correctionAcknowledgment}\n\n` : "";
     return (
       prefix +
-      formatCollegeComparison(colleges, majorHint, conversationState.priority ?? retrieval.priority ?? "")
+      formatCollegeComparison(
+        colleges,
+        majorHint,
+        conversationState.priority ?? retrieval.priority ?? "",
+        conversationState.state ?? retrieval.state ?? ""
+      )
     );
   }
 
@@ -153,6 +189,9 @@ export function buildRetrievalAssistedAnswer(message, retrieval, conversationSta
       /\b(best|top|good)\b.{0,30}\b(school|college)/i.test(message)) &&
     colleges.length
   ) {
+    if (colleges.length === 1) {
+      return formatSingleCollege(colleges[0], majorHint);
+    }
     return formatCollegeList(
       colleges,
       majorHint,
@@ -163,14 +202,16 @@ export function buildRetrievalAssistedAnswer(message, retrieval, conversationSta
 
   const programs = records.filter((record) => record.type === "program");
   if (programs.length && /\b(best|top|school|college|cs|computer science)\b/i.test(message)) {
-    const lines = programs.slice(0, 6).map((record, index) => `${index + 1}. ${record.summary ?? ""}`);
+    const lines = programs
+      .slice(0, 6)
+      .map((record, index) => `${index + 1}. ${record.summary ?? ""}${sourceSuffix(record)}`);
     return `For **${majorHint || "this major"}**, here are verified program examples from College Scorecard:\n\n${lines.join("\n")}\n\nI can also list colleges in your state that offer this major if you share your budget.`;
   }
 
   if (records[0]?.summary) {
     return `Based on verified reference data:\n\n${records
       .slice(0, 5)
-      .map((record, index) => `${index + 1}. ${record.summary}`)
+      .map((record, index) => `${index + 1}. ${record.summary}${sourceSuffix(record)}`)
       .join("\n")}\n\nWhat should we compare next — cost, programs, or location?`;
   }
 

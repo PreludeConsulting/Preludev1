@@ -21,6 +21,15 @@ describe("college alias resolution", () => {
     assert.equal(ucla.unitid, "110662");
     assert.match(uga.canonicalName, /University of Georgia/i);
     assert.notEqual(ucla.unitid, uga.unitid);
+
+    const gsu = resolveCollegeAlias("GSU");
+    assert.match(gsu.canonicalName, /Georgia State University/i);
+    assert.equal(gsu.unitid, "139940");
+  });
+
+  it("does not resolve a state-only answer as a random college", () => {
+    const schools = resolveCollegesFromText("Georgia, electrical engineering, cost matters");
+    assert.equal(schools.length, 0);
   });
 
   it("extracts both schools from UCLA vs GT question", () => {
@@ -43,6 +52,19 @@ describe("conversation state and corrections", () => {
     assert.equal(state.intendedMajor, "computer science");
     assert.equal(state.priority, "program strength");
     assert.equal(state.budget, 10000);
+  });
+
+  it("extracts a verified school mentioned by the assistant", () => {
+    const state = deriveConversationState("Gerogia state university", [
+      {
+        role: "assistant",
+        content:
+          "I found verified data for **Wiregrass Georgia Technical College**, but I could not match a second school from your question."
+      }
+    ]);
+    const names = state.schoolsUnderDiscussion.map((school) => school.canonicalName).join(" ");
+    assert.match(names, /Wiregrass Georgia Technical College/i);
+    assert.match(names, /Georgia State University/i);
   });
 
   it("applies UCLA correction and keeps GT from history", () => {
@@ -99,6 +121,57 @@ describe("UCLA vs GT chat flows", () => {
     assert.match(result.answer, /California-Los Angeles|UCLA/i);
     assert.doesNotMatch(result.answer, /University of Georgia · Athens/i);
     assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+  });
+
+  it("compares Wiregrass with Georgia State when the user supplies the second school", async () => {
+    const result = await createRagChatCompletion({
+      message: "Gerogia state university",
+      conversationHistory: [
+        { role: "user", content: "I need help with essays" },
+        {
+          role: "assistant",
+          content:
+            "I want to give you a useful answer rather than a vague reply. Tell me your state, intended major, and whether cost or program strength matters more."
+        },
+        { role: "user", content: "Georgia, electrical engineering, cost matters" },
+        {
+          role: "assistant",
+          content:
+            "I found verified data for **Wiregrass Georgia Technical College**, but I could not match a second school from your question. Tell me the other college name and I will compare them."
+        }
+      ]
+    });
+
+    assert.match(result.answer, /Wiregrass Georgia Technical College/i);
+    assert.match(result.answer, /Georgia State University/i);
+    assert.match(result.answer, /electrical engineering technology|transfer pathway/i);
+    assert.match(result.answer, /Source: College Scorecard/i);
+    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+  });
+
+  it("answers a corrected Georgia State follow-up without restarting intake", async () => {
+    const result = await createRagChatCompletion({
+      message: "Gerogia state university",
+      conversationHistory: [
+        { role: "user", content: "I need help with essays" },
+        {
+          role: "assistant",
+          content:
+            "I want to give you a useful answer rather than a vague reply. Tell me your state, intended major, and whether cost or program strength matters more."
+        },
+        { role: "user", content: "Georgia, electrical engineering, cost matters" },
+        {
+          role: "assistant",
+          content:
+            "Here are verified Georgia colleges with electrical engineering programs, prioritizing cost."
+        }
+      ]
+    });
+
+    assert.match(result.answer, /Georgia State University/i);
+    assert.match(result.answer, /Source: College Scorecard/i);
+    assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
+    assert.doesNotMatch(result.answer, /Wiregrass/i);
   });
 
   it("returns GA CS colleges for budget follow-up", async () => {
