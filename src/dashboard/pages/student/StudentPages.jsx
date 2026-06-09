@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import {
   Award,
@@ -61,6 +61,7 @@ import {
   ProgressRing
 } from "../../components/ui/gamification.jsx";
 import { useGamification } from "../../context/GamificationContext.jsx";
+import StudentOverviewProduct from "../../components/product/StudentOverviewProduct.jsx";
 
 /* ——— Shared presentational helpers for the redesigned pages ——— */
 
@@ -151,104 +152,7 @@ function UpcomingMeetingCard({ meeting, mentorName }) {
 }
 
 export function StudentOverview() {
-  const { user } = useAuth();
-  const { meetings, mentor, summaryCards, aiSuggestions, profile, deadlines, applicationProgress } = useDashboardData();
-  const gamification = useGamification();
-  const cards = summaryCards || {};
-  const nextMeeting = meetings[0];
-  const progress = applicationProgress || { collegeList: 60, essays: 50, extracurriculars: 40, scholarships: 30, profile: profile?.profileCompletion || 62 };
-  const firstName = user?.name?.split(" ")[0] || "there";
-  const appPct = gamification?.applicationProgressPct ?? Math.round((progress.collegeList + progress.essays + progress.profile) / 3);
-  const level = gamification?.level;
-
-  return (
-    <div className="dash-page dash-page--premium">
-      <OverviewHero
-        title="Your Prelude Dashboard"
-        welcome={`Welcome back, ${firstName}.`}
-        gamified
-        levelInfo={level}
-        xp={gamification?.xp ?? 0}
-        streak={gamification?.streak ?? 0}
-        actions={
-          <>
-            <Link to={`${STUDENT_DASHBOARD_BASE}/ai`} className="dash-btn dash-btn--primary">
-              <Bot className="h-4 w-4" /> Ask Prelude AI
-            </Link>
-            <Link to={`${STUDENT_DASHBOARD_BASE}/mentor`} className="dash-btn dash-btn--secondary">
-              <Calendar className="h-4 w-4" /> Schedule Mentor Meeting
-            </Link>
-          </>
-        }
-      />
-
-      <div className="dash-metric-row">
-        <CompactStatCard icon={LayoutGrid} label="Application Progress" value={`${appPct}%`} progress={appPct} trend="On track" />
-        <CompactStatCard icon={ListTodo} label="Upcoming Deadlines" value={String(cards.deadlines ?? 4)} trend="This week" />
-        <CompactStatCard icon={FileText} label="Essay Progress" value={cards.essayProgress ?? "68%"} progress={progress.essays} />
-        <CompactStatCard icon={Target} label="Profile Completion" value={`${cards.profileCompletion ?? profile?.profileCompletion ?? 0}%`} progress={progress.profile} />
-        <CompactStatCard icon={Flame} label="Current Streak" value={`${gamification?.streak ?? 0} days`} trend="Personal best" />
-      </div>
-
-      <div className="dash-overview-grid dash-overview-grid--premium">
-        <div className="dash-overview-grid__col">
-          <SectionCard title="Weekly Missions" className="dash-panel">
-            {(gamification?.missions ?? []).map((m) => (
-              <MissionCard key={m.id} mission={m} onToggle={gamification?.completeMission} />
-            ))}
-          </SectionCard>
-
-          <SectionCard title="Application Progress" className="dash-panel">
-            <ProgressBar label="College List" value={progress.collegeList} />
-            <ProgressBar label="Essays" value={progress.essays} />
-            <ProgressBar label="Extracurricular Activities" value={progress.extracurriculars} />
-            <ProgressBar label="Scholarships" value={progress.scholarships} />
-            <ProgressBar label="Profile Completion" value={progress.profile} />
-          </SectionCard>
-
-          <SectionCard
-            title="Upcoming Deadlines"
-            className="dash-panel"
-            action={<ViewAllLink to={`${STUDENT_DASHBOARD_BASE}/workspace`}>View all</ViewAllLink>}
-          >
-            {(deadlines.length ? deadlines : []).slice(0, 4).map((d) => (
-              <DeadlineRow key={d.id} title={d.title} dueDate={d.dueDate} category={d.category} priority={d.priority} done={d.done} />
-            ))}
-          </SectionCard>
-        </div>
-
-        <div className="dash-overview-grid__col">
-          <SectionCard title="Next Mentor Meeting" className="dash-panel">
-            {nextMeeting ? (
-              <MeetingCardPremium
-                meeting={nextMeeting}
-                mentorName={mentor.name}
-                role="student"
-                messagePath={`${STUDENT_DASHBOARD_BASE}/messages`}
-              />
-            ) : (
-              <p className="dash-muted">No meetings scheduled. <Link to={`${STUDENT_DASHBOARD_BASE}/mentor`}>Schedule with your mentor</Link>.</p>
-            )}
-          </SectionCard>
-
-          <SectionCard title="Prelude AI Insights" className="dash-panel">
-            <InsightList
-              items={aiSuggestions.length ? aiSuggestions : ["Focus on your personal statement this week."]}
-              actionLink={`${STUDENT_DASHBOARD_BASE}/ai`}
-            />
-          </SectionCard>
-
-          <SectionCard title="Achievement Progress" className="dash-panel">
-            <AchievementPanel badges={gamification?.badges ?? []} nextBadge={gamification?.nextBadge} />
-          </SectionCard>
-
-          <SectionCard title="Activity Feed" className="dash-panel">
-            <ActivityFeed items={gamification?.activityFeed ?? []} />
-          </SectionCard>
-        </div>
-      </div>
-    </div>
-  );
+  return <StudentOverviewProduct />;
 }
 
 const CALENDAR_LEGEND = [
@@ -502,8 +406,9 @@ const WORKSPACE_TABS = [
 ];
 
 export function StudentWorkspace() {
+  const location = useLocation();
   const { essays, tasks, extracurriculars, deadlines, applicationProgress: progress } = useDashboardData();
-  const [tab, setTab] = useState("essays");
+  const [tab, setTab] = useState(location.state?.workspaceTab || "essays");
   const [taskFilter, setTaskFilter] = useState("all");
 
   const sectionPct = {

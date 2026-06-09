@@ -3,7 +3,8 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { dashboardHomeForRole, MENTOR_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
 import DashboardLayout from "./components/DashboardLayout.jsx";
 import RoleGuard from "./components/RoleGuard.jsx";
-import { STUDENT_NAV, MENTOR_NAV } from "./config/navConfig.js";
+import { MENTOR_NAV } from "./config/navConfig.js";
+import { PRODUCT_STUDENT_NAV } from "./config/productNav.js";
 import { STUDENT_ROUTE_META, MENTOR_ROUTE_META } from "./config/routeMeta.js";
 import { DashboardDataProvider } from "./context/DashboardDataContext.jsx";
 import StudentGamificationShell from "./components/StudentGamificationShell.jsx";
@@ -40,7 +41,7 @@ function StudentRoutes() {
     <DashboardDataProvider user={user}>
       <StudentGamificationShell user={user}>
       <Routes>
-        <Route element={<DashboardLayout navItems={STUDENT_NAV} basePath={STUDENT_DASHBOARD_BASE} routeMeta={STUDENT_ROUTE_META} />}>
+        <Route element={<DashboardLayout productNav={PRODUCT_STUDENT_NAV} basePath={STUDENT_DASHBOARD_BASE} routeMeta={STUDENT_ROUTE_META} />}>
           <Route path="overview" element={<StudentOverview />} />
           <Route path="calendar" element={<StudentCalendar />} />
           <Route path="ai" element={<StudentAI />} />
@@ -62,7 +63,7 @@ function MentorRoutes() {
   return (
     <DashboardDataProvider user={user}>
       <Routes>
-        <Route element={<DashboardLayout navItems={MENTOR_NAV} basePath={MENTOR_DASHBOARD_BASE} routeMeta={MENTOR_ROUTE_META} />}>
+        <Route element={<DashboardLayout productNav={MENTOR_NAV} basePath={MENTOR_DASHBOARD_BASE} routeMeta={MENTOR_ROUTE_META} />}>
           <Route path="overview" element={<MentorOverview />} />
           <Route path="calendar" element={<MentorCalendar />} />
           <Route path="students" element={<MentorStudents />} />
