@@ -1,11 +1,13 @@
 -- =============================================================================
 -- Prelude — Supabase Auth setup
--- Run this in the Supabase Dashboard → SQL Editor (see SUPABASE_AUTH_SETUP.md).
--- Safe to re-run: it uses IF NOT EXISTS / CREATE OR REPLACE / DROP ... guards.
+-- Run this in the Supabase Dashboard → SQL Editor (see SUPABASE_AUTH_MANUAL_SETUP.md).
+-- Safe to re-run: uses IF NOT EXISTS / CREATE OR REPLACE / DROP ... guards.
 -- =============================================================================
 
 -- 1) Profiles table -----------------------------------------------------------
 -- One row per auth user. Deleting the auth user cascades and removes the row.
+-- The CHECK constraint allow-lists every valid role at the database level, so
+-- an invalid role can never be stored regardless of how the row is written.
 create table if not exists public.profiles (
   id           uuid primary key references auth.users (id) on delete cascade,
   full_name    text,
@@ -20,40 +22,65 @@ comment on table public.profiles is 'Public profile data linked 1:1 to auth.user
 -- 2) Row Level Security -------------------------------------------------------
 alter table public.profiles enable row level security;
 
--- Users can read their own profile.
+-- Read own profile only (authenticated users; anon has no access).
 drop policy if exists "Profiles are viewable by their owner" on public.profiles;
 create policy "Profiles are viewable by their owner"
   on public.profiles
   for select
+  to authenticated
   using (auth.uid() = id);
 
--- Users can update their own profile, BUT cannot promote themselves to admin.
--- The WITH CHECK clause blocks any update whose resulting role is 'admin'
--- unless the row was already 'admin' (so admins set via SQL stay admins).
+-- Update own profile only. Role-escalation protection is enforced by the
+-- BEFORE UPDATE trigger below (which compares OLD vs NEW unambiguously) rather
+-- than by a WITH CHECK subquery against this same table — a subquery that reads
+-- the row being updated has ambiguous OLD/NEW semantics and must not be relied
+-- on for a security boundary.
 drop policy if exists "Profiles are updatable by their owner" on public.profiles;
 create policy "Profiles are updatable by their owner"
   on public.profiles
   for update
+  to authenticated
   using (auth.uid() = id)
-  with check (
-    auth.uid() = id
-    and (
-      role <> 'admin'
-      or role = (select p.role from public.profiles p where p.id = auth.uid())
-    )
-  );
+  with check (auth.uid() = id);
 
--- Note: INSERTs are performed by the SECURITY DEFINER trigger below, not by
--- end users, so there is intentionally no permissive INSERT policy here.
+-- No INSERT policy: rows are created exclusively by the SECURITY DEFINER signup
+-- trigger below. No DELETE policy: end users cannot delete profiles.
 
--- 3) Auto-create a profile on signup -----------------------------------------
--- Reads full_name + role from the Auth user's metadata (set during signUp).
--- Defaults to 'student' and never trusts a client-supplied 'admin' role.
+-- 3) Block self-promotion to admin (defense-in-depth, OLD/NEW are unambiguous) -
+-- auth.uid() is NULL for the service_role / SQL Editor, so a developer can still
+-- promote a user manually. A normal authenticated user editing their OWN row can
+-- never set role = 'admin'.
+create or replace function public.enforce_profile_role_guard()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is not null and auth.uid() = old.id then
+    if new.role = 'admin' and old.role <> 'admin' then
+      raise exception 'You are not allowed to assign the admin role.';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_role_guard on public.profiles;
+create trigger profiles_role_guard
+  before update on public.profiles
+  for each row execute function public.enforce_profile_role_guard();
+
+-- 4) Auto-create a profile on signup -----------------------------------------
+-- Reads full_name + role from Auth metadata (set during signUp). Only 'student'
+-- or 'mentor' are accepted from metadata; anything else (including 'admin' or a
+-- forged value) falls back to 'student'. So a user CANNOT become admin by
+-- passing role:"admin" in signup metadata.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   requested_role text;
@@ -64,7 +91,6 @@ begin
   if requested_role in ('student', 'mentor') then
     safe_role := requested_role;
   else
-    -- Anything else (including 'admin' or invalid values) falls back to student.
     safe_role := 'student';
   end if;
 
@@ -87,9 +113,13 @@ create trigger on_auth_user_created
 
 -- =============================================================================
 -- Verify after running:
---   select * from public.profiles;                      -- table exists
---   select relrowsecurity from pg_class
---     where oid = 'public.profiles'::regclass;           -- should be true (RLS on)
--- To make someone an admin (server-side only):
+--   -- profiles table exists:
+--   select * from public.profiles;
+--   -- RLS is enabled (expect true):
+--   select relrowsecurity from pg_class where oid = 'public.profiles'::regclass;
+--
+-- Promote a specific user to admin (developer-only, run here in SQL Editor):
 --   update public.profiles set role = 'admin' where id = '<user-uuid>';
+-- (Find the UUID under Authentication → Users, or:
+--   select id, email from auth.users where email = 'person@example.com';)
 -- =============================================================================

@@ -54,6 +54,9 @@ VITE_SUPABASE_URL=https://YOUR-PROJECT-ref.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=YOUR-anon-or-publishable-key
 ```
 
+> Your real values go in the git-ignored `.env.local` (already set up for you),
+> not in this committed file.
+
 > Use ONLY the publishable / `anon` key here. **Never** put the `service_role`
 > key, any secret key, or an SMTP password in frontend code or in any `VITE_`
 > variable — those are exposed to the browser.
