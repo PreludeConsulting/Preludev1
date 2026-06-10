@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import App from "./App.jsx";
 import DashboardRouter from "./dashboard/DashboardRouter.jsx";
 import MentorsPage from "./components/MentorsPage.jsx";
+import { CheckoutCancelPage, CheckoutSuccessPage } from "./components/BillingResultPage.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { LegalModalProvider } from "./context/LegalModalContext.jsx";
 import LegalModal from "./components/LegalModal.jsx";
@@ -33,9 +34,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
+            <Route path="/checkout/cancel" element={<CheckoutCancelPage />} />
             <Route path="/dashboard/*" element={<DashboardRouter />} />
             <Route path="/mentors" element={<MentorsPage />} />
-            {/* Legacy Supabase test routes → main Prelude auth pages */}
+            {/* Legacy Supabase test routes redirect to main Prelude auth pages. */}
             <Route path="/auth/login" element={<Navigate to="/login" replace />} />
             <Route path="/auth/signup" element={<Navigate to="/register" replace />} />
             <Route path="/auth/forgot-password" element={<Navigate to="/forgot-password" replace />} />

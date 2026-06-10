@@ -47,11 +47,13 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 650,
       rollupOptions: {
         output: {
-          manualChunks: {
-            react: ["react", "react-dom", "react-router-dom"],
-            motion: ["motion"],
-            media: ["hls.js"],
-            icons: ["lucide-react"]
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return undefined;
+            if (/[\\/]node_modules[\\/](react|react-dom|react-router-dom)[\\/]/.test(id)) return "react";
+            if (/[\\/]node_modules[\\/]motion[\\/]/.test(id)) return "motion";
+            if (/[\\/]node_modules[\\/]hls\.js[\\/]/.test(id)) return "media";
+            if (/[\\/]node_modules[\\/]lucide-react[\\/]/.test(id)) return "icons";
+            return undefined;
           }
         }
       }

@@ -4,19 +4,22 @@ export const BILLING_PROVIDER_STRIPE = "stripe";
 export const PAID_PLAN_IDS = ["basic", "plus", "pro"];
 
 const PRICE_ENV_BY_PLAN = {
-  basic: "STRIPE_PRICE_BASIC_MONTHLY",
-  plus: "STRIPE_PRICE_PLUS_MONTHLY",
-  pro: "STRIPE_PRICE_PRO_MONTHLY"
+  basic: "STRIPE_PRICE_ID_BASIC",
+  plus: "STRIPE_PRICE_ID_PLUS",
+  pro: "STRIPE_PRICE_ID_PRO"
 };
 
 export function getBillingConfig(env = process.env) {
   const provider = (env.BILLING_PROVIDER || BILLING_PROVIDER_DISABLED).toLowerCase();
   const stripeSecretKey = env.STRIPE_SECRET_KEY || "";
   const stripeWebhookSecret = env.STRIPE_WEBHOOK_SECRET || "";
+  const stripePublishableKey = env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+  // Prefer the STRIPE_PRICE_ID_* names used by Stripe Checkout setup.
+  // The older *_MONTHLY aliases are still accepted so existing deployments do not break.
   const prices = {
-    basic: env.STRIPE_PRICE_BASIC_MONTHLY || "",
-    plus: env.STRIPE_PRICE_PLUS_MONTHLY || "",
-    pro: env.STRIPE_PRICE_PRO_MONTHLY || ""
+    basic: env.STRIPE_PRICE_ID_BASIC || env.STRIPE_PRICE_BASIC_MONTHLY || "",
+    plus: env.STRIPE_PRICE_ID_PLUS || env.STRIPE_PRICE_PLUS_MONTHLY || "",
+    pro: env.STRIPE_PRICE_ID_PRO || env.STRIPE_PRICE_PRO_MONTHLY || ""
   };
 
   const missing = [];
@@ -30,9 +33,10 @@ export function getBillingConfig(env = process.env) {
   return {
     provider,
     enabled: provider === BILLING_PROVIDER_STRIPE && missing.length === 0,
-    webhookEnabled: provider === BILLING_PROVIDER_STRIPE && Boolean(stripeWebhookSecret),
+    webhookEnabled: provider === BILLING_PROVIDER_STRIPE && Boolean(stripeSecretKey) && Boolean(stripeWebhookSecret),
     missing,
     prices,
+    stripePublishableKey,
     stripeSecretKey,
     stripeWebhookSecret
   };
