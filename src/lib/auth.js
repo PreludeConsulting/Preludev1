@@ -65,6 +65,7 @@ function attachFrontendFields(user) {
     name: user.name || `${user.firstName || ""} ${user.lastName || ""}`.trim(),
     plan: user.plan || "basic",
     planName: plan.name,
+    planSelected: Boolean(user.plan),
     role: (user.role || "STUDENT").toLowerCase()
   };
 }

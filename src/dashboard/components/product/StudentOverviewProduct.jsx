@@ -42,18 +42,26 @@ function MiniBarChart({ values, labels }) {
 
 export default function StudentOverviewProduct() {
   const { user } = useAuth();
-  const { meetings, mentor, events, summaryCards, aiSuggestions, deadlines, applicationProgress } = useDashboardData();
+  const { meetings, mentor, events, summaryCards, aiSuggestions, deadlines, applicationProgress, onboarding, useSupabaseData } = useDashboardData();
   const gamification = useGamification();
-  const firstName = user?.name?.split(" ")[0] || "Jordan";
-  const progress = applicationProgress || { collegeList: 72, essays: 68, extracurriculars: 55, scholarships: 40, profile: 78 };
+  const firstName = user?.name?.split(" ")[0] || "there";
+  const progress = applicationProgress || (useSupabaseData
+    ? {
+        collegeList: onboarding?.profileComplete || 0,
+        essays: Math.max(0, (onboarding?.profileComplete || 0) - 10),
+        extracurriculars: Math.max(0, (onboarding?.profileComplete || 0) - 20),
+        scholarships: Math.max(0, (onboarding?.profileComplete || 0) - 30),
+        profile: onboarding?.profileComplete || 0
+      }
+    : { collegeList: 72, essays: 68, extracurriculars: 55, scholarships: 40, profile: 78 });
   const cards = summaryCards || {};
   const priorityCount = cards.deadlines ?? deadlines.filter((d) => !d.done).length ?? 4;
   const nextMeeting = meetings[0];
   const appPct = Math.round((progress.collegeList + progress.essays + progress.profile) / 3);
 
-  const reach = 4;
-  const target = 5;
-  const safety = 3;
+  const reach = useSupabaseData ? (mentor ? 1 : 0) : 4;
+  const target = useSupabaseData ? 0 : 5;
+  const safety = useSupabaseData ? 0 : 3;
 
   return (
     <div className="dash-product-overview">
@@ -76,6 +84,28 @@ export default function StudentOverviewProduct() {
           </Link>
         </div>
       </header>
+
+      {mentor ? (
+        <section className="dash-mentor-setup dash-panel">
+          <div className="dash-mentor-setup__copy">
+            <h2 className="dash-mentor-setup__title">Continue with {mentor.name}</h2>
+            <p className="dash-muted">
+              You can continue with your matched mentor or browse other options at any time. Choose the mentor who feels like the best fit for your goals.
+            </p>
+          </div>
+          <div className="dash-mentor-setup__actions">
+            <Link to={`${STUDENT_DASHBOARD_BASE}/mentor`} className="dash-btn dash-btn--primary dash-btn--sm">Continue setup</Link>
+            <Link to={`${STUDENT_DASHBOARD_BASE}/messages`} className="dash-btn dash-btn--secondary dash-btn--sm">Message mentor</Link>
+            <Link to={`${STUDENT_DASHBOARD_BASE}/calendar`} className="dash-btn dash-btn--secondary dash-btn--sm">Schedule</Link>
+            <Link to={`${STUDENT_DASHBOARD_BASE}/prelude-match`} className="dash-btn dash-btn--secondary dash-btn--sm">Browse other mentors</Link>
+          </div>
+        </section>
+      ) : (
+        <section className="dash-mentor-setup dash-panel dash-mentor-setup--empty">
+          <p className="dash-muted">No mentor accepted yet. Find a mentor through Prelude Match to get started.</p>
+          <Link to={`${STUDENT_DASHBOARD_BASE}/prelude-match`} className="dash-btn dash-btn--primary dash-btn--sm">Find a Mentor</Link>
+        </section>
+      )}
 
       <div className="dash-product-split">
         <section className="dash-product-split__visual" aria-label="Admissions calendar">

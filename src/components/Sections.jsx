@@ -291,7 +291,13 @@ export function LowerFooter() {
     label: t(labelKey),
     href
   }));
-  const followLinks = ["Instagram", "X", "Youtube", "Email", "LinkedIn"];
+  const followLinks = [
+    { label: "Instagram", href: "https://instagram.com/" },
+    { label: "X", href: "https://x.com/" },
+    { label: "Youtube", href: "https://youtube.com/" },
+    { label: "Email", href: "mailto:hello@preludeconsulting.com" },
+    { label: "LinkedIn", href: "https://linkedin.com/" }
+  ];
 
   return (
     <footer className="lower-landing lower-landing__footer">
@@ -320,14 +326,16 @@ export function LowerFooter() {
                 {t("sections.footer.follow")}
               </h2>
               <div className="lower-landing__footer-links">
-                {followLinks.map((label) => (
-                  <button
+                {followLinks.map(({ label, href }) => (
+                  <a
                     key={label}
-                    type="button"
+                    href={href}
+                    target={href.startsWith("mailto:") ? undefined : "_blank"}
+                    rel={href.startsWith("mailto:") ? undefined : "noopener noreferrer"}
                     className="lower-landing__footer-link lower-landing__footer-link--button"
                   >
                     {label}
-                  </button>
+                  </a>
                 ))}
               </div>
             </section>

@@ -1,19 +1,39 @@
-import { Bell, ChevronDown, Menu, Search, Settings, X } from "lucide-react";
+import { Bell, ChevronDown, CreditCard, HelpCircle, LayoutDashboard, LogOut, Menu, Search, Settings, X } from "lucide-react";
 import { useState } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import PreludeLogo from "../../../components/PreludeLogo.jsx";
+import UserAvatar from "../../../components/UserAvatar.jsx";
+import DropdownMenu, {
+  DropdownMenuDivider,
+  DropdownMenuHeader,
+  DropdownMenuItem
+} from "../../../components/ui/DropdownMenu.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { useDashboardData } from "../../context/DashboardDataContext.jsx";
+import {
+  billingPathForRole,
+  dashboardPathForRole,
+  helpPathForRole,
+  notificationsPathForRole,
+  settingsPathForRole
+} from "../../../lib/onboardingRoutes.js";
 import { cn } from "../../../lib/utils.js";
 import { MENTOR_NAV, STUDENT_NAV } from "../../config/navConfig.js";
-import { Avatar } from "../ui/index.jsx";
 
 export default function DashboardProductNav({ navItems, basePath, secondaryNav }) {
-  const { user, signOut, openAccount } = useAuth();
+  const { user, signOut } = useAuth();
+  const { notifications } = useDashboardData();
+  const navigate = useNavigate();
   const location = useLocation();
-  const [profileOpen, setProfileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
   const overflowNav = secondaryNav || (user?.role === "mentor" ? MENTOR_NAV : STUDENT_NAV);
+  const notificationsPath = notificationsPathForRole(user?.role);
+  const dashboardPath = dashboardPathForRole(user?.role);
+  const settingsPath = settingsPathForRole(user?.role);
+  const billingPath = billingPathForRole(user?.role);
+  const helpPath = helpPathForRole(user?.role);
+  const unreadCount = notifications.filter((n) => n.unread).length;
 
   function isTabActive(item) {
     const path = `${basePath}${item.to}`;
@@ -24,6 +44,14 @@ export default function DashboardProductNav({ navItems, basePath, secondaryNav }
       return location.pathname === path || location.pathname === `${path}/`;
     }
     return location.pathname.startsWith(path);
+  }
+
+  const firstName = user?.name?.split(/\s+/)[0] || "Account";
+
+  async function handleSignOut(close) {
+    close?.();
+    await signOut();
+    navigate("/", { replace: true });
   }
 
   return (
@@ -61,42 +89,65 @@ export default function DashboardProductNav({ navItems, basePath, secondaryNav }
         </nav>
 
         <div className="dash-product-nav__right">
-          <label className="dash-product-nav__search hidden md:flex">
+          <label className="dash-product-nav__search hidden xl:flex">
             <Search className="h-4 w-4" aria-hidden="true" />
             <input type="search" placeholder="Search Prelude…" aria-label="Search dashboard" />
           </label>
-          <button type="button" className="dash-product-nav__icon-btn" aria-label="Notifications">
+          <Link
+            to={notificationsPath}
+            className="dash-product-nav__icon-btn"
+            aria-label="Notifications"
+          >
             <Bell className="h-5 w-5" />
-          </button>
-          <div className="dash-product-nav__profile">
-            <Avatar name={user?.name} />
-            <div className="dash-product-nav__profile-text hidden sm:block">
-              <p className="dash-product-nav__name">{user?.name}</p>
-              <p className="dash-product-nav__role">{roleLabel}</p>
-            </div>
-            <button
-              type="button"
-              className="dash-product-nav__profile-toggle"
-              onClick={() => setProfileOpen((o) => !o)}
-              aria-expanded={profileOpen}
-              aria-label="Account menu"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </button>
-            {profileOpen ? (
-              <div className="dash-dropdown dash-product-nav__dropdown">
-                <NavLink to={`${basePath}/profile`} className="dash-dropdown__item" onClick={() => setProfileOpen(false)}>
-                  <Settings className="h-4 w-4" /> Profile & settings
-                </NavLink>
-                <button type="button" className="dash-dropdown__item" onClick={openAccount}>
-                  Account & plan
-                </button>
-                <button type="button" className="dash-dropdown__item" onClick={() => signOut()}>
-                  Sign out
-                </button>
-              </div>
-            ) : null}
-          </div>
+            {unreadCount > 0 ? <span className="dash-product-nav__badge">{unreadCount}</span> : null}
+          </Link>
+          <DropdownMenu
+            className="dash-product-nav__profile"
+            panelClassName="dash-dropdown dropdown-menu__panel"
+            trigger={({ open, setOpen }) => (
+              <button
+                type="button"
+                className="dash-product-nav__profile-trigger"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label="Account menu"
+                onClick={() => setOpen(!open)}
+              >
+                <UserAvatar name={user?.name} avatarUrl={user?.avatarUrl} size="sm" className="dash-avatar dash-avatar--md" />
+                <span className="dash-product-nav__profile-text hidden lg:block">
+                  <span className="dash-product-nav__name">{firstName}</span>
+                  <span className="dash-product-nav__role">{roleLabel}</span>
+                </span>
+                <ChevronDown className={`dash-product-nav__profile-chevron h-4 w-4 ${open ? "user-menu__chevron--open" : ""}`} aria-hidden="true" />
+              </button>
+            )}
+          >
+            {({ close }) => (
+              <>
+                <DropdownMenuHeader
+                  name={user?.name}
+                  email={user?.email}
+                  meta={user?.planName ? `${user.planName} plan` : undefined}
+                />
+                <DropdownMenuItem as={Link} to={dashboardPath} onSelect={close}>
+                  <LayoutDashboard className="h-4 w-4" /> Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem as={Link} to={settingsPath} onSelect={close}>
+                  <Settings className="h-4 w-4" /> Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem as={Link} to={billingPath} onSelect={close}>
+                  <CreditCard className="h-4 w-4" /> Plans and Billing
+                </DropdownMenuItem>
+                <DropdownMenuItem as={Link} to={helpPath} onSelect={close}>
+                  <HelpCircle className="h-4 w-4" /> Help and Support
+                </DropdownMenuItem>
+                <DropdownMenuDivider />
+                <DropdownMenuItem danger onSelect={() => handleSignOut(close)}>
+                  <LogOut className="h-4 w-4" /> Log Out
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenu>
         </div>
       </header>
 
@@ -139,6 +190,13 @@ export default function DashboardProductNav({ navItems, basePath, secondaryNav }
                     {label}
                   </NavLink>
                 ))}
+              <hr className="dash-product-mobile__divider" />
+              <Link to="/" className="dash-product-mobile__link" onClick={() => setMobileOpen(false)}>
+                Back to homepage
+              </Link>
+              <button type="button" className="dash-product-mobile__link dash-product-mobile__link--danger" onClick={() => handleSignOut()}>
+                <LogOut className="h-4 w-4" /> Log Out
+              </button>
             </nav>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
 import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
+import { postAuthDestination } from "../lib/onboardingRoutes.js";
 import { startGoogleSignIn } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -64,7 +65,7 @@ export function LoginPage() {
     setError("");
     try {
       const user = await signIn(demoEmail, demoPassword);
-      navigate(dashboardHomeForRole(user.role), { replace: true });
+      navigate(postAuthDestination(user), { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -141,7 +142,7 @@ export function RegisterPage() {
         return;
       }
       if (result?.emailVerified) {
-        navigate(dashboardHomeForRole(result.role), { replace: true });
+        navigate(postAuthDestination(result), { replace: true });
         return;
       }
       setMessage(

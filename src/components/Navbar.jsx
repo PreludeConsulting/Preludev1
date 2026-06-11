@@ -1,5 +1,5 @@
-import { ArrowUpRight, Menu, Search, X } from "lucide-react";
-import AccountMenuButton from "./AccountMenuButton.jsx";
+import { ArrowUpRight, CreditCard, HelpCircle, LayoutDashboard, LogOut, Menu, Search, Settings, User, X } from "lucide-react";
+import UserMenuDropdown from "./UserMenuDropdown.jsx";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -7,12 +7,14 @@ import { NAV_LINKS } from "../data/navLinks.js";
 import AppLink from "./AppLink.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useLanguage } from "../context/LanguageContext.jsx";
+import { dashboardPathForRole, settingsPathForRole, billingPathForRole, helpPathForRole } from "../lib/onboardingRoutes.js";
+import { appPath } from "../lib/appPaths.js";
 import { Button } from "./ui/button.jsx";
 import PreludeLogo from "./PreludeLogo.jsx";
 import SiteSearchPanel from "./SiteSearchPanel.jsx";
 
 export default function Navbar() {
-  const { isAuthenticated, user, openSignIn, openAccount } = useAuth();
+  const { isAuthenticated, user, signOut } = useAuth();
   const { t } = useLanguage();
   const { scrollY } = useScroll();
   const barOpacity = useTransform(scrollY, [0, 48, 120], [0, 0.78, 0.96]);
@@ -43,6 +45,12 @@ export default function Navbar() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [mobileOpen, closeMobile]);
 
+  async function handleMobileLogout() {
+    closeMobile();
+    await signOut();
+    window.location.href = appPath("/");
+  }
+
   return (
     <header className="nav-bar fixed left-0 right-0 top-0 z-50 px-4 py-5 md:px-8 lg:px-4">
       <motion.div
@@ -51,21 +59,21 @@ export default function Navbar() {
         style={{ opacity: barOpacity }}
       />
       <div className="nav-bar__content relative z-10 mx-auto max-w-[118rem]">
-        <div className="nav-bar__row flex items-center gap-4">
+        <div className="nav-bar__row flex min-w-0 items-center gap-3 sm:gap-4">
           <AppLink href="#home" className="nav-bar__logo-link shrink-0" aria-label={t("nav.homeLabel")}>
             <PreludeLogo className="prelude-logo--nav" />
           </AppLink>
 
-          <nav className="nav-bar__center hidden items-center gap-5 lg:flex" aria-label={t("nav.primaryLabel")}>
+          <nav className="nav-bar__center hidden min-w-0 items-center gap-5 lg:flex" aria-label={t("nav.primaryLabel")}>
             {NAV_LINKS.map(({ labelKey, href }) => (
-              <AppLink className="ivy-nav-link" href={href} key={labelKey}>
+              <AppLink className="ivy-nav-link whitespace-nowrap" href={href} key={labelKey}>
                 {t(labelKey)}
               </AppLink>
             ))}
           </nav>
 
-          <div className="nav-bar__actions ml-auto flex items-center justify-end gap-3 sm:gap-4">
-            <div id="site-search-panel" className="nav-bar__search-wrap">
+          <div className="nav-bar__actions ml-auto flex min-w-0 shrink-0 items-center justify-end gap-2 sm:gap-3">
+            <div id="site-search-panel" className="nav-bar__search-wrap shrink-0">
               <button
                 type="button"
                 onClick={toggleSearch}
@@ -80,21 +88,22 @@ export default function Navbar() {
             </div>
 
             {isAuthenticated ? (
-              <AccountMenuButton onClick={openAccount} className="hidden sm:inline-flex" />
+              <UserMenuDropdown className="hidden lg:block" />
             ) : (
-            <AppLink href="/login" className="ivy-nav-link hidden sm:inline-flex">
-              {t("nav.signIn")}
-            </AppLink>
-          )}
-
-          <Button as={Link} to="/register" className="rounded-full px-5 py-3 text-xs font-extrabold uppercase tracking-[0.12em]">
-              {t("nav.getStarted")}
-              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-            </Button>
+              <>
+                <AppLink href="/login" className="ivy-nav-link hidden whitespace-nowrap sm:inline-flex">
+                  {t("nav.signIn")}
+                </AppLink>
+                <Button as={Link} to="/register" className="hidden rounded-full px-4 py-3 text-xs font-extrabold uppercase tracking-[0.12em] sm:inline-flex md:px-5">
+                  {t("nav.getStarted")}
+                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </>
+            )}
 
             <button
               type="button"
-              className="nav-bar__menu-btn inline-flex rounded-full p-2 text-foreground transition hover:bg-foreground/[0.05] lg:hidden"
+              className="nav-bar__menu-btn inline-flex shrink-0 rounded-full p-2 text-foreground transition hover:bg-foreground/[0.05] lg:hidden"
               onClick={toggleMobile}
               aria-label={mobileOpen ? t("nav.menuCloseLabel") : t("nav.menuOpenLabel")}
               aria-expanded={mobileOpen}
@@ -119,6 +128,37 @@ export default function Navbar() {
                   {t(labelKey)}
                 </AppLink>
               ))}
+
+              {isAuthenticated && user ? (
+                <div className="nav-bar__mobile-account">
+                  <p className="nav-bar__mobile-account-name">{user.name}</p>
+                  <p className="nav-bar__mobile-account-email">{user.email}</p>
+                  <Link to={dashboardPathForRole(user.role)} className="nav-bar__mobile-account-link" onClick={closeMobile}>
+                    <LayoutDashboard className="h-4 w-4" /> Dashboard
+                  </Link>
+                  <Link to={settingsPathForRole(user.role)} className="nav-bar__mobile-account-link" onClick={closeMobile}>
+                    <Settings className="h-4 w-4" /> Settings
+                  </Link>
+                  <Link to={billingPathForRole(user.role)} className="nav-bar__mobile-account-link" onClick={closeMobile}>
+                    <CreditCard className="h-4 w-4" /> Plans and Billing
+                  </Link>
+                  <Link to={helpPathForRole(user.role)} className="nav-bar__mobile-account-link" onClick={closeMobile}>
+                    <HelpCircle className="h-4 w-4" /> Help and Support
+                  </Link>
+                  <button type="button" className="nav-bar__mobile-account-link nav-bar__mobile-account-link--danger" onClick={handleMobileLogout}>
+                    <LogOut className="h-4 w-4" /> Log Out
+                  </button>
+                </div>
+              ) : (
+                <div className="nav-bar__mobile-auth">
+                  <AppLink href="/login" className="nav-bar__mobile-link ivy-nav-link" onClick={closeMobile}>
+                    {t("nav.signIn")}
+                  </AppLink>
+                  <Link to="/register" className="nav-bar__mobile-cta" onClick={closeMobile}>
+                    {t("nav.getStarted")}
+                  </Link>
+                </div>
+              )}
             </motion.nav>
           ) : null}
         </AnimatePresence>
