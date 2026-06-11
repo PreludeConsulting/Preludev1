@@ -1,6 +1,5 @@
 import { buildChatModelConfig } from "./aiConfig.js";
-import { createChatCompletion, createRagChatCompletion } from "./chatHandler.js";
-import { buildServiceErrorFallback } from "./rag/fallback.js";
+import { createMentorMatch } from "./mentorMatch.js";
 import { mapChatError, shouldLogChatError } from "./chatErrors.js";
 import { readJsonBody, sendJson } from "./http.js";
 
@@ -27,45 +26,21 @@ export function createChatApiMiddleware(env = process.env) {
       return;
     }
 
-    let requestBody = null;
-
     try {
-      requestBody = await readJsonBody(req);
-      const body = requestBody;
+      const body = await readJsonBody(req);
 
-      if (typeof body.message === "string") {
-        const result = await createRagChatCompletion(
-          {
-            message: body.message,
-            conversationHistory: body.conversationHistory ?? []
-          },
-          config,
-          body.profile ?? null
-        );
+      if (body.mentorMatch) {
+        const result = await createMentorMatch(body.mentorMatch, config);
         sendJson(res, 200, result);
         return;
       }
-
-      const messages = body.messages;
-      if (!Array.isArray(messages)) {
-        sendJson(res, 400, {
-          error: "bad_request",
-          message: "Provide message or messages in the request body."
-        });
-        return;
-      }
-
-      const result = await createChatCompletion(messages, config, body.profile ?? null);
-      sendJson(res, 200, result);
+      sendJson(res, 410, {
+        error: "guided_assistant_only",
+        message: "Open-ended admissions chat has been replaced by the guided assistant. AI is available only after a completed mentor questionnaire."
+      });
     } catch (error) {
       if (shouldLogChatError(error)) {
         console.error("[prelude-chat-api]", error.message ?? error);
-      }
-
-      const fallbackResponse = buildServiceErrorFallback(error);
-      if (fallbackResponse && typeof requestBody?.message === "string") {
-        sendJson(res, 200, fallbackResponse);
-        return;
       }
 
       const mapped = mapChatError(error);

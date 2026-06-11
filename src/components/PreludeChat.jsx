@@ -1,438 +1,22 @@
-import {
-  ArrowUp,
-  BookOpen,
-  CalendarCheck,
-  ChevronLeft,
-  ChevronRight,
-  Compass,
-  DollarSign,
-  ExternalLink,
-  GraduationCap,
-  MessageCircle,
-  MoreHorizontal,
-  Sparkles,
-  Users,
-  X
-} from "lucide-react";
+import { CircleHelp, MoreHorizontal, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
-import { getUserBaseRecord } from "../lib/auth.js";
-import { CLARIFY_PROMPT, navigateChatAction, navigateFallbackAction } from "../lib/chatFallbackActions.js";
-import { createInitialMessages, getAgentReply, getTypingDelay } from "../lib/preludeAgent.js";
-import { applyChatInsights } from "../lib/userProfile.js";
-import { cn } from "../lib/utils.js";
-import FormattedChatText from "./FormattedChatText.jsx";
-
-const SERVICE_ICONS = {
-  users: Users,
-  compass: Compass,
-  book: BookOpen,
-  dollar: DollarSign,
-  calendar: CalendarCheck
-};
-
-function PreludeAvatar({ className }) {
-  return (
-    <div
-      className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground",
-        className
-      )}
-      aria-hidden="true"
-    >
-      <Sparkles className="h-4 w-4" />
-    </div>
-  );
-}
-
-function ResourceCarousel({ carousel }) {
-  const trackRef = useRef(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-
-  const updateScroll = useCallback(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 8);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 8);
-  }, []);
-
-  useEffect(() => {
-    updateScroll();
-    const el = trackRef.current;
-    if (!el) return;
-    el.addEventListener("scroll", updateScroll, { passive: true });
-    window.addEventListener("resize", updateScroll);
-    return () => {
-      el.removeEventListener("scroll", updateScroll);
-      window.removeEventListener("resize", updateScroll);
-    };
-  }, [carousel, updateScroll]);
-
-  const scrollBy = (dir) => {
-    trackRef.current?.scrollBy({ left: dir * 220, behavior: "smooth" });
-  };
-
-  const isMentors = carousel.type === "mentors";
-  const Icon = isMentors ? GraduationCap : Compass;
-
-  return (
-    <div className="prelude-carousel mt-3">
-      <div className="mb-2 flex items-center justify-between gap-2 px-1">
-        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
-          <span>{carousel.title}</span>
-        </div>
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          {carousel.count ?? carousel.items.length} results
-          <ExternalLink className="h-3 w-3" aria-hidden="true" />
-        </span>
-      </div>
-
-      <div className="relative">
-        {canScrollLeft ? (
-          <button
-            type="button"
-            className="prelude-carousel__nav prelude-carousel__nav--left"
-            onClick={() => scrollBy(-1)}
-            aria-label="Scroll left"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-        ) : null}
-
-        <div ref={trackRef} className="prelude-carousel__track" role="list">
-          {carousel.items.map((item) =>
-            isMentors ? (
-              <a
-                key={item.id}
-                href={item.href}
-                className="prelude-carousel__card"
-                role="listitem"
-              >
-                <div className="prelude-carousel__media">
-                  <img src={item.image} alt="" className="h-full w-full object-cover" loading="lazy" />
-                  <div className="prelude-carousel__dots" aria-hidden="true">
-                    <span className="bg-foreground" />
-                    <span />
-                    <span />
-                  </div>
-                </div>
-                <div className="prelude-carousel__body">
-                  <p className="text-xs text-muted-foreground">{item.school}</p>
-                  <p className="font-medium text-foreground">{item.name}</p>
-                  <p className="text-xs text-muted-foreground">{item.major}</p>
-                  <p className="mt-1 text-xs font-medium text-primary">{item.focus}</p>
-                </div>
-              </a>
-            ) : (
-              <a
-                key={item.id}
-                href={item.href}
-                className="prelude-carousel__card prelude-carousel__card--service"
-                role="listitem"
-              >
-                {(() => {
-                  const SvcIcon = SERVICE_ICONS[item.icon] ?? Compass;
-                  return <SvcIcon className="mb-2 h-5 w-5 text-primary" aria-hidden="true" />;
-                })()}
-                <p className="text-xs text-muted-foreground">{item.subtitle}</p>
-                <p className="font-medium text-foreground">{item.title}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.description}</p>
-              </a>
-            )
-          )}
-        </div>
-
-        {canScrollRight ? (
-          <button
-            type="button"
-            className="prelude-carousel__nav prelude-carousel__nav--right"
-            onClick={() => scrollBy(1)}
-            aria-label="Scroll right"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function shouldShowQuickReplies(message, showInitialQuickActions) {
-  if (!message.quickReplies?.length) return false;
-  if (message.showInitialQuickActions) return showInitialQuickActions;
-  if (message.fallback) return true;
-  return false;
-}
-
-function shouldShowChatActions(message) {
-  return Boolean(message.actions?.length);
-}
-
-function ChatBubble({ message, onQuickReply, onFallbackAction, onChatAction, showInitialQuickActions }) {
-  const isUser = message.role === "user";
-
-  return (
-    <div className={cn("flex gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
-      {!isUser ? <PreludeAvatar className="mt-1 h-8 w-8" /> : null}
-      <div className={cn("max-w-[88%] space-y-2", isUser && "items-end")}>
-        <div
-          className={cn(
-            "rounded-2xl px-4 py-2.5 text-sm leading-6",
-            isUser
-              ? "bg-muted text-foreground"
-              : message.isError
-                ? "border border-destructive/30 bg-destructive/5 text-foreground"
-                : "border border-foreground/10 bg-background text-foreground shadow-sm"
-          )}
-        >
-          {isUser ? (
-            <p>{message.text}</p>
-          ) : (
-            <FormattedChatText text={message.text} />
-          )}
-        </div>
-
-        {!isUser && message.carousel ? <ResourceCarousel carousel={message.carousel} /> : null}
-
-        {!isUser && message.sources?.length ? (
-          <div className="rounded-xl border border-foreground/8 bg-foreground/[0.02] px-3 py-2 text-xs text-muted-foreground">
-            <p className="mb-1 font-medium text-foreground/80">Official sources referenced</p>
-            <ul className="space-y-1">
-              {message.sources.map((source) => (
-                <li key={source}>{source}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {!isUser && shouldShowChatActions(message) ? (
-          <div className="flex flex-wrap gap-2">
-            {message.actions.map((action) => (
-              <button
-                key={`${action.label}-${action.href}`}
-                type="button"
-                className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1.5 text-left text-xs font-medium text-foreground transition hover:bg-primary/15"
-                onClick={() => onChatAction(action)}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        {!isUser && shouldShowQuickReplies(message, showInitialQuickActions) ? (
-          <div className="flex flex-wrap gap-2">
-            {message.quickReplies.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="rounded-full border border-foreground/12 bg-background px-3 py-1.5 text-left text-xs font-medium text-foreground transition hover:bg-foreground/[0.04]"
-                onClick={() =>
-                  item.fallbackAction ? onFallbackAction(item.fallbackAction) : onQuickReply(item.label)
-                }
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function TypingIndicator() {
-  return (
-    <div className="flex gap-2" role="status" aria-live="polite">
-      <PreludeAvatar className="mt-1 h-8 w-8" />
-      <div className="flex flex-col gap-1 rounded-2xl border border-foreground/10 bg-background px-4 py-3 shadow-sm">
-        <span className="sr-only">Prelude AI is thinking…</span>
-        <div className="flex items-center gap-1">
-          <span className="prelude-typing-dot" />
-          <span className="prelude-typing-dot prelude-typing-dot--delay" />
-          <span className="prelude-typing-dot prelude-typing-dot--delay-2" />
-        </div>
-      </div>
-    </div>
-  );
-}
+import { navigateChatHref } from "../lib/chatLinkSecurity.js";
+import GuidedAssistant from "./GuidedAssistant.jsx";
 
 export default function PreludeChat() {
-  const { user, isAuthenticated, openSignIn, openAccount, personalizedAiRequest, refreshUser } = useAuth();
+  const { user, isAuthenticated, openSignIn, openAccount } = useAuth();
   const { openLegal } = useLegalModal();
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState(() => createInitialMessages());
-  const [input, setInput] = useState("");
-  const [typing, setTyping] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
-  const listRef = useRef(null);
-  const inputRef = useRef(null);
+  const [sessionKey, setSessionKey] = useState(0);
 
-  const initializeChat = useCallback(
-    (profile = user) => {
-      setMessages(createInitialMessages(profile));
-      setHasUserInteracted(false);
-      setTyping(false);
-      setInput("");
-    },
-    [user]
-  );
-
-  useEffect(() => {
-    initializeChat(user);
-  }, [user?.email, user?.plan, initializeChat]);
-
-  useEffect(() => {
-    if (!personalizedAiRequest) return;
-    setOpen(true);
-    initializeChat(user);
-    setMenuOpen(false);
-  }, [personalizedAiRequest, user, initializeChat]);
-
-  const scrollToBottom = useCallback(() => {
-    requestAnimationFrame(() => {
-      listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-    });
-  }, []);
-
-  useEffect(() => {
-    if (open) scrollToBottom();
-  }, [open, messages, typing, scrollToBottom]);
-
-  const dispatchReply = useCallback(
-    async (trimmed, historyWithUser, { replaceFromIndex = null } = {}) => {
-      const reply = await getAgentReply(trimmed, historyWithUser, user);
-      const delay = getTypingDelay(reply.text);
-      window.setTimeout(() => {
-        setMessages((prev) => {
-          if (replaceFromIndex != null) {
-            return [...prev.slice(0, replaceFromIndex), reply];
-          }
-          return [...prev, reply];
-        });
-        setTyping(false);
-        if (user?.email && reply.category) {
-          applyChatInsights(user.email, {
-            category: reply.category,
-            userText: trimmed,
-            baseRecord: getUserBaseRecord(user.email)
-          });
-          refreshUser();
-        }
-      }, delay);
-    },
-    [user, refreshUser]
-  );
-
-  const sendMessage = useCallback(
-    async (text) => {
-      const trimmed = text.trim();
-      if (!trimmed || typing) return;
-
-      setHasUserInteracted(true);
-
-      const userMsg = {
-        id: `u-${Date.now()}`,
-        role: "user",
-        text: trimmed,
-        createdAt: Date.now()
-      };
-
-      let historyWithUser;
-      setMessages((prev) => {
-        historyWithUser = [...prev, userMsg];
-        return historyWithUser;
-      });
-      setInput("");
-      setTyping(true);
-
-      try {
-        await dispatchReply(trimmed, historyWithUser);
-      } catch (error) {
-        const fallback = {
-          id: `err-${Date.now()}`,
-          role: "assistant",
-          createdAt: Date.now(),
-          text: "Something went wrong while sending your message. Please try again.",
-          isError: true
-        };
-        setMessages((prev) => [...prev, fallback]);
-        setTyping(false);
-        if (import.meta.env.DEV) {
-          console.warn("[Prelude AI]", error);
-        }
-      }
-    },
-    [typing, dispatchReply]
-  );
-
-  const handleQuickAction = useCallback(
-    (text) => {
-      sendMessage(text);
-    },
-    [sendMessage]
-  );
-
-  const handleChatAction = useCallback((action) => {
-    navigateChatAction(action);
-  }, []);
-
-  const handleFallbackAction = useCallback(
-    async (action) => {
-      if (typing) return;
-
-      if (
-        action === "open_plans" ||
-        action === "open_mentor_match" ||
-        action === "open_mentorship" ||
-        action === "sign_up" ||
-        action === "sign_in" ||
-        action === "open_dashboard"
-      ) {
-        navigateFallbackAction(action);
-        return;
-      }
-
-      if (action === "clarify") {
-        sendMessage(CLARIFY_PROMPT);
-        return;
-      }
-
-      if (action === "try_again") {
-        const lastUserIndex = messages.findLastIndex((message) => message.role === "user");
-        if (lastUserIndex < 0) return;
-
-        const lastUser = messages[lastUserIndex];
-        const history = messages.slice(0, lastUserIndex + 1);
-        setTyping(true);
-
-        try {
-          await dispatchReply(lastUser.text, history, { replaceFromIndex: lastUserIndex + 1 });
-        } catch (error) {
-          setTyping(false);
-          if (import.meta.env.DEV) {
-            console.warn("[Prelude AI]", error);
-          }
-        }
-      }
-    },
-    [typing, messages, sendMessage, dispatchReply]
-  );
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    sendMessage(input);
-  };
-
-  const resetChat = () => {
-    initializeChat(user);
-    setMenuOpen(false);
-  };
+  function handleNavigate(href) {
+    const navigated = navigateChatHref(href);
+    if (navigated && href === "#preludematch") setOpen(false);
+  }
 
   return (
     <>
@@ -446,10 +30,9 @@ export default function PreludeChat() {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.8, opacity: 0 }}
-            aria-label="Open Prelude AI chat"
+            aria-label="Open Prelude guided assistant"
           >
-            <MessageCircle className="h-6 w-6" aria-hidden="true" />
-            <span className="prelude-chat-launcher__label">Prelude AI</span>
+            <CircleHelp className="h-7 w-7" />
           </motion.button>
         ) : null}
       </AnimatePresence>
@@ -462,150 +45,50 @@ export default function PreludeChat() {
             initial={{ opacity: 0, y: 24, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.96 }}
-            transition={{ duration: 0.28, ease: "easeOut" }}
             role="dialog"
-            aria-label="Prelude AI assistant"
+            aria-label="Prelude guided admissions assistant"
           >
             <header className="prelude-chat-header">
               <div className="flex items-center gap-3">
-                <PreludeAvatar />
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Sparkles className="h-4 w-4" />
+                </div>
                 <div>
-                  <p className="font-body text-sm font-semibold text-foreground">Prelude AI</p>
-                  <p className="font-body text-xs text-muted-foreground">
-                    {isAuthenticated ? `Prelude AI · ${user.planName} plan` : "AI assistant"}
-                  </p>
+                  <p className="font-body text-sm font-semibold text-foreground">Prelude Guide</p>
+                  <p className="font-body text-xs text-muted-foreground">Guided admissions assistant</p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {isAuthenticated ? (
-                  <button
-                    type="button"
-                    className="hidden max-w-[7rem] truncate rounded-full px-3 py-1.5 text-xs font-medium text-foreground/80 transition hover:bg-foreground/[0.05] sm:inline"
-                    onClick={openAccount}
-                  >
-                    {user.name.split(" ")[0]} · {user.planName}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="hidden rounded-full px-3 py-1.5 text-xs font-medium text-foreground/80 transition hover:bg-foreground/[0.05] sm:inline"
-                    onClick={openSignIn}
-                  >
-                    Sign in
-                  </button>
-                )}
                 <div className="relative">
-                  <button
-                    type="button"
-                    className="rounded-full p-2 text-foreground/70 transition hover:bg-foreground/[0.05]"
-                    aria-label="More options"
-                    aria-expanded={menuOpen}
-                    onClick={() => setMenuOpen((v) => !v)}
-                  >
+                  <button type="button" className="rounded-full p-2 text-foreground/70 hover:bg-foreground/[0.05]" aria-label="More options" onClick={() => setMenuOpen((value) => !value)}>
                     <MoreHorizontal className="h-4 w-4" />
                   </button>
                   {menuOpen ? (
                     <div className="absolute right-0 top-full z-10 mt-1 min-w-[10rem] rounded-xl border border-foreground/10 bg-background py-1 shadow-lg">
-                      <button
-                        type="button"
-                        className="block w-full px-4 py-2 text-left text-sm hover:bg-foreground/[0.04]"
-                        onClick={resetChat}
-                      >
-                        New conversation
+                      <button type="button" className="block w-full px-4 py-2 text-left text-sm hover:bg-foreground/[0.04]" onClick={() => { setSessionKey((value) => value + 1); setMenuOpen(false); }}>
+                        Start over
                       </button>
-                      {isAuthenticated ? (
-                        <button
-                          type="button"
-                          className="block w-full px-4 py-2 text-left text-sm hover:bg-foreground/[0.04]"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            openAccount();
-                          }}
-                        >
-                          My plan & account
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="block w-full px-4 py-2 text-left text-sm hover:bg-foreground/[0.04]"
-                          onClick={() => {
-                            setMenuOpen(false);
-                            openSignIn();
-                          }}
-                        >
-                          Sign in
-                        </button>
-                      )}
-                      <a
-                        href="#pricing"
-                        className="block px-4 py-2 text-sm hover:bg-foreground/[0.04]"
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        View plans
-                      </a>
+                      <button type="button" className="block w-full px-4 py-2 text-left text-sm hover:bg-foreground/[0.04]" onClick={() => { setMenuOpen(false); isAuthenticated ? openAccount() : openSignIn(); }}>
+                        {isAuthenticated ? `${user.name.split(" ")[0]} · Account` : "Sign in"}
+                      </button>
                     </div>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  className="rounded-full p-2 text-foreground/70 transition hover:bg-foreground/[0.05]"
-                  aria-label="Close chat"
-                  onClick={() => setOpen(false)}
-                >
+                <button type="button" className="rounded-full p-2 text-foreground/70 hover:bg-foreground/[0.05]" aria-label="Close assistant" onClick={() => setOpen(false)}>
                   <X className="h-4 w-4" />
                 </button>
               </div>
             </header>
 
-            <div ref={listRef} className="prelude-chat-messages">
+            <div className="prelude-chat-messages">
+              <GuidedAssistant key={sessionKey} onNavigate={handleNavigate} />
               <p className="prelude-chat-disclaimer">
-                This conversation may be recorded to improve Prelude services. See our{" "}
-                <button type="button" className="prelude-chat-disclaimer__link" onClick={() => openLegal("terms")}>
-                  Terms
-                </button>{" "}
+                Guided responses provide general information. See our{" "}
+                <button type="button" className="prelude-chat-disclaimer__link" onClick={() => openLegal("terms")}>Terms</button>{" "}
                 and{" "}
-                <button type="button" className="prelude-chat-disclaimer__link" onClick={() => openLegal("privacy")}>
-                  Privacy Policy
-                </button>
-                .
+                <button type="button" className="prelude-chat-disclaimer__link" onClick={() => openLegal("privacy")}>Privacy Policy</button>.
               </p>
-
-              {messages.map((message) => (
-                <ChatBubble
-                  key={message.id}
-                  message={message}
-                  onQuickReply={handleQuickAction}
-                  onFallbackAction={handleFallbackAction}
-                  onChatAction={handleChatAction}
-                  showInitialQuickActions={!hasUserInteracted}
-                />
-              ))}
-              {typing ? <TypingIndicator /> : null}
             </div>
-
-            <form className="prelude-chat-input" onSubmit={handleSubmit}>
-              <label htmlFor="prelude-chat-text" className="sr-only">
-                Message Prelude AI
-              </label>
-              <input
-                id="prelude-chat-text"
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={isAuthenticated ? "Ask Prelude AI…" : "How can I help?"}
-                autoComplete="off"
-                disabled={typing}
-              />
-              <button
-                type="submit"
-                className="prelude-chat-send"
-                disabled={!input.trim() || typing}
-                aria-label="Send message"
-              >
-                <ArrowUp className="h-4 w-4" aria-hidden="true" />
-              </button>
-            </form>
           </motion.div>
         ) : null}
       </AnimatePresence>
