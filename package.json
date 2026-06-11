@@ -50,6 +50,15 @@
     "vite": "^8.0.16",
     "vitest": "^4.1.8"
   },
+  "supportedArchitectures": {
+    "os": ["current", "linux"],
+    "cpu": ["current", "x64", "arm64"]
+  },
+  "overrides": {
+    "@emnapi/core": "1.10.0",
+    "@emnapi/runtime": "1.10.0",
+    "@rolldown/binding-wasm32-wasi": "1.0.3"
+  },
   "allowScripts": {
     "@prisma/client@5.22.0": true,
     "@prisma/engines@5.22.0": true,
