@@ -1,38 +1,39 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
-import { createPreludeApiStack } from "./server/createApiStack.js";
 
-function preludeApiPlugin(env, embedApi) {
-  const stack = createPreludeApiStack(env);
-
+/** Dev-only API middleware — dynamic import keeps server/ out of deploy parsers. */
+function preludeDevApiPlugin(env, embedApi) {
   return {
-    name: "prelude-api",
-    configureServer(server) {
+    name: "prelude-api-dev",
+    async configureServer(server) {
       if (!embedApi) return;
-      for (const layer of stack) {
+      const { createPreludeApiStack } = await import("./server/createApiStack.js");
+      for (const layer of createPreludeApiStack(env)) {
         server.middlewares.use(layer);
       }
     },
-    configurePreviewServer(server) {
+    async configurePreviewServer(server) {
       if (!embedApi) return;
-      for (const layer of stack) {
+      const { createPreludeApiStack } = await import("./server/createApiStack.js");
+      for (const layer of createPreludeApiStack(env)) {
         server.middlewares.use(layer);
       }
     }
   };
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), "");
   Object.assign(process.env, env);
 
   const apiPort = env.PRELUDE_API_PORT ?? process.env.PRELUDE_API_PORT ?? "3001";
   const useStandaloneApi = (env.PRELUDE_STANDALONE_API ?? process.env.PRELUDE_STANDALONE_API) === "1";
   const embedApi = !useStandaloneApi;
+  const isDevServer = command === "serve";
 
   return {
-    base: "/Preludev1/",
-    plugins: [react(), preludeApiPlugin(env, embedApi)],
+    base: "/",
+    plugins: [react(), ...(isDevServer ? [preludeDevApiPlugin(env, embedApi)] : [])],
     server: useStandaloneApi
       ? {
           proxy: {

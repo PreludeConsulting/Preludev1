@@ -4,3 +4,13 @@ export function isSupabaseConfigured() {
   const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   return Boolean(url?.trim() && key?.trim());
 }
+
+/** Public site origin for auth email redirects (no trailing slash). */
+export function getPublicAppOrigin() {
+  const fromEnv = import.meta.env.VITE_PUBLIC_APP_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+  return "";
+}

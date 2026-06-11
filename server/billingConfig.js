@@ -55,7 +55,7 @@ export function getRequestOrigin(req) {
 }
 
 export function getAppBaseUrl(req) {
-  return (process.env.PUBLIC_APP_URL || `${getRequestOrigin(req)}/Preludev1`).replace(/\/$/, "");
+  return (process.env.PUBLIC_APP_URL || getRequestOrigin(req)).replace(/\/$/, "");
 }
 
 export function billingNotConfiguredPayload(config = getBillingConfig()) {

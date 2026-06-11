@@ -5,12 +5,14 @@
 
 import { getSupabase } from "./supabase.js";
 import { appPath } from "./appPaths.js";
+import { getPublicAppOrigin, isSupabaseConfigured } from "./supabaseConfig.js";
 import { mapSupabaseUser } from "./supabaseSession.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor"];
 
 function fullUrl(path) {
-  return `${window.location.origin}${appPath(path)}`;
+  const origin = getPublicAppOrigin() || window.location.origin;
+  return `${origin}${appPath(path)}`;
 }
 
 function friendlyError(error) {
@@ -42,8 +44,12 @@ function friendlyError(error) {
 }
 
 export async function signUp({ email, password, fullName, role = "student" }) {
+  if (!isSupabaseConfigured()) {
+    return { user: null, error: "Supabase is not configured for this deployment.", needsEmailConfirmation: false };
+  }
   const safeRole = SELECTABLE_ROLES.includes(role) ? role : "student";
   const supabase = getSupabase();
+  if (!supabase) return { user: null, error: "Supabase client unavailable.", needsEmailConfirmation: false };
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -67,7 +73,9 @@ export async function signUp({ email, password, fullName, role = "student" }) {
 }
 
 export async function logIn({ email, password }) {
+  if (!isSupabaseConfigured()) return { user: null, error: "Supabase is not configured for this deployment." };
   const supabase = getSupabase();
+  if (!supabase) return { user: null, error: "Supabase client unavailable." };
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { user: null, error: friendlyError(error) };
   const { profile } = await getProfile(data.user.id);
@@ -81,7 +89,9 @@ export async function logOut() {
 }
 
 export async function getCurrentSession() {
-  const { data, error } = await getSupabase().auth.getSession();
+  const supabase = getSupabase();
+  if (!supabase) return { session: null, error: null };
+  const { data, error } = await supabase.auth.getSession();
   if (error) return { session: null, error: friendlyError(error) };
   return { session: data.session, error: null };
 }
@@ -152,17 +162,23 @@ export async function saveUserPlan(userId, planId) {
 }
 
 export function onAuthStateChange(callback) {
-  return getSupabase().auth.onAuthStateChange(callback);
+  const supabase = getSupabase();
+  if (!supabase) {
+    return { data: { subscription: { unsubscribe() {} } } };
+  }
+  return supabase.auth.onAuthStateChange(callback);
 }
 
 /** Load profile + onboarding + assigned mentor flag for AuthContext. */
 export async function resolveSupabaseAppUser() {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = getSupabase();
+  if (!supabase) return null;
   const { session } = await getCurrentSession();
   if (!session) return null;
   const userId = session.user.id;
   const { profile } = await getProfile(userId);
 
-  const supabase = getSupabase();
   const [onboardingRes, mentorRes] = await Promise.all([
     supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("mentor_matches").select("id").eq("user_id", userId).eq("status", "assigned").limit(1)

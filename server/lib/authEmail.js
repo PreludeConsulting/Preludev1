@@ -23,7 +23,7 @@ export function shouldLogAuthEmails() {
 
 /**
  * Public app base URL for auth links (no trailing slash).
- * Production: set PUBLIC_APP_URL (e.g. https://prelude.com/Preludev1).
+ * Production: set PUBLIC_APP_URL (e.g. https://preludev1.pages.dev).
  */
 export function resolvePublicAppUrl(req) {
   const fromEnv = process.env.PUBLIC_APP_URL?.trim();
@@ -33,12 +33,11 @@ export function resolvePublicAppUrl(req) {
     const host = req.headers["x-forwarded-host"] || req.headers.host;
     const proto = (req.headers["x-forwarded-proto"] || "http").split(",")[0].trim();
     if (host) {
-      const basePath = process.env.VITE_BASE_PATH?.trim() || "/Preludev1";
-      return `${proto}://${host}${basePath}`.replace(/\/$/, "");
+      return `${proto}://${host}`.replace(/\/$/, "");
     }
   }
 
-  return "http://localhost:5173/Preludev1";
+  return "http://localhost:5173";
 }
 
 export function buildAuthUrl(req, pathWithQuery) {

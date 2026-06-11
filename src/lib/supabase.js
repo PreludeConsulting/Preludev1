@@ -1,6 +1,6 @@
 /**
  * Supabase browser client (public credentials only).
- * Use getSupabase() after checking isSupabaseConfigured().
+ * Returns null when env vars are missing — never crashes the app shell.
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -9,15 +9,7 @@ import { isSupabaseConfigured } from "./supabaseConfig.js";
 let client = null;
 
 export function getSupabase() {
-  if (!isSupabaseConfigured()) {
-    throw new Error(
-      [
-        "Supabase is not configured.",
-        "Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to .env.local, then restart npm run dev.",
-        "See SUPABASE_AUTH_MANUAL_SETUP.md."
-      ].join("\n")
-    );
-  }
+  if (!isSupabaseConfigured()) return null;
   if (!client) {
     client = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, {
       auth: {
@@ -30,12 +22,22 @@ export function getSupabase() {
   return client;
 }
 
+function requireSupabase() {
+  const instance = getSupabase();
+  if (!instance) {
+    throw new Error("Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.");
+  }
+  return instance;
+}
+
 /** @deprecated Prefer getSupabase() — kept for modules that already import `supabase`. */
 export const supabase = new Proxy(
   {},
   {
     get(_target, prop) {
-      return getSupabase()[prop];
+      const instance = requireSupabase();
+      const value = instance[prop];
+      return typeof value === "function" ? value.bind(instance) : value;
     }
   }
 );

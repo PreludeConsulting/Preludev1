@@ -103,7 +103,7 @@ function getRequestOrigin(req) {
 }
 
 function getAppBaseUrl(req) {
-  return (process.env.PUBLIC_APP_URL || `${getRequestOrigin(req)}/Preludev1`).replace(/\/$/, "");
+  return (process.env.PUBLIC_APP_URL || getRequestOrigin(req)).replace(/\/$/, "");
 }
 
 function makeAppUrl(req, path) {

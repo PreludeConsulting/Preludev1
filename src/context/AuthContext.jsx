@@ -27,25 +27,46 @@ export function AuthProvider({ children }) {
     async function bootstrap() {
       try {
         if (useSupabase) {
-          const { resolveSupabaseAppUser, onAuthStateChange, getProfile } = await loadSupabaseAuth();
-          const sessionUser = await resolveSupabaseAppUser();
-          if (!cancelled) setUser(sessionUser);
+          const { resolveSupabaseAppUser, onAuthStateChange } = await loadSupabaseAuth();
+          try {
+            const sessionUser = await resolveSupabaseAppUser();
+            if (!cancelled) setUser(sessionUser);
+          } catch (err) {
+            console.warn("[prelude-auth] Supabase session restore failed:", err?.message || err);
+            if (!cancelled) setUser(null);
+          }
 
-          const { data } = onAuthStateChange(async (_event, session) => {
-            if (cancelled) return;
-            if (!session) {
-              setUser(null);
-              return;
-            }
-            const { resolveSupabaseAppUser: resolveUser } = await loadSupabaseAuth();
-            const next = await resolveUser();
-            if (!cancelled) setUser(next);
-          });
-          subscription = data.subscription;
+          try {
+            const { data } = onAuthStateChange(async (_event, session) => {
+              if (cancelled) return;
+              if (!session) {
+                setUser(null);
+                return;
+              }
+              try {
+                const { resolveSupabaseAppUser: resolveUser } = await loadSupabaseAuth();
+                const next = await resolveUser();
+                if (!cancelled) setUser(next);
+              } catch (err) {
+                console.warn("[prelude-auth] Supabase auth state update failed:", err?.message || err);
+              }
+            });
+            subscription = data.subscription;
+          } catch (err) {
+            console.warn("[prelude-auth] Supabase listener setup failed:", err?.message || err);
+          }
         } else {
-          const session = await getStoredSession();
-          if (!cancelled) setUser(session);
+          try {
+            const session = await getStoredSession();
+            if (!cancelled) setUser(session);
+          } catch (err) {
+            console.warn("[prelude-auth] Legacy session restore failed:", err?.message || err);
+            if (!cancelled) setUser(null);
+          }
         }
+      } catch (err) {
+        console.warn("[prelude-auth] Auth bootstrap failed:", err?.message || err);
+        if (!cancelled) setUser(null);
       } finally {
         if (!cancelled) setReady(true);
       }

@@ -25,9 +25,7 @@ function AppContent() {
   const { requestPersonalizedAi } = useAuth();
   const navigate = useNavigate();
   const [hash, setHash] = useState(window.location.hash);
-  const pathname = window.location.pathname.startsWith("/Preludev1")
-    ? window.location.pathname.replace(/^\/Preludev1/, "") || "/"
-    : window.location.pathname;
+  const pathname = window.location.pathname;
 
   useEffect(() => {
     const onHashChange = () => setHash(window.location.hash);
