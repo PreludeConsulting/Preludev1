@@ -270,9 +270,11 @@ async function issueVerification(tx, userId) {
   return raw;
 }
 
-function sendDevEmail(kind, to, url) {
-  // Free by default: log links locally. Configure a real provider later without changing token semantics.
-  console.info(`[prelude:${kind}] To ${to}: ${url}`);
+function sendDevEmail(_kind, _to, _url) {
+  // Legacy Prisma auth: verification/reset links are not emailed in dev.
+  // Set PRELUDE_LOG_AUTH_EMAILS=1 to print links to the server console.
+  if (process.env.PRELUDE_LOG_AUTH_EMAILS !== "1") return;
+  console.info(`Auth link (${_kind}) → ${_to}\n${_url}`);
 }
 
 function makeAccessToken(user, sessionId) {

@@ -148,7 +148,7 @@ export function RegisterPage() {
       setMessage(
         supabaseAuth
           ? "Account created! You can now log in."
-          : "Account created. Check your email for the verification link. In local development, the link appears in the server console."
+          : "Account created. Check your email for the verification link, then log in."
       );
     } catch (err) {
       setError(err.message);
