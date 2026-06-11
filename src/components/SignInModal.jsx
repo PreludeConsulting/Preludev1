@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { X } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
-import { DEMO_HINT } from "../lib/auth.js";
 import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
 import { startGoogleSignIn } from "../lib/googleAuth.js";
 import { cn } from "../lib/utils.js";
@@ -160,7 +159,6 @@ export default function SignInModal({ onSuccess }) {
             {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
           </button>
 
-          <p className="font-body text-xs leading-5 text-muted-foreground">{DEMO_HINT}</p>
         </form>
         </div>
       </motion.div>

@@ -1,6 +1,4 @@
 import { formatAuthApiError, logAuthApiError } from "./lib/dbErrors.js";
-import { isDemoEmail } from "../src/data/demoAccounts.js";
-import { getDemoDashboardForUser, getDemoMeetingsForEmail } from "../src/data/demoDashboardData.js";
 import {
   createMeeting,
   getMeetingById,
@@ -48,15 +46,8 @@ export function createDashboardApiMiddleware(getSession) {
 
     try {
       if (isDashBundle && req.method === "GET") {
-        const demo = isDemoEmail(user.email) ? getDemoDashboardForUser(user.email, role) : null;
         const storedMeetings = listMeetingsForUser({ userId: user.id, role });
-        const meetings = (
-          storedMeetings.length
-            ? storedMeetings
-            : isDemoEmail(user.email)
-              ? getDemoMeetingsForEmail(user.email, role, user.id)
-              : []
-        ).map((m) => sanitizeMeetingForRole(m, role));
+        const meetings = storedMeetings.map((m) => sanitizeMeetingForRole(m, role));
 
         res.setHeader("Content-Type", "application/json");
         res.end(
@@ -65,8 +56,7 @@ export function createDashboardApiMiddleware(getSession) {
             user,
             integrations: readIntegrations(user.id),
             meetings,
-            notifications: demo?.notifications || [],
-            demo
+            notifications: []
           })
         );
         return;
@@ -112,9 +102,7 @@ export function createDashboardApiMiddleware(getSession) {
       if (isMeetings) {
         if (url.pathname === "/api/meetings" && req.method === "GET") {
           const stored = listMeetingsForUser({ userId: user.id, role });
-          const meetings = (
-            stored.length ? stored : isDemoEmail(user.email) ? getDemoMeetingsForEmail(user.email, role, user.id) : []
-          ).map((m) => sanitizeMeetingForRole(m, role));
+          const meetings = stored.map((m) => sanitizeMeetingForRole(m, role));
           res.setHeader("Content-Type", "application/json");
           res.end(JSON.stringify({ meetings }));
           return;
@@ -128,32 +116,24 @@ export function createDashboardApiMiddleware(getSession) {
             studentUserId: role === "STUDENT" ? user.id : body.studentUserId,
             status: body.status || (role === "STUDENT" ? "pending" : "scheduled")
           });
-          res.statusCode = 201;
           res.setHeader("Content-Type", "application/json");
           res.end(JSON.stringify({ meeting: sanitizeMeetingForRole(record, role) }));
           return;
         }
 
-        const match = url.pathname.match(/^\/api\/meetings\/([^/]+)$/);
-        if (match) {
-          const meeting = getMeetingById(match[1]);
-          if (!meeting) {
+        const meetingId = url.pathname.split("/").pop();
+        if (url.pathname.startsWith("/api/meetings/") && req.method === "PATCH") {
+          const body = JSON.parse(await readBody(req));
+          const existing = getMeetingById(meetingId);
+          if (!existing) {
             res.statusCode = 404;
             res.end(JSON.stringify({ error: "Meeting not found" }));
             return;
           }
-          if (req.method === "GET") {
-            res.setHeader("Content-Type", "application/json");
-            res.end(JSON.stringify({ meeting: sanitizeMeetingForRole(meeting, role) }));
-            return;
-          }
-          if (req.method === "PATCH") {
-            const body = JSON.parse(await readBody(req));
-            const updated = updateMeeting(match[1], body);
-            res.setHeader("Content-Type", "application/json");
-            res.end(JSON.stringify({ meeting: sanitizeMeetingForRole(updated, role) }));
-            return;
-          }
+          const updated = updateMeeting(meetingId, body);
+          res.setHeader("Content-Type", "application/json");
+          res.end(JSON.stringify({ meeting: sanitizeMeetingForRole(updated, role) }));
+          return;
         }
       }
 
@@ -175,7 +155,7 @@ function readBody(req) {
     req.on("data", (chunk) => {
       data += chunk;
     });
-    req.on("end", () => resolve(data || "{}"));
+    req.on("end", () => resolve(data));
     req.on("error", reject);
   });
 }

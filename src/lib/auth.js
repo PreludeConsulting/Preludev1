@@ -8,6 +8,9 @@ function sanitizeClientErrorMessage(payload, fallback) {
     return payload.issues.map((issue) => issue.message).filter(Boolean).join(" ") || "Please check your entries and try again.";
   }
   if (payload?.error === "database_unavailable") return payload.message || DB_UNAVAILABLE_UI;
+  if (payload?.error === "email_unverified") {
+    return payload.message || "Please verify your email before logging in. Check your inbox or use the development verification link from sign-up.";
+  }
   const raw = payload?.message || fallback || "Request failed.";
   if (import.meta.env.PROD && /prisma|Can't reach database server/i.test(raw)) {
     return "Something went wrong. Please try again later.";
@@ -95,8 +98,14 @@ export async function signUp(payload) {
     role: (payload.role || "student").toUpperCase(),
     termsAccepted: Boolean(payload.termsAccepted ?? true)
   };
-  const { user } = await api("/api/auth/register", { method: "POST", body: JSON.stringify(body) });
-  return attachFrontendFields(user);
+  const result = await api("/api/auth/register", { method: "POST", body: JSON.stringify(body) });
+  return {
+    ...attachFrontendFields(result.user),
+    message: result.message,
+    devVerificationUrl: result.devVerificationUrl,
+    devOnly: result.devOnly,
+    emailVerified: Boolean(result.emailVerified ?? result.user?.emailVerified)
+  };
 }
 
 export async function signOut() {
@@ -159,8 +168,6 @@ export async function startBillingCheckout(planId) {
 export async function openBillingPortal() {
   return api("/api/billing/portal", { method: "POST" });
 }
-
-export const DEMO_HINT = "Create a free account. Email links are logged by the local server until an email provider is configured.";
 
 export function getUserBaseRecord(email) {
   return { email, focus: "college planning", role: "student" };

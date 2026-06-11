@@ -4,16 +4,13 @@ import jwt from "jsonwebtoken";
 import { randomBytes, createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-import { formatAuthApiError, logAuthApiError } from "./lib/dbErrors.js";
 import {
-  createOfflineSessionTokens,
-  devRateLimit,
-  findOfflineDemoUser,
-  getOfflineAuthFromTokenClaims,
-  isDatabaseReachable,
-  isDevOfflineAuthEnabled,
-  OFFLINE_LOGIN_HINT
-} from "./lib/devOfflineAuth.js";
+  buildAuthUrl,
+  deliverAuthEmail,
+  isDevAutoVerifyEnabled,
+  registerResponseExtras
+} from "./lib/authEmail.js";
+import { formatAuthApiError, logAuthApiError } from "./lib/dbErrors.js";
 
 export function db() {
   if (!globalThis.__preludePrisma) globalThis.__preludePrisma = new PrismaClient();
@@ -252,7 +249,7 @@ async function rateLimitDb(req, route, limit, windowSeconds) {
 }
 
 async function rateLimit(req, route, limit, windowSeconds) {
-  await devRateLimit(req, route, limit, windowSeconds, db(), rateLimitDb);
+  await rateLimitDb(req, route, limit, windowSeconds);
 }
 
 async function createRoleProfile(tx, userId, role, organizationId) {
@@ -268,13 +265,6 @@ async function issueVerification(tx, userId) {
     data: { userId, tokenHash: sha256(raw), expiresAt: plusMs(EMAIL_VERIFY_HOURS * 60 * 60 * 1000) }
   });
   return raw;
-}
-
-function sendDevEmail(_kind, _to, _url) {
-  // Legacy Prisma auth: verification/reset links are not emailed in dev.
-  // Set PRELUDE_LOG_AUTH_EMAILS=1 to print links to the server console.
-  if (process.env.PRELUDE_LOG_AUTH_EMAILS !== "1") return;
-  console.info(`Auth link (${_kind}) → ${_to}\n${_url}`);
 }
 
 function makeAccessToken(user, sessionId) {
@@ -319,11 +309,6 @@ async function getAuth(req) {
   if (!token) return null;
   try {
     const claims = jwt.verify(token, getJwtSecret(), { audience: "prelude-web", issuer: "prelude-api" });
-    const offlineAuth = getOfflineAuthFromTokenClaims(claims);
-    if (offlineAuth) return offlineAuth;
-
-    if (!(await isDatabaseReachable(db()))) return null;
-
     const session = await db().session.findFirst({
       where: { id: claims.sid, userId: claims.sub, status: "ACTIVE", expiresAt: { gt: new Date() } },
       include: { user: true }
@@ -376,6 +361,7 @@ async function handleRegister(req, res) {
   const exists = await db().user.findUnique({ where: { email } });
   if (exists) return sendJson(res, 409, { error: "email_exists", message: "An account with this email already exists." });
   const passwordHash = await argon2.hash(payload.password, { type: argon2.argon2id });
+  const autoVerify = isDevAutoVerifyEnabled();
   const result = await db().$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
@@ -384,17 +370,30 @@ async function handleRegister(req, res) {
         email,
         passwordHash,
         role: payload.role,
-        termsAcceptedAt: new Date()
+        termsAcceptedAt: new Date(),
+        emailVerified: autoVerify,
+        emailVerifiedAt: autoVerify ? new Date() : null
       }
     });
     await createRoleProfile(tx, user.id, user.role, payload.organizationId);
-    const verificationToken = await issueVerification(tx, user.id);
+    let verificationToken = null;
+    if (!autoVerify) {
+      verificationToken = await issueVerification(tx, user.id);
+    }
     await tx.activityLog.create({ data: { actorUserId: user.id, action: "REGISTER", entityType: "User", entityId: user.id } });
     return { user, verificationToken };
   });
-  const verifyUrl = `${process.env.PUBLIC_APP_URL || "http://localhost:5173"}/verify-email?token=${result.verificationToken}`;
-  sendDevEmail("verify-email", email, verifyUrl);
-  sendJson(res, 201, { user: publicUser(result.user), message: "Account created. Check your email to verify your account." });
+
+  let verifyUrl = null;
+  if (!autoVerify && result.verificationToken) {
+    verifyUrl = buildAuthUrl(req, `/verify-email?token=${result.verificationToken}`);
+    await deliverAuthEmail({ kind: "verify-email", to: email, url: verifyUrl, req });
+  }
+
+  sendJson(res, 201, {
+    user: publicUser(result.user),
+    ...registerResponseExtras({ autoVerified: autoVerify, verifyUrl })
+  });
 }
 
 async function handleVerifyEmail(req, res, url) {
@@ -416,33 +415,6 @@ async function handleLogin(req, res) {
   await rateLimit(req, "/api/auth/login", 10, 15 * 60);
   const payload = loginSchema.parse(await readJsonBody(req));
   const email = normalizeEmail(payload.email);
-
-  if (isDevOfflineAuthEnabled() && !(await isDatabaseReachable(db()))) {
-    const offlineUser = findOfflineDemoUser(email, payload.password);
-    if (!offlineUser) {
-      return sendJson(res, 401, {
-        error: "invalid_credentials",
-        message: "Invalid email or password. For local demo without a database, use student@prelude-demo.com / Student123! or mentor@prelude-demo.com / Mentor123!"
-      });
-    }
-    const tokens = createOfflineSessionTokens(offlineUser, {
-      randomToken,
-      ACCESS_TTL_SECONDS,
-      REFRESH_TTL_DAYS
-    });
-    console.warn("[prelude-auth-api] Offline demo login (PostgreSQL unavailable). Run: npm run db:start");
-    return sendJson(
-      res,
-      200,
-      {
-        user: publicUser(offlineUser),
-        csrfToken: tokens.csrfToken,
-        offlineMode: true,
-        message: OFFLINE_LOGIN_HINT
-      },
-      { "Set-Cookie": cookiesForTokens(tokens) }
-    );
-  }
 
   const user = await db().user.findUnique({ where: { email } });
   const fail = async (reason, userId = null) => {
@@ -513,7 +485,8 @@ async function handleRequestReset(req, res) {
     const token = randomToken(32);
     await db().passwordResetToken.create({ data: { userId: user.id, tokenHash: sha256(token), expiresAt: plusMs(RESET_MINUTES * 60 * 1000), requestIp: getClientIp(req), userAgent: req.headers["user-agent"] || null } });
     await securityEvent({ userId: user.id, eventType: "PASSWORD_RESET_REQUESTED", severity: "INFO", req });
-    sendDevEmail("password-reset", user.email, `${process.env.PUBLIC_APP_URL || "http://localhost:5173"}/reset-password?token=${token}`);
+    const resetUrl = buildAuthUrl(req, `/reset-password?token=${token}`);
+    await deliverAuthEmail({ kind: "password-reset", to: user.email, url: resetUrl, req });
   }
   sendJson(res, 200, { message: "If that account exists, a reset link has been sent." });
 }

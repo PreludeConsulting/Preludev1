@@ -1,6 +1,4 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { isDemoEmail } from "../../data/demoAccounts.js";
-import { getDemoDashboardForUser } from "../../data/demoDashboardData.js";
 import {
   connectGoogleCalendar,
   connectZoom,
@@ -50,16 +48,8 @@ export function DashboardDataProvider({ children, user }) {
   const [preferences, setPreferences] = useState(null);
   const [onboarding, setOnboarding] = useState(EMPTY_ONBOARDING);
   const [savedResources, setSavedResources] = useState([]);
-  const [apiDemo, setApiDemo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const localDemo = useMemo(
-    () => (user?.email && isDemoEmail(user.email) ? getDemoDashboardForUser(user.email, user.role) : null),
-    [user?.email, user?.role]
-  );
-
-  const demo = apiDemo || localDemo;
 
   const refresh = useCallback(async () => {
     if (!user) {
@@ -70,7 +60,7 @@ export function DashboardDataProvider({ children, user }) {
     setLoading(true);
     setError(null);
 
-    if (useSupabase && !localDemo) {
+    if (useSupabase) {
       try {
         const data = await loadSupabaseDashboard(user.id, user.email);
         if (data.errors?.length) {
@@ -100,18 +90,12 @@ export function DashboardDataProvider({ children, user }) {
       setIntegrations(data.integrations || integrations);
       setMeetings(data.meetings || []);
       setNotifications(data.notifications || []);
-      setApiDemo(data.demo || null);
     } catch {
-      if (localDemo) {
-        setMeetings(localDemo.meetings || []);
-        setApiDemo(localDemo);
-      } else {
-        setMeetings([]);
-      }
+      setMeetings([]);
     } finally {
       setLoading(false);
     }
-  }, [user, useSupabase, localDemo]);
+  }, [user, useSupabase]);
 
   useEffect(() => {
     if (user) {
@@ -128,7 +112,6 @@ export function DashboardDataProvider({ children, user }) {
       setPreferences(null);
       setOnboarding(EMPTY_ONBOARDING);
       setSavedResources([]);
-      setApiDemo(null);
       setLoading(false);
     }
   }, [user?.id, refresh]);
@@ -245,31 +228,30 @@ export function DashboardDataProvider({ children, user }) {
     () => ({
       loading,
       error,
-      isDemo: Boolean(demo),
-      useSupabaseData: useSupabase && !localDemo,
-      demo,
+      isDemo: false,
+      useSupabaseData: useSupabase,
       integrations,
-      meetings: demo?.meetings?.length ? demo.meetings : meetings,
-      notifications: demo?.notifications?.length ? demo.notifications : notifications,
-      events: demo?.events?.length ? demo.events : useSupabase && !localDemo ? events : PLACEHOLDER_EVENTS,
-      tasks: demo?.tasks ?? (useSupabase && !localDemo ? [] : PLACEHOLDER_TASKS),
-      mentor: demo?.mentor ?? (useSupabase && !localDemo ? mentor : PLACEHOLDER_MENTOR),
-      mentors: demo?.mentors ?? mentors,
-      students: demo?.students ?? PLACEHOLDER_STUDENTS,
-      messages: demo?.messages?.length ? demo.messages : useSupabase && !localDemo ? messages : PLACEHOLDER_MESSAGES,
-      conversations: demo?.conversations?.length ? demo.conversations : conversations,
-      gamification: demo?.gamification ?? null,
-      studentActivityFeed: demo?.studentActivityFeed ?? [],
-      essays: demo?.essays ?? [],
-      extracurriculars: demo?.extracurriculars ?? [],
-      aiSuggestions: demo?.aiSuggestions ?? [],
-      profile: demo?.profile ?? profile,
+      meetings,
+      notifications,
+      events: useSupabase ? events : PLACEHOLDER_EVENTS,
+      tasks: useSupabase ? [] : PLACEHOLDER_TASKS,
+      mentor: useSupabase ? mentor : PLACEHOLDER_MENTOR,
+      mentors,
+      students: PLACEHOLDER_STUDENTS,
+      messages: useSupabase ? messages : PLACEHOLDER_MESSAGES,
+      conversations,
+      gamification: null,
+      studentActivityFeed: [],
+      essays: [],
+      extracurriculars: [],
+      aiSuggestions: [],
+      profile,
       preferences: preferences,
-      onboarding: demo?.onboarding ?? onboarding,
+      onboarding,
       savedResources: savedResources,
-      summaryCards: demo?.summaryCards ?? null,
-      deadlines: demo?.deadlines ?? [],
-      applicationProgress: demo?.applicationProgress ?? (onboarding?.profileComplete
+      summaryCards: null,
+      deadlines: [],
+      applicationProgress: onboarding?.profileComplete
         ? {
             collegeList: onboarding.profileComplete,
             essays: Math.max(0, onboarding.profileComplete - 10),
@@ -277,10 +259,10 @@ export function DashboardDataProvider({ children, user }) {
             scholarships: Math.max(0, onboarding.profileComplete - 30),
             profile: onboarding.profileComplete
           }
-        : null),
-      pendingRequests: demo?.pendingRequests ?? [],
-      availability: demo?.availability ?? [],
-      privateNotes: demo?.privateNotes ?? {},
+        : null,
+      pendingRequests: [],
+      availability: [],
+      privateNotes: {},
       refresh,
       scheduleMeeting,
       saveProfile,
@@ -318,9 +300,7 @@ export function DashboardDataProvider({ children, user }) {
     [
       loading,
       error,
-      demo,
       useSupabase,
-      localDemo,
       integrations,
       meetings,
       notifications,

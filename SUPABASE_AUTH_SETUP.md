@@ -75,15 +75,17 @@ confirmation and password reset links return to the right place.
 
 - **Site URL:** `http://localhost:5173/Preludev1/`
 - **Redirect URLs** (add each):
-  - `http://localhost:5173/Preludev1/auth/login` (email confirmation lands here)
-  - `http://localhost:5173/Preludev1/auth/reset-password` (password reset callback)
+  - `http://localhost:5173/Preludev1/login`
+  - `http://localhost:5173/Preludev1/register`
+  - `http://localhost:5173/Preludev1/reset-password`
+  - `http://localhost:5173/Preludev1/verify-email` (legacy Prisma auth only)
 
 > The app builds these from the Vite base (`/Preludev1/`). If you change the
 > base, update these accordingly.
 
 **For production later**, add your deployed origin too, e.g.:
-- `https://yourdomain.com/Preludev1/auth/login`
-- `https://yourdomain.com/Preludev1/auth/reset-password`
+- `https://yourdomain.com/Preludev1/login`
+- `https://yourdomain.com/Preludev1/reset-password`
 - and set the production **Site URL** to your deployed URL.
 
 ---

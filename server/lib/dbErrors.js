@@ -1,7 +1,7 @@
 /** Maps Prisma / connection failures to safe API responses (no raw ORM text in production UI). */
 
 export const DB_UNAVAILABLE_MESSAGE =
-  "The local development database is unavailable. Run npm run db:start (requires Docker), then npm run db:migrate and npm run seed:demo. Demo accounts can still sign in offline when the database is down.";
+  "The database is unavailable. Check DATABASE_URL and ensure PostgreSQL is running.";
 
 export function isProduction() {
   return process.env.NODE_ENV === "production";

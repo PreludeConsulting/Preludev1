@@ -7,7 +7,6 @@ import { startGoogleSignIn } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
-import DemoAccountsPanel from "./DemoAccountsPanel.jsx";
 import AppLink from "./AppLink.jsx";
 
 function Shell({ title, subtitle, children }) {
@@ -78,18 +77,11 @@ export function LoginPage() {
     await loginWithCredentials(email, password);
   }
 
-  async function onDemoLogin(account) {
-    setEmail(account.email);
-    setPassword(account.password);
-    await loginWithCredentials(account.email, account.password);
-  }
-
   return (
     <Shell
       title="Log in"
       subtitle={supabaseAuth ? "Sign in to your Prelude account." : "Secure access uses HTTP-only cookies, CSRF protection, and server-side role checks."}
     >
-      {!supabaseAuth ? <DemoAccountsPanel onDemoLogin={onDemoLogin} loading={loading} /> : null}
       <GoogleSignInButton onClick={onGoogle} disabled={loading} />
       <p className="dash-auth-divider">or continue with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
@@ -126,6 +118,7 @@ export function RegisterPage() {
     }
   }
   const [message, setMessage] = useState("");
+  const [devVerificationUrl, setDevVerificationUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
@@ -135,6 +128,7 @@ export function RegisterPage() {
     setLoading(true);
     setError("");
     setMessage("");
+    setDevVerificationUrl("");
     try {
       const result = await signUp(form);
       if (result?.needsEmailConfirmation) {
@@ -145,10 +139,14 @@ export function RegisterPage() {
         navigate(postAuthDestination(result), { replace: true });
         return;
       }
+      if (result?.devVerificationUrl) {
+        setDevVerificationUrl(result.devVerificationUrl);
+      }
       setMessage(
-        supabaseAuth
-          ? "Account created! You can now log in."
-          : "Account created. Check your email for the verification link, then log in."
+        result?.message ||
+          (supabaseAuth
+            ? "Account created! You can now log in."
+            : "Account created. Check your email for the verification link, then log in.")
       );
     } catch (err) {
       setError(err.message);
@@ -164,6 +162,15 @@ export function RegisterPage() {
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
         {message ? <Alert>{message}</Alert> : null}
+        {devVerificationUrl ? (
+          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+            <p className="font-semibold text-foreground">Development only — verify email</p>
+            <p className="mt-1 text-muted-foreground">Click this link once, then log in:</p>
+            <a className="mt-2 inline-block break-all font-medium text-primary underline" href={devVerificationUrl}>
+              {devVerificationUrl}
+            </a>
+          </div>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="First name" value={form.firstName} onChange={update("firstName")} required />
           <Field label="Last name" value={form.lastName} onChange={update("lastName")} required />
