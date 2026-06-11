@@ -8,6 +8,7 @@ import {
   getVisibleQuestions,
   pruneStaleAnswers
 } from "../../lib/preludeMatchLogic.js";
+import { requestMentorMatch } from "../../lib/mentorMatch.js";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
 import PreludeMatchBoot from "./PreludeMatchBoot.jsx";
 import PreludeMatchIntro from "./PreludeMatchIntro.jsx";
@@ -23,6 +24,7 @@ export default function PreludeMatch() {
   const [currentQuestionId, setCurrentQuestionId] = useState(null);
   const [pigMotion, setPigMotion] = useState("none");
   const [progress, setProgress] = useState(0);
+  const [matchSummary, setMatchSummary] = useState("");
 
   const visibleQuestions = useMemo(
     () => getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, answers),
@@ -60,6 +62,7 @@ export default function PreludeMatch() {
   function handleStart() {
     setAnswers({});
     setProgress(0);
+    setMatchSummary("");
     setPhase(reducedMotion ? "questions" : "boot");
     setCurrentQuestionId(PRELUDE_MATCH_QUESTIONS[0].id);
   }
@@ -78,13 +81,19 @@ export default function PreludeMatch() {
     });
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     const visible = getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, answers);
     const idx = getQuestionIndex(visible, currentQuestionId);
 
     if (idx >= visible.length - 1) {
       setProgress(90);
       setPhase("loading");
+      try {
+        const match = await requestMentorMatch(answers);
+        setMatchSummary(match?.summary ?? "");
+      } catch {
+        setMatchSummary("");
+      }
       return;
     }
 
@@ -113,6 +122,7 @@ export default function PreludeMatch() {
     setCurrentQuestionId(null);
     setPigMotion("none");
     setProgress(0);
+    setMatchSummary("");
   }
 
   const isLastQuestion =
@@ -187,7 +197,7 @@ export default function PreludeMatch() {
 
           {phase === "results" ? (
             <motion.div key="results" className="pm-card__panel pm-card__panel--results">
-              <PreludeMatchResults reducedMotion={reducedMotion} onRestart={handleRestart} />
+              <PreludeMatchResults reducedMotion={reducedMotion} onRestart={handleRestart} matchSummary={matchSummary} />
             </motion.div>
           ) : null}
         </AnimatePresence>

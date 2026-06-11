@@ -1,4 +1,4 @@
-import { createChatCompletion, createRagChatCompletion } from "../server/chatHandler.js";
+import { createMentorMatch } from "../server/mentorMatch.js";
 import { mapChatError, shouldLogChatError } from "../server/chatErrors.js";
 
 export default async function handler(req, res) {
@@ -16,30 +16,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    if (typeof req.body?.message === "string") {
-      const result = await createRagChatCompletion(
-        {
-          message: req.body.message,
-          conversationHistory: req.body.conversationHistory ?? []
-        },
-        {},
-        req.body?.profile ?? null
-      );
+    if (req.body?.mentorMatch) {
+      const result = await createMentorMatch(req.body.mentorMatch);
       res.status(200).json(result);
       return;
     }
-
-    const messages = req.body?.messages;
-    if (!Array.isArray(messages)) {
-      res.status(400).json({
-        error: "bad_request",
-        message: "Provide message or messages in the request body."
-      });
-      return;
-    }
-
-    const result = await createChatCompletion(messages, {}, req.body?.profile ?? null);
-    res.status(200).json(result);
+    res.status(410).json({
+      error: "guided_assistant_only",
+      message: "Open-ended admissions chat has been replaced by the guided assistant. AI is available only after a completed mentor questionnaire."
+    });
   } catch (error) {
     if (shouldLogChatError(error)) {
       console.error("[prelude-chat-api]", error.message ?? error);

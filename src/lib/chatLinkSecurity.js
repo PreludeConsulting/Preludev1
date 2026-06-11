@@ -9,6 +9,8 @@ const TRUSTED_EXTERNAL_HOSTS = [
   "www.collegeboard.org",
   "bigfuture.collegeboard.org",
   "collegescorecard.ed.gov",
+  "bls.gov",
+  "www.bls.gov",
   "ed.gov",
   "www.ed.gov"
 ];

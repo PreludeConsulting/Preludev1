@@ -3,7 +3,7 @@ import { PRELUDE_MATCH_MENTORS } from "../../data/preludeMatchMentors.js";
 import PreludeMentorCard from "./PreludeMentorCard.jsx";
 import PreludePigAvatar from "./PreludePigAvatar.jsx";
 
-export default function PreludeMatchResults({ reducedMotion, onRestart }) {
+export default function PreludeMatchResults({ reducedMotion, onRestart, matchSummary = "" }) {
   return (
     <div className="pm-results">
       <header className="pm-results__header">
@@ -26,6 +26,13 @@ export default function PreludeMatchResults({ reducedMotion, onRestart }) {
           </button>
         ) : null}
       </header>
+
+      {matchSummary ? (
+        <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4 text-sm leading-6 text-foreground">
+          <strong className="mb-1 block">Mentor-match summary</strong>
+          {matchSummary}
+        </div>
+      ) : null}
 
       <div className="pm-results__scroll">
         {PRELUDE_MATCH_MENTORS.map((mentor, index) => (

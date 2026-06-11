@@ -5,6 +5,7 @@ import { isAllowedChatHref } from "../../src/lib/chatLinkSecurity.js";
 describe("frontend chat link allowlist", () => {
   it("matches server rules for internal hash links", () => {
     assert.equal(isAllowedChatHref("#preludematch"), true);
+    assert.equal(isAllowedChatHref("https://www.bls.gov/ooh/"), true);
     assert.equal(isAllowedChatHref("#pricing"), true);
   });
 

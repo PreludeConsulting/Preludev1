@@ -9,6 +9,12 @@ const CLIENT_ERROR_STATUS = {
 const CLIENT_ERROR_CODES = new Set(Object.keys(CLIENT_ERROR_STATUS));
 
 export function mapChatError(error) {
+  if (error?.code === "MENTOR_QUESTIONNAIRE_REQUIRED") {
+    return {
+      status: 400,
+      body: { error: "mentor_questionnaire_required", message: error.message }
+    };
+  }
   if (error.code && CLIENT_ERROR_CODES.has(error.code)) {
     return {
       status: CLIENT_ERROR_STATUS[error.code],
