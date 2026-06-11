@@ -15,7 +15,6 @@ import {
   StudentMessages,
   StudentOverview,
   StudentProfileSettings,
-  StudentProfileStats,
   StudentWorkspace
 } from "./pages/student/StudentPages.jsx";
 import {
@@ -27,6 +26,16 @@ import {
   MentorStudentDetail,
   MentorStudents
 } from "./pages/mentor/MentorPages.jsx";
+import {
+  MentorBilling,
+  MentorHelp,
+  MentorNotifications,
+  StudentBilling,
+  StudentHelp,
+  StudentNotifications,
+  StudentResources
+} from "./pages/shared/FeaturePages.jsx";
+import { PreludeMatchBrowsePage } from "./pages/shared/PreludeMatchPages.jsx";
 
 function DashboardRedirect() {
   const { user, ready } = useAuth();
@@ -35,24 +44,35 @@ function DashboardRedirect() {
   return <Navigate to={dashboardHomeForRole(user.role)} replace />;
 }
 
+function LegacyStudentRedirect({ to }) {
+  return <Navigate to={to} replace />;
+}
+
 function StudentRoutes() {
   const { user } = useAuth();
   return (
     <DashboardDataProvider user={user}>
       <StudentGamificationShell user={user}>
-      <Routes>
-        <Route element={<DashboardLayout productNav={PRODUCT_STUDENT_NAV} basePath={STUDENT_DASHBOARD_BASE} routeMeta={STUDENT_ROUTE_META} />}>
-          <Route path="overview" element={<StudentOverview />} />
-          <Route path="calendar" element={<StudentCalendar />} />
-          <Route path="ai" element={<StudentAI />} />
-          <Route path="profile-stats" element={<StudentProfileStats />} />
-          <Route path="workspace" element={<StudentWorkspace />} />
-          <Route path="mentor" element={<StudentMentor />} />
-          <Route path="messages" element={<StudentMessages />} />
-          <Route path="profile" element={<StudentProfileSettings />} />
-          <Route index element={<Navigate to="overview" replace />} />
-        </Route>
-      </Routes>
+        <Routes>
+          <Route element={<DashboardLayout productNav={PRODUCT_STUDENT_NAV} basePath={STUDENT_DASHBOARD_BASE} routeMeta={STUDENT_ROUTE_META} />}>
+            <Route path="overview" element={<StudentOverview />} />
+            <Route path="calendar" element={<StudentCalendar />} />
+            <Route path="ai" element={<StudentAI />} />
+            <Route path="workspace" element={<StudentWorkspace />} />
+            <Route path="mentor" element={<StudentMentor />} />
+            <Route path="prelude-match" element={<PreludeMatchBrowsePage />} />
+            <Route path="messages" element={<StudentMessages />} />
+            <Route path="notifications" element={<StudentNotifications />} />
+            <Route path="resources" element={<StudentResources />} />
+            <Route path="billing" element={<StudentBilling />} />
+            <Route path="help" element={<StudentHelp />} />
+            <Route path="settings" element={<StudentProfileSettings />} />
+            <Route path="profile" element={<LegacyStudentRedirect to="settings" />} />
+            <Route path="profile-stats" element={<LegacyStudentRedirect to="settings" />} />
+            <Route path="mentor-matching" element={<LegacyStudentRedirect to="prelude-match" />} />
+            <Route index element={<Navigate to="overview" replace />} />
+          </Route>
+        </Routes>
       </StudentGamificationShell>
     </DashboardDataProvider>
   );
@@ -69,8 +89,12 @@ function MentorRoutes() {
           <Route path="students" element={<MentorStudents />} />
           <Route path="students/:studentId" element={<MentorStudentDetail />} />
           <Route path="messages" element={<MentorMessages />} />
+          <Route path="notifications" element={<MentorNotifications />} />
           <Route path="availability" element={<MentorAvailability />} />
-          <Route path="profile" element={<MentorProfileSettings />} />
+          <Route path="settings" element={<MentorProfileSettings />} />
+          <Route path="profile" element={<Navigate to="settings" replace />} />
+          <Route path="billing" element={<MentorBilling />} />
+          <Route path="help" element={<MentorHelp />} />
           <Route index element={<Navigate to="overview" replace />} />
         </Route>
       </Routes>
@@ -78,12 +102,16 @@ function MentorRoutes() {
   );
 }
 
+/**
+ * Routes are RELATIVE to the parent /dashboard/* match in main.jsx.
+ * Do not prefix with /student — that would match /student/* at the site root instead.
+ */
 export default function DashboardRouter() {
   return (
     <Routes>
-      <Route path="/" element={<DashboardRedirect />} />
+      <Route index element={<DashboardRedirect />} />
       <Route
-        path="/student/*"
+        path="student/*"
         element={
           <RoleGuard role="student">
             <StudentRoutes />
@@ -91,7 +119,7 @@ export default function DashboardRouter() {
         }
       />
       <Route
-        path="/mentor/*"
+        path="mentor/*"
         element={
           <RoleGuard role="mentor">
             <MentorRoutes />

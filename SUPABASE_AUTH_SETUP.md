@@ -23,7 +23,9 @@ browser automation is explicitly enabled, and it was not.) Do the steps below.
 2. Go to **SQL Editor**.
 3. Paste the entire contents of [`supabase/setup-auth.sql`](./supabase/setup-auth.sql).
 4. Click **Run**.
-5. Verify the `public.profiles` table exists: **Table Editor → profiles**.
+5. Paste and run [`supabase/setup-dashboard.sql`](./supabase/setup-dashboard.sql) for per-user dashboard tables (preferences, events, messages, notifications, resources, mentor matches, onboarding progress).
+6. Paste and run [`supabase/setup-storage.sql`](./supabase/setup-storage.sql) for profile avatar uploads (Storage bucket + RLS).
+7. Verify the `public.profiles` table exists: **Table Editor → profiles**.
 6. Verify **Row Level Security is enabled** (the `profiles` table shows an
    "RLS enabled" badge). You can also run:
    ```sql

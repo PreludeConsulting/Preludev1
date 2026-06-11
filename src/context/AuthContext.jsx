@@ -37,9 +37,9 @@ export function AuthProvider({ children }) {
               setUser(null);
               return;
             }
-            const { profile } = await getProfile(session.user.id);
-            const { mapSupabaseUser } = await import("../lib/supabaseSession.js");
-            setUser(mapSupabaseUser(session, profile));
+            const { resolveSupabaseAppUser: resolveUser } = await loadSupabaseAuth();
+            const next = await resolveUser();
+            if (!cancelled) setUser(next);
           });
           subscription = data.subscription;
         } else {
@@ -167,7 +167,30 @@ export function AuthProvider({ children }) {
     setPersonalizedAiRequest((n) => n + 1);
   }, []);
 
-  const planDetails = useMemo(() => (user ? getPlan(user.plan) : null), [user]);
+  const planDetails = useMemo(() => (user?.plan ? getPlan(user.plan) : null), [user]);
+
+  const saveUserPlan = useCallback(async (planId) => {
+    if (!user) throw new Error("You must be signed in to choose a plan.");
+    if (useSupabase) {
+      const { saveUserPlan: persistPlan } = await loadSupabaseAuth();
+      const { error } = await persistPlan(user.id, planId);
+      if (error) throw new Error(error);
+      const next = {
+        ...user,
+        plan: planId,
+        planSelected: true,
+        planName: getPlan(planId).name,
+        onboardingStatus: "needs_match",
+        matchOnboardingComplete: false
+      };
+      setUser(next);
+      return next;
+    }
+    // Prisma path: plan is normally set server-side; update local state for onboarding UX.
+    const next = { ...user, plan: planId, planSelected: true, planName: getPlan(planId).name };
+    setUser(next);
+    return next;
+  }, [useSupabase, user]);
 
   const value = useMemo(
     () => ({
@@ -186,6 +209,7 @@ export function AuthProvider({ children }) {
       signIn,
       signUp,
       signOut,
+      saveUserPlan,
       setAuthError,
       personalizedAiRequest,
       requestPersonalizedAi,
@@ -206,6 +230,7 @@ export function AuthProvider({ children }) {
       signIn,
       signUp,
       signOut,
+      saveUserPlan,
       personalizedAiRequest,
       requestPersonalizedAi,
       refreshUser

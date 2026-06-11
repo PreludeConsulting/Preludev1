@@ -252,6 +252,79 @@ a {
   background: hsl(var(--primary) / 0.06);
 }
 
+.nav-bar__mobile-account {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid hsl(var(--foreground) / 0.08);
+  display: grid;
+  gap: 0.35rem;
+}
+
+.nav-bar__mobile-account-name {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.nav-bar__mobile-account-email {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-bar__mobile-account-link,
+.nav-bar__mobile-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: hsl(var(--foreground));
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.nav-bar__mobile-account-link:hover,
+.nav-bar__mobile-account-link:focus-visible {
+  background: hsl(var(--primary) / 0.08);
+}
+
+.nav-bar__mobile-account-link--danger {
+  color: hsl(var(--destructive));
+}
+
+.nav-bar__mobile-account-link--danger:hover,
+.nav-bar__mobile-account-link--danger:focus-visible {
+  background: hsl(var(--destructive) / 0.08);
+}
+
+.nav-bar__mobile-auth {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid hsl(var(--foreground) / 0.08);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.nav-bar__mobile-cta {
+  justify-content: center;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.nav-bar__mobile-cta:hover {
+  background: hsl(var(--primary) / 0.92);
+}
+
 .nav-bar__search-wrap {
   position: relative;
   flex-shrink: 0;

@@ -14,10 +14,14 @@ create table if not exists public.profiles (
   role         text not null default 'student' check (role in ('student', 'mentor', 'admin')),
   school       text,
   grade_level  text,
+  plan_id      text check (plan_id is null or plan_id in ('basic', 'plus', 'pro')),
   created_at   timestamptz not null default now()
 );
 
 comment on table public.profiles is 'Public profile data linked 1:1 to auth.users.';
+
+-- Add plan_id for existing deployments (safe to re-run).
+alter table public.profiles add column if not exists plan_id text check (plan_id is null or plan_id in ('basic', 'plus', 'pro'));
 
 -- 2) Row Level Security -------------------------------------------------------
 alter table public.profiles enable row level security;

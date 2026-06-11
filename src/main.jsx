@@ -5,7 +5,11 @@ import App from "./App.jsx";
 import DashboardRouter from "./dashboard/DashboardRouter.jsx";
 import MentorsPage from "./components/MentorsPage.jsx";
 import { CheckoutCancelPage, CheckoutSuccessPage } from "./components/BillingResultPage.jsx";
+import PlanSelectionPage from "./components/PlanSelectionPage.jsx";
+import PreludeMatchOnboardingPage from "./components/onboarding/PreludeMatchOnboardingPage.jsx";
+import RequirePlanGuard from "./components/RequirePlanGuard.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { LegalModalProvider } from "./context/LegalModalContext.jsx";
 import LegalModal from "./components/LegalModal.jsx";
 import {
@@ -25,8 +29,9 @@ import "./landing-ui.css";
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter basename={ROUTER_BASENAME || undefined}>
-      <AuthProvider>
-        <LegalModalProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <LegalModalProvider>
           <Routes>
             <Route path="/" element={<App />} />
             <Route path="/login" element={<LoginPage />} />
@@ -34,9 +39,18 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/onboarding/plan" element={<PlanSelectionPage />} />
+            <Route path="/onboarding/match" element={<PreludeMatchOnboardingPage />} />
+            <Route
+              path="/dashboard/*"
+              element={
+                <RequirePlanGuard>
+                  <DashboardRouter />
+                </RequirePlanGuard>
+              }
+            />
             <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
             <Route path="/checkout/cancel" element={<CheckoutCancelPage />} />
-            <Route path="/dashboard/*" element={<DashboardRouter />} />
             <Route path="/mentors" element={<MentorsPage />} />
             {/* Legacy Supabase test routes redirect to main Prelude auth pages. */}
             <Route path="/auth/login" element={<Navigate to="/login" replace />} />
@@ -47,8 +61,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/auth/*" element={<Navigate to="/register" replace />} />
           </Routes>
           <LegalModal />
-        </LegalModalProvider>
-      </AuthProvider>
+          </LegalModalProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

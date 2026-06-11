@@ -357,3 +357,275 @@
   margin-top: 1.25rem;
   width: 100%;
 }
+
+/* ——— User menu (logged-in homepage header) ——— */
+
+.user-menu {
+  position: relative;
+}
+
+.user-menu__trigger {
+  max-width: min(100%, 14rem);
+}
+
+.user-menu__chevron--open {
+  transform: rotate(180deg);
+}
+
+.user-menu__panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 60;
+  width: min(16rem, calc(100vw - 2rem));
+  padding: 0.5rem;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  background: #fff;
+  box-shadow: 0 16px 40px rgb(35 39 48 / 0.12);
+}
+
+.user-menu__identity {
+  padding: 0.65rem 0.75rem 0.5rem;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.06);
+  margin-bottom: 0.35rem;
+}
+
+.user-menu__identity-name {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.user-menu__identity-email,
+.user-menu__identity-plan {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: none;
+  border-radius: 0.65rem;
+  background: transparent;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.user-menu__item:hover,
+.user-menu__item:focus-visible {
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--foreground));
+  outline: none;
+}
+
+.user-menu__item--danger {
+  color: hsl(var(--destructive));
+}
+
+.user-menu__item--danger:hover,
+.user-menu__item--danger:focus-visible {
+  background: hsl(var(--destructive) / 0.08);
+  color: hsl(var(--destructive));
+}
+
+/* ——— Plan selection onboarding ——— */
+
+.plan-select-page {
+  min-height: 100vh;
+  padding: clamp(5rem, 10vw, 7rem) 1.25rem 3rem;
+  background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted) / 0.35) 100%);
+}
+
+.plan-select-page__inner {
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.plan-select-page__back {
+  display: inline-block;
+  margin-bottom: 1.25rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+}
+
+.plan-select-page__back:hover {
+  color: hsl(var(--foreground));
+}
+
+.plan-select-page__head {
+  max-width: 42rem;
+  margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.plan-select-page__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+
+.plan-select-page__title {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.plan-select-page__subtitle {
+  margin: 0.75rem 0 0;
+  font-size: clamp(0.9375rem, 2vw, 1.0625rem);
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+}
+
+.plan-select-page__error {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid hsl(var(--destructive) / 0.25);
+  background: hsl(var(--destructive) / 0.08);
+  color: hsl(var(--destructive));
+  font-size: 0.875rem;
+}
+
+.plan-select-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+.plan-select-page__note {
+  margin: 1.5rem 0 0;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.plan-select-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.15rem, 3vw, 1.5rem);
+  border-radius: 1.25rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  background: #fff;
+  box-shadow: 0 8px 28px rgb(35 39 48 / 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.plan-select-card:hover {
+  border-color: hsl(var(--primary) / 0.22);
+  box-shadow: 0 12px 32px rgb(120 106 255 / 0.1);
+}
+
+.plan-select-card--featured {
+  border-color: hsl(var(--primary) / 0.35);
+  box-shadow: 0 14px 36px rgb(120 106 255 / 0.12);
+}
+
+.plan-select-card--selected {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+}
+
+.plan-select-card__badge {
+  align-self: flex-start;
+  margin-bottom: 0.65rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #ede9ff;
+  color: #5b4fd6;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.plan-select-card__name {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.plan-select-card__price {
+  margin: 0.35rem 0 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: hsl(var(--primary));
+}
+
+.plan-select-card__period {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.plan-select-card__desc {
+  margin: 0.65rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: hsl(var(--muted-foreground));
+}
+
+.plan-select-card__features {
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+  flex: 1;
+}
+
+.plan-select-card__features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.plan-select-card__cta {
+  margin-top: 1.15rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-family: "Barlow", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.plan-select-card__cta:hover:not(:disabled) {
+  background: hsl(var(--primary) / 0.92);
+  transform: translateY(-1px);
+}
+
+.plan-select-card__cta:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

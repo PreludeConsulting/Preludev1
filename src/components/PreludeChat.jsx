@@ -1,6 +1,7 @@
 import { CircleHelp, MoreHorizontal, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
 import { navigateChatHref } from "../lib/chatLinkSecurity.js";
@@ -68,9 +69,25 @@ export default function PreludeChat() {
                       <button type="button" className="block w-full px-4 py-2 text-left text-sm hover:bg-foreground/[0.04]" onClick={() => { setSessionKey((value) => value + 1); setMenuOpen(false); }}>
                         Start over
                       </button>
+                      {isAuthenticated ? (
+                        <Link
+                          to="/dashboard"
+                          className="block px-4 py-2 text-sm hover:bg-foreground/[0.04]"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Open dashboard
+                        </Link>
+                      ) : null}
                       <button type="button" className="block w-full px-4 py-2 text-left text-sm hover:bg-foreground/[0.04]" onClick={() => { setMenuOpen(false); isAuthenticated ? openAccount() : openSignIn(); }}>
                         {isAuthenticated ? `${user.name.split(" ")[0]} · Account` : "Sign in"}
                       </button>
+                      <a
+                        href="#pricing"
+                        className="block px-4 py-2 text-sm hover:bg-foreground/[0.04]"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        View plans
+                      </a>
                     </div>
                   ) : null}
                 </div>

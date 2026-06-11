@@ -106,14 +106,68 @@ export async function getProfile(userId) {
   return { profile: data, error: null };
 }
 
+const PLAN_STORAGE_PREFIX = "prelude_plan_";
+
+export function readCachedPlan(userId) {
+  if (typeof window === "undefined" || !userId) return null;
+  try {
+    return window.localStorage.getItem(`${PLAN_STORAGE_PREFIX}${userId}`);
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedPlan(userId, planId) {
+  if (typeof window === "undefined" || !userId) return;
+  try {
+    window.localStorage.setItem(`${PLAN_STORAGE_PREFIX}${userId}`, planId);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+/** Persist the user's subscription plan choice (profile column + local fallback). */
+export async function saveUserPlan(userId, planId) {
+  if (!["basic", "plus", "pro"].includes(planId)) {
+    return { error: "Please choose a valid plan." };
+  }
+
+  writeCachedPlan(userId, planId);
+
+  const { error } = await getSupabase().from("profiles").update({ plan_id: planId }).eq("id", userId);
+  if (error) {
+    // Column may not exist yet if SQL migration wasn't re-run — local cache still works.
+    if (/plan_id|column/.test(error.message || "")) {
+      return { error: null, usedFallback: true };
+    }
+    return { error: friendlyError(error) };
+  }
+
+  await getSupabase().from("onboarding_progress").upsert(
+    { user_id: userId, onboarding_status: "needs_match", updated_at: new Date().toISOString() },
+    { onConflict: "user_id" }
+  );
+
+  return { error: null, usedFallback: false };
+}
+
 export function onAuthStateChange(callback) {
   return getSupabase().auth.onAuthStateChange(callback);
 }
 
-/** Load the current Supabase user for AuthContext, or null if signed out. */
+/** Load profile + onboarding + assigned mentor flag for AuthContext. */
 export async function resolveSupabaseAppUser() {
   const { session } = await getCurrentSession();
   if (!session) return null;
-  const { profile } = await getProfile(session.user.id);
-  return mapSupabaseUser(session, profile);
+  const userId = session.user.id;
+  const { profile } = await getProfile(userId);
+
+  const supabase = getSupabase();
+  const [onboardingRes, mentorRes] = await Promise.all([
+    supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("mentor_matches").select("id").eq("user_id", userId).eq("status", "assigned").limit(1)
+  ]);
+
+  const hasAssignedMentor = (mentorRes.data || []).length > 0;
+  return mapSupabaseUser(session, profile, onboardingRes.data, hasAssignedMentor);
 }

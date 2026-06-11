@@ -1,5 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 import {
   Award,
   Bot,
@@ -25,6 +25,8 @@ import {
   UserCheck,
   Video
 } from "lucide-react";
+import UserAvatar from "../../../components/UserAvatar.jsx";
+import { uploadAvatar, removeAvatar, validateAvatarFile } from "../../../lib/supabaseStorage.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { requestPasswordReset } from "../../../lib/auth.js";
 import { cn } from "../../../lib/utils.js";
@@ -36,7 +38,7 @@ import PreludeChatPanel from "../../components/PreludeChatPanel.jsx";
 import ScheduleMeetingForm from "../../components/ScheduleMeetingForm.jsx";
 import { PLACEHOLDER_COLLEGES, PLACEHOLDER_ESSAYS } from "../../data/placeholders.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
-import { loadPreferences, savePreferences } from "../../lib/dashboardPreferences.js";
+import { loadPreferences, savePreferences as saveLocalPreferences } from "../../lib/dashboardPreferences.js";
 import {
   Avatar,
   DashBadge,
@@ -256,26 +258,53 @@ function profileFieldValues(profile) {
     GPA: profile?.gpa ?? "",
     "Weighted GPA": profile?.weightedGpa ?? "",
     "SAT score": profile?.sat ?? "",
-    "Intended majors": profile?.majors?.join(", ") ?? "",
-    "Preferred colleges": profile?.colleges?.join(", ") ?? ""
+    "Intended majors": (profile?.targetMajors || profile?.majors || []).join(", "),
+    "Preferred colleges": (profile?.collegeInterests || profile?.colleges || []).join(", ")
   };
 }
 
 export function StudentProfileStats() {
   const { user } = useAuth();
-  const { profile, mentor } = useDashboardData();
-  const [completion, setCompletion] = useState(profile?.profileCompletion ?? 62);
+  const { profile, mentor, onboarding, saveProfile, saveOnboarding, useSupabaseData } = useDashboardData();
+  const [form, setForm] = useState(() => profileFieldValues(profile));
+  const [completion, setCompletion] = useState(onboarding?.profileComplete ?? profile?.profileCompletion ?? 0);
   const [saved, setSaved] = useState(false);
-  const fieldValues = profileFieldValues(profile);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
-  const majors = profile?.majors || [];
-  const colleges = profile?.colleges || [];
+  const majors = profile?.targetMajors || profile?.majors || [];
+  const colleges = profile?.collegeInterests || profile?.colleges || [];
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault();
-    setCompletion((c) => Math.min(100, c + 6));
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2600);
+    setSaving(true);
+    setError("");
+    try {
+      const nextCompletion = Math.min(100, completion + 12);
+      if (useSupabaseData) {
+        await saveProfile({
+          gradeLevel: form["Grade level"],
+          graduationYear: form["Graduation year"],
+          gpa: form.GPA,
+          weightedGpa: form["Weighted GPA"],
+          sat: form["SAT score"],
+          targetMajors: form["Intended majors"].split(",").map((s) => s.trim()).filter(Boolean),
+          collegeInterests: form["Preferred colleges"].split(",").map((s) => s.trim()).filter(Boolean)
+        });
+        await saveOnboarding({ profileComplete: nextCompletion });
+      }
+      setCompletion(nextCompletion);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2600);
+    } catch (err) {
+      setError(err.message || "Could not save profile.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function updateField(label, value) {
+    setForm((f) => ({ ...f, [label]: value }));
   }
 
   return (
@@ -373,23 +402,23 @@ export function StudentProfileStats() {
               {section.fields.map((label) => (
                 <label key={label} className="prelude-field">
                   <span>{label}</span>
-                  {section.textarea ? (
-                    <textarea rows={3} placeholder={`Add your ${section.title.toLowerCase()}…`} />
-                  ) : (
-                    <input defaultValue={fieldValues[label] ?? ""} placeholder={label} />
-                  )}
+                  <input
+                    value={form[label] ?? ""}
+                    onChange={(e) => updateField(label, e.target.value)}
+                    placeholder={label}
+                  />
                 </label>
               ))}
-              <SecondaryButton type="button" className="dash-btn--sm">Edit</SecondaryButton>
             </SectionCard>
           ))}
         </div>
 
         <div className="dash-form-actions">
+          {error ? <span className="dash-save-state dash-save-state--err">{error}</span> : null}
           {saved ? (
             <span className="dash-save-state dash-save-state--ok"><Check className="h-4 w-4" /> Profile saved</span>
           ) : null}
-          <PrimaryButton type="submit">Save profile</PrimaryButton>
+          <PrimaryButton type="submit" disabled={saving}>{saving ? "Saving…" : "Save profile"}</PrimaryButton>
         </div>
       </form>
     </div>
@@ -583,11 +612,11 @@ export function StudentMentor() {
         <SectionCard className="dash-panel">
           <EmptyState
             icon={UserCheck}
-            title="Mentor matching in progress"
-            description="We're matching you with a mentor based on your goals, intended majors, and target colleges. Completing your profile helps us find the best fit."
+            title="No mentors yet"
+            description="Start mentor matching to tell us about your goals. When a mentor is assigned, they will appear here with session scheduling and messaging."
             action={
-              <Link to={`${STUDENT_DASHBOARD_BASE}/profile-stats`} className="dash-btn dash-btn--primary">
-                <Pencil className="h-4 w-4" /> Complete your profile
+              <Link to={`${STUDENT_DASHBOARD_BASE}/prelude-match`} className="dash-btn dash-btn--primary">
+                <Sparkles className="h-4 w-4" /> Start Matching
               </Link>
             }
           />
@@ -707,7 +736,26 @@ export function StudentMentor() {
 }
 
 export function StudentMessages() {
-  const { conversations, meetings } = useDashboardData();
+  const { conversations, meetings, messages, isDemo } = useDashboardData();
+  const hasMessages = conversations?.length > 0 || messages?.length > 0;
+
+  if (!hasMessages && !isDemo) {
+    return (
+      <div className="dash-page dash-page--premium">
+        <EmptyState
+          icon={MessageCircle}
+          title="No messages yet"
+          description="Your conversations with mentors will appear here once you're matched and start chatting."
+          action={
+            <Link to={`${STUDENT_DASHBOARD_BASE}/prelude-match`} className="dash-btn dash-btn--primary dash-btn--sm">
+              Start Mentor Matching
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="dash-page dash-page--flush">
       <MessagesPanel
@@ -724,11 +772,77 @@ const SETTINGS_TABS = [
   { id: "profile", label: "Profile" },
   { id: "notifications", label: "Notifications" },
   { id: "calendar", label: "Calendar & meetings" },
-  { id: "display", label: "Display" },
+  { id: "display", label: "Appearance" },
   { id: "integrations", label: "Connected accounts" },
   { id: "security", label: "Privacy & security" },
   { id: "support", label: "Support" }
 ];
+
+function ProfilePhotoSection({ user, refreshUser }) {
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState("");
+  const [photoOk, setPhotoOk] = useState(false);
+
+  async function handleFileChange(event) {
+    const file = event.target.files?.[0];
+    const validation = validateAvatarFile(file);
+    if (validation) {
+      setPhotoError(validation);
+      return;
+    }
+    setUploading(true);
+    setPhotoError("");
+    try {
+      const { error } = await uploadAvatar(user.id, file);
+      if (error) throw new Error(error);
+      await refreshUser();
+      setPhotoOk(true);
+      window.setTimeout(() => setPhotoOk(false), 2600);
+    } catch (err) {
+      setPhotoError(err.message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function handleRemove() {
+    setUploading(true);
+    setPhotoError("");
+    try {
+      const { error } = await removeAvatar(user.id);
+      if (error) throw new Error(error);
+      await refreshUser();
+    } catch (err) {
+      setPhotoError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <SectionCard id="profile" title="Profile picture" className="dash-panel">
+      <div className="dash-profile-photo">
+        <UserAvatar name={user?.name} avatarUrl={user?.avatarUrl} size="lg" />
+        <div className="dash-profile-photo__actions">
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={handleFileChange} />
+          <PrimaryButton type="button" className="dash-btn--sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
+            {uploading ? "Uploading…" : "Upload photo"}
+          </PrimaryButton>
+          {user?.avatarUrl ? (
+            <SecondaryButton type="button" className="dash-btn--sm" disabled={uploading} onClick={handleRemove}>
+              Remove photo
+            </SecondaryButton>
+          ) : null}
+          <p className="dash-muted">JPG, PNG, WebP, or GIF · max 5 MB</p>
+          {photoError ? <p className="dash-save-state dash-save-state--err">{photoError}</p> : null}
+          {photoOk ? <p className="dash-save-state dash-save-state--ok"><Check className="h-4 w-4" /> Photo updated</p> : null}
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
 
 function SettingSelect({ id, label, description, value, onChange, options }) {
   return (
@@ -758,12 +872,41 @@ function SaveRow({ section, savedSection, onSave }) {
 }
 
 export function StudentProfileSettings() {
-  const { user, planDetails, openAccount, signOut } = useAuth();
-  const { integrations, connectGoogle, disconnectGoogle, connectZoomAccount, disconnectZoomAccount } = useDashboardData();
+  const { user, planDetails, openAccount, signOut, useSupabase, refreshUser } = useAuth();
+  const { integrations, connectGoogle, disconnectGoogle, connectZoomAccount, disconnectZoomAccount, preferences, savePreferences, saveProfile, profile, useSupabaseData } = useDashboardData();
   const [tab, setTab] = useState("profile");
-  const [prefs, setPrefs] = useState(() => loadPreferences());
+  const [prefs, setPrefs] = useState(() => preferences || loadPreferences());
   const [savedSection, setSavedSection] = useState("");
   const [resetState, setResetState] = useState("idle");
+  const [profileForm, setProfileForm] = useState({
+    academicGoals: profile?.academicGoals || "",
+    collegeInterests: (profile?.collegeInterests || []).join(", "),
+    mentorPreferences: profile?.mentorPreferences?.notes || "",
+    gpa: profile?.gpa || "",
+    graduationYear: profile?.graduationYear || ""
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (preferences) setPrefs(preferences);
+  }, [preferences]);
+
+  useEffect(() => {
+    if (window.location.hash === "#profile") setTab("profile");
+  }, []);
+
+  useEffect(() => {
+    if (profile) {
+      setProfileForm({
+        academicGoals: profile.academicGoals || "",
+        collegeInterests: (profile.collegeInterests || []).join(", "),
+        mentorPreferences: profile.mentorPreferences?.notes || "",
+        gpa: profile.gpa || "",
+        graduationYear: profile.graduationYear || ""
+      });
+    }
+  }, [profile]);
 
   const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
   const planName = planDetails?.name || user?.planName || "Basic";
@@ -772,20 +915,58 @@ export function StudentProfileSettings() {
     setPrefs((p) => ({ ...p, [key]: value }));
   }
 
-  function saveSection(section) {
-    savePreferences(prefs);
+  async function saveSection(section) {
+    if (useSupabaseData) {
+      await savePreferences(prefs);
+    } else {
+      saveLocalPreferences(prefs);
+    }
     setSavedSection(section);
     window.setTimeout(() => setSavedSection(""), 2600);
+  }
+
+  async function handleSignOut() {
+    await signOut();
+    navigate("/", { replace: true });
   }
 
   async function handlePasswordReset() {
     if (!user?.email) return;
     setResetState("sending");
     try {
-      await requestPasswordReset(user.email);
+      if (useSupabase) {
+        const { resetPassword } = await import("../../../lib/supabaseAuth.js");
+        const { error } = await resetPassword(user.email);
+        if (error) throw new Error(error);
+      } else {
+        await requestPasswordReset(user.email);
+      }
       setResetState("sent");
     } catch {
       setResetState("error");
+    }
+  }
+
+  async function handleProfileSave(event) {
+    event.preventDefault();
+    if (!useSupabaseData) {
+      setSavedSection("profile");
+      window.setTimeout(() => setSavedSection(""), 2600);
+      return;
+    }
+    setProfileSaving(true);
+    try {
+      await saveProfile({
+        academicGoals: profileForm.academicGoals,
+        collegeInterests: profileForm.collegeInterests.split(",").map((s) => s.trim()).filter(Boolean),
+        mentorPreferences: { notes: profileForm.mentorPreferences },
+        gpa: profileForm.gpa,
+        graduationYear: profileForm.graduationYear
+      });
+      setSavedSection("profile");
+      window.setTimeout(() => setSavedSection(""), 2600);
+    } finally {
+      setProfileSaving(false);
     }
   }
 
@@ -793,7 +974,7 @@ export function StudentProfileSettings() {
     <div className="dash-page dash-page--premium">
       <SectionCard className="dash-settings-id dash-panel" padding={false}>
         <div className="dash-settings-id__inner">
-          <Avatar name={user?.name} size="lg" />
+          <UserAvatar name={user?.name} avatarUrl={user?.avatarUrl} size="lg" />
           <div className="dash-settings-id__text">
             <h2 className="dash-settings-id__name">{user?.name || "Your account"}</h2>
             <p className="dash-settings-id__email"><Mail className="h-4 w-4" /> {user?.email || "—"}</p>
@@ -816,22 +997,42 @@ export function StudentProfileSettings() {
         <div className="dash-settings__panel">
           {tab === "profile" ? (
             <>
-              <SectionCard
-                title="Profile information"
-                className="dash-panel"
-                action={
-                  <Link to={`${STUDENT_DASHBOARD_BASE}/profile-stats`} className="dash-btn dash-btn--secondary dash-btn--sm">
-                    <Pencil className="h-4 w-4" /> Edit full profile
-                  </Link>
-                }
-              >
-                <dl className="dash-kv">
-                  <div><dt>Name</dt><dd>{user?.name || "—"}</dd></div>
-                  <div><dt>Email</dt><dd>{user?.email || "—"}</dd></div>
-                  <div><dt>Role</dt><dd>{roleLabel}</dd></div>
-                  <div><dt>Plan</dt><dd>{planName}</dd></div>
-                </dl>
-                <p className="dash-muted">Manage academic details, intended majors, and college goals on your profile page.</p>
+              <ProfilePhotoSection user={user} refreshUser={refreshUser} />
+              <SectionCard title="Profile information" className="dash-panel">
+                <form className="dash-profile-form" onSubmit={handleProfileSave}>
+                  <dl className="dash-kv">
+                    <div><dt>Full name</dt><dd>{user?.name || "—"}</dd></div>
+                    <div><dt>Email</dt><dd>{user?.email || "—"}</dd></div>
+                    <div><dt>Role</dt><dd>{roleLabel}</dd></div>
+                    <div><dt>Plan</dt><dd>{planName}</dd></div>
+                  </dl>
+                  <label className="prelude-field">
+                    <span>Academic goals</span>
+                    <textarea rows={3} value={profileForm.academicGoals} onChange={(e) => setProfileForm((f) => ({ ...f, academicGoals: e.target.value }))} />
+                  </label>
+                  <label className="prelude-field">
+                    <span>College interests</span>
+                    <input value={profileForm.collegeInterests} onChange={(e) => setProfileForm((f) => ({ ...f, collegeInterests: e.target.value }))} placeholder="Stanford, UCLA, liberal arts colleges…" />
+                  </label>
+                  <label className="prelude-field">
+                    <span>Mentor preferences</span>
+                    <textarea rows={3} value={profileForm.mentorPreferences} onChange={(e) => setProfileForm((f) => ({ ...f, mentorPreferences: e.target.value }))} placeholder="Support style, meeting frequency, areas of focus…" />
+                  </label>
+                  <label className="prelude-field">
+                    <span>GPA</span>
+                    <input value={profileForm.gpa} onChange={(e) => setProfileForm((f) => ({ ...f, gpa: e.target.value }))} />
+                  </label>
+                  <label className="prelude-field">
+                    <span>Graduation year</span>
+                    <input value={profileForm.graduationYear} onChange={(e) => setProfileForm((f) => ({ ...f, graduationYear: e.target.value }))} />
+                  </label>
+                  <div className="dash-form-actions">
+                    {savedSection === "profile" ? (
+                      <span className="dash-save-state dash-save-state--ok"><Check className="h-4 w-4" /> Profile saved</span>
+                    ) : null}
+                    <PrimaryButton type="submit" disabled={profileSaving}>{profileSaving ? "Saving…" : "Save profile"}</PrimaryButton>
+                  </div>
+                </form>
               </SectionCard>
 
               <SectionCard title="Account management" className="dash-panel">
@@ -839,7 +1040,15 @@ export function StudentProfileSettings() {
                   <span><span className="dash-setting-link__label">Account &amp; plan</span><span className="dash-setting-link__desc">View your subscription and billing details.</span></span>
                   <ChevronRight className="h-4 w-4" />
                 </button>
-                <button type="button" className="dash-setting-link" onClick={() => signOut()}>
+                <Link to={`${STUDENT_DASHBOARD_BASE}/billing`} className="dash-setting-link">
+                  <span><span className="dash-setting-link__label">Plans and billing</span><span className="dash-setting-link__desc">View or change your subscription.</span></span>
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+                <Link to={`${STUDENT_DASHBOARD_BASE}/help`} className="dash-setting-link">
+                  <span><span className="dash-setting-link__label">Help and support</span><span className="dash-setting-link__desc">Contact Prelude or browse common questions.</span></span>
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+                <button type="button" className="dash-setting-link" onClick={handleSignOut}>
                   <span><span className="dash-setting-link__label">Sign out</span><span className="dash-setting-link__desc">Sign out of Prelude on this device.</span></span>
                   <ChevronRight className="h-4 w-4" />
                 </button>
