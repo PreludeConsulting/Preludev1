@@ -7,13 +7,8 @@
     "dev": "vite",
     "server": "node server/standalone.js",
     "dev:all": "node scripts/dev-all.mjs",
-    "db:start": "docker compose up -d",
-    "db:stop": "docker compose down",
-    "db:setup": "node scripts/db-setup.mjs",
-    "db:reset": "docker compose down -v && npm run db:setup",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "seed:demo": "prisma db seed",
     "sync:main": "node scripts/sync-main.mjs",
     "build": "vite build",
     "preview": "vite preview",
@@ -46,11 +41,8 @@
     "tailwind-merge": "^2.5.5",
     "zod": "^4.4.3"
   },
-  "prisma": {
-    "seed": "node scripts/seed-demo-accounts.mjs"
-  },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "prisma": "^5.22.0",
