@@ -1,8 +1,23 @@
 import { useEffect, useState } from "react";
 import { Video, X } from "lucide-react";
 import { cn } from "../../lib/utils.js";
+import {
+  DEFAULT_REMINDER_MINUTES,
+  getNotificationPermission,
+  REMINDER_OPTIONS
+} from "../lib/calendarReminders.js";
 import { EVENT_CATEGORY_LABELS } from "../data/placeholders.js";
+import NotificationPermissionModal from "./NotificationPermissionModal.jsx";
 import { IconButton, Modal, PrimaryButton, SecondaryButton } from "./ui/index.jsx";
+
+export const CALENDAR_COLOR_OPTIONS = [
+  { value: "red", label: "Red" },
+  { value: "yellow", label: "Yellow" },
+  { value: "green", label: "Green" },
+  { value: "blue", label: "Blue" },
+  { value: "orange", label: "Orange" },
+  { value: "purple", label: "Purple" }
+];
 
 const CATEGORIES = [
   { value: "mentor_meeting", label: "Mentor Meeting" },
@@ -104,7 +119,9 @@ const DEFAULT_FORM = {
   meetingType: "zoom",
   studentId: "",
   shared: true,
-  zoom: true
+  zoom: true,
+  calendarColor: "",
+  reminderMinutes: DEFAULT_REMINDER_MINUTES
 };
 
 function toDateInputValue(date) {
@@ -130,7 +147,9 @@ function buildFormFromEvent(initialEvent, initialCategory) {
     startTime: toTimeInputValue(start),
     endTime: toTimeInputValue(end),
     description: initialEvent.description || "",
-    meetingType: initialEvent.meetingType || "zoom"
+    meetingType: initialEvent.meetingType || "zoom",
+    calendarColor: initialEvent.pillColor || "",
+    reminderMinutes: initialEvent.reminderMinutes || DEFAULT_REMINDER_MINUTES
   };
 }
 
@@ -148,6 +167,9 @@ export function CalendarAddEventModal({
 }) {
   const [form, setForm] = useState({ ...DEFAULT_FORM, category: initialCategory });
   const [errors, setErrors] = useState({});
+  const [permissionModalOpen, setPermissionModalOpen] = useState(false);
+  const [permissionWarning, setPermissionWarning] = useState("");
+  const [reminderSavedWarning, setReminderSavedWarning] = useState("");
   const isEventForm = formVariant === "event";
   const isTaskForm = formVariant === "task";
   const isSimplifiedForm = isEventForm || isTaskForm;
@@ -156,10 +178,67 @@ export function CalendarAddEventModal({
     if (initialEvent) {
       setForm(buildFormFromEvent(initialEvent, initialCategory));
     } else {
-      setForm({ ...DEFAULT_FORM, category: initialCategory });
+      setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: DEFAULT_REMINDER_MINUTES });
     }
     setErrors({});
+    setPermissionWarning("");
+    setReminderSavedWarning("");
   }, [open, initialCategory, initialEvent]);
+
+  function updatePermissionWarning(reminderMinutes) {
+    const permission = getNotificationPermission();
+    if (permission === "unsupported") {
+      setPermissionWarning("Browser notifications are not supported in this environment.");
+      return;
+    }
+    if (reminderMinutes === "none") {
+      setPermissionWarning("");
+      setReminderSavedWarning("");
+      return;
+    }
+    if (permission === "denied") {
+      setPermissionWarning("Notifications are blocked. Enable them in your browser settings to receive reminders.");
+      setReminderSavedWarning("");
+      return;
+    }
+    if (permission === "default") {
+      setPermissionWarning("");
+      return;
+    }
+    setPermissionWarning("");
+    setReminderSavedWarning("");
+  }
+
+  function handleReminderChange(value) {
+    setForm((current) => ({ ...current, reminderMinutes: value }));
+    updatePermissionWarning(value);
+    if (value !== "none" && getNotificationPermission() === "default") {
+      setPermissionModalOpen(true);
+    }
+  }
+
+  async function handleAllowNotifications() {
+    if (!("Notification" in window)) {
+      setPermissionModalOpen(false);
+      setReminderSavedWarning("Browser notifications are not supported in this environment.");
+      return;
+    }
+    const result = await Notification.requestPermission();
+    setPermissionModalOpen(false);
+    if (result !== "granted") {
+      setReminderSavedWarning("Reminder saved, but browser notifications are disabled unless you allow them.");
+    } else {
+      setReminderSavedWarning("");
+      setPermissionWarning("");
+    }
+  }
+
+  function handleDismissNotifications() {
+    setPermissionModalOpen(false);
+    if (form.reminderMinutes !== "none") {
+      setReminderSavedWarning("Reminder saved. Enable notifications to receive browser alerts.");
+    }
+  }
 
   function validate() {
     const next = {};
@@ -200,7 +279,7 @@ export function CalendarAddEventModal({
     onSave?.({
       id: initialEvent?.id || `evt-${Date.now()}`,
       title: form.title.trim(),
-      category: form.category,
+      category: isTaskForm ? "personal_task" : isEventForm ? "mentor_meeting" : form.category,
       start: start.toISOString(),
       end: end.toISOString(),
       description: form.description,
@@ -208,11 +287,17 @@ export function CalendarAddEventModal({
       shared: form.shared,
       mentorOnly: !form.shared && role === "mentor",
       meetingType,
-      zoomJoinUrl
+      zoomJoinUrl,
+      formVariant: isTaskForm ? "task" : isEventForm ? "event" : undefined,
+      calendarItemType: isTaskForm ? "task" : isEventForm ? "event" : undefined,
+      pillColor: form.calendarColor || undefined,
+      reminderMinutes: isSimplifiedForm ? form.reminderMinutes : "none"
     });
     onClose();
-    setForm({ ...DEFAULT_FORM, category: initialCategory });
+    setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: DEFAULT_REMINDER_MINUTES });
     setErrors({});
+    setPermissionWarning("");
+    setReminderSavedWarning("");
   }
 
   if (!open) return null;
@@ -300,6 +385,50 @@ export function CalendarAddEventModal({
               </select>
             </label>
           ) : null}
+          {isSimplifiedForm ? (
+            <label className="prelude-field">
+              <span>Notification reminder</span>
+              <select
+                value={form.reminderMinutes}
+                onChange={(e) => handleReminderChange(e.target.value)}
+              >
+                {REMINDER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              {permissionWarning ? (
+                <em className="dash-field-hint dash-field-hint--warning">{permissionWarning}</em>
+              ) : null}
+              {!permissionWarning && reminderSavedWarning ? (
+                <em className="dash-field-hint">{reminderSavedWarning}</em>
+              ) : null}
+            </label>
+          ) : null}
+          {isSimplifiedForm ? (
+            <fieldset className="prelude-field dash-color-picker-field">
+              <legend>Calendar color</legend>
+              <div className="dash-color-picker" role="radiogroup" aria-label="Calendar color">
+                {CALENDAR_COLOR_OPTIONS.map((color) => (
+                  <button
+                    key={color.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={form.calendarColor === color.value}
+                    aria-label={color.label}
+                    className={cn(
+                      "dash-color-picker__swatch",
+                      `dash-color-picker__swatch--${color.value}`,
+                      form.calendarColor === color.value && "dash-color-picker__swatch--active"
+                    )}
+                    onClick={() => setForm((f) => ({
+                      ...f,
+                      calendarColor: f.calendarColor === color.value ? "" : color.value
+                    }))}
+                  />
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
           {!isSimplifiedForm ? (
             <>
               <label className="prelude-field">
@@ -321,6 +450,11 @@ export function CalendarAddEventModal({
           </div>
         </form>
       </div>
+      <NotificationPermissionModal
+        open={permissionModalOpen}
+        onAllow={handleAllowNotifications}
+        onDismiss={handleDismissNotifications}
+      />
     </div>
   );
 }

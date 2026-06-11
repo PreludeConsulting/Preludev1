@@ -25,6 +25,60 @@ function meetingEnd(start, minutes) {
   return new Date(start.getTime() + minutes * 60 * 1000);
 }
 
+function atDayOffset(days, hour = 9, minute = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(hour, minute, 0, 0);
+  return d;
+}
+
+function buildUpcomingDemoEvents(slug) {
+  const mentorToday = atDayOffset(0, 16, 0);
+  const calcToday = atDayOffset(0, 18, 30);
+  const roboticsTomorrow = atDayOffset(1, 15, 30);
+  const scholarshipTomorrow = atDayOffset(1, 9, 0);
+
+  return [
+    {
+      id: "demo-upcoming-mentor",
+      title: "Mentor Meeting",
+      category: "mentor_meeting",
+      start: mentorToday.toISOString(),
+      end: meetingEnd(mentorToday, 60).toISOString(),
+      studentId: slug,
+      shared: true,
+      zoomJoinUrl: "https://zoom.us/j/1234567890"
+    },
+    {
+      id: "demo-upcoming-calc",
+      title: "AP Calculus Review",
+      category: "personal_task",
+      start: calcToday.toISOString(),
+      end: meetingEnd(calcToday, 90).toISOString(),
+      studentId: slug,
+      shared: true
+    },
+    {
+      id: "demo-upcoming-robotics",
+      title: "Robotics Club Meeting",
+      category: "personal_task",
+      start: roboticsTomorrow.toISOString(),
+      end: meetingEnd(roboticsTomorrow, 90).toISOString(),
+      studentId: slug,
+      shared: true
+    },
+    {
+      id: "demo-upcoming-scholarship",
+      title: "Scholarship Deadline",
+      category: "scholarship_deadline",
+      start: scholarshipTomorrow.toISOString(),
+      end: scholarshipTomorrow.toISOString(),
+      studentId: slug,
+      shared: true
+    }
+  ];
+}
+
 const jordanMeetingStart = futureMeetingStart(9, 16, 0);
 const alexMeetingStart = futureMeetingStart(14, 15, 30);
 
@@ -123,6 +177,101 @@ const MENTOR_PRIVATE_EVENTS = [
   }
 ];
 
+function buildPrepEvents() {
+  return [
+    {
+      id: "demo-prep-ap",
+      title: "AP Calculus BC Exam",
+      category: "personal_task",
+      start: futureMeetingStart(14).toISOString(),
+      end: futureMeetingStart(14).toISOString(),
+      shared: true
+    },
+    {
+      id: "demo-prep-sat",
+      title: "SAT Test Date",
+      category: "personal_task",
+      start: futureMeetingStart(10).toISOString(),
+      end: futureMeetingStart(10).toISOString(),
+      shared: true
+    },
+    {
+      id: "demo-prep-club",
+      title: "Robotics Club Meeting",
+      category: "personal_task",
+      start: futureMeetingStart(5, 15, 30).toISOString(),
+      end: meetingEnd(futureMeetingStart(5, 15, 30), 90).toISOString(),
+      shared: true
+    },
+    {
+      id: "demo-prep-visit",
+      title: "Georgia Tech Campus Visit",
+      category: "personal_task",
+      start: futureMeetingStart(16).toISOString(),
+      end: futureMeetingStart(16).toISOString(),
+      shared: true
+    },
+    {
+      id: "demo-prep-summer",
+      title: "MITES Summer Program Deadline",
+      category: "scholarship_deadline",
+      start: futureMeetingStart(22).toISOString(),
+      end: futureMeetingStart(22).toISOString(),
+      shared: true
+    }
+  ];
+}
+
+function buildApplicationEvents(slug) {
+  return [
+    {
+      id: "demo-app-common",
+      title: "Common App Opens",
+      category: "application_deadline",
+      start: futureMeetingStart(6).toISOString(),
+      end: futureMeetingStart(6).toISOString(),
+      shared: true,
+      studentId: slug
+    },
+    {
+      id: "demo-app-uc",
+      title: "UC Application",
+      category: "application_deadline",
+      start: futureMeetingStart(20).toISOString(),
+      end: futureMeetingStart(20).toISOString(),
+      shared: true,
+      studentId: slug
+    },
+    {
+      id: "demo-app-fafsa",
+      title: "FAFSA Priority Deadline",
+      category: "scholarship_deadline",
+      start: futureMeetingStart(12).toISOString(),
+      end: futureMeetingStart(12).toISOString(),
+      shared: true,
+      studentId: slug
+    },
+    {
+      id: "demo-app-css",
+      title: "CSS Profile",
+      category: "scholarship_deadline",
+      start: futureMeetingStart(15).toISOString(),
+      end: futureMeetingStart(15).toISOString(),
+      shared: true,
+      studentId: slug
+    },
+    {
+      id: "demo-app-supplement",
+      title: "Georgia Tech Supplement",
+      category: "essay_deadline",
+      start: futureMeetingStart(18).toISOString(),
+      end: futureMeetingStart(18).toISOString(),
+      shared: true,
+      studentId: slug
+    }
+  ];
+}
+
 function buildAvailabilityEvents() {
   const tueStart = futureMeetingStart(2, 16, 0);
   const thuStart = futureMeetingStart(4, 15, 0);
@@ -171,40 +320,7 @@ function studentBundle(email) {
         shared: true,
         zoomJoinUrl: m.zoomJoinUrl
       })),
-      {
-        id: "demo-deadline-ps",
-        title: isJordan ? "Draft personal statement" : "Revise personal statement",
-        category: "essay_deadline",
-        start: futureMeetingStart(12).toISOString(),
-        end: futureMeetingStart(12).toISOString(),
-        shared: true
-      },
-      {
-        id: "demo-deadline-ec",
-        title: "Update extracurricular activities list",
-        category: "personal_task",
-        start: futureMeetingStart(8).toISOString(),
-        end: futureMeetingStart(8).toISOString(),
-        shared: true
-      },
-      {
-        id: "demo-deadline-scholarship",
-        title: "Review scholarship opportunities",
-        category: "scholarship_deadline",
-        start: futureMeetingStart(18).toISOString(),
-        end: futureMeetingStart(18).toISOString(),
-        shared: true
-      },
-      {
-        id: "demo-deadline-app",
-        title: isJordan ? "UC application opens" : "Early action deadline",
-        category: "application_deadline",
-        start: futureMeetingStart(20).toISOString(),
-        end: futureMeetingStart(20).toISOString(),
-        shared: true,
-        studentId: slug
-      },
-      ...buildAvailabilityEvents()
+      ...(isJordan ? [...buildPrepEvents(), ...buildUpcomingDemoEvents(slug)] : buildApplicationEvents(slug))
     ],
     conversations,
     gamification,
@@ -233,14 +349,17 @@ function studentBundle(email) {
       : ["DECA", "Student Government", "Part-time retail associate"],
     aiSuggestions: isJordan
       ? [
-          "Prioritize your personal statement draft before next week's mentor session.",
-          "Add one more target school with a strong CS co-op program.",
-          "Block 2 hours this weekend to refine your extracurricular descriptions."
+          "Consider taking AP Statistics next year.",
+          "Join a leadership role within FBLA.",
+          "Research engineering summer programs.",
+          "Add one community service activity this semester.",
+          "Build a stronger spike in computer science."
         ]
       : [
-          "Confirm scholarship deadlines for your top three schools.",
-          "Ask Maya to review your personal statement introduction.",
-          "Schedule time to update your college list categories."
+          "Finish your Georgia Tech supplement.",
+          "Submit FAFSA before the priority deadline.",
+          "Complete your activities section.",
+          "Review your essay before your mentor meeting."
         ],
     messages: conversationsToInbox(conversations),
     summaryCards: isJordan
@@ -258,10 +377,10 @@ function studentBundle(email) {
         },
     deadlines: isJordan
       ? [
-          { id: "dl-1", title: "Personal statement draft", dueDate: "Apr 12, 2026", category: "Essay", priority: "high", done: false },
-          { id: "dl-2", title: "Georgia Tech supplemental", dueDate: "Apr 18, 2026", category: "Essay", priority: "medium", done: false },
-          { id: "dl-3", title: "Scholarship essay — STEM", dueDate: "May 2, 2026", category: "Scholarship", priority: "medium", done: false },
-          { id: "dl-4", title: "Update activities list", dueDate: "Mar 28, 2026", category: "Application", priority: "low", done: true }
+          { id: "dl-1", title: "AP Calculus BC Exam", dueDate: "May 5, 2026", category: "Academic", priority: "high", done: false },
+          { id: "dl-2", title: "SAT Test Date", dueDate: "Apr 12, 2026", category: "Academic", priority: "high", done: false },
+          { id: "dl-3", title: "MITES Summer Program", dueDate: "Mar 15, 2026", category: "Summer Program", priority: "medium", done: false },
+          { id: "dl-4", title: "Course registration", dueDate: "Mar 28, 2026", category: "Academic", priority: "low", done: true }
         ]
       : [
           { id: "dl-a1", title: "NYU supplement draft", dueDate: "Apr 8, 2026", category: "Essay", priority: "high", done: false },
@@ -270,7 +389,78 @@ function studentBundle(email) {
         ],
     applicationProgress: isJordan
       ? { collegeList: 72, essays: 68, extracurriculars: 55, scholarships: 40, profile: 78 }
-      : { collegeList: 60, essays: 54, extracurriculars: 70, scholarships: 35, profile: 64 }
+      : { collegeList: 60, essays: 54, extracurriculars: 70, scholarships: 35, profile: 64 },
+    academicProgress: isJordan
+      ? { gpaStrength: 96, courseRigor: 89, activities: 78, leadership: 72 }
+      : null,
+    studentProfileStats: isJordan
+      ? { gpa: "3.86", apHonors: 6, leadershipRoles: 2, volunteerHours: 84 }
+      : null,
+    opportunities: isJordan
+      ? [
+          {
+            id: "opp-1",
+            title: "MITES Summer Program",
+            category: "Summer Program",
+            deadline: "Mar 15",
+            matchScore: 95,
+            description: "STEM enrichment program for high-achieving students.",
+            actionLabel: "Learn more"
+          },
+          {
+            id: "opp-2",
+            title: "Research Opportunity — GT Lab",
+            category: "Research",
+            deadline: "Apr 5",
+            matchScore: 92,
+            description: "Explore hands-on research experience with a university lab.",
+            actionLabel: "Apply"
+          },
+          {
+            id: "opp-3",
+            title: "FBLA State Competition",
+            category: "Competition",
+            deadline: "Apr 2",
+            matchScore: 88,
+            description: "Compete and build leadership through business events.",
+            actionLabel: "Register"
+          },
+          {
+            id: "opp-4",
+            title: "Coding Internship",
+            category: "Internship",
+            deadline: "May 1",
+            matchScore: 84,
+            description: "Gain real-world experience in software development.",
+            actionLabel: "View"
+          }
+        ]
+      : [],
+    collegeJourney: isJordan
+      ? [
+          { id: "j1", label: "First extracurricular joined", done: true },
+          { id: "j2", label: "First leadership role", done: true },
+          { id: "j3", label: "First AP course", done: true },
+          { id: "j4", label: "SAT completed", done: false },
+          { id: "j5", label: "College visit completed", done: false },
+          { id: "j6", label: "College applications submitted", done: false }
+        ]
+      : [],
+    essayTracker: isJordan
+      ? []
+      : [
+          { id: "et-1", title: "Personal Statement", status: "In Progress" },
+          { id: "et-2", title: "Common App Essay", status: "Completed" },
+          { id: "et-3", title: "Supplement Essays", status: "In Progress" }
+        ],
+    financialAidTracker: isJordan
+      ? []
+      : [
+          { id: "fa-1", label: "FAFSA", status: "In Progress", value: 72 },
+          { id: "fa-2", label: "CSS Profile", status: "In Progress", value: 45 },
+          { id: "fa-3", label: "Scholarships Found", status: "In Progress", value: 12 },
+          { id: "fa-4", label: "Scholarships Submitted", status: "In Progress", value: 4 }
+        ]
   };
 }
 

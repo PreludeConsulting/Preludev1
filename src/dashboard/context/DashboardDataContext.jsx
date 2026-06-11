@@ -11,6 +11,11 @@ import {
   createMeeting as apiCreateMeeting
 } from "../../lib/dashboardApi.js";
 import { PLACEHOLDER_EVENTS, PLACEHOLDER_MESSAGES, PLACEHOLDER_MENTOR, PLACEHOLDER_STUDENTS, PLACEHOLDER_TASKS } from "../data/placeholders.js";
+import {
+  cancelCalendarReminder,
+  isReminderEnabled,
+  scheduleCalendarReminder
+} from "../lib/calendarReminders.js";
 
 const DashboardDataContext = createContext(null);
 
@@ -55,6 +60,46 @@ export function DashboardDataProvider({ children, user }) {
     if (user) refresh();
   }, [user, refresh]);
 
+  const addNotification = useCallback((notification) => {
+    setNotifications((prev) => [
+      {
+        id: notification.id || `n-${Date.now()}`,
+        title: notification.title,
+        body: notification.body,
+        unread: notification.unread ?? true,
+        kind: notification.kind || "general",
+        createdAt: notification.createdAt || new Date().toISOString()
+      },
+      ...prev
+    ]);
+  }, []);
+
+  const markNotificationsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
+  }, []);
+
+  const scheduleEventReminder = useCallback((payload) => {
+    if (!isReminderEnabled(payload.reminderMinutes)) {
+      cancelCalendarReminder(payload.id);
+      return null;
+    }
+
+    return scheduleCalendarReminder({
+      ...payload,
+      onTrigger: ({ title, body, isTask }) => {
+        addNotification({
+          title: isTask ? `Upcoming task: ${title}` : `Upcoming event: ${title}`,
+          body,
+          kind: "reminder"
+        });
+      }
+    });
+  }, [addNotification]);
+
+  const cancelEventReminder = useCallback((id) => {
+    cancelCalendarReminder(id);
+  }, []);
+
   const scheduleMeeting = useCallback(async (payload) => {
     const { meeting } = await apiCreateMeeting(payload);
     setMeetings((prev) => [...prev, meeting]);
@@ -78,6 +123,10 @@ export function DashboardDataProvider({ children, user }) {
       integrations,
       meetings: demo?.meetings?.length ? demo.meetings : meetings,
       notifications,
+      addNotification,
+      markNotificationsRead,
+      scheduleEventReminder,
+      cancelEventReminder,
       events: demo?.events ?? PLACEHOLDER_EVENTS,
       tasks: demo?.tasks ?? PLACEHOLDER_TASKS,
       mentor: demo?.mentor ?? PLACEHOLDER_MENTOR,
@@ -93,6 +142,12 @@ export function DashboardDataProvider({ children, user }) {
       summaryCards: demo?.summaryCards ?? null,
       deadlines: demo?.deadlines ?? [],
       applicationProgress: demo?.applicationProgress ?? null,
+      academicProgress: demo?.academicProgress ?? null,
+      studentProfileStats: demo?.studentProfileStats ?? null,
+      opportunities: demo?.opportunities ?? [],
+      collegeJourney: demo?.collegeJourney ?? [],
+      essayTracker: demo?.essayTracker ?? [],
+      financialAidTracker: demo?.financialAidTracker ?? [],
       pendingRequests: demo?.pendingRequests ?? [],
       availability: demo?.availability ?? [],
       privateNotes: demo?.privateNotes ?? {},
@@ -119,7 +174,19 @@ export function DashboardDataProvider({ children, user }) {
         setMeetings(next);
       }
     }),
-    [loading, demo, integrations, meetings, notifications, refresh, scheduleMeeting]
+    [
+      loading,
+      demo,
+      integrations,
+      meetings,
+      notifications,
+      addNotification,
+      markNotificationsRead,
+      scheduleEventReminder,
+      cancelEventReminder,
+      refresh,
+      scheduleMeeting
+    ]
   );
 
   return <DashboardDataContext.Provider value={value}>{children}</DashboardDataContext.Provider>;

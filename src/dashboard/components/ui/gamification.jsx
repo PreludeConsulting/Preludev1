@@ -44,23 +44,40 @@ export function XPProgressBar({ xp, levelInfo, className }) {
   );
 }
 
-export function ProgressRing({ value, size = 44, label }) {
+export function formatOrdinal(value) {
+  const num = Math.round(Number(value) || 0);
+  const mod100 = num % 100;
+  const mod10 = num % 10;
+  if (mod100 >= 11 && mod100 <= 13) return `${num}th`;
+  if (mod10 === 1) return `${num}st`;
+  if (mod10 === 2) return `${num}nd`;
+  if (mod10 === 3) return `${num}rd`;
+  return `${num}th`;
+}
+
+function ProgressRingSvg({ value, size }) {
   const r = (size - 6) / 2;
   const c = 2 * Math.PI * r;
   const offset = c - (value / 100) * c;
   return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle className="dash-ring__bg" cx={size / 2} cy={size / 2} r={r} />
+      <circle
+        className="dash-ring__fg"
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        strokeDasharray={c}
+        strokeDashoffset={offset}
+      />
+    </svg>
+  );
+}
+
+export function ProgressRing({ value, size = 44, label }) {
+  return (
     <div className="dash-ring" style={{ width: size, height: size }} title={label}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <circle className="dash-ring__bg" cx={size / 2} cy={size / 2} r={r} />
-        <circle
-          className="dash-ring__fg"
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          strokeDasharray={c}
-          strokeDashoffset={offset}
-        />
-      </svg>
+      <ProgressRingSvg value={value} size={size} />
       <span className="dash-ring__value">{value}%</span>
     </div>
   );
@@ -224,11 +241,11 @@ export function MeetingCardPremium({ meeting, mentorName, studentName, role, mes
   );
 }
 
-export function InsightList({ items, actionLink, actionLabel = "Open Prelude AI" }) {
+export function InsightList({ items, actionLink, actionLabel = "Open Prelude AI", layout = "default" }) {
   return (
-    <div className="dash-insights">
+    <div className={cn("dash-insights", layout === "wide" && "dash-insights--wide")}>
       <ul>
-        {items.slice(0, 4).map((text) => (
+        {items.slice(0, layout === "wide" ? 5 : 4).map((text) => (
           <li key={text}>
             <Sparkles className="h-3.5 w-3.5" />
             <span>{text}</span>

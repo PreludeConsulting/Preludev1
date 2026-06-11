@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { Bot, Paperclip, Send, Sparkles } from "lucide-react";
 import { STUDENT_AI_PROMPTS } from "../data/placeholders.js";
@@ -10,8 +10,9 @@ const DEFAULT_GREETING = {
 };
 
 export default function PreludeChatPanel({ prompts = STUDENT_AI_PROMPTS }) {
+  const location = useLocation();
   const [messages, setMessages] = useState([DEFAULT_GREETING]);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(location.state?.prompt || "");
   const [activeConvo, setActiveConvo] = useState("today");
 
   function send(text) {

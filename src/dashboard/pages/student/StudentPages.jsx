@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Award,
   Bot,
@@ -34,7 +34,7 @@ import IntegrationConnect from "../../components/IntegrationConnect.jsx";
 import MessagesPanel from "../../components/MessagesPanel.jsx";
 import PreludeChatPanel from "../../components/PreludeChatPanel.jsx";
 import ScheduleMeetingForm from "../../components/ScheduleMeetingForm.jsx";
-import { PLACEHOLDER_COLLEGES, PLACEHOLDER_ESSAYS } from "../../data/placeholders.js";
+import { PLACEHOLDER_ESSAYS } from "../../data/placeholders.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { loadPreferences, savePreferences } from "../../lib/dashboardPreferences.js";
 import {
@@ -61,6 +61,7 @@ import {
   ProgressRing
 } from "../../components/ui/gamification.jsx";
 import { useGamification } from "../../context/GamificationContext.jsx";
+import CollegesExplore from "../../components/product/CollegesExplore.jsx";
 import StudentOverviewProduct from "../../components/product/StudentOverviewProduct.jsx";
 
 /* ——— Shared presentational helpers for the redesigned pages ——— */
@@ -410,6 +411,13 @@ export function StudentWorkspace() {
   const { essays, tasks, extracurriculars, deadlines, applicationProgress: progress } = useDashboardData();
   const [tab, setTab] = useState(location.state?.workspaceTab || "essays");
   const [taskFilter, setTaskFilter] = useState("all");
+  const isCollegesView = tab === "colleges";
+
+  useEffect(() => {
+    if (location.state?.workspaceTab) {
+      setTab(location.state.workspaceTab);
+    }
+  }, [location.state?.workspaceTab]);
 
   const sectionPct = {
     essays: progress?.essays ?? 50,
@@ -421,13 +429,17 @@ export function StudentWorkspace() {
   };
 
   return (
-    <div className="dash-page dash-page--premium">
-      <DashTabs tabs={WORKSPACE_TABS} active={tab} onChange={setTab} />
-      <div className="dash-workspace-progress">
-        {WORKSPACE_TABS.map((t) => (
-          <span key={t.id}>{t.label} · {sectionPct[t.id] ?? 0}%</span>
-        ))}
-      </div>
+    <div className={cn("dash-page", isCollegesView ? "dash-page--colleges" : "dash-page--premium")}>
+      {!isCollegesView ? (
+        <>
+          <DashTabs tabs={WORKSPACE_TABS} active={tab} onChange={setTab} />
+          <div className="dash-workspace-progress">
+            {WORKSPACE_TABS.map((t) => (
+              <span key={t.id}>{t.label} · {sectionPct[t.id] ?? 0}%</span>
+            ))}
+          </div>
+        </>
+      ) : null}
 
       {tab === "essays" ? (
         <div className="dash-split">
@@ -454,34 +466,7 @@ export function StudentWorkspace() {
         </div>
       ) : null}
 
-      {tab === "colleges" ? (
-        <div className="dash-table-wrap">
-          <table className="dash-table">
-            <thead>
-              <tr>
-                <th>College</th>
-                <th>Tier</th>
-                <th>Deadline</th>
-                <th>Status</th>
-                <th>Notes</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {PLACEHOLDER_COLLEGES.map((c) => (
-                <tr key={c.id}>
-                  <td>{c.name}</td>
-                  <td><DashBadge variant={c.tier === "Reach" ? "urgent" : "lavender"}>{c.tier}</DashBadge></td>
-                  <td>{c.deadline}</td>
-                  <td>{c.status}</td>
-                  <td className="dash-muted">—</td>
-                  <td><button type="button" className="dash-link-btn">Edit</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
+      {tab === "colleges" ? <CollegesExplore /> : null}
 
       {tab === "activities" ? (
         <SectionCard title="Extracurriculars">
