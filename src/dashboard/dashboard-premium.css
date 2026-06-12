@@ -52,7 +52,7 @@
 
 .dash-hero__welcome {
   margin: 0.5rem 0 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: clamp(0.9rem, 1.2vw, 1rem);
   line-height: 1.55;
   color: hsl(var(--muted-foreground));
@@ -99,7 +99,7 @@
   border-radius: 999px;
   background: linear-gradient(135deg, #ede9ff, #f6f4ff);
   border: 1px solid rgb(120 106 255 / 0.2);
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   font-weight: 700;
   color: #5b4fd6;
@@ -184,7 +184,7 @@
 
 .dash-metric-card__value {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: clamp(1.25rem, 2vw, 1.55rem);
   font-weight: 800;
   line-height: 1.15;
@@ -571,7 +571,7 @@
   border: 1px solid hsl(var(--foreground) / 0.12);
   border-radius: 0.5rem;
   padding: 0.45rem 0.65rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
 }
 
 .dash-mentor-mission-form input[type="number"] {
@@ -596,7 +596,7 @@
   border-radius: 0.65rem;
   background: hsl(230 25% 18%);
   color: #fff;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
   box-shadow: 0 8px 24px rgb(35 39 48 / 0.2);

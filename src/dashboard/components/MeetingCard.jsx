@@ -13,7 +13,9 @@ export default function MeetingCard({ meeting, mentorName, studentName, role, on
     <article className="dash-meeting-card paper-card">
       <div className="dash-meeting-card__head">
         <h3 className="dash-meeting-card__title">{meeting.title}</h3>
-        <span className="dash-badge">{meeting.meetingType === "zoom" ? "Zoom" : meeting.meetingType === "phone" ? "Phone" : "In person"}</span>
+        <span className="dash-badge">
+          {meeting.meetingType === "google_meet" ? "Google Meet" : meeting.meetingType === "zoom" ? "Zoom" : "Meeting"}
+        </span>
       </div>
       <p className="dash-meeting-card__meta">{formatRange(meeting.startTime, meeting.endTime)}</p>
       <p className="dash-meeting-card__people">

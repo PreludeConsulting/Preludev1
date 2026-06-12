@@ -13,7 +13,7 @@ import {
   createCalendarEvent,
   createNotification,
   loadSupabaseDashboard,
-  markNotificationsRead,
+  markNotificationsRead as markSupabaseNotificationsRead,
   saveResource,
   sendMessage,
   updateSupabaseOnboarding,
@@ -21,6 +21,11 @@ import {
   updateSupabaseProfile
 } from "../../lib/supabaseData.js";
 import { PLACEHOLDER_EVENTS, PLACEHOLDER_MESSAGES, PLACEHOLDER_MENTOR, PLACEHOLDER_STUDENTS, PLACEHOLDER_TASKS } from "../data/placeholders.js";
+import {
+  cancelCalendarReminder,
+  isReminderEnabled,
+  scheduleCalendarReminder
+} from "../lib/calendarReminders.js";
 
 const DashboardDataContext = createContext(null);
 
@@ -38,6 +43,7 @@ export function DashboardDataProvider({ children, user }) {
     zoom: { connected: false }
   });
   const [meetings, setMeetings] = useState([]);
+  const [pendingMeetingRequests, setPendingMeetingRequests] = useState([]);
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -102,6 +108,7 @@ export function DashboardDataProvider({ children, user }) {
       refresh();
     } else {
       setMeetings([]);
+      setPendingMeetingRequests([]);
       setEvents([]);
       setNotifications([]);
       setMessages([]);
@@ -116,8 +123,53 @@ export function DashboardDataProvider({ children, user }) {
     }
   }, [user?.id, refresh]);
 
+  const addNotification = useCallback((notification) => {
+    setNotifications((prev) => [
+      {
+        id: notification.id || `n-${Date.now()}`,
+        title: notification.title,
+        body: notification.body,
+        unread: notification.unread ?? true,
+        kind: notification.kind || "general",
+        createdAt: notification.createdAt || new Date().toISOString()
+      },
+      ...prev
+    ]);
+  }, []);
+
+  const markNotificationsRead = useCallback(async () => {
+    if (useSupabase && user) {
+      await markSupabaseNotificationsRead(user.id);
+    }
+    setNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
+  }, [useSupabase, user]);
+
+  const scheduleEventReminder = useCallback((payload) => {
+    if (!isReminderEnabled(payload.reminderMinutes)) {
+      cancelCalendarReminder(payload.id);
+      return null;
+    }
+
+    return scheduleCalendarReminder({
+      ...payload,
+      onTrigger: ({ title, body, isTask }) => {
+        addNotification({
+          title: isTask ? `Upcoming task: ${title}` : `Upcoming event: ${title}`,
+          body,
+          kind: "reminder"
+        });
+      }
+    });
+  }, [addNotification]);
+
+  const cancelEventReminder = useCallback((id) => {
+    cancelCalendarReminder(id);
+  }, []);
+
   const scheduleMeeting = useCallback(
     async (payload) => {
+      const isPending = payload.status === "pending";
+
       if (useSupabase && user) {
         const start = payload.startTime || payload.start || new Date().toISOString();
         const { event, error: err } = await createCalendarEvent(user.id, {
@@ -130,9 +182,15 @@ export function DashboardDataProvider({ children, user }) {
           status: payload.status || "pending"
         });
         if (err) throw new Error(err);
-        setMeetings((prev) => [...prev, event]);
+
+        if (isPending) {
+          setPendingMeetingRequests((prev) => [...prev, event]);
+        } else {
+          setMeetings((prev) => [...prev, event]);
+        }
+
         const notif = await createNotification(user.id, {
-          title: payload.status === "pending" ? "Meeting request sent" : "Session scheduled",
+          title: isPending ? "Meeting request sent" : "Session scheduled",
           body: event.title,
           link: "/dashboard/student/calendar"
         });
@@ -142,20 +200,38 @@ export function DashboardDataProvider({ children, user }) {
         return event;
       }
 
-      const { meeting } = await apiCreateMeeting(payload);
-      setMeetings((prev) => [...prev, meeting]);
-      setNotifications((prev) => [
-        {
-          id: `n-${Date.now()}`,
-          title: payload.status === "pending" ? "Meeting request sent" : "Zoom meeting scheduled",
-          body: meeting.zoomJoinUrl ? `Join link: ${meeting.zoomJoinUrl}` : meeting.title,
+      let meeting;
+      try {
+        ({ meeting } = await apiCreateMeeting(payload));
+      } catch {
+        meeting = {
+          id: `mt-${Date.now()}`,
+          ...payload,
+          status: payload.status || "pending"
+        };
+      }
+
+      if (isPending || meeting.status === "pending") {
+        setPendingMeetingRequests((prev) => [...prev, meeting]);
+        addNotification({
+          title: "Meeting request sent",
+          body: "Your mentor will review your request and confirm the meeting time.",
           unread: true
-        },
-        ...prev
-      ]);
+        });
+        return meeting;
+      }
+
+      setMeetings((prev) => [...prev, meeting]);
+      addNotification({
+        title: "Meeting confirmed",
+        body: meeting.zoomJoinUrl
+          ? `${meeting.title} is scheduled. Join link: ${meeting.zoomJoinUrl}`
+          : `${meeting.title} is scheduled.`,
+        unread: true
+      });
       return meeting;
     },
-    [useSupabase, user]
+    [addNotification, useSupabase, user]
   );
 
   const saveProfile = useCallback(
@@ -206,12 +282,7 @@ export function DashboardDataProvider({ children, user }) {
     [useSupabase, user]
   );
 
-  const markAllNotificationsRead = useCallback(async () => {
-    if (useSupabase && user) {
-      await markNotificationsRead(user.id);
-    }
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-  }, [useSupabase, user]);
+  const markAllNotificationsRead = markNotificationsRead;
 
   const saveUserResource = useCallback(
     async (resource) => {
@@ -231,8 +302,13 @@ export function DashboardDataProvider({ children, user }) {
       isDemo: false,
       useSupabaseData: useSupabase,
       integrations,
-      meetings,
+      meetings: meetings.filter((m) => m.status !== "pending"),
+      pendingMeetingRequests,
       notifications,
+      addNotification,
+      markNotificationsRead,
+      scheduleEventReminder,
+      cancelEventReminder,
       events: useSupabase ? events : PLACEHOLDER_EVENTS,
       tasks: useSupabase ? [] : PLACEHOLDER_TASKS,
       mentor: useSupabase ? mentor : PLACEHOLDER_MENTOR,
@@ -246,9 +322,9 @@ export function DashboardDataProvider({ children, user }) {
       extracurriculars: [],
       aiSuggestions: [],
       profile,
-      preferences: preferences,
+      preferences,
       onboarding,
-      savedResources: savedResources,
+      savedResources,
       summaryCards: null,
       deadlines: [],
       applicationProgress: onboarding?.profileComplete
@@ -260,7 +336,25 @@ export function DashboardDataProvider({ children, user }) {
             profile: onboarding.profileComplete
           }
         : null,
-      pendingRequests: [],
+      academicProgress: null,
+      studentProfileStats: null,
+      opportunities: [],
+      collegeJourney: [],
+      essayTracker: [],
+      financialAidTracker: [],
+      pendingRequests: pendingMeetingRequests.map((m) => ({
+        id: m.id,
+        studentName: m.studentName || "Student",
+        studentId: m.studentId,
+        requestedTime: new Date(m.startTime || m.start).toLocaleString(undefined, {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit"
+        }),
+        type: m.title || "Meeting request"
+      })),
       availability: [],
       privateNotes: {},
       refresh,
@@ -303,6 +397,7 @@ export function DashboardDataProvider({ children, user }) {
       useSupabase,
       integrations,
       meetings,
+      pendingMeetingRequests,
       notifications,
       events,
       mentor,
@@ -313,6 +408,10 @@ export function DashboardDataProvider({ children, user }) {
       preferences,
       onboarding,
       savedResources,
+      addNotification,
+      markNotificationsRead,
+      scheduleEventReminder,
+      cancelEventReminder,
       refresh,
       scheduleMeeting,
       saveProfile,

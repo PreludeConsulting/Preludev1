@@ -1,29 +1,49 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
 import { compactEventTitle } from "../CalendarEventPill.jsx";
 import { CalendarAddEventModal, CalendarEventDetailModal } from "../CalendarEventModals.jsx";
+import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { EVENT_CATEGORY_LABELS } from "../../data/placeholders.js";
 import { Modal, SecondaryButton } from "../ui/index.jsx";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const CATEGORY_TONE = {
-  essay_deadline: "essay",
-  application_deadline: "application",
-  mentor_meeting: "meeting",
-  scholarship_deadline: "financial",
-  personal_task: "essay"
-};
-
 const EXCLUDED_EVENT_PATTERN = /office\s*hours|update\s+(extracurricular\s+)?activities(\s+list)?/i;
 
 const CREATE_OPTIONS = [
-  { id: "event", label: "Event", category: "personal_task", modalTitle: "Create event", formVariant: "event" },
+  { id: "event", label: "Event", category: "mentor_meeting", modalTitle: "Create event", formVariant: "event" },
   { id: "task", label: "Task", category: "personal_task", modalTitle: "Create task", formVariant: "task" }
 ];
 
-const CREATED_EVENT_COLORS = ["orange", "green", "pink", "blue"];
+const CALENDAR_EVENT_CATEGORIES = new Set([
+  "mentor_meeting",
+  "essay_deadline",
+  "application_deadline",
+  "scholarship_deadline"
+]);
+
+/** red → yellow → green → blue → orange → repeat */
+const PILL_COLOR_CYCLE = ["red", "yellow", "green", "blue", "orange"];
+
+const SAMPLE_TONE_BY_TITLE = [
+  ["robotics club", "red"],
+  ["college list strategy", "blue"],
+  ["mentor meeting", "blue"],
+  ["sat test", "green"],
+  ["sat ", "green"],
+  ["ap calculus", "yellow"],
+  ["ap exam", "yellow"],
+  ["georgia tech", "orange"],
+  ["fafsa", "green"],
+  ["common app", "blue"],
+  ["uc application", "orange"],
+  ["personal statement", "yellow"],
+  ["supplement", "orange"],
+  ["mites", "blue"],
+  ["course registration", "yellow"]
+];
 
 const TYPE_TO_CATEGORY = {
   mentor: "mentor_meeting",
@@ -63,13 +83,56 @@ function mapCategoryToType(category = "") {
 }
 
 function resolveCategory(event) {
-  if (event.category && CATEGORY_TONE[event.category]) return event.category;
+  if (event.category) return event.category;
   return TYPE_TO_CATEGORY[event.type] || "application_deadline";
 }
 
+function resolveSamplePillTone(title = "") {
+  const key = title.toLowerCase();
+  const match = SAMPLE_TONE_BY_TITLE.find(([pattern]) => key.includes(pattern));
+  if (match) return match[1];
+
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash + key.charCodeAt(i)) % PILL_COLOR_CYCLE.length;
+  }
+  return PILL_COLOR_CYCLE[hash];
+}
+
 function resolvePillTone(event) {
-  if (event.colorTone) return event.colorTone;
-  return CATEGORY_TONE[resolveCategory(event)] || "application";
+  return event.colorTone || resolveSamplePillTone(event.title);
+}
+
+function resolveCalendarItemKind(item) {
+  if (!item) return "event";
+
+  const raw = item.raw || {};
+  const formVariant = item.formVariant ?? raw.formVariant;
+  const calendarItemType = item.calendarItemType ?? raw.calendarItemType;
+
+  if (formVariant === "task" || calendarItemType === "task") return "task";
+  if (formVariant === "event" || calendarItemType === "event") return "event";
+
+  const category = String(raw.category ?? item.category ?? "").toLowerCase();
+  if (CALENDAR_EVENT_CATEGORIES.has(category)) return "event";
+
+  if (item.source === "meeting" || item.source === "deadline") return "event";
+  if (item.type === "mentor") return "event";
+
+  const meetingType = raw.meetingType ?? item.meeting?.meetingType;
+  if (meetingType === "zoom" || meetingType === "google_meet") return "event";
+  if (item.zoomJoinUrl || raw.zoomJoinUrl) return "event";
+  if (item.meeting || raw.meeting) return "event";
+
+  const compactTitle = compactEventTitle(item.title || "");
+  const titleBlob = `${item.title || ""} ${compactTitle}`.toLowerCase();
+  if (/\b(zoom call|mentor meeting|strategy session|essay planning)\b/.test(titleBlob)) return "event";
+
+  return "event";
+}
+
+function withItemKind(item) {
+  return { ...item, itemKind: resolveCalendarItemKind(item) };
 }
 
 function findLocalEventRaw(modalEvent, localEvents) {
@@ -88,7 +151,7 @@ function normalizeDeadline(deadline) {
   if (!date || deadline.done) return null;
 
   const type = mapCategoryToType(deadline.category);
-  return {
+  return withItemKind({
     id: `dl-${deadline.id}`,
     title: deadline.title,
     date,
@@ -96,16 +159,19 @@ function normalizeDeadline(deadline) {
     type,
     allDay: true,
     description: `${deadline.category || "Deadline"}${deadline.priority ? ` · ${deadline.priority} priority` : ""}`,
+    colorTone: resolveSamplePillTone(deadline.title),
     source: "deadline",
     raw: deadline
-  };
+  });
 }
 
 function normalizeMeeting(meeting) {
+  if (meeting.status === "pending") return null;
+
   const date = parseDate(meeting.startTime);
   if (!date) return null;
 
-  return {
+  return withItemKind({
     id: `mt-${meeting.id}`,
     title: meeting.title,
     date,
@@ -115,9 +181,10 @@ function normalizeMeeting(meeting) {
     description: meeting.notes,
     zoomJoinUrl: meeting.zoomJoinUrl,
     meeting,
+    colorTone: resolveSamplePillTone(meeting.title),
     source: "meeting",
     raw: meeting
-  };
+  });
 }
 
 function normalizeCalendarEvent(event) {
@@ -129,7 +196,7 @@ function normalizeCalendarEvent(event) {
   const endDate = parseDate(event.end || event.endTime);
   const isUserCreated = Boolean(event.pillColor) || String(event.id).startsWith("evt-");
 
-  return {
+  return withItemKind({
     id: `ev-${event.id}`,
     title: event.title,
     date,
@@ -139,10 +206,33 @@ function normalizeCalendarEvent(event) {
     description: event.description || event.notes,
     zoomJoinUrl: event.zoomJoinUrl,
     meeting: event.meeting,
-    colorTone: event.pillColor || null,
+    colorTone: event.pillColor || resolveSamplePillTone(event.title),
+    formVariant: event.formVariant,
+    calendarItemType: event.calendarItemType,
+    category: event.category,
     source: isUserCreated ? "local" : "event",
     raw: event
-  };
+  });
+}
+
+function isCalendarTask(item) {
+  return resolveCalendarItemKind(item) === "task";
+}
+
+function isCalendarEvent(item) {
+  return resolveCalendarItemKind(item) === "event";
+}
+
+function dayCellTone(dayEvents) {
+  if (!dayEvents.length) return null;
+
+  const hasTask = dayEvents.some(isCalendarTask);
+  const hasEvent = dayEvents.some(isCalendarEvent);
+
+  if (hasTask && hasEvent) return "mixed";
+  if (hasTask) return "tasks";
+  if (hasEvent) return "events";
+  return null;
 }
 
 function mergeEvents({ deadlines = [], meetings = [], events = [] }) {
@@ -167,6 +257,23 @@ function eventsForDay(allEvents, year, month, day) {
       const d = event.date;
       return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
     })
+    .sort((a, b) => {
+      if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+      return a.date.getTime() - b.date.getTime();
+    });
+}
+
+function isSameCalendarDay(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate()
+  );
+}
+
+function eventsForCalendarDate(allEvents, date) {
+  return allEvents
+    .filter((event) => isSameCalendarDay(event.date, date))
     .sort((a, b) => {
       if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
       return a.date.getTime() - b.date.getTime();
@@ -200,14 +307,6 @@ function toDetailModalEvent(event, mentorName) {
   };
 }
 
-function highlightToneForDay(dayEvents) {
-  if (!dayEvents.length) return null;
-  if (dayEvents.some((e) => e.type === "essay")) return "essay";
-  if (dayEvents.some((e) => e.type === "mentor")) return "meeting";
-  if (dayEvents.some((e) => e.type === "application")) return "application";
-  return "deadline";
-}
-
 function useMaxVisibleEvents() {
   const [max, setMax] = useState(2);
 
@@ -231,6 +330,73 @@ function useMaxVisibleEvents() {
   }, []);
 
   return max;
+}
+
+function UpcomingEventRow({ event, onSelect }) {
+  const tone = resolvePillTone(event);
+
+  return (
+    <li>
+      <button type="button" className="dash-upcoming-events__row" onClick={() => onSelect(event)}>
+        <span
+          className={cn("dash-upcoming-events__marker", `dash-upcoming-events__marker--${tone}`)}
+          aria-hidden="true"
+        />
+        <span className="dash-upcoming-events__content">
+          <span className="dash-upcoming-events__event-title">{compactEventTitle(event.title)}</span>
+          <span className="dash-upcoming-events__event-meta">{formatEventTime(event)}</span>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function UpcomingEventsColumn({ label, events, onEventSelect }) {
+  return (
+    <section className="dash-upcoming-events__column">
+      <h4 className="dash-upcoming-events__column-label">{label}</h4>
+      {events.length ? (
+        <ul className="dash-upcoming-events__list">
+          {events.map((event) => (
+            <UpcomingEventRow key={event.id} event={event} onSelect={onEventSelect} />
+          ))}
+        </ul>
+      ) : (
+        <p className="dash-upcoming-events__column-empty">No events scheduled</p>
+      )}
+    </section>
+  );
+}
+
+function UpcomingEventsPanel({ allEvents, onEventSelect }) {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const todayEvents = eventsForCalendarDate(allEvents, now);
+  const tomorrowEvents = eventsForCalendarDate(allEvents, tomorrow);
+  const hasEvents = todayEvents.length > 0 || tomorrowEvents.length > 0;
+
+  return (
+    <article className="dash-product-card dash-upcoming-events">
+      <header className="dash-upcoming-events__head">
+        <h3 className="dash-upcoming-events__title">Upcoming Events</h3>
+        {hasEvents ? (
+          <p className="dash-upcoming-events__summary">
+            {todayEvents.length} Today · {tomorrowEvents.length} Tomorrow
+          </p>
+        ) : null}
+      </header>
+      {hasEvents ? (
+        <div className="dash-upcoming-events__columns">
+          <UpcomingEventsColumn label="Today" events={todayEvents} onEventSelect={onEventSelect} />
+          <UpcomingEventsColumn label="Tomorrow" events={tomorrowEvents} onEventSelect={onEventSelect} />
+        </div>
+      ) : (
+        <p className="dash-upcoming-events__empty">No upcoming events.</p>
+      )}
+    </article>
+  );
 }
 
 function EventPill({ event, onSelect }) {
@@ -360,7 +526,10 @@ export default function AdmissionsCalendarVisual({
   deadlines = [],
   meetings = [],
   events = [],
-  mentorName = "Maya Patel"
+  mentorName = "Maya Patel",
+  showUpcomingEvents = false,
+  upcomingEventsPlacement = "inline",
+  upcomingEventsMountEl = null
 }) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -373,36 +542,49 @@ export default function AdmissionsCalendarVisual({
   const [editDraft, setEditDraft] = useState(null);
   const [colorCycleIndex, setColorCycleIndex] = useState(0);
   const maxVisible = useMaxVisibleEvents();
+  const { scheduleEventReminder, cancelEventReminder, scheduleMeeting } = useDashboardData();
 
   const handleSaveLocalEvent = useCallback((saved) => {
     if (editDraft) {
-      setLocalEvents((prev) =>
-        prev.map((item) =>
-          item.id === editDraft.id
-            ? {
-                ...saved,
-                id: editDraft.id,
-                pillColor: editDraft.pillColor,
-                formVariant: editDraft.formVariant
-              }
-            : item
-        )
-      );
+      const nextItem = {
+        ...saved,
+        id: editDraft.id,
+        pillColor: saved.pillColor || editDraft.pillColor,
+        formVariant: editDraft.formVariant,
+        calendarItemType: editDraft.calendarItemType ?? editDraft.formVariant,
+        reminderMinutes: saved.reminderMinutes ?? editDraft.reminderMinutes
+      };
+      setLocalEvents((prev) => prev.map((item) => (item.id === editDraft.id ? nextItem : item)));
+      scheduleEventReminder({
+        id: nextItem.id,
+        title: nextItem.title,
+        start: nextItem.start,
+        reminderMinutes: nextItem.reminderMinutes,
+        formVariant: nextItem.formVariant
+      });
       setEditDraft(null);
       return;
     }
 
-    setLocalEvents((prev) => [
-      ...prev,
-      {
-        ...saved,
-        pillColor: CREATED_EVENT_COLORS[colorCycleIndex % CREATED_EVENT_COLORS.length],
-        formVariant: createDraft?.formVariant ?? "event"
-      }
-    ]);
-    setColorCycleIndex((index) => index + 1);
+    const autoColor = PILL_COLOR_CYCLE[colorCycleIndex % PILL_COLOR_CYCLE.length];
+    const nextItem = {
+      ...saved,
+      pillColor: saved.pillColor || autoColor,
+      formVariant: saved.formVariant ?? createDraft?.formVariant ?? "event",
+      calendarItemType: saved.calendarItemType ?? createDraft?.formVariant ?? "event",
+      reminderMinutes: saved.reminderMinutes
+    };
+    setLocalEvents((prev) => [...prev, nextItem]);
+    scheduleEventReminder({
+      id: nextItem.id,
+      title: nextItem.title,
+      start: nextItem.start,
+      reminderMinutes: nextItem.reminderMinutes,
+      formVariant: nextItem.formVariant
+    });
+    if (!saved.pillColor) setColorCycleIndex((index) => index + 1);
     setCreateDraft(null);
-  }, [colorCycleIndex, createDraft, editDraft]);
+  }, [colorCycleIndex, createDraft, editDraft, scheduleEventReminder]);
 
   const handleEditEvent = useCallback((modalEvent) => {
     const raw = findLocalEventRaw(modalEvent, localEvents);
@@ -414,9 +596,10 @@ export default function AdmissionsCalendarVisual({
   const handleDeleteEvent = useCallback((modalEvent) => {
     const raw = findLocalEventRaw(modalEvent, localEvents);
     if (!raw) return;
+    cancelEventReminder(raw.id);
     setLocalEvents((prev) => prev.filter((item) => item.id !== raw.id));
     setDetailEvent(null);
-  }, [localEvents]);
+  }, [cancelEventReminder, localEvents]);
 
   const allEvents = useMemo(
     () => mergeEvents({ deadlines, meetings, events: [...events, ...localEvents] }),
@@ -467,8 +650,14 @@ export default function AdmissionsCalendarVisual({
     return rows;
   }, [isMobileAgenda, allEvents, viewYear, viewMonth]);
 
+  const showUpcomingInline = showUpcomingEvents && upcomingEventsPlacement === "inline";
+  const showUpcomingExternal = showUpcomingEvents && upcomingEventsPlacement === "external" && upcomingEventsMountEl;
+  const upcomingPanel = showUpcomingEvents ? (
+    <UpcomingEventsPanel allEvents={allEvents} onEventSelect={setDetailEvent} />
+  ) : null;
+
   return (
-    <div className="dash-cal-visual">
+    <div className={cn("dash-cal-visual", showUpcomingInline && "dash-cal-visual--with-upcoming")}>
       <div className="dash-cal-visual__glow" aria-hidden="true" />
       <article className="dash-cal-visual__card">
         <header className="dash-cal-visual__head">
@@ -537,7 +726,7 @@ export default function AdmissionsCalendarVisual({
                 const overflow = dayEvents.length - visible.length;
                 const isToday = isCurrentMonth && day === today;
                 const isSelected = selectedDay === day;
-                const tone = highlightToneForDay(dayEvents);
+                const cellTone = !isToday && !isSelected ? dayCellTone(dayEvents) : null;
 
                 return (
                   <button
@@ -547,7 +736,7 @@ export default function AdmissionsCalendarVisual({
                       "dash-cal-visual__day",
                       isToday && "dash-cal-visual__day--today",
                       isSelected && "dash-cal-visual__day--selected",
-                      tone && `dash-cal-visual__day--${tone}`
+                      cellTone && `dash-cal-visual__day--${cellTone}`
                     )}
                     onClick={() => openDayAgenda(viewYear, viewMonth, day)}
                     aria-label={`${new Date(viewYear, viewMonth, day).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${dayEvents.length ? `, ${dayEvents.length} events` : ""}`}
@@ -586,6 +775,9 @@ export default function AdmissionsCalendarVisual({
         )}
 
       </article>
+
+      {showUpcomingInline ? upcomingPanel : null}
+      {showUpcomingExternal ? createPortal(upcomingPanel, upcomingEventsMountEl) : null}
 
       {detailEvent ? (
         <CalendarEventDetailModal
@@ -628,6 +820,8 @@ export default function AdmissionsCalendarVisual({
         }
         formVariant={editDraft?.formVariant ?? createDraft?.formVariant ?? "full"}
         submitLabel={editDraft ? (editDraft.formVariant === "task" ? "Save task" : "Save event") : undefined}
+        meetingRequestMode={Boolean(createDraft?.formVariant === "event" && !editDraft)}
+        onRequestMeeting={(payload) => scheduleMeeting({ ...payload, status: "pending" })}
         onSave={handleSaveLocalEvent}
       />
     </div>
