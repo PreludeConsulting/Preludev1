@@ -25,6 +25,7 @@ export function DashboardDataProvider({ children, user }) {
     zoom: { connected: false }
   });
   const [meetings, setMeetings] = useState([]);
+  const [pendingMeetingRequests, setPendingMeetingRequests] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [apiDemo, setApiDemo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -101,19 +102,38 @@ export function DashboardDataProvider({ children, user }) {
   }, []);
 
   const scheduleMeeting = useCallback(async (payload) => {
-    const { meeting } = await apiCreateMeeting(payload);
-    setMeetings((prev) => [...prev, meeting]);
-    setNotifications((prev) => [
-      {
-        id: `n-${Date.now()}`,
-        title: payload.status === "pending" ? "Meeting request sent" : "Zoom meeting scheduled",
-        body: meeting.zoomJoinUrl ? `Join link: ${meeting.zoomJoinUrl}` : meeting.title,
+    let meeting;
+    try {
+      ({ meeting } = await apiCreateMeeting(payload));
+    } catch {
+      meeting = {
+        id: `mt-${Date.now()}`,
+        ...payload,
+        status: payload.status || "pending"
+      };
+    }
+
+    const isPending = meeting.status === "pending" || payload.status === "pending";
+    if (isPending) {
+      setPendingMeetingRequests((prev) => [...prev, meeting]);
+      addNotification({
+        title: "Meeting request sent",
+        body: "Your mentor will review your request and confirm the meeting time.",
         unread: true
-      },
-      ...prev
-    ]);
+      });
+      return meeting;
+    }
+
+    setMeetings((prev) => [...prev, meeting]);
+    addNotification({
+      title: "Meeting confirmed",
+      body: meeting.zoomJoinUrl
+        ? `${meeting.title} is scheduled. Join link: ${meeting.zoomJoinUrl}`
+        : `${meeting.title} is scheduled.`,
+      unread: true
+    });
     return meeting;
-  }, []);
+  }, [addNotification]);
 
   const value = useMemo(
     () => ({
@@ -121,7 +141,8 @@ export function DashboardDataProvider({ children, user }) {
       isDemo: Boolean(demo),
       demo,
       integrations,
-      meetings: demo?.meetings?.length ? demo.meetings : meetings,
+      meetings: (demo?.meetings?.length ? demo.meetings : meetings).filter((m) => m.status !== "pending"),
+      pendingMeetingRequests,
       notifications,
       addNotification,
       markNotificationsRead,
@@ -148,7 +169,22 @@ export function DashboardDataProvider({ children, user }) {
       collegeJourney: demo?.collegeJourney ?? [],
       essayTracker: demo?.essayTracker ?? [],
       financialAidTracker: demo?.financialAidTracker ?? [],
-      pendingRequests: demo?.pendingRequests ?? [],
+      pendingRequests: [
+        ...pendingMeetingRequests.map((m) => ({
+          id: m.id,
+          studentName: m.studentName || "Student",
+          studentId: m.studentId,
+          requestedTime: new Date(m.startTime).toLocaleString(undefined, {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+          }),
+          type: m.title || "Meeting request"
+        })),
+        ...(demo?.pendingRequests ?? [])
+      ],
       availability: demo?.availability ?? [],
       privateNotes: demo?.privateNotes ?? {},
       refresh,
@@ -179,6 +215,7 @@ export function DashboardDataProvider({ children, user }) {
       demo,
       integrations,
       meetings,
+      pendingMeetingRequests,
       notifications,
       addNotification,
       markNotificationsRead,

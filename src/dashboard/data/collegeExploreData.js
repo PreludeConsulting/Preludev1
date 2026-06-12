@@ -1,3 +1,5 @@
+import { getCollegeCampusImage } from "./collegeCampusImages.js";
+
 const mediaBase = import.meta.env.BASE_URL;
 
 export const COLLEGE_LIST_STATUSES = [
@@ -23,7 +25,6 @@ export const COLLEGE_FILTER_GROUPS = [
   { id: "affordability", label: "Affordability" },
   { id: "campusLife", label: "Campus Life" },
   { id: "admissions", label: "Admissions" },
-  { id: "match", label: "Reach / Target / Safety" },
   { id: "tests", label: "SAT / ACT" },
   { id: "enrollment", label: "Enrollment Size" }
 ];
@@ -36,18 +37,94 @@ export const SORT_OPTIONS = [
   { id: "alpha", label: "Alphabetical" }
 ];
 
-const MAJOR_OPTIONS = [
-  "Computer Science",
-  "Engineering",
-  "Business",
+export const MAJOR_OPTIONS = [
+  "Accounting",
+  "Aerospace Engineering",
+  "African American Studies",
+  "Agriculture",
+  "American Studies",
+  "Anthropology",
+  "Architecture",
+  "Art History",
+  "Astronomy",
+  "Biochemistry",
+  "Bioengineering",
   "Biology",
+  "Biomedical Engineering",
+  "Business Administration",
+  "Chemical Engineering",
+  "Chemistry",
+  "Civil Engineering",
+  "Classics",
+  "Cognitive Science",
+  "Communications",
+  "Comparative Literature",
+  "Computer Engineering",
+  "Computer Science",
+  "Creative Writing",
+  "Criminal Justice",
+  "Data Science",
+  "Dance",
   "Economics",
-  "Psychology",
-  "Political Science",
-  "Nursing",
   "Education",
-  "Communications"
+  "Electrical Engineering",
+  "English",
+  "Environmental Engineering",
+  "Environmental Science",
+  "Film Studies",
+  "Finance",
+  "Fine Arts",
+  "Food Science",
+  "French",
+  "Gender Studies",
+  "Geography",
+  "Geology",
+  "Graphic Design",
+  "History",
+  "Hospitality Management",
+  "Human Biology",
+  "Industrial Engineering",
+  "Information Systems",
+  "International Relations",
+  "Journalism",
+  "Kinesiology",
+  "Linguistics",
+  "Management",
+  "Marketing",
+  "Materials Science",
+  "Mathematics",
+  "Mechanical Engineering",
+  "Media Studies",
+  "Music",
+  "Neuroscience",
+  "Nursing",
+  "Nutrition",
+  "Philosophy",
+  "Physics",
+  "Political Science",
+  "Pre-Law",
+  "Pre-Medicine",
+  "Psychology",
+  "Public Health",
+  "Public Policy",
+  "Religious Studies",
+  "Social Work",
+  "Sociology",
+  "Spanish",
+  "Statistics",
+  "Supply Chain Management",
+  "Theater",
+  "Urban Planning"
 ];
+
+function majorsForCollege(rank) {
+  const len = MAJOR_OPTIONS.length;
+  return [
+    MAJOR_OPTIONS[rank % len],
+    MAJOR_OPTIONS[(rank + 11) % len],
+    MAJOR_OPTIONS[(rank + 23) % len]
+  ];
+}
 
 const REGION_OPTIONS = [
   { id: "northeast", label: "Northeast" },
@@ -103,10 +180,6 @@ function logoPath(id) {
   return `${mediaBase}media/universities/${id}.png`;
 }
 
-function campusImage(id) {
-  return `https://picsum.photos/seed/prelude-${id}/800/520`;
-}
-
 function tierFromRank(rank) {
   if (rank <= 20) return "reach";
   if (rank <= 50) return "target";
@@ -132,10 +205,7 @@ function statsForRank(rank, type) {
 
 function college(rank, id, name, shortName, city, state, type, extras = {}) {
   const stats = statsForRank(rank, type);
-  const majors = extras.majors || [
-    MAJOR_OPTIONS[rank % MAJOR_OPTIONS.length],
-    MAJOR_OPTIONS[(rank + 3) % MAJOR_OPTIONS.length]
-  ];
+  const majors = extras.majors || majorsForCollege(rank);
   return {
     id,
     rank,
@@ -152,7 +222,7 @@ function college(rank, id, name, shortName, city, state, type, extras = {}) {
     campusLife: extras.campusLife || (rank <= 25 ? ["Urban", "Research"] : ["Suburban", "Division I"]),
     affordability: extras.affordability || (stats.tuition > 55000 ? "premium" : stats.tuition < 20000 ? "value" : "moderate"),
     matchCategory: extras.matchCategory || tierFromRank(rank),
-    image: campusImage(id),
+    image: getCollegeCampusImage(id, rank),
     logo: logoPath(id)
   };
 }
@@ -439,10 +509,10 @@ export const EXPLORE_COLLEGES = [
 ];
 
 export const INITIAL_SAVED_COLLEGES = [
-  { collegeId: "stanford", status: "Researching" },
-  { collegeId: "georgia-tech", status: "Applying" },
-  { collegeId: "ucla", status: "Interested" },
-  { collegeId: "michigan", status: "Interested" }
+  { collegeId: "stanford" },
+  { collegeId: "georgia-tech" },
+  { collegeId: "ucla" },
+  { collegeId: "michigan" }
 ];
 
 export const FILTER_OPTION_SETS = {
@@ -469,13 +539,12 @@ export const FILTER_OPTION_SETS = {
     { id: "moderate", label: "25%–50%" },
     { id: "open", label: "Over 50%" }
   ],
-  match: [
+  matchPreference: [
     { id: "reach", label: "Reach" },
     { id: "target", label: "Target" },
     { id: "safety", label: "Safety" }
   ],
   tests: [
-    { id: "1500", label: "SAT 1500+" },
     { id: "1400", label: "SAT 1400–1490" },
     { id: "1300", label: "SAT 1300–1390" },
     { id: "1200", label: "SAT under 1300" }
@@ -535,8 +604,6 @@ export function filterColleges(colleges, filters, searchQuery) {
               : "open";
       if (!filters.admissions.includes(band)) return false;
     }
-
-    if (filters.match?.length && !filters.match.includes(school.matchCategory)) return false;
 
     if (filters.tests?.length) {
       const satBand =

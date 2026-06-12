@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
 import { compactEventTitle } from "../CalendarEventPill.jsx";
@@ -165,6 +166,8 @@ function normalizeDeadline(deadline) {
 }
 
 function normalizeMeeting(meeting) {
+  if (meeting.status === "pending") return null;
+
   const date = parseDate(meeting.startTime);
   if (!date) return null;
 
@@ -524,7 +527,9 @@ export default function AdmissionsCalendarVisual({
   meetings = [],
   events = [],
   mentorName = "Maya Patel",
-  showUpcomingEvents = false
+  showUpcomingEvents = false,
+  upcomingEventsPlacement = "inline",
+  upcomingEventsMountEl = null
 }) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -537,7 +542,7 @@ export default function AdmissionsCalendarVisual({
   const [editDraft, setEditDraft] = useState(null);
   const [colorCycleIndex, setColorCycleIndex] = useState(0);
   const maxVisible = useMaxVisibleEvents();
-  const { scheduleEventReminder, cancelEventReminder } = useDashboardData();
+  const { scheduleEventReminder, cancelEventReminder, scheduleMeeting } = useDashboardData();
 
   const handleSaveLocalEvent = useCallback((saved) => {
     if (editDraft) {
@@ -645,8 +650,14 @@ export default function AdmissionsCalendarVisual({
     return rows;
   }, [isMobileAgenda, allEvents, viewYear, viewMonth]);
 
+  const showUpcomingInline = showUpcomingEvents && upcomingEventsPlacement === "inline";
+  const showUpcomingExternal = showUpcomingEvents && upcomingEventsPlacement === "external" && upcomingEventsMountEl;
+  const upcomingPanel = showUpcomingEvents ? (
+    <UpcomingEventsPanel allEvents={allEvents} onEventSelect={setDetailEvent} />
+  ) : null;
+
   return (
-    <div className={cn("dash-cal-visual", showUpcomingEvents && "dash-cal-visual--with-upcoming")}>
+    <div className={cn("dash-cal-visual", showUpcomingInline && "dash-cal-visual--with-upcoming")}>
       <div className="dash-cal-visual__glow" aria-hidden="true" />
       <article className="dash-cal-visual__card">
         <header className="dash-cal-visual__head">
@@ -765,9 +776,8 @@ export default function AdmissionsCalendarVisual({
 
       </article>
 
-      {showUpcomingEvents ? (
-        <UpcomingEventsPanel allEvents={allEvents} onEventSelect={setDetailEvent} />
-      ) : null}
+      {showUpcomingInline ? upcomingPanel : null}
+      {showUpcomingExternal ? createPortal(upcomingPanel, upcomingEventsMountEl) : null}
 
       {detailEvent ? (
         <CalendarEventDetailModal
@@ -810,6 +820,8 @@ export default function AdmissionsCalendarVisual({
         }
         formVariant={editDraft?.formVariant ?? createDraft?.formVariant ?? "full"}
         submitLabel={editDraft ? (editDraft.formVariant === "task" ? "Save task" : "Save event") : undefined}
+        meetingRequestMode={Boolean(createDraft?.formVariant === "event" && !editDraft)}
+        onRequestMeeting={(payload) => scheduleMeeting({ ...payload, status: "pending" })}
         onSave={handleSaveLocalEvent}
       />
     </div>

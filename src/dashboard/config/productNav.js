@@ -1,8 +1,9 @@
 import {
   Building2,
   Calendar,
-  FileText,
+  GraduationCap,
   LayoutDashboard,
+  MessageCircle,
   TrendingUp
 } from "lucide-react";
 
@@ -10,7 +11,8 @@ import {
 export const PRODUCT_STUDENT_NAV = [
   { to: "/overview", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/workspace", label: "Colleges", icon: Building2, workspaceTab: "colleges" },
-  { to: "/workspace", label: "Essays", icon: FileText, workspaceTab: "essays" },
   { to: "/calendar", label: "Meetings", icon: Calendar },
+  { to: "/mentor", label: "My Mentor", icon: GraduationCap },
+  { to: "/messages", label: "Messages", icon: MessageCircle },
   { to: "/profile-stats", label: "Progress", icon: TrendingUp }
 ];

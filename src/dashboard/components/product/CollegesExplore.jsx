@@ -9,9 +9,9 @@ import {
   X
 } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
+import { getCollegeCampusFallback } from "../../data/collegeCampusImages.js";
 import {
   COLLEGE_FILTER_GROUPS,
-  COLLEGE_STATUS_VARIANT,
   EXPLORE_COLLEGES,
   FILTER_OPTION_SETS,
   INITIAL_SAVED_COLLEGES,
@@ -24,7 +24,7 @@ import {
   formatSatRange,
   formatTuition
 } from "../../data/collegeExploreData.js";
-import { DashBadge, SearchInput } from "../ui/index.jsx";
+import { SearchInput } from "../ui/index.jsx";
 import CollegeAIMatchModal from "./CollegeAIMatchModal.jsx";
 
 function activeFilterCount(filters) {
@@ -37,6 +37,7 @@ export default function CollegesExplore() {
   const [openFilter, setOpenFilter] = useState(null);
   const [sortBy, setSortBy] = useState("ranking");
   const [searchQuery, setSearchQuery] = useState("");
+  const [majorSearchQuery, setMajorSearchQuery] = useState("");
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const filterBarRef = useRef(null);
   const exploreRef = useRef(null);
@@ -60,6 +61,12 @@ export default function CollegesExplore() {
         .filter(Boolean),
     [savedColleges]
   );
+
+  useEffect(() => {
+    if (!openFilter) {
+      setMajorSearchQuery("");
+    }
+  }, [openFilter]);
 
   useEffect(() => {
     if (!openFilter) return undefined;
@@ -127,7 +134,19 @@ export default function CollegesExplore() {
       if (prev.some((entry) => entry.collegeId === collegeId)) {
         return prev.filter((entry) => entry.collegeId !== collegeId);
       }
-      return [...prev, { collegeId, status: "Interested" }];
+      return [...prev, { collegeId }];
+    });
+  }
+
+  function removeFromList(collegeId) {
+    setSavedColleges((prev) => prev.filter((entry) => entry.collegeId !== collegeId));
+  }
+
+  function openFilterGroup(groupId) {
+    setOpenFilter((current) => {
+      const next = current === groupId ? null : groupId;
+      if (next !== "majors") setMajorSearchQuery("");
+      return next;
     });
   }
 
@@ -153,10 +172,17 @@ export default function CollegesExplore() {
         </div>
         <div className="dash-colleges-my-list__grid">
           {savedEntries.length ? (
-            savedEntries.map(({ collegeId, status, school }) => (
+            savedEntries.map(({ collegeId, school }) => (
               <article key={collegeId} className="dash-colleges-my-list__card">
                 <p className="dash-colleges-my-list__name">{school.shortName || school.name}</p>
-                <DashBadge variant={COLLEGE_STATUS_VARIANT[status] || "soft"}>{status}</DashBadge>
+                <button
+                  type="button"
+                  className="dash-colleges-my-list__remove"
+                  aria-label={`Remove ${school.shortName || school.name} from your list`}
+                  onClick={() => removeFromList(collegeId)}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
               </article>
             ))
           ) : (
@@ -205,14 +231,21 @@ export default function CollegesExplore() {
                       (openFilter === group.id || count > 0) && "dash-colleges-filters__chip--active"
                     )}
                     aria-expanded={openFilter === group.id}
-                    onClick={() => setOpenFilter((current) => (current === group.id ? null : group.id))}
+                    onClick={() => openFilterGroup(group.id)}
                   >
                     {group.label}
                     {count > 0 ? <span className="dash-colleges-filters__count">{count}</span> : null}
                     <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                   {openFilter === group.id ? (
-                    <div className="dash-colleges-filters__panel" role="listbox" aria-label={`${group.label} filters`}>
+                    <div
+                      className={cn(
+                        "dash-colleges-filters__panel",
+                        group.id === "majors" && "dash-colleges-filters__panel--majors"
+                      )}
+                      role="listbox"
+                      aria-label={`${group.label} filters`}
+                    >
                       <div className="dash-colleges-filters__panel-head">
                         <strong>{group.label}</strong>
                         {count > 0 ? (
@@ -221,8 +254,22 @@ export default function CollegesExplore() {
                           </button>
                         ) : null}
                       </div>
+                      {group.id === "majors" ? (
+                        <div className="dash-colleges-filters__search">
+                          <SearchInput
+                            value={majorSearchQuery}
+                            onChange={(e) => setMajorSearchQuery(e.target.value)}
+                            placeholder="Search majors…"
+                          />
+                        </div>
+                      ) : null}
                       <div className="dash-colleges-filters__options">
-                        {(FILTER_OPTION_SETS[group.id] || []).map((option) => {
+                        {(FILTER_OPTION_SETS[group.id] || [])
+                          .filter((option) => {
+                            if (group.id !== "majors" || !majorSearchQuery.trim()) return true;
+                            return option.label.toLowerCase().includes(majorSearchQuery.trim().toLowerCase());
+                          })
+                          .map((option) => {
                           const selected = filters[group.id]?.includes(option.id);
                           return (
                             <button
@@ -298,12 +345,15 @@ export default function CollegesExplore() {
                 <div className="dash-college-card__visual">
                   <img
                     src={school.image}
-                    alt=""
+                    alt={`${school.name} campus`}
                     className="dash-college-card__image"
                     loading="lazy"
                     onError={(e) => {
-                      e.currentTarget.src = school.logo;
-                      e.currentTarget.classList.add("dash-college-card__image--logo");
+                      const img = e.currentTarget;
+                      const fallback = getCollegeCampusFallback(school.rank);
+                      if (img.dataset.fallbackApplied === "1" || img.src === fallback) return;
+                      img.dataset.fallbackApplied = "1";
+                      img.src = fallback;
                     }}
                   />
                   <button

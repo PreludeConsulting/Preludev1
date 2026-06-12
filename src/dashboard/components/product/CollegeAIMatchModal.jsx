@@ -44,7 +44,7 @@ const STEPS = [
     id: "matchPreference",
     title: "What kind of schools should we prioritize?",
     subtitle: "Balance reach, target, and safety schools in your list.",
-    options: FILTER_OPTION_SETS.match
+    options: FILTER_OPTION_SETS.matchPreference
   }
 ];
 

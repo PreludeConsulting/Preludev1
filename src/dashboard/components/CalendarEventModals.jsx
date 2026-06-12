@@ -8,6 +8,7 @@ import {
 } from "../lib/calendarReminders.js";
 import { EVENT_CATEGORY_LABELS } from "../data/placeholders.js";
 import NotificationPermissionModal from "./NotificationPermissionModal.jsx";
+import { MaskedDateInput, MaskedTimeInput } from "./MaskedInputs.jsx";
 import { IconButton, Modal, PrimaryButton, SecondaryButton } from "./ui/index.jsx";
 
 export const CALENDAR_COLOR_OPTIONS = [
@@ -163,10 +164,15 @@ export function CalendarAddEventModal({
   initialEvent = null,
   modalTitle = "Add event",
   formVariant = "full",
-  submitLabel
+  submitLabel,
+  meetingRequestMode = false,
+  onRequestMeeting,
+  inline = false
 }) {
   const [form, setForm] = useState({ ...DEFAULT_FORM, category: initialCategory });
   const [errors, setErrors] = useState({});
+  const [requestSent, setRequestSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [permissionWarning, setPermissionWarning] = useState("");
   const [reminderSavedWarning, setReminderSavedWarning] = useState("");
@@ -174,16 +180,18 @@ export function CalendarAddEventModal({
   const isTaskForm = formVariant === "task";
   const isSimplifiedForm = isEventForm || isTaskForm;
   useEffect(() => {
-    if (!open) return;
+    if (!open && !inline) return;
     if (initialEvent) {
       setForm(buildFormFromEvent(initialEvent, initialCategory));
     } else {
       setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: DEFAULT_REMINDER_MINUTES });
     }
     setErrors({});
+    setRequestSent(false);
+    setSubmitting(false);
     setPermissionWarning("");
     setReminderSavedWarning("");
-  }, [open, initialCategory, initialEvent]);
+  }, [open, inline, initialCategory, initialEvent]);
 
   function updatePermissionWarning(reminderMinutes) {
     const permission = getNotificationPermission();
@@ -243,10 +251,10 @@ export function CalendarAddEventModal({
   function validate() {
     const next = {};
     if (!form.title.trim()) next.title = "Title is required.";
-    if (!form.date) next.date = "Date is required.";
+    if (!form.date || form.date.length < 10) next.date = "Enter a complete date (mm/dd/yyyy).";
     if (!isTaskForm) {
-      if (!form.startTime) next.startTime = "Start time is required.";
-      if (!form.endTime) next.endTime = "End time is required.";
+      if (!form.startTime || form.startTime.length < 5) next.startTime = "Enter a complete start time.";
+      if (!form.endTime || form.endTime.length < 5) next.endTime = "Enter a complete end time.";
       if (form.startTime && form.endTime && form.endTime <= form.startTime) next.endTime = "End must be after start.";
     }
     if (role === "mentor" && !isSimplifiedForm && form.category === "mentor_meeting" && !form.studentId) {
@@ -256,7 +264,7 @@ export function CalendarAddEventModal({
     return Object.keys(next).length === 0;
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!validate()) return;
 
@@ -267,14 +275,34 @@ export function CalendarAddEventModal({
       ? new Date(`${form.date}T09:00:00`)
       : new Date(`${form.date}T${form.endTime}`);
 
-    const meetingType = isEventForm ? form.meetingType : form.zoom ? "zoom" : "in_person";
-    const zoomJoinUrl = isEventForm && form.meetingType === "zoom"
+    const meetingType = isTaskForm ? "zoom" : form.meetingType;
+    const zoomJoinUrl = form.meetingType === "zoom"
       ? "https://zoom.us/j/placeholder-new"
-      : isEventForm && form.meetingType === "google_meet"
+      : form.meetingType === "google_meet"
         ? "https://meet.google.com/placeholder-new"
-        : !isSimplifiedForm && form.zoom && form.category === "mentor_meeting"
-          ? "https://zoom.us/j/placeholder-new"
-          : initialEvent?.zoomJoinUrl;
+        : initialEvent?.zoomJoinUrl;
+
+    if (meetingRequestMode && isEventForm && !initialEvent) {
+      setSubmitting(true);
+      try {
+        await onRequestMeeting?.({
+          title: form.title.trim(),
+          meetingType,
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+          notes: form.description,
+          status: "pending"
+        });
+        setRequestSent(true);
+        setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: DEFAULT_REMINDER_MINUTES });
+        setErrors({});
+        setPermissionWarning("");
+        setReminderSavedWarning("");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
 
     onSave?.({
       id: initialEvent?.id || `evt-${Date.now()}`,
@@ -300,21 +328,16 @@ export function CalendarAddEventModal({
     setReminderSavedWarning("");
   }
 
-  if (!open) return null;
+  if (!open && !inline) return null;
 
   const titleLabel = isTaskForm ? "Task title" : "Event title";
   const resolvedSubmitLabel = submitLabel ?? (isTaskForm ? "Save task" : "Save event");
 
-  return (
-    <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="dash-modal dash-modal--wide" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div className="dash-modal__head">
-          <h2 className="dash-modal__title">{modalTitle}</h2>
-          <IconButton label="Close" onClick={onClose}><X className="h-4 w-4" /></IconButton>
-        </div>
+  const formNode = (
         <form
           className={cn(
-            "dash-modal__body dash-event-form",
+            "dash-event-form",
+            inline ? "dash-inline-event-form paper-card" : "dash-modal__body",
             isTaskForm && "dash-event-form--task",
             isEventForm && "dash-event-form--event"
           )}
@@ -337,25 +360,40 @@ export function CalendarAddEventModal({
           ) : null}
           <label className="prelude-field">
             <span>Date</span>
-            <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
+            {isSimplifiedForm ? (
+              <MaskedDateInput value={form.date} onChange={(date) => setForm((f) => ({ ...f, date }))} />
+            ) : (
+              <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
+            )}
             {errors.date ? <em className="dash-field-error">{errors.date}</em> : null}
           </label>
           {!isTaskForm ? (
             <div className="dash-event-form__row">
               <label className="prelude-field">
                 <span>Start time</span>
-                <input type="time" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
+                {isSimplifiedForm ? (
+                  <MaskedTimeInput value={form.startTime} onChange={(startTime) => setForm((f) => ({ ...f, startTime }))} />
+                ) : (
+                  <input type="time" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
+                )}
                 {errors.startTime ? <em className="dash-field-error">{errors.startTime}</em> : null}
               </label>
               <label className="prelude-field">
                 <span>End time</span>
-                <input type="time" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
+                {isSimplifiedForm ? (
+                  <MaskedTimeInput value={form.endTime} onChange={(endTime) => setForm((f) => ({ ...f, endTime }))} />
+                ) : (
+                  <input type="time" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
+                )}
                 {errors.endTime ? <em className="dash-field-error">{errors.endTime}</em> : null}
               </label>
             </div>
           ) : null}
-          <label className="prelude-field dash-form-full dash-event-form__description">
-            <span>Description</span>
+          <label className={cn(
+            "prelude-field dash-form-full dash-event-form__description",
+            isEventForm && meetingRequestMode && "dash-schedule-form__notes"
+          )}>
+            <span>{isEventForm && meetingRequestMode ? "Notes" : "Description"}</span>
             <textarea rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </label>
           {role === "mentor" && !isSimplifiedForm ? (
@@ -430,25 +468,54 @@ export function CalendarAddEventModal({
             </fieldset>
           ) : null}
           {!isSimplifiedForm ? (
-            <>
-              <label className="prelude-field">
-                <span>Meeting type</span>
-                <select value={form.meetingType} onChange={(e) => setForm((f) => ({ ...f, meetingType: e.target.value }))}>
-                  <option value="zoom">Zoom</option>
-                  <option value="in_person">In person</option>
-                </select>
-              </label>
-              <label className="dash-check-label">
-                <input type="checkbox" checked={form.zoom} onChange={(e) => setForm((f) => ({ ...f, zoom: e.target.checked }))} />
-                Create Zoom meeting link
-              </label>
-            </>
+            <label className="prelude-field">
+              <span>Meeting type</span>
+              <select value={form.meetingType} onChange={(e) => setForm((f) => ({ ...f, meetingType: e.target.value }))}>
+                <option value="zoom">Zoom</option>
+                <option value="google_meet">Google Meet</option>
+              </select>
+            </label>
           ) : null}
-          <div className="dash-modal__footer dash-modal__footer--inline">
-            <SecondaryButton type="button" onClick={onClose}>Cancel</SecondaryButton>
-            <PrimaryButton type="submit">{resolvedSubmitLabel}</PrimaryButton>
+          <div className={cn(
+            "dash-modal__footer dash-modal__footer--inline dash-modal__footer--stacked",
+            inline && "dash-inline-event-form__footer"
+          )}>
+            <div className="dash-modal__footer-actions">
+              {!inline ? <SecondaryButton type="button" onClick={onClose}>Cancel</SecondaryButton> : null}
+              <PrimaryButton type="submit" disabled={submitting}>
+                {resolvedSubmitLabel}
+              </PrimaryButton>
+            </div>
+            {meetingRequestMode && requestSent ? (
+              <p className="dash-schedule-form__request-sent" role="status">
+                A request has been made to your mentor!
+              </p>
+            ) : null}
           </div>
         </form>
+  );
+
+  if (inline) {
+    return (
+      <>
+        {formNode}
+        <NotificationPermissionModal
+          open={permissionModalOpen}
+          onAllow={handleAllowNotifications}
+          onDismiss={handleDismissNotifications}
+        />
+      </>
+    );
+  }
+
+  return (
+    <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
+      <div className="dash-modal dash-modal--wide" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <div className="dash-modal__head">
+          <h2 className="dash-modal__title">{modalTitle}</h2>
+          <IconButton label="Close" onClick={onClose}><X className="h-4 w-4" /></IconButton>
+        </div>
+        {formNode}
       </div>
       <NotificationPermissionModal
         open={permissionModalOpen}

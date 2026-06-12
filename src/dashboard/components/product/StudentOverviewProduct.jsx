@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Calendar, ChevronRight } from "lucide-react";
+import { cn } from "../../../lib/utils.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import {
@@ -39,6 +41,7 @@ export default function StudentOverviewProduct() {
   const phase = getDashboardPhase(profile);
   const phaseLabel = getPhaseHeaderLabel(profile);
   const isPrep = phase === DASHBOARD_PHASE.PREPARATION;
+  const [upcomingEventsMountEl, setUpcomingEventsMountEl] = useState(null);
 
   return (
     <div className="dash-product-overview">
@@ -60,7 +63,7 @@ export default function StudentOverviewProduct() {
         </div>
       </header>
 
-      <div className="dash-product-split">
+      <div className={cn("dash-product-split", isPrep && "dash-product-split--prep")}>
         <section className="dash-product-split__visual" aria-label={isPrep ? "Calendar" : "Admissions timeline"}>
           <AdmissionsCalendarVisual
             deadlines={deadlines}
@@ -68,8 +71,12 @@ export default function StudentOverviewProduct() {
             events={events}
             mentorName={mentor?.name}
             showUpcomingEvents={isPrep}
+            upcomingEventsPlacement={isPrep ? "external" : "inline"}
+            upcomingEventsMountEl={isPrep ? upcomingEventsMountEl : null}
           />
         </section>
+
+        {isPrep ? <div ref={setUpcomingEventsMountEl} className="dash-product-split__upcoming" /> : null}
 
         <section className="dash-product-split__cards" aria-label="Dashboard summary">
           {isPrep ? (

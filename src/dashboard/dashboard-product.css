@@ -52,38 +52,19 @@
 .dash-product-nav {
   position: relative;
   z-index: 100;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.35rem 0.5rem 1rem;
+  column-gap: clamp(0.85rem, 2vw, 1.25rem);
+  padding: 0.35rem 0.65rem 1rem;
   border-bottom: 1px solid rgb(35 39 48 / 0.06);
   overflow: visible;
-}
-
-.dash-product-nav__left {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  flex-shrink: 0;
-}
-
-.dash-product-nav__menu {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border: none;
-  border-radius: 0.65rem;
-  background: rgb(120 106 255 / 0.08);
-  color: hsl(var(--foreground));
-  cursor: pointer;
 }
 
 .dash-product-nav__logo {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   text-decoration: none;
 }
 
@@ -93,20 +74,32 @@
 }
 
 .dash-product-nav__tabs {
+  display: flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.25rem;
+  width: max-content;
+  max-width: 100%;
+  justify-self: center;
+  padding: 0.25rem 0.35rem;
   border-radius: 999px;
   background: #f4f3f8;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dash-product-nav__tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .dash-product-nav__tab {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  flex-shrink: 0;
   padding: 0.55rem 1rem;
   border-radius: 999px;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 600;
   color: hsl(var(--muted-foreground));
@@ -114,8 +107,10 @@
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.dash-product-nav__tab:hover {
+.dash-product-nav__tab:not(.dash-product-nav__tab--active):hover {
+  background: #ffffff;
   color: hsl(var(--foreground));
+  box-shadow: 0 2px 10px rgb(35 39 48 / 0.07), 0 0 0 1px rgb(35 39 48 / 0.06);
 }
 
 .dash-product-nav__tab--active {
@@ -124,31 +119,18 @@
   box-shadow: 0 4px 14px rgb(35 39 48 / 0.18);
 }
 
+.dash-product-nav__tab--active:hover {
+  background: #232730;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgb(35 39 48 / 0.18);
+}
+
 .dash-product-nav__right {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
   flex-shrink: 0;
-}
-
-.dash-product-nav__search {
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.9rem;
-  border-radius: 999px;
-  background: #f4f3f8;
-  border: 1px solid rgb(35 39 48 / 0.06);
-  color: hsl(var(--muted-foreground));
-}
-
-.dash-product-nav__search input {
-  border: none;
-  background: transparent;
-  outline: none;
-  width: 9rem;
-  font-family: "Barlow", sans-serif;
-  font-size: 0.875rem;
-  color: hsl(var(--foreground));
 }
 
 .dash-product-nav__notifications {
@@ -179,7 +161,7 @@
   border-radius: 999px;
   background: #5b4fd6;
   color: #ffffff;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.5625rem;
   font-weight: 700;
   line-height: 1rem;
@@ -210,7 +192,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.55rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
@@ -243,7 +225,7 @@
 
 .dash-product-nav__notification-title {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -251,7 +233,7 @@
 
 .dash-product-nav__notification-body {
   margin: 0.2rem 0 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   line-height: 1.4;
   color: hsl(var(--muted-foreground));
@@ -260,7 +242,7 @@
 .dash-product-nav__notifications-empty {
   margin: 0;
   padding: 0.35rem 0.15rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
 }
@@ -315,7 +297,7 @@
   border: none;
   border-radius: 0.55rem;
   background: transparent;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 500;
   color: hsl(var(--foreground));
@@ -335,7 +317,7 @@
 
 .dash-product-nav__name {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -345,69 +327,6 @@
   margin: 0;
   font-size: 0.6875rem;
   color: hsl(var(--muted-foreground));
-}
-
-/* Mobile nav drawer */
-
-.dash-product-mobile {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-}
-
-.dash-product-mobile__backdrop {
-  position: absolute;
-  inset: 0;
-  border: none;
-  background: rgb(35 39 48 / 0.35);
-  cursor: pointer;
-}
-
-.dash-product-mobile__panel {
-  position: relative;
-  z-index: 1;
-  width: min(18rem, 88vw);
-  height: 100%;
-  padding: 1.25rem;
-  background: #ffffff;
-  box-shadow: 8px 0 40px rgb(35 39 48 / 0.12);
-}
-
-.dash-product-mobile__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.25rem;
-}
-
-.dash-product-mobile__nav {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.dash-product-mobile__link {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.7rem 0.85rem;
-  border-radius: 0.75rem;
-  font-family: "Barlow", sans-serif;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: hsl(var(--foreground));
-  text-decoration: none;
-}
-
-.dash-product-mobile__link--active {
-  background: rgb(120 106 255 / 0.1);
-  color: #5b4fd6;
-}
-
-.dash-product-mobile__divider {
-  margin: 0.75rem 0;
-  border: none;
-  border-top: 1px solid rgb(35 39 48 / 0.08);
 }
 
 /* ——— Overview greeting ——— */
@@ -428,7 +347,7 @@
 
 .dash-product-greeting__title {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: clamp(1.65rem, 3vw, 2.25rem);
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -437,7 +356,7 @@
 
 .dash-product-greeting__phase {
   margin: 0.15rem 0 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 700;
   color: #5b4fd6;
@@ -457,7 +376,7 @@
   padding: 0.55rem 0.9rem;
   border-radius: 999px;
   background: #f4f3f8;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--muted-foreground));
@@ -471,7 +390,7 @@
   border-radius: 999px;
   background: linear-gradient(135deg, hsl(var(--primary)), #9b8cff);
   color: #ffffff;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
   text-decoration: none;
@@ -489,6 +408,71 @@
   .dash-product-split {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.22fr);
     align-items: start;
+  }
+
+  .dash-product-split--prep {
+    grid-template-rows: auto auto auto;
+    align-items: stretch;
+  }
+
+  .dash-product-split--prep .dash-product-split__visual {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dash-product-split--prep .dash-product-split__upcoming {
+    grid-column: 1;
+    grid-row: 3;
+    align-self: stretch;
+  }
+
+  .dash-product-split--prep .dash-product-split__cards {
+    display: contents;
+  }
+
+  .dash-product-split--prep .dash-product-card--profile {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .dash-product-split--prep .dash-product-card--opportunity {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .dash-product-split--prep .dash-product-card--ai {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .dash-product-split--prep .dash-product-card--wide {
+    grid-column: 2;
+  }
+
+  .dash-product-split--prep .dash-cal-visual {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .dash-product-split--prep .dash-cal-visual__card {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .dash-product-split--prep .dash-cal-visual__grid {
+    flex: 1;
+    grid-auto-rows: 1fr;
+  }
+
+  .dash-product-split--prep .dash-cal-visual__day {
+    aspect-ratio: unset;
+    min-height: 2.75rem;
   }
 }
 
@@ -516,7 +500,7 @@
 
 .dash-upcoming-events__title {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 1rem;
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -525,7 +509,7 @@
 .dash-upcoming-events__summary {
   margin: 0;
   flex-shrink: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.6875rem;
   font-weight: 600;
   color: #5b4fd6;
@@ -553,7 +537,7 @@
 
 .dash-upcoming-events__column-label {
   margin: 0 0 0.65rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -636,7 +620,7 @@
 }
 
 .dash-upcoming-events__event-title {
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.3;
@@ -644,7 +628,7 @@
 }
 
 .dash-upcoming-events__event-meta {
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.35;
@@ -654,14 +638,14 @@
 .dash-upcoming-events__column-empty {
   margin: 0;
   padding: 0.35rem 0.45rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
 
 .dash-upcoming-events__empty {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
 }
@@ -766,7 +750,7 @@
   border: 1px solid rgb(35 39 48 / 0.1);
   border-radius: 999px;
   background: #ffffff;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -817,7 +801,7 @@
   border: none;
   border-radius: 0.5rem;
   background: transparent;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--foreground));
@@ -836,7 +820,7 @@
   align-items: center;
   gap: 0.35rem;
   margin: 0 0 0.25rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -846,7 +830,7 @@
 
 .dash-cal-visual__title {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: clamp(1.25rem, 2vw, 1.5rem);
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -868,7 +852,7 @@
   border: 1px solid rgb(35 39 48 / 0.08);
   border-radius: 0.6rem;
   background: #ffffff;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   font-weight: 600;
   color: hsl(var(--muted-foreground));
@@ -891,7 +875,7 @@
   grid-template-columns: repeat(7, 1fr);
   gap: 0.25rem;
   margin-bottom: 0.5rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -918,7 +902,7 @@
   padding: 0.28rem 0.22rem;
   border: none;
   border-radius: 0.65rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--foreground) / 0.75);
@@ -1145,14 +1129,14 @@
 }
 
 .dash-cal-visual__agenda-meta {
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
 
 .dash-cal-visual__agenda-empty {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   color: hsl(var(--muted-foreground));
 }
@@ -1177,7 +1161,7 @@
 }
 
 .dash-cal-visual__mobile-day-label {
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -1227,7 +1211,7 @@
 
 .dash-prelude-ai__lead {
   margin: 0 0 0.75rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.45;
@@ -1248,7 +1232,7 @@
   border: 1px solid rgb(120 106 255 / 0.18);
   border-radius: 999px;
   background: linear-gradient(145deg, rgb(248 246 255 / 0.95) 0%, #ffffff 100%);
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   font-weight: 600;
   color: #5b4fd6;
@@ -1276,7 +1260,7 @@
   padding: 0.35rem 0.65rem;
   border-radius: 999px;
   background: rgb(120 106 255 / 0.08);
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.6875rem;
   font-weight: 600;
   color: #5b4fd6;
@@ -1311,7 +1295,7 @@
   border: none;
   background: transparent;
   resize: vertical;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   line-height: 1.5;
   color: hsl(var(--foreground));
@@ -1339,7 +1323,7 @@
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   background: rgb(120 106 255 / 0.1);
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.6875rem;
   font-weight: 700;
   color: #5b4fd6;
@@ -1353,7 +1337,7 @@
   border: none;
   border-radius: 999px;
   background: #5b4fd6;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   font-weight: 700;
   color: #ffffff;
@@ -1391,7 +1375,7 @@
 
 .dash-product-card__eyebrow {
   margin: 0 0 0.15rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1401,7 +1385,7 @@
 
 .dash-product-card__title {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 1rem;
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -1418,7 +1402,7 @@
   align-items: center;
   gap: 0.3rem;
   margin-top: 0.85rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 700;
   color: #5b4fd6;
@@ -1429,7 +1413,7 @@
   display: flex;
   gap: 1.25rem;
   margin-top: 0.85rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
 }
 
 .dash-product-card__metrics span {
@@ -1451,7 +1435,7 @@
 
 .dash-profile-strength__helper {
   margin: 0.35rem 0 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.35;
@@ -1474,7 +1458,7 @@
 }
 
 .dash-profile-bar__label {
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--foreground));
@@ -1482,7 +1466,7 @@
 
 .dash-profile-bar__value {
   flex-shrink: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.6875rem;
   font-weight: 600;
   color: #5b4fd6;
@@ -1537,7 +1521,7 @@
 }
 
 .dash-mini-chart__label {
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.625rem;
   font-weight: 700;
   color: hsl(var(--muted-foreground));
@@ -1558,14 +1542,14 @@
 
 .dash-product-stat__value {
   display: block;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 1.25rem;
   font-weight: 700;
   color: hsl(var(--foreground));
 }
 
 .dash-product-stat__label {
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.6875rem;
   font-weight: 600;
   color: hsl(var(--muted-foreground));
@@ -1591,7 +1575,7 @@
 
 .dash-product-meeting__name {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.9375rem;
   font-weight: 700;
 }
@@ -1604,7 +1588,7 @@
 
 .dash-product-profile-note {
   margin: 0.65rem 0 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
 }
@@ -1616,7 +1600,7 @@
 
 .dash-opportunity-center__subtext {
   margin: 0.35rem 0 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.35;
@@ -1670,7 +1654,7 @@
 }
 
 .dash-opp-mini__match {
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.6875rem;
   font-weight: 700;
   color: #5b4fd6;
@@ -1681,7 +1665,7 @@
 
 .dash-opp-mini__title {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.3;
@@ -1696,7 +1680,7 @@
 }
 
 .dash-opp-mini__due {
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.6875rem;
   font-weight: 600;
   color: hsl(var(--muted-foreground));
@@ -1705,7 +1689,7 @@
 .dash-opp-mini__desc {
   margin: 0;
   flex: 1;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   line-height: 1.45;
   color: hsl(var(--muted-foreground));
@@ -1730,7 +1714,7 @@
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   color: hsl(var(--muted-foreground));
 }
@@ -1771,7 +1755,7 @@
 }
 
 .dash-product-tracker-row__label {
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--foreground));
@@ -1789,14 +1773,14 @@
   justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.25rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
 .dash-product-aid-item__count {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
@@ -1831,7 +1815,7 @@
 .dash-colleges-section__title,
 .dash-colleges-explore__title {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: clamp(1.35rem, 2.5vw, 1.75rem);
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -1841,7 +1825,7 @@
 .dash-colleges-section__sub,
 .dash-colleges-explore__subtitle {
   margin: 0.35rem 0 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.9375rem;
   color: hsl(var(--muted-foreground));
 }
@@ -1862,7 +1846,7 @@
   border: none;
   background: transparent;
   padding: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 600;
   color: #5b4fd6;
@@ -1881,22 +1865,63 @@
 }
 
 .dash-colleges-my-list__card {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.75rem 0.9rem;
+  padding: 0.75rem 2rem 0.75rem 0.9rem;
   border-radius: 0.75rem;
   background: #f8f7fb;
   border: 1px solid rgb(35 39 48 / 0.06);
 }
 
+.dash-colleges-my-list__card:hover,
+.dash-colleges-my-list__card:focus-within {
+  border-color: rgb(120 106 255 / 0.2);
+  background: #f4f3fa;
+}
+
 .dash-colleges-my-list__name {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
   color: hsl(var(--foreground));
+}
+
+.dash-colleges-my-list__remove {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgb(35 39 48 / 0.08);
+  color: hsl(var(--muted-foreground));
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.dash-colleges-my-list__card:hover .dash-colleges-my-list__remove,
+.dash-colleges-my-list__card:focus-within .dash-colleges-my-list__remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dash-colleges-my-list__remove:hover,
+.dash-colleges-my-list__remove:focus-visible {
+  background: rgb(220 38 38 / 0.12);
+  color: #dc2626;
 }
 
 .dash-badge--info {
@@ -1923,7 +1948,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
 }
@@ -1975,7 +2000,7 @@
   border: 1px solid rgb(35 39 48 / 0.1);
   border-radius: 999px;
   background: #ffffff;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--foreground));
@@ -2016,13 +2041,28 @@
   box-shadow: 0 12px 40px rgb(35 39 48 / 0.12);
 }
 
+.dash-colleges-filters__panel--majors {
+  width: min(20rem, 92vw);
+}
+
+.dash-colleges-filters__search {
+  margin-bottom: 0.55rem;
+}
+
+.dash-colleges-filters__search .dash-search-input {
+  width: 100%;
+  max-width: none;
+  font-size: 0.8125rem;
+  padding: 0.45rem 0.65rem;
+}
+
 .dash-colleges-filters__panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
 }
 
@@ -2034,12 +2074,16 @@
   overflow: auto;
 }
 
+.dash-colleges-filters__panel--majors .dash-colleges-filters__options {
+  max-height: 16rem;
+}
+
 .dash-colleges-filters__option {
   border: none;
   border-radius: 0.55rem;
   background: transparent;
   padding: 0.45rem 0.55rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   text-align: left;
   color: hsl(var(--foreground));
@@ -2057,7 +2101,7 @@
   gap: 0.3rem;
   border: none;
   background: transparent;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--muted-foreground));
@@ -2101,7 +2145,7 @@
 
 .dash-colleges-ai-card__copy h3 {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 1rem;
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -2109,7 +2153,7 @@
 
 .dash-colleges-ai-card__copy p {
   margin: 0.35rem 0 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   line-height: 1.45;
   color: hsl(var(--muted-foreground));
@@ -2121,7 +2165,7 @@
   padding: 0.6rem 1rem;
   background: #5b4fd6;
   color: #ffffff;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
@@ -2135,7 +2179,7 @@
 
 .dash-colleges-results-meta {
   margin: 1.25rem 0 0.75rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
 }
@@ -2148,19 +2192,21 @@
 
 .dash-college-card {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 0.85fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+  align-items: stretch;
   gap: 1.25rem;
   padding: 1.25rem;
   border-radius: 1.1rem;
   background: #ffffff;
   border: 1px solid rgb(35 39 48 / 0.08);
   box-shadow: 0 4px 24px rgb(35 39 48 / 0.04);
+  min-height: 15rem;
 }
 
 .dash-college-card__rank {
   display: inline-flex;
   margin-bottom: 0.35rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   font-weight: 700;
   color: #5b4fd6;
@@ -2168,7 +2214,7 @@
 
 .dash-college-card__name {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: clamp(1.2rem, 2vw, 1.5rem);
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -2180,7 +2226,7 @@
   align-items: center;
   gap: 0.35rem;
   margin: 0.35rem 0 0.85rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   color: hsl(var(--muted-foreground));
 }
@@ -2192,30 +2238,27 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   color: hsl(var(--foreground));
 }
 
 .dash-college-card__visual {
   position: relative;
-  min-height: 12rem;
+  min-height: 13.5rem;
+  height: 100%;
   border-radius: 0.9rem;
   overflow: hidden;
-  background: #f4f3f8;
+  background: #e8e6f0;
 }
 
 .dash-college-card__image {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  min-height: 12rem;
   object-fit: cover;
-}
-
-.dash-college-card__image--logo {
-  object-fit: contain;
-  padding: 2rem;
-  background: #f8f7fb;
+  object-position: center;
 }
 
 .dash-college-save-btn {
@@ -2233,7 +2276,7 @@
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(6px);
   box-shadow: 0 8px 24px rgb(35 39 48 / 0.15);
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -2260,7 +2303,7 @@
 
 .dash-colleges-empty-hint {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   color: hsl(var(--muted-foreground));
 }
@@ -2293,7 +2336,7 @@
 
 .dash-college-ai-modal__eyebrow {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -2303,7 +2346,7 @@
 
 .dash-college-ai-modal__lead {
   margin: 0.2rem 0 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   line-height: 1.45;
   color: hsl(var(--muted-foreground));
@@ -2327,7 +2370,7 @@
 
 .dash-college-ai-modal__question {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 1.05rem;
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -2335,7 +2378,7 @@
 
 .dash-college-ai-modal__subtitle {
   margin: 0.35rem 0 0.85rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   color: hsl(var(--muted-foreground));
 }
@@ -2351,7 +2394,7 @@
   border-radius: 999px;
   background: #ffffff;
   padding: 0.5rem 0.85rem;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
   color: hsl(var(--foreground));
@@ -2370,7 +2413,7 @@
   align-items: center;
   gap: 0.55rem;
   padding: 1.5rem 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.9375rem;
   color: hsl(var(--muted-foreground));
 }
@@ -2396,7 +2439,7 @@
 
 .dash-college-ai-modal__result-name {
   margin: 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
   color: hsl(var(--foreground));
@@ -2404,7 +2447,7 @@
 
 .dash-college-ai-modal__result-meta {
   margin: 0.2rem 0 0;
-  font-family: "Barlow", sans-serif;
+  font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
 }
@@ -2418,4 +2461,159 @@
     order: -1;
     min-height: 10rem;
   }
+}
+
+/* ——— Meetings page ——— */
+
+.dash-page--meetings {
+  gap: 0;
+}
+
+.dash-meetings-layout {
+  display: grid;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .dash-meetings-layout {
+    grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.65fr);
+  }
+}
+
+.dash-meetings-layout__calendar,
+.dash-meetings-layout__side {
+  min-width: 0;
+}
+
+.dash-meetings-layout__side {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.85rem, 1.5vw, 1.15rem);
+}
+
+.dash-meetings-layout__upcoming .dash-upcoming-events__columns {
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.dash-meetings-layout__upcoming .dash-upcoming-events__column:first-child {
+  padding-right: 0;
+  border-right: none;
+  border-bottom: 1px solid rgb(35 39 48 / 0.08);
+  padding-bottom: 1rem;
+}
+
+.dash-meetings-layout__upcoming .dash-upcoming-events__column:last-child {
+  padding-left: 0;
+}
+
+.dash-mentor-live {
+  padding: 1.15rem 1.2rem;
+  border-radius: 1.1rem;
+  background: linear-gradient(160deg, rgb(120 106 255 / 0.12), rgb(120 106 255 / 0.04));
+  border: 1px solid rgb(120 106 255 / 0.16);
+  box-shadow: 0 8px 28px rgb(120 106 255 / 0.08);
+}
+
+.dash-mentor-live__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.dash-mentor-live__title {
+  margin: 0;
+  font-family: var(--dash-font-sans);
+  font-size: clamp(1.05rem, 2vw, 1.2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #232730;
+}
+
+.dash-mentor-live__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  background: rgb(22 163 74 / 0.12);
+  font-family: var(--dash-font-sans);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #15803d;
+}
+
+.dash-mentor-live__badge-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgb(34 197 94 / 0.45);
+  animation: dash-mentor-live-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes dash-mentor-live-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(34 197 94 / 0.45);
+  }
+
+  50% {
+    box-shadow: 0 0 0 0.35rem rgb(34 197 94 / 0);
+  }
+}
+
+.dash-mentor-live__copy {
+  margin: 0.65rem 0 0.95rem;
+  font-family: var(--dash-font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: rgb(35 39 48 / 0.72);
+}
+
+.dash-mentor-live__card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  border: 1px solid rgb(35 39 48 / 0.06);
+  box-shadow: 0 4px 18px rgb(35 39 48 / 0.05);
+}
+
+.dash-mentor-live__card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.65rem;
+  background: rgb(120 106 255 / 0.12);
+  color: #5b4fd6;
+}
+
+.dash-mentor-live__card-label {
+  margin: 0;
+  font-family: var(--dash-font-sans);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5b4fd6;
+}
+
+.dash-mentor-live__card-title {
+  margin: 0.2rem 0 0;
+  font-family: var(--dash-font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #232730;
 }

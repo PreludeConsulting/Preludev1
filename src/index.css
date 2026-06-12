@@ -172,9 +172,12 @@ a {
 }
 
 .prelude-logo--nav {
+  display: block;
   height: clamp(2.75rem, 7vw, 3.85rem);
   max-width: min(15rem, 58vw);
-  transform: translateZ(0);
+  object-fit: contain;
+  object-position: left center;
+  transform: translateY(-8px) translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
@@ -200,6 +203,8 @@ a {
 
 .nav-bar__row {
   position: relative;
+  display: flex;
+  align-items: center;
   min-height: 3.25rem;
 }
 
@@ -356,6 +361,10 @@ a {
 .nav-bar__logo-link {
   position: relative;
   z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  line-height: 0;
   isolation: isolate;
   transform: translateZ(0);
   backface-visibility: hidden;

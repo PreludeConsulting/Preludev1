@@ -117,7 +117,7 @@ export default function ApplicationDashboardCards({
             </li>
           ))}
         </ul>
-        <Link to={`${STUDENT_DASHBOARD_BASE}/workspace`} state={{ workspaceTab: "essays" }} className="dash-product-card__link">
+        <Link to={`${STUDENT_DASHBOARD_BASE}/ai`} className="dash-product-card__link">
           Open essay workspace <TrendingUp className="h-4 w-4" />
         </Link>
       </article>

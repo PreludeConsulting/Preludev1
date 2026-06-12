@@ -94,7 +94,7 @@ export default function PrepDashboardCards({
 
   return (
     <>
-      <article className="dash-product-card dash-product-card--wide">
+      <article className="dash-product-card dash-product-card--wide dash-product-card--profile">
         <header className="dash-product-card__head dash-product-card__head--profile-strength">
           <p className="dash-product-card__eyebrow">Academic Progress</p>
           <h3 className="dash-product-card__title">Profile strength</h3>
