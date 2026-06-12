@@ -249,12 +249,16 @@ Developers can work quickly in one process, debug backend routes separately, or 
 ```bash
 npm install
 cp .env.example .env
-# Configure AI and database values in .env
+# Leave VITE_SUPABASE_* empty in .env for fully local sign-up/login (no cloud account).
+npm run db:setup   # requires Docker Desktop running
+npm run dev
 ```
+
+Open [http://localhost:5173/register](http://localhost:5173/register) to create an account, or use the demo logins below after `db:setup`.
 
 ### Local PostgreSQL for auth and dashboards
 
-Requires Docker. Credentials in `compose.yml` and `.env.example` are development-only.
+Requires **Docker Desktop** (daemon running). Credentials in `compose.yml` and `.env.example` are development-only.
 
 ```bash
 npm run db:setup      # Start Postgres + apply migrations + seed (non-interactive)
@@ -274,7 +278,10 @@ Ensure `.env` includes:
 ```env
 DATABASE_URL="postgresql://prelude:prelude_dev_password@localhost:5432/prelude_dev?schema=public"
 JWT_ACCESS_SECRET="replace-with-a-long-random-secret"
-PUBLIC_APP_URL="http://localhost:5173/Preludev1"
+PUBLIC_APP_URL="http://localhost:5173"
+PRELUDE_LOG_AUTH_EMAILS=1
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
 ```
 
 Demo logins after seeding:
@@ -296,7 +303,7 @@ Generated dataset files live under `prelude_dataset_kit/data/` and should not be
 npm run dev
 ```
 
-Open [http://localhost:5173/Preludev1/](http://localhost:5173/Preludev1/).
+Open [http://localhost:5173/](http://localhost:5173/).
 
 ### Run frontend and API separately
 

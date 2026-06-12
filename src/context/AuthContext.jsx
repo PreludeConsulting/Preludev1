@@ -150,7 +150,7 @@ export function AuthProvider({ children }) {
         };
       }
       const next = await authSignUp(payload);
-      if (next?.emailVerified) {
+      if (next?.id) {
         setUser(next);
         setSignInOpen(false);
       }

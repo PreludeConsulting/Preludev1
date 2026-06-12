@@ -118,7 +118,6 @@ export function RegisterPage() {
     }
   }
   const [message, setMessage] = useState("");
-  const [devVerificationUrl, setDevVerificationUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
@@ -128,26 +127,17 @@ export function RegisterPage() {
     setLoading(true);
     setError("");
     setMessage("");
-    setDevVerificationUrl("");
     try {
       const result = await signUp(form);
       if (result?.needsEmailConfirmation) {
         setMessage("Account created! Check your email and confirm your address, then log in.");
         return;
       }
-      if (result?.emailVerified) {
+      if (result?.id) {
         navigate(postAuthDestination(result), { replace: true });
         return;
       }
-      if (result?.devVerificationUrl) {
-        setDevVerificationUrl(result.devVerificationUrl);
-      }
-      setMessage(
-        result?.message ||
-          (supabaseAuth
-            ? "Account created! You can now log in."
-            : "Account created. Check your email for the verification link, then log in.")
-      );
+      setMessage(result?.message || "Account created.");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -162,15 +152,6 @@ export function RegisterPage() {
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
         {message ? <Alert>{message}</Alert> : null}
-        {devVerificationUrl ? (
-          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-            <p className="font-semibold text-foreground">Development only — verify email</p>
-            <p className="mt-1 text-muted-foreground">Click this link once, then log in:</p>
-            <a className="mt-2 inline-block break-all font-medium text-primary underline" href={devVerificationUrl}>
-              {devVerificationUrl}
-            </a>
-          </div>
-        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="First name" value={form.firstName} onChange={update("firstName")} required />
           <Field label="Last name" value={form.lastName} onChange={update("lastName")} required />
@@ -341,12 +322,56 @@ export function ResetPasswordPage() {
 }
 
 export function VerifyEmailPage() {
-  const [state, setState] = useState({ loading: true, message: "Verifying email…", error: "" });
+  const navigate = useNavigate();
+  const { user, refreshUser } = useAuth();
+  const [state, setState] = useState({ loading: true, message: "", error: "" });
+
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token") || "";
-    verifyEmail(token).then((result) => setState({ loading: false, message: result.message, error: "" })).catch((err) => setState({ loading: false, message: "", error: err.message }));
-  }, []);
-  return <Shell title="Email verification">{state.error ? <Alert tone="error">{state.error}</Alert> : <Alert>{state.message}</Alert>} {!state.loading && !state.error ? <AppLink className="mt-6 inline-block rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground" href="/login">Continue to login</AppLink> : null}</Shell>;
+    if (!token) {
+      setState({
+        loading: false,
+        message: "",
+        error: "This verification link is missing a token. Request a new link from your account settings or sign up again."
+      });
+      return;
+    }
+
+    let cancelled = false;
+    verifyEmail(token)
+      .then(async (result) => {
+        if (cancelled) return;
+        await refreshUser();
+        setState({ loading: false, message: result.message || "Email verified.", error: "" });
+      })
+      .catch((err) => {
+        if (!cancelled) setState({ loading: false, message: "", error: err.message });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshUser]);
+
+  const continuePath = user ? postAuthDestination(user) : "/login";
+  const continueLabel = user ? "Continue to dashboard" : "Continue to login";
+
+  return (
+    <Shell title="Email verification" subtitle="Confirm your email address for Prelude account updates.">
+      {state.loading ? <Alert>Verifying your email…</Alert> : null}
+      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
+      {!state.loading && !state.error && state.message ? <Alert>{state.message}</Alert> : null}
+      {!state.loading && !state.error ? (
+        <button
+          type="button"
+          className="mt-6 inline-block rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
+          onClick={() => navigate(continuePath, { replace: true })}
+        >
+          {continueLabel}
+        </button>
+      ) : null}
+    </Shell>
+  );
 }
 
 export function DashboardPage() {

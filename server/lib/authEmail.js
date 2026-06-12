@@ -7,18 +7,9 @@ export function isProductionEnv() {
   return process.env.NODE_ENV === "production";
 }
 
-/** Development only: mark new accounts verified immediately (never in production). */
-export function isDevAutoVerifyEnabled() {
-  return !isProductionEnv() && process.env.PRELUDE_DEV_AUTO_VERIFY_EMAILS === "1";
-}
-
-/** Development only: include verification URL in register API response (never in production). */
-export function shouldReturnDevVerifyLink() {
-  return !isProductionEnv() && process.env.PRELUDE_DEV_RETURN_VERIFY_LINK !== "0";
-}
-
+/** Development only: print verification/reset links in the server terminal. */
 export function shouldLogAuthEmails() {
-  return !isProductionEnv() && process.env.PRELUDE_LOG_AUTH_EMAILS === "1";
+  return !isProductionEnv() && process.env.PRELUDE_LOG_AUTH_EMAILS !== "0";
 }
 
 /**
@@ -98,29 +89,4 @@ export async function deliverAuthEmail({ kind, to, url, req }) {
   }
 
   return { delivered: false, logged: shouldLogAuthEmails(), devOnly: true };
-}
-
-export function registerResponseExtras({ autoVerified, verifyUrl }) {
-  if (autoVerified) {
-    return {
-      emailVerified: true,
-      message: "Account created and email verified (development auto-verify). You can log in now."
-    };
-  }
-
-  const extras = {
-    message: "Account created. Check your email to verify your account before logging in."
-  };
-
-  if (shouldReturnDevVerifyLink() && verifyUrl) {
-    extras.devOnly = true;
-    extras.devVerificationUrl = verifyUrl;
-    extras.message =
-      "Account created. Use the verification link below (development only), then log in.";
-  } else if (!isProductionEnv()) {
-    extras.message +=
-      " Enable PRELUDE_DEV_RETURN_VERIFY_LINK=1 or PRELUDE_DEV_AUTO_VERIFY_EMAILS=1 in .env for easier local testing.";
-  }
-
-  return extras;
 }

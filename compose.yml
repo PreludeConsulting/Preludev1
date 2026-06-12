@@ -1,0 +1,24 @@
+# Local development PostgreSQL for Prisma/JWT auth and dashboards.
+# Credentials match .env.example — development only, never use in production.
+services:
+  postgres:
+    image: postgres:16
+    container_name: prelude-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: prelude
+      POSTGRES_PASSWORD: prelude_dev_password
+      POSTGRES_DB: prelude_dev
+    volumes:
+      - prelude_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prelude -d prelude_dev"]
+      interval: 3s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
+
+volumes:
+  prelude_postgres_data:

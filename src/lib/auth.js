@@ -102,9 +102,8 @@ export async function signUp(payload) {
   return {
     ...attachFrontendFields(result.user),
     message: result.message,
-    devVerificationUrl: result.devVerificationUrl,
-    devOnly: result.devOnly,
-    emailVerified: Boolean(result.emailVerified ?? result.user?.emailVerified)
+    verificationEmailSent: Boolean(result.verificationEmailSent),
+    emailVerified: Boolean(result.user?.emailVerified)
   };
 }
 

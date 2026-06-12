@@ -6,9 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import {
   buildAuthUrl,
-  deliverAuthEmail,
-  isDevAutoVerifyEnabled,
-  registerResponseExtras
+  deliverAuthEmail
 } from "./lib/authEmail.js";
 import { formatAuthApiError, logAuthApiError } from "./lib/dbErrors.js";
 
@@ -313,7 +311,7 @@ async function getAuth(req) {
       where: { id: claims.sid, userId: claims.sub, status: "ACTIVE", expiresAt: { gt: new Date() } },
       include: { user: true }
     });
-    if (!session || session.user.status !== "ACTIVE" || !session.user.emailVerified) return null;
+    if (!session || session.user.status !== "ACTIVE") return null;
     await db().session.update({ where: { id: session.id }, data: { lastSeenAt: new Date() } });
     return { user: session.user, session };
   } catch {
@@ -361,7 +359,6 @@ async function handleRegister(req, res) {
   const exists = await db().user.findUnique({ where: { email } });
   if (exists) return sendJson(res, 409, { error: "email_exists", message: "An account with this email already exists." });
   const passwordHash = await argon2.hash(payload.password, { type: argon2.argon2id });
-  const autoVerify = isDevAutoVerifyEnabled();
   const result = await db().$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
@@ -371,29 +368,33 @@ async function handleRegister(req, res) {
         passwordHash,
         role: payload.role,
         termsAcceptedAt: new Date(),
-        emailVerified: autoVerify,
-        emailVerifiedAt: autoVerify ? new Date() : null
+        emailVerified: false,
+        emailVerifiedAt: null
       }
     });
     await createRoleProfile(tx, user.id, user.role, payload.organizationId);
-    let verificationToken = null;
-    if (!autoVerify) {
-      verificationToken = await issueVerification(tx, user.id);
-    }
+    const verificationToken = await issueVerification(tx, user.id);
     await tx.activityLog.create({ data: { actorUserId: user.id, action: "REGISTER", entityType: "User", entityId: user.id } });
     return { user, verificationToken };
   });
 
-  let verifyUrl = null;
-  if (!autoVerify && result.verificationToken) {
-    verifyUrl = buildAuthUrl(req, `/verify-email?token=${result.verificationToken}`);
-    await deliverAuthEmail({ kind: "verify-email", to: email, url: verifyUrl, req });
-  }
+  const verifyUrl = buildAuthUrl(req, `/verify-email?token=${result.verificationToken}`);
+  await deliverAuthEmail({ kind: "verify-email", to: email, url: verifyUrl, req });
 
-  sendJson(res, 201, {
-    user: publicUser(result.user),
-    ...registerResponseExtras({ autoVerified: autoVerify, verifyUrl })
-  });
+  const tokens = await createSession(result.user, req);
+  await audit({ userId: result.user.id, action: "LOGIN", req, entityId: result.user.id });
+  sendJson(
+    res,
+    201,
+    {
+      user: publicUser(result.user),
+      csrfToken: tokens.csrfToken,
+      verificationEmailSent: true,
+      message:
+        "Account created. We sent a verification link to your email — you can use Prelude now and verify when convenient."
+    },
+    { "Set-Cookie": cookiesForTokens(tokens) }
+  );
 }
 
 async function handleVerifyEmail(req, res, url) {
@@ -408,7 +409,7 @@ async function handleVerifyEmail(req, res, url) {
     db().user.update({ where: { id: record.userId }, data: { emailVerified: true, emailVerifiedAt: new Date() } }),
     db().securityEvent.create({ data: { userId: record.userId, eventType: "EMAIL_VERIFIED", severity: "INFO" } })
   ]);
-  sendJson(res, 200, { message: "Email verified. You can now log in." });
+  sendJson(res, 200, { message: "Email verified. You're all set.", emailVerified: true });
 }
 
 async function handleLogin(req, res) {
@@ -436,7 +437,6 @@ async function handleLogin(req, res) {
     });
     return fail(failedLoginCount >= LOCK_THRESHOLD ? "LOCKED" : "BAD_PASSWORD", user.id);
   }
-  if (!user.emailVerified) return sendJson(res, 403, { error: "email_unverified", message: "Please verify your email before logging in." });
   const tokens = await createSession(user, req);
   await db().user.update({ where: { id: user.id }, data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() } });
   await db().loginHistory.create({ data: { userId: user.id, emailAttempted: email, success: true, ipAddress: getClientIp(req), userAgent: req.headers["user-agent"] || null, ...parseDevice(req.headers["user-agent"] || "") } });
