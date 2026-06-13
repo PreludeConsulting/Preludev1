@@ -15,6 +15,7 @@ import {
   StudentMessages,
   StudentOverview,
   StudentProfileSettings,
+  StudentProfileStats,
   StudentWorkspace
 } from "./pages/student/StudentPages.jsx";
 import {
@@ -67,8 +68,8 @@ function StudentRoutes() {
             <Route path="billing" element={<StudentBilling />} />
             <Route path="help" element={<StudentHelp />} />
             <Route path="settings" element={<StudentProfileSettings />} />
-            <Route path="profile" element={<LegacyStudentRedirect to="settings" />} />
-            <Route path="profile-stats" element={<LegacyStudentRedirect to="settings" />} />
+            <Route path="profile-stats" element={<StudentProfileStats />} />
+            <Route path="profile" element={<LegacyStudentRedirect to="profile-stats" />} />
             <Route path="mentor-matching" element={<LegacyStudentRedirect to="prelude-match" />} />
             <Route index element={<Navigate to="overview" replace />} />
           </Route>

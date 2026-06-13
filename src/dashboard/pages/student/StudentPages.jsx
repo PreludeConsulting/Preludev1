@@ -206,26 +206,103 @@ function profileFieldValues(profile) {
     GPA: profile?.gpa ?? "",
     "Weighted GPA": profile?.weightedGpa ?? "",
     "SAT score": profile?.sat ?? "",
+    "ACT score": profile?.act ?? "",
     "Intended majors": profile?.majors?.join(", ") ?? "",
-    "Preferred colleges": profile?.colleges?.join(", ") ?? ""
+    "Preferred colleges": profile?.colleges?.join(", ") ?? "",
+    "Location preferences": profile?.locationPreferences ?? "",
+    "College size preferences": profile?.collegeSizePreferences ?? "",
+    "Budget / financial aid": profile?.financialAidNotes ?? "",
+    Activities: profile?.activities ?? "",
+    Awards: profile?.awards ?? "",
+    "Leadership roles": profile?.leadershipRoles ?? "",
+    "Volunteer work": profile?.volunteerWork ?? "",
+    "Work experience": profile?.workExperience ?? ""
   };
+}
+
+function parseCommaList(value) {
+  return String(value || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function formValuesToProfileFields(values) {
+  return {
+    gradeLevel: values["Grade level"] || undefined,
+    graduationYear: values["Graduation year"] ? Number(values["Graduation year"]) : undefined,
+    gpa: values.GPA ? Number(values.GPA) : undefined,
+    weightedGpa: values["Weighted GPA"] ? Number(values["Weighted GPA"]) : undefined,
+    sat: values["SAT score"] ? Number(values["SAT score"]) : undefined,
+    targetMajors: parseCommaList(values["Intended majors"]),
+    collegeInterests: parseCommaList(values["Preferred colleges"]),
+    academicGoals: values.Activities || undefined,
+    bio: values["Leadership roles"] || undefined,
+    mentorPreferences: {
+      location: values["Location preferences"] || "",
+      size: values["College size preferences"] || "",
+      budget: values["Budget / financial aid"] || ""
+    }
+  };
+}
+
+function profileFieldsToDisplay(profile, fields) {
+  return {
+    grade: fields.gradeLevel ?? profile?.grade,
+    graduationYear: fields.graduationYear ?? profile?.graduationYear,
+    gpa: fields.gpa ?? profile?.gpa,
+    weightedGpa: fields.weightedGpa ?? profile?.weightedGpa,
+    sat: fields.sat ?? profile?.sat,
+    majors: fields.targetMajors ?? profile?.majors,
+    colleges: fields.collegeInterests ?? profile?.colleges
+  };
+}
+
+function computeLocalProfileCompletion(profile) {
+  const checks = [profile?.grade, profile?.graduationYear, profile?.gpa, profile?.sat, profile?.majors?.length, profile?.colleges?.length];
+  const filled = checks.filter((v) => v != null && v !== "" && v !== 0).length;
+  return Math.round((filled / checks.length) * 100);
 }
 
 export function StudentProfileStats() {
   const { user } = useAuth();
-  const { profile, mentor } = useDashboardData();
-  const [completion, setCompletion] = useState(profile?.profileCompletion ?? 62);
+  const { profile, mentor, saveProfile, saveOnboarding } = useDashboardData();
+  const [formValues, setFormValues] = useState(() => profileFieldValues(profile));
+  const [completion, setCompletion] = useState(profile?.profileCompletion ?? computeLocalProfileCompletion(profile));
   const [saved, setSaved] = useState(false);
-  const fieldValues = profileFieldValues(profile);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
   const majors = profile?.majors || [];
   const colleges = profile?.colleges || [];
 
-  function handleSave(e) {
+  useEffect(() => {
+    setFormValues(profileFieldValues(profile));
+    setCompletion(profile?.profileCompletion ?? computeLocalProfileCompletion(profile));
+  }, [profile]);
+
+  function updateField(label, value) {
+    setFormValues((prev) => ({ ...prev, [label]: value }));
+  }
+
+  async function handleSave(e) {
     e.preventDefault();
-    setCompletion((c) => Math.min(100, c + 6));
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2600);
+    setSaving(true);
+    setError("");
+    try {
+      const fields = formValuesToProfileFields(formValues);
+      await saveProfile(fields);
+      const display = profileFieldsToDisplay(profile, fields);
+      const nextCompletion = computeLocalProfileCompletion(display);
+      setCompletion(nextCompletion);
+      await saveOnboarding({ profileComplete: nextCompletion });
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2600);
+    } catch (err) {
+      setError(err.message || "Could not save profile. Try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -324,9 +401,18 @@ export function StudentProfileStats() {
                 <label key={label} className="prelude-field">
                   <span>{label}</span>
                   {section.textarea ? (
-                    <textarea rows={3} placeholder={`Add your ${section.title.toLowerCase()}…`} />
+                    <textarea
+                      rows={3}
+                      placeholder={`Add your ${section.title.toLowerCase()}…`}
+                      value={formValues[label] ?? ""}
+                      onChange={(e) => updateField(label, e.target.value)}
+                    />
                   ) : (
-                    <input defaultValue={fieldValues[label] ?? ""} placeholder={label} />
+                    <input
+                      value={formValues[label] ?? ""}
+                      onChange={(e) => updateField(label, e.target.value)}
+                      placeholder={label}
+                    />
                   )}
                 </label>
               ))}
@@ -336,10 +422,11 @@ export function StudentProfileStats() {
         </div>
 
         <div className="dash-form-actions">
+          {error ? <span className="dash-save-state dash-save-state--error">{error}</span> : null}
           {saved ? (
             <span className="dash-save-state dash-save-state--ok"><Check className="h-4 w-4" /> Profile saved</span>
           ) : null}
-          <PrimaryButton type="submit">Save profile</PrimaryButton>
+          <PrimaryButton type="submit" disabled={saving}>{saving ? "Saving…" : "Save profile"}</PrimaryButton>
         </div>
       </form>
     </div>
@@ -357,16 +444,47 @@ const WORKSPACE_TABS = [
 
 export function StudentWorkspace() {
   const location = useLocation();
-  const { essays, tasks, extracurriculars, deadlines, applicationProgress: progress } = useDashboardData();
+  const { essays, tasks, extracurriculars, deadlines, applicationProgress: progress, addTask, toggleTask, saveEssayDraft } = useDashboardData();
   const [tab, setTab] = useState(location.state?.workspaceTab || "colleges");
   const [taskFilter, setTaskFilter] = useState("all");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [essayTitle, setEssayTitle] = useState("");
+  const [essayBody, setEssayBody] = useState("");
+  const [essaySavedAt, setEssaySavedAt] = useState("");
   const isCollegesView = tab === "colleges";
+  const activeEssay = essays[0] || PLACEHOLDER_ESSAYS[0];
+  const defaultEssayBody = "Growing up, I learned to debug problems before I learned to drive…";
 
   useEffect(() => {
     if (location.state?.workspaceTab) {
       setTab(location.state.workspaceTab);
     }
   }, [location.state?.workspaceTab]);
+
+  useEffect(() => {
+    setEssayTitle(activeEssay?.title || PLACEHOLDER_ESSAYS[0].title);
+    setEssayBody(activeEssay?.body || defaultEssayBody);
+  }, [activeEssay?.id, activeEssay?.title, activeEssay?.body]);
+
+  useEffect(() => {
+    if (tab !== "essays" || !activeEssay?.id) return undefined;
+    const timer = window.setTimeout(() => {
+      saveEssayDraft(activeEssay.id, { title: essayTitle, body: essayBody });
+      setEssaySavedAt("just now");
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [tab, activeEssay?.id, essayTitle, essayBody, saveEssayDraft]);
+
+  const filteredTasks = tasks.filter(
+    (t) => taskFilter === "all" || t.title.toLowerCase().includes(String(taskFilter).toLowerCase())
+  );
+
+  function handleAddTask() {
+    const title = newTaskTitle.trim() || window.prompt("Task title");
+    if (!title?.trim()) return;
+    addTask(title.trim());
+    setNewTaskTitle("");
+  }
 
   const sectionPct = {
     essays: progress?.essays ?? 50,
@@ -393,9 +511,21 @@ export function StudentWorkspace() {
       {tab === "essays" ? (
         <div className="dash-split">
           <SectionCard title="Essay editor" className="dash-editor-card dash-panel">
-            <input className="dash-editor__title" defaultValue={essays[0]?.title || PLACEHOLDER_ESSAYS[0].title} />
-            <textarea className="dash-editor__body" rows={12} defaultValue="Growing up, I learned to debug problems before I learned to drive…" />
-            <p className="dash-muted">{essays[0]?.words || 412} words · Autosaved just now</p>
+            <input
+              className="dash-editor__title"
+              value={essayTitle}
+              onChange={(e) => setEssayTitle(e.target.value)}
+            />
+            <textarea
+              className="dash-editor__body"
+              rows={12}
+              value={essayBody}
+              onChange={(e) => setEssayBody(e.target.value)}
+            />
+            <p className="dash-muted">
+              {(essayBody.trim().split(/\s+/).filter(Boolean).length || activeEssay?.words || 0)} words
+              {essaySavedAt ? ` · Autosaved ${essaySavedAt}` : ""}
+            </p>
             <div className="dash-editor__actions">
               <SecondaryButton type="button">Version history</SecondaryButton>
               <Link to={`${STUDENT_DASHBOARD_BASE}/ai`} className="dash-btn dash-btn--primary">
@@ -431,13 +561,17 @@ export function StudentWorkspace() {
         <>
           <div className="dash-filter-row">
             <SearchInput value={taskFilter} onChange={(e) => setTaskFilter(e.target.value)} placeholder="Filter tasks…" />
-            <PrimaryButton type="button" className="dash-btn--sm">Add task</PrimaryButton>
+            <PrimaryButton type="button" className="dash-btn--sm" onClick={handleAddTask}>Add task</PrimaryButton>
           </div>
           <SectionCard>
             <ul className="dash-task-list">
-              {tasks.map((t) => (
+              {filteredTasks.map((t) => (
                 <li key={t.id} className="dash-task-row">
-                  <input type="checkbox" defaultChecked={t.done} />
+                  <input
+                    type="checkbox"
+                    checked={Boolean(t.done)}
+                    onChange={(e) => toggleTask(t.id, e.target.checked)}
+                  />
                   <span>{t.title}</span>
                   <DashBadge variant={t.priority === "high" ? "urgent" : "soft"}>{t.priority}</DashBadge>
                   <span className="dash-muted">Due soon</span>
@@ -616,7 +750,7 @@ export function StudentMentor() {
 }
 
 export function StudentMessages() {
-  const { conversations, meetings } = useDashboardData();
+  const { conversations, meetings, postMessage } = useDashboardData();
   return (
     <div className="dash-page dash-page--flush">
       <MessagesPanel
@@ -624,6 +758,9 @@ export function StudentMessages() {
         meetings={meetings}
         schedulePath={`${STUDENT_DASHBOARD_BASE}/mentor`}
         placeholder="Message your mentor…"
+        onSendMessage={(body, threadId) => {
+          postMessage(body, threadId).catch(() => {});
+        }}
       />
     </div>
   );
@@ -668,7 +805,7 @@ function SaveRow({ section, savedSection, onSave }) {
 
 export function StudentProfileSettings() {
   const { user, planDetails, openAccount, signOut } = useAuth();
-  const { integrations, connectGoogle, disconnectGoogle, connectZoomAccount, disconnectZoomAccount } = useDashboardData();
+  const { integrations, connectGoogle, disconnectGoogle, connectZoomAccount, disconnectZoomAccount, savePreferences: savePrefsToBackend, useSupabaseData } = useDashboardData();
   const [tab, setTab] = useState("profile");
   const [prefs, setPrefs] = useState(() => loadPreferences());
   const [savedSection, setSavedSection] = useState("");
@@ -681,8 +818,15 @@ export function StudentProfileSettings() {
     setPrefs((p) => ({ ...p, [key]: value }));
   }
 
-  function saveSection(section) {
+  async function saveSection(section) {
     savePreferences(prefs);
+    if (useSupabaseData) {
+      try {
+        await savePrefsToBackend(prefs);
+      } catch {
+        /* local prefs still saved */
+      }
+    }
     setSavedSection(section);
     window.setTimeout(() => setSavedSection(""), 2600);
   }

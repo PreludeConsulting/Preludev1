@@ -60,7 +60,8 @@ export const DEFAULT_OPPORTUNITIES = [
     deadline: "Mar 15",
     matchScore: 95,
     description: "STEM enrichment program for high-achieving students.",
-    actionLabel: "Learn more"
+    actionLabel: "Learn more",
+    actionUrl: "https://oeop.mit.edu/programs/mites"
   },
   {
     id: "opp-2",
@@ -69,7 +70,8 @@ export const DEFAULT_OPPORTUNITIES = [
     deadline: "Apr 5",
     matchScore: 92,
     description: "Explore hands-on research experience with a university lab.",
-    actionLabel: "Apply"
+    actionLabel: "Apply",
+    actionUrl: "https://research.gatech.edu/undergraduate-research"
   },
   {
     id: "opp-3",
@@ -78,7 +80,8 @@ export const DEFAULT_OPPORTUNITIES = [
     deadline: "Apr 2",
     matchScore: 88,
     description: "Compete and build leadership through business events.",
-    actionLabel: "Register"
+    actionLabel: "Register",
+    actionUrl: "https://www.fbla.org/"
   },
   {
     id: "opp-4",
@@ -87,7 +90,8 @@ export const DEFAULT_OPPORTUNITIES = [
     deadline: "May 1",
     matchScore: 84,
     description: "Gain real-world experience in software development.",
-    actionLabel: "View"
+    actionLabel: "View",
+    actionUrl: "https://www.linkedin.com/jobs/search/?keywords=high%20school%20coding%20internship"
   }
 ];
 

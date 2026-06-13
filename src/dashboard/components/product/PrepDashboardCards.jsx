@@ -1,4 +1,6 @@
+import { useNavigate } from "react-router-dom";
 import { Bot, Code2, FlaskConical, Sun, Trophy } from "lucide-react";
+import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import {
   DEFAULT_ACADEMIC_PROGRESS,
   DEFAULT_OPPORTUNITIES
@@ -43,7 +45,16 @@ function ProfileStrengthBars({ progress }) {
 }
 
 function OpportunityMiniCard({ opportunity }) {
+  const navigate = useNavigate();
   const Icon = OPPORTUNITY_ICONS[opportunity.category] || Sun;
+
+  function handleAction() {
+    if (opportunity.actionUrl) {
+      window.open(opportunity.actionUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    navigate(`${STUDENT_DASHBOARD_BASE}/workspace`, { state: { workspaceTab: "scholarships" } });
+  }
 
   return (
     <article className="dash-opp-mini">
@@ -59,7 +70,7 @@ function OpportunityMiniCard({ opportunity }) {
         <span className="dash-opp-mini__due">Due {opportunity.deadline}</span>
       </div>
       <p className="dash-opp-mini__desc">{opportunity.description}</p>
-      <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm dash-opp-mini__btn">
+      <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm dash-opp-mini__btn" onClick={handleAction}>
         {opportunity.actionLabel}
       </button>
     </article>

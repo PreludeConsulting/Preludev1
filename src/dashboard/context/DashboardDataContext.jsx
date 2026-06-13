@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { updateProfile } from "../../lib/auth.js";
 import {
   connectGoogleCalendar,
   connectZoom,
@@ -12,10 +13,12 @@ import { isSupabaseConfigured } from "../../lib/supabaseConfig.js";
 import {
   createCalendarEvent,
   createNotification,
+  deleteCalendarEvent,
   loadSupabaseDashboard,
   markNotificationsRead as markSupabaseNotificationsRead,
   saveResource,
   sendMessage,
+  updateCalendarEvent,
   updateSupabaseOnboarding,
   updateSupabasePreferences,
   updateSupabaseProfile
@@ -31,17 +34,86 @@ import {
   DEFAULT_STUDENT_PROFILE_STATS,
   buildDefaultStudentEvents
 } from "../config/studentDashboardByGrade.js";
-import { PLACEHOLDER_EVENTS, PLACEHOLDER_MESSAGES, PLACEHOLDER_MENTOR, PLACEHOLDER_STUDENTS, PLACEHOLDER_TASKS } from "../data/placeholders.js";
+import { INITIAL_SAVED_COLLEGES } from "../data/collegeExploreData.js";
+import { PLACEHOLDER_ESSAYS, PLACEHOLDER_EVENTS, PLACEHOLDER_MESSAGES, PLACEHOLDER_MENTOR, PLACEHOLDER_STUDENTS, PLACEHOLDER_TASKS } from "../data/placeholders.js";
 import {
   cancelCalendarReminder,
   isReminderEnabled,
   scheduleCalendarReminder
 } from "../lib/calendarReminders.js";
+import {
+  loadLocalDashboardStore,
+  patchLocalDashboardStore,
+  saveLocalDashboardStore
+} from "../lib/localDashboardStore.js";
 
 const DashboardDataContext = createContext(null);
 
 function hasProfileData(profile) {
   return Boolean(profile?.grade || profile?.graduationYear || profile?.gpa != null);
+}
+
+function normalizeProfileShape(profile) {
+  if (!profile) return profile;
+  return {
+    ...profile,
+    majors: profile.majors || profile.targetMajors || [],
+    colleges: profile.colleges || profile.collegeInterests || []
+  };
+}
+
+function calendarItemToSupabase(item) {
+  const isTask = item.formVariant === "task" || item.calendarItemType === "task";
+  return {
+    title: item.title,
+    description: item.description,
+    startTime: item.start,
+    endTime: item.end,
+    eventType: isTask ? "personal" : "session"
+  };
+}
+
+function buildMentorConversation(mentor, messageList, userName) {
+  if (!messageList.length) return [];
+  const participant = {
+    id: mentor?.id || "mentor",
+    name: mentor?.name || "Mentor",
+    role: "Mentor",
+    context: mentor?.major ? `${mentor.university || "University"} · ${mentor.major}` : "Your mentor",
+    status: "Active recently",
+    online: true
+  };
+  const messages = [...messageList]
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .map((m) => ({
+      id: m.id,
+      sender: m.senderRole === "student" || m.sender === "me" ? "me" : "them",
+      body: m.body,
+      text: m.body,
+      createdAt: m.createdAt,
+      status: m.status || "delivered"
+    }));
+
+  return [{
+    id: "mentor",
+    participant,
+    lastActivity: messages[messages.length - 1]?.createdAt || new Date().toISOString(),
+    unread: 0,
+    messages
+  }];
+}
+
+function computeProfileCompletion(profile) {
+  const checks = [
+    profile?.grade,
+    profile?.graduationYear,
+    profile?.gpa,
+    profile?.sat,
+    profile?.majors?.length || profile?.targetMajors?.length,
+    profile?.colleges?.length || profile?.collegeInterests?.length
+  ];
+  const filled = checks.filter((v) => v != null && v !== "" && v !== 0).length;
+  return Math.round((filled / checks.length) * 100);
 }
 
 const EMPTY_ONBOARDING = {
@@ -70,6 +142,12 @@ export function DashboardDataProvider({ children, user }) {
   const [onboarding, setOnboarding] = useState(EMPTY_ONBOARDING);
   const [savedResources, setSavedResources] = useState([]);
   const [apiDemo, setApiDemo] = useState(null);
+  const [userCalendarEvents, setUserCalendarEvents] = useState([]);
+  const [localTasks, setLocalTasks] = useState(null);
+  const [localEssays, setLocalEssays] = useState(null);
+  const [savedColleges, setSavedColleges] = useState(null);
+  const [localConversationMessages, setLocalConversationMessages] = useState([]);
+  const [profileOverrides, setProfileOverrides] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -107,9 +185,14 @@ export function DashboardDataProvider({ children, user }) {
         setMentor(data.mentor);
         setMentors(data.mentors || []);
         setMeetings(data.meetings || []);
-        setEvents(data.events || []);
+        setEvents((data.events || []).filter((e) => !e.userCreated));
+        setUserCalendarEvents((data.events || []).filter((e) => e.userCreated));
         setMessages(data.messages || []);
-        setConversations(data.conversations || []);
+        setConversations(
+          data.conversations?.length && data.conversations[0]?.messages
+            ? data.conversations
+            : buildMentorConversation(data.mentor, data.messages || [], user.name)
+        );
         setNotifications(data.notifications || []);
         setSavedResources(data.savedResources || []);
       } catch (err) {
@@ -119,6 +202,14 @@ export function DashboardDataProvider({ children, user }) {
       }
       return;
     }
+
+    const store = loadLocalDashboardStore(user.id);
+    setUserCalendarEvents(store.calendarEvents || []);
+    setLocalTasks(store.tasks?.length ? store.tasks : null);
+    setLocalEssays(store.essays?.length ? store.essays : null);
+    setSavedColleges(store.savedColleges ?? null);
+    setLocalConversationMessages(store.conversationMessages || []);
+    setProfileOverrides(store.profileOverrides || {});
 
     try {
       const data = await getDashboardAppData();
@@ -155,6 +246,12 @@ export function DashboardDataProvider({ children, user }) {
       setOnboarding(EMPTY_ONBOARDING);
       setSavedResources([]);
       setApiDemo(null);
+      setUserCalendarEvents([]);
+      setLocalTasks(null);
+      setLocalEssays(null);
+      setSavedColleges(null);
+      setLocalConversationMessages([]);
+      setProfileOverrides({});
       setLoading(false);
     }
   }, [user?.id, refresh]);
@@ -272,20 +369,62 @@ export function DashboardDataProvider({ children, user }) {
 
   const saveProfile = useCallback(
     async (fields) => {
-      if (!useSupabase || !user) return null;
-      const { profile: next, error: err } = await updateSupabaseProfile(user.id, fields);
-      if (err) throw new Error(err);
-      setProfile((p) => ({ ...p, ...fields }));
-      return next;
+      if (!user) return null;
+
+      if (useSupabase) {
+        const { profile: next, error: err } = await updateSupabaseProfile(user.id, fields);
+        if (err) throw new Error(err);
+        setProfile((p) => normalizeProfileShape({ ...p, ...fields }));
+        const completion = computeProfileCompletion({ ...fields });
+        await updateSupabaseOnboarding(user.id, { profileComplete: completion });
+        setOnboarding((prev) => ({ ...prev, profileComplete: completion }));
+        return next;
+      }
+
+      try {
+        await updateProfile(fields);
+      } catch {
+        /* demo / offline — local state still updates */
+      }
+
+      setProfile((p) => {
+        const display = {
+          grade: fields.gradeLevel ?? p?.grade,
+          graduationYear: fields.graduationYear ?? p?.graduationYear,
+          gpa: fields.gpa ?? p?.gpa,
+          weightedGpa: fields.weightedGpa ?? p?.weightedGpa,
+          sat: fields.sat ?? p?.sat,
+          majors: fields.targetMajors ?? p?.majors ?? p?.targetMajors,
+          colleges: fields.collegeInterests ?? p?.colleges ?? p?.collegeInterests
+        };
+        return normalizeProfileShape({ ...p, ...display });
+      });
+      const display = {
+        grade: fields.gradeLevel ?? profile?.grade,
+        graduationYear: fields.graduationYear ?? profile?.graduationYear,
+        gpa: fields.gpa ?? profile?.gpa,
+        weightedGpa: fields.weightedGpa ?? profile?.weightedGpa,
+        sat: fields.sat ?? profile?.sat,
+        majors: fields.targetMajors ?? profile?.majors ?? profile?.targetMajors,
+        colleges: fields.collegeInterests ?? profile?.colleges ?? profile?.collegeInterests
+      };
+      setProfileOverrides((prev) => {
+        const next = { ...prev, ...display };
+        patchLocalDashboardStore(user.id, { profileOverrides: next });
+        return next;
+      });
+      return display;
     },
     [useSupabase, user]
   );
 
   const savePreferences = useCallback(
     async (prefs) => {
-      if (!useSupabase || !user) return null;
-      const { error: err } = await updateSupabasePreferences(user.id, prefs);
-      if (err) throw new Error(err);
+      if (!user) return null;
+      if (useSupabase) {
+        const { error: err } = await updateSupabasePreferences(user.id, prefs);
+        if (err) throw new Error(err);
+      }
       setPreferences(prefs);
       return prefs;
     },
@@ -294,9 +433,11 @@ export function DashboardDataProvider({ children, user }) {
 
   const saveOnboarding = useCallback(
     async (fields) => {
-      if (!useSupabase || !user) return null;
-      const { error: err } = await updateSupabaseOnboarding(user.id, fields);
-      if (err) throw new Error(err);
+      if (!user) return null;
+      if (useSupabase) {
+        const { error: err } = await updateSupabaseOnboarding(user.id, fields);
+        if (err) throw new Error(err);
+      }
       setOnboarding((prev) => ({ ...prev, ...fields }));
       return fields;
     },
@@ -304,18 +445,163 @@ export function DashboardDataProvider({ children, user }) {
   );
 
   const postMessage = useCallback(
-    async (body) => {
-      if (!useSupabase || !user) return null;
-      const { message, error: err } = await sendMessage(user.id, {
-        body,
+    async (body, threadId = "mentor") => {
+      if (!user || !body?.trim()) return null;
+      const trimmed = body.trim();
+
+      if (useSupabase) {
+        const { message, error: err } = await sendMessage(user.id, {
+          body: trimmed,
+          senderName: user.name,
+          senderRole: "student",
+          threadId
+        });
+        if (err) throw new Error(err);
+        setMessages((prev) => [message, ...prev]);
+        setConversations((prev) => {
+          const existing = prev[0];
+          if (!existing) return buildMentorConversation(mentor, [message], user.name);
+          const outgoing = {
+            id: message.id,
+            sender: "me",
+            body: trimmed,
+            text: trimmed,
+            createdAt: message.createdAt,
+            status: "sent"
+          };
+          return [{ ...existing, messages: [...existing.messages, outgoing], lastActivity: message.createdAt }];
+        });
+        return message;
+      }
+
+      const message = {
+        id: `msg-${Date.now()}`,
+        body: trimmed,
+        senderRole: "student",
         senderName: user.name,
-        senderRole: "student"
+        createdAt: new Date().toISOString(),
+        threadId
+      };
+      setLocalConversationMessages((prev) => {
+        const next = [...prev, message];
+        patchLocalDashboardStore(user.id, { conversationMessages: next });
+        return next;
       });
-      if (err) throw new Error(err);
-      setMessages((prev) => [message, ...prev]);
       return message;
     },
+    [mentor, useSupabase, user]
+  );
+
+  const persistCalendarItem = useCallback(
+    async (item, existingId = null) => {
+      if (!user) return item;
+
+      if (useSupabase) {
+        const payload = calendarItemToSupabase(item);
+        if (existingId) {
+          const { event, error: err } = await updateCalendarEvent(user.id, existingId, payload);
+          if (err) throw new Error(err);
+          const stored = { ...item, ...event, id: event.id, userCreated: true };
+          setUserCalendarEvents((prev) => prev.map((e) => (e.id === existingId ? stored : e)));
+          return stored;
+        }
+        const { event, error: err } = await createCalendarEvent(user.id, payload);
+        if (err) throw new Error(err);
+        const stored = { ...item, ...event, id: event.id, userCreated: true };
+        setUserCalendarEvents((prev) => [...prev, stored]);
+        return stored;
+      }
+
+      const id = existingId || item.id || `evt-${Date.now()}`;
+      const stored = { ...item, id, userCreated: true };
+      setUserCalendarEvents((prev) => {
+        const next = existingId ? prev.map((e) => (e.id === existingId ? stored : e)) : [...prev, stored];
+        const store = loadLocalDashboardStore(user.id);
+        saveLocalDashboardStore(user.id, { ...store, calendarEvents: next });
+        return next;
+      });
+      return stored;
+    },
     [useSupabase, user]
+  );
+
+  const deleteCalendarItem = useCallback(
+    async (eventId) => {
+      if (!user || !eventId) return;
+
+      if (useSupabase) {
+        const { error: err } = await deleteCalendarEvent(user.id, eventId);
+        if (err) throw new Error(err);
+      } else {
+        const store = loadLocalDashboardStore(user.id);
+        const next = (store.calendarEvents || []).filter((e) => e.id !== eventId);
+        saveLocalDashboardStore(user.id, { ...store, calendarEvents: next });
+      }
+
+      setUserCalendarEvents((prev) => prev.filter((e) => e.id !== eventId));
+    },
+    [useSupabase, user]
+  );
+
+  const addTask = useCallback(
+    (title) => {
+      if (!user || !title?.trim()) return null;
+      const task = {
+        id: `task-${Date.now()}`,
+        title: title.trim(),
+        done: false,
+        priority: "medium"
+      };
+      setLocalTasks((prev) => {
+        const base = prev || [];
+        const next = [...base, task];
+        patchLocalDashboardStore(user.id, { tasks: next });
+        return next;
+      });
+      return task;
+    },
+    [user]
+  );
+
+  const toggleTask = useCallback(
+    (taskId, done) => {
+      if (!user) return;
+      setLocalTasks((prev) => {
+        const base = prev || [];
+        const next = base.map((t) => (t.id === taskId ? { ...t, done } : t));
+        patchLocalDashboardStore(user.id, { tasks: next });
+        return next;
+      });
+    },
+    [user]
+  );
+
+  const saveEssayDraft = useCallback(
+    (essayId, { title, body }) => {
+      if (!user) return null;
+      const words = body ? body.trim().split(/\s+/).filter(Boolean).length : 0;
+      const updatedAt = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      setLocalEssays((prev) => {
+        const base = prev?.length ? prev : PLACEHOLDER_ESSAYS;
+        const next = base.map((e) =>
+          e.id === essayId
+            ? { ...e, title: title || e.title, body: body ?? e.body, words, updatedAt, status: words > 0 ? "In Progress" : e.status }
+            : e
+        );
+        patchLocalDashboardStore(user.id, { essays: next });
+        return next;
+      });
+    },
+    [user]
+  );
+
+  const updateSavedColleges = useCallback(
+    (colleges) => {
+      if (!user) return;
+      setSavedColleges(colleges);
+      patchLocalDashboardStore(user.id, { savedColleges: colleges });
+    },
+    [user]
   );
 
   const markAllNotificationsRead = markNotificationsRead;
@@ -336,14 +622,49 @@ export function DashboardDataProvider({ children, user }) {
     const resolvedEvents = demo?.events?.length
       ? demo.events
       : (events.length ? events : (isStudent ? buildDefaultStudentEvents() : PLACEHOLDER_EVENTS));
-    const resolvedProfile = demo?.profile
-      ?? (hasProfileData(profile) ? profile : (isStudent ? DEFAULT_STUDENT_PROFILE : profile));
+    const resolvedProfile = normalizeProfileShape(
+      demo?.profile
+        ?? (hasProfileData(profile) || Object.keys(profileOverrides).length
+          ? { ...(hasProfileData(profile) ? profile : (isStudent ? DEFAULT_STUDENT_PROFILE : {})), ...profileOverrides }
+          : (isStudent ? DEFAULT_STUDENT_PROFILE : profile))
+    );
     const resolvedMentor = demo?.mentor ?? mentor ?? (isStudent ? PLACEHOLDER_MENTOR : null);
     const resolvedAcademicProgress = demo?.academicProgress ?? (isStudent ? DEFAULT_ACADEMIC_PROGRESS : null);
     const resolvedOpportunities = demo?.opportunities?.length
       ? demo.opportunities
       : (isStudent ? DEFAULT_OPPORTUNITIES : []);
     const resolvedStudentProfileStats = demo?.studentProfileStats ?? (isStudent ? DEFAULT_STUDENT_PROFILE_STATS : null);
+    const resolvedTasks = demo?.tasks ?? localTasks ?? (useSupabase ? [] : PLACEHOLDER_TASKS);
+    const resolvedEssays = demo?.essays?.length ? demo.essays : (localEssays?.length ? localEssays : []);
+    const resolvedSavedColleges = savedColleges ?? INITIAL_SAVED_COLLEGES;
+    const resolvedConversations = (() => {
+      let base = demo?.conversations?.length
+        ? demo.conversations
+        : useSupabase
+          ? conversations
+          : conversations.length
+            ? conversations
+            : buildMentorConversation(resolvedMentor, localConversationMessages, user?.name);
+
+      if (localConversationMessages.length && base.length) {
+        const extra = localConversationMessages.map((m) => ({
+          id: m.id,
+          sender: "me",
+          body: m.body,
+          text: m.body,
+          createdAt: m.createdAt,
+          status: "sent"
+        }));
+        const thread = base[0];
+        return [{
+          ...thread,
+          messages: [...thread.messages, ...extra],
+          lastActivity: extra[extra.length - 1]?.createdAt || thread.lastActivity
+        }];
+      }
+
+      return base;
+    })();
 
     return {
       loading,
@@ -360,15 +681,23 @@ export function DashboardDataProvider({ children, user }) {
       scheduleEventReminder,
       cancelEventReminder,
       events: resolvedEvents,
-      tasks: demo?.tasks ?? (useSupabase ? [] : PLACEHOLDER_TASKS),
+      userCalendarEvents,
+      persistCalendarItem,
+      deleteCalendarItem,
+      tasks: resolvedTasks,
+      addTask,
+      toggleTask,
       mentor: resolvedMentor,
       mentors,
       students: demo?.students ?? PLACEHOLDER_STUDENTS,
       messages: demo?.messages ?? (useSupabase ? messages : PLACEHOLDER_MESSAGES),
-      conversations: demo?.conversations ?? (useSupabase ? conversations : []),
+      conversations: resolvedConversations,
       gamification: demo?.gamification ?? null,
       studentActivityFeed: demo?.studentActivityFeed ?? [],
-      essays: demo?.essays ?? [],
+      essays: resolvedEssays,
+      saveEssayDraft,
+      savedColleges: resolvedSavedColleges,
+      updateSavedColleges,
       extracurriculars: demo?.extracurriculars ?? [],
       aiSuggestions: demo?.aiSuggestions ?? [],
       profile: resolvedProfile,
@@ -457,6 +786,12 @@ export function DashboardDataProvider({ children, user }) {
       pendingMeetingRequests,
       notifications,
       events,
+      userCalendarEvents,
+      localTasks,
+      localEssays,
+      savedColleges,
+      localConversationMessages,
+      profileOverrides,
       mentor,
       mentors,
       messages,
@@ -469,6 +804,12 @@ export function DashboardDataProvider({ children, user }) {
       markNotificationsRead,
       scheduleEventReminder,
       cancelEventReminder,
+      persistCalendarItem,
+      deleteCalendarItem,
+      addTask,
+      toggleTask,
+      saveEssayDraft,
+      updateSavedColleges,
       refresh,
       scheduleMeeting,
       saveProfile,

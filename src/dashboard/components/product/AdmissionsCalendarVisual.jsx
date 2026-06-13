@@ -194,7 +194,7 @@ function normalizeCalendarEvent(event) {
   if (!date) return null;
 
   const endDate = parseDate(event.end || event.endTime);
-  const isUserCreated = Boolean(event.pillColor) || String(event.id).startsWith("evt-");
+  const isUserCreated = Boolean(event.userCreated) || Boolean(event.pillColor) || event.eventType === "personal" || event.eventType === "session" || String(event.id).startsWith("evt-");
 
   return withItemKind({
     id: `ev-${event.id}`,
@@ -537,14 +537,13 @@ export default function AdmissionsCalendarVisual({
   const [selectedDay, setSelectedDay] = useState(now.getDate());
   const [detailEvent, setDetailEvent] = useState(null);
   const [agendaDate, setAgendaDate] = useState(null);
-  const [localEvents, setLocalEvents] = useState([]);
   const [createDraft, setCreateDraft] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [colorCycleIndex, setColorCycleIndex] = useState(0);
   const maxVisible = useMaxVisibleEvents();
-  const { scheduleEventReminder, cancelEventReminder, scheduleMeeting } = useDashboardData();
+  const { scheduleEventReminder, cancelEventReminder, scheduleMeeting, userCalendarEvents, persistCalendarItem, deleteCalendarItem } = useDashboardData();
 
-  const handleSaveLocalEvent = useCallback((saved) => {
+  const handleSaveLocalEvent = useCallback(async (saved) => {
     if (editDraft) {
       const nextItem = {
         ...saved,
@@ -554,7 +553,7 @@ export default function AdmissionsCalendarVisual({
         calendarItemType: editDraft.calendarItemType ?? editDraft.formVariant,
         reminderMinutes: saved.reminderMinutes ?? editDraft.reminderMinutes
       };
-      setLocalEvents((prev) => prev.map((item) => (item.id === editDraft.id ? nextItem : item)));
+      await persistCalendarItem(nextItem, editDraft.id);
       scheduleEventReminder({
         id: nextItem.id,
         title: nextItem.title,
@@ -574,36 +573,36 @@ export default function AdmissionsCalendarVisual({
       calendarItemType: saved.calendarItemType ?? createDraft?.formVariant ?? "event",
       reminderMinutes: saved.reminderMinutes
     };
-    setLocalEvents((prev) => [...prev, nextItem]);
+    const stored = await persistCalendarItem(nextItem);
     scheduleEventReminder({
-      id: nextItem.id,
-      title: nextItem.title,
-      start: nextItem.start,
-      reminderMinutes: nextItem.reminderMinutes,
-      formVariant: nextItem.formVariant
+      id: stored.id,
+      title: stored.title,
+      start: stored.start,
+      reminderMinutes: stored.reminderMinutes,
+      formVariant: stored.formVariant
     });
     if (!saved.pillColor) setColorCycleIndex((index) => index + 1);
     setCreateDraft(null);
-  }, [colorCycleIndex, createDraft, editDraft, scheduleEventReminder]);
+  }, [colorCycleIndex, createDraft, editDraft, persistCalendarItem, scheduleEventReminder]);
 
   const handleEditEvent = useCallback((modalEvent) => {
-    const raw = findLocalEventRaw(modalEvent, localEvents);
+    const raw = findLocalEventRaw(modalEvent, userCalendarEvents);
     if (!raw) return;
     setDetailEvent(null);
     setEditDraft(raw);
-  }, [localEvents]);
+  }, [userCalendarEvents]);
 
-  const handleDeleteEvent = useCallback((modalEvent) => {
-    const raw = findLocalEventRaw(modalEvent, localEvents);
+  const handleDeleteEvent = useCallback(async (modalEvent) => {
+    const raw = findLocalEventRaw(modalEvent, userCalendarEvents);
     if (!raw) return;
     cancelEventReminder(raw.id);
-    setLocalEvents((prev) => prev.filter((item) => item.id !== raw.id));
+    await deleteCalendarItem(raw.id);
     setDetailEvent(null);
-  }, [cancelEventReminder, localEvents]);
+  }, [cancelEventReminder, deleteCalendarItem, userCalendarEvents]);
 
   const allEvents = useMemo(
-    () => mergeEvents({ deadlines, meetings, events: [...events, ...localEvents] }),
-    [deadlines, meetings, events, localEvents]
+    () => mergeEvents({ deadlines, meetings, events: [...events, ...userCalendarEvents] }),
+    [deadlines, meetings, events, userCalendarEvents]
   );
 
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString(undefined, {

@@ -66,7 +66,8 @@ export default function MessagesPanel({
   conversations = [],
   meetings = [],
   schedulePath = "/dashboard/student/mentor",
-  placeholder = "Write a message…"
+  placeholder = "Write a message…",
+  onSendMessage
 }) {
   const { user } = useAuth();
   const [q, setQ] = useState("");
@@ -135,6 +136,7 @@ export default function MessagesPanel({
       )
     );
     setDraft("");
+    onSendMessage?.(text, active.id);
 
     statusTimers.current.push(
       setTimeout(() => updateMessageInThread(active.id, msg.id, (m) => advanceMessageStatus(m, "sent")), 450)

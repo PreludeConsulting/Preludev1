@@ -24,6 +24,7 @@ import {
   formatSatRange,
   formatTuition
 } from "../../data/collegeExploreData.js";
+import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { SearchInput } from "../ui/index.jsx";
 import CollegeAIMatchModal from "./CollegeAIMatchModal.jsx";
 
@@ -32,7 +33,8 @@ function activeFilterCount(filters) {
 }
 
 export default function CollegesExplore() {
-  const [savedColleges, setSavedColleges] = useState(INITIAL_SAVED_COLLEGES);
+  const { savedColleges: persistedColleges, updateSavedColleges } = useDashboardData();
+  const [savedColleges, setSavedColleges] = useState(persistedColleges || INITIAL_SAVED_COLLEGES);
   const [filters, setFilters] = useState({});
   const [openFilter, setOpenFilter] = useState(null);
   const [sortBy, setSortBy] = useState("ranking");
@@ -129,8 +131,20 @@ export default function CollegesExplore() {
     setOpenFilter(null);
   }
 
-  function toggleSave(collegeId) {
+  useEffect(() => {
+    setSavedColleges(persistedColleges || INITIAL_SAVED_COLLEGES);
+  }, [persistedColleges]);
+
+  function persistColleges(updater) {
     setSavedColleges((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      updateSavedColleges(next);
+      return next;
+    });
+  }
+
+  function toggleSave(collegeId) {
+    persistColleges((prev) => {
       if (prev.some((entry) => entry.collegeId === collegeId)) {
         return prev.filter((entry) => entry.collegeId !== collegeId);
       }
@@ -139,7 +153,7 @@ export default function CollegesExplore() {
   }
 
   function removeFromList(collegeId) {
-    setSavedColleges((prev) => prev.filter((entry) => entry.collegeId !== collegeId));
+    persistColleges((prev) => prev.filter((entry) => entry.collegeId !== collegeId));
   }
 
   function openFilterGroup(groupId) {
