@@ -20,6 +20,8 @@ import {
   updateSupabasePreferences,
   updateSupabaseProfile
 } from "../../lib/supabaseData.js";
+import { isDemoEmail } from "../../data/demoAccounts.js";
+import { getDemoDashboardForUser } from "../../data/demoDashboardData.js";
 import { PLACEHOLDER_EVENTS, PLACEHOLDER_MESSAGES, PLACEHOLDER_MENTOR, PLACEHOLDER_STUDENTS, PLACEHOLDER_TASKS } from "../data/placeholders.js";
 import {
   cancelCalendarReminder,
@@ -54,8 +56,16 @@ export function DashboardDataProvider({ children, user }) {
   const [preferences, setPreferences] = useState(null);
   const [onboarding, setOnboarding] = useState(EMPTY_ONBOARDING);
   const [savedResources, setSavedResources] = useState([]);
+  const [apiDemo, setApiDemo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const localDemo = useMemo(
+    () => (user?.email && isDemoEmail(user.email) ? getDemoDashboardForUser(user.email, user.role) : null),
+    [user?.email, user?.role]
+  );
+
+  const demo = useSupabase ? null : (apiDemo || localDemo);
 
   const refresh = useCallback(async () => {
     if (!user) {
@@ -96,12 +106,18 @@ export function DashboardDataProvider({ children, user }) {
       setIntegrations(data.integrations || integrations);
       setMeetings(data.meetings || []);
       setNotifications(data.notifications || []);
+      setApiDemo(data.demo || null);
     } catch {
-      setMeetings([]);
+      if (localDemo) {
+        setMeetings(localDemo.meetings || []);
+        setApiDemo(localDemo);
+      } else {
+        setMeetings([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [user, useSupabase]);
+  }, [user, useSupabase, localDemo]);
 
   useEffect(() => {
     if (user) {
@@ -119,6 +135,7 @@ export function DashboardDataProvider({ children, user }) {
       setPreferences(null);
       setOnboarding(EMPTY_ONBOARDING);
       setSavedResources([]);
+      setApiDemo(null);
       setLoading(false);
     }
   }, [user?.id, refresh]);
@@ -299,50 +316,54 @@ export function DashboardDataProvider({ children, user }) {
     () => ({
       loading,
       error,
-      isDemo: false,
+      isDemo: Boolean(demo),
+      demo,
       useSupabaseData: useSupabase,
       integrations,
-      meetings: meetings.filter((m) => m.status !== "pending"),
+      meetings: (demo?.meetings?.length ? demo.meetings : meetings).filter((m) => m.status !== "pending"),
       pendingMeetingRequests,
       notifications,
       addNotification,
       markNotificationsRead,
       scheduleEventReminder,
       cancelEventReminder,
-      events: useSupabase ? events : PLACEHOLDER_EVENTS,
-      tasks: useSupabase ? [] : PLACEHOLDER_TASKS,
-      mentor: useSupabase ? mentor : PLACEHOLDER_MENTOR,
+      events: useSupabase ? events : (demo?.events ?? PLACEHOLDER_EVENTS),
+      tasks: useSupabase ? [] : (demo?.tasks ?? PLACEHOLDER_TASKS),
+      mentor: useSupabase ? mentor : (demo?.mentor ?? PLACEHOLDER_MENTOR),
       mentors,
-      students: PLACEHOLDER_STUDENTS,
-      messages: useSupabase ? messages : PLACEHOLDER_MESSAGES,
-      conversations,
-      gamification: null,
-      studentActivityFeed: [],
-      essays: [],
-      extracurriculars: [],
-      aiSuggestions: [],
-      profile,
+      students: demo?.students ?? PLACEHOLDER_STUDENTS,
+      messages: useSupabase ? messages : (demo?.messages ?? PLACEHOLDER_MESSAGES),
+      conversations: useSupabase ? conversations : (demo?.conversations ?? []),
+      gamification: demo?.gamification ?? null,
+      studentActivityFeed: demo?.studentActivityFeed ?? [],
+      essays: demo?.essays ?? [],
+      extracurriculars: demo?.extracurriculars ?? [],
+      aiSuggestions: demo?.aiSuggestions ?? [],
+      profile: useSupabase ? profile : (demo?.profile ?? profile),
       preferences,
       onboarding,
       savedResources,
-      summaryCards: null,
-      deadlines: [],
-      applicationProgress: onboarding?.profileComplete
-        ? {
-            collegeList: onboarding.profileComplete,
-            essays: Math.max(0, onboarding.profileComplete - 10),
-            extracurriculars: Math.max(0, onboarding.profileComplete - 20),
-            scholarships: Math.max(0, onboarding.profileComplete - 30),
-            profile: onboarding.profileComplete
-          }
-        : null,
-      academicProgress: null,
-      studentProfileStats: null,
-      opportunities: [],
-      collegeJourney: [],
-      essayTracker: [],
-      financialAidTracker: [],
-      pendingRequests: pendingMeetingRequests.map((m) => ({
+      summaryCards: demo?.summaryCards ?? null,
+      deadlines: demo?.deadlines ?? [],
+      applicationProgress: useSupabase
+        ? (onboarding?.profileComplete
+          ? {
+              collegeList: onboarding.profileComplete,
+              essays: Math.max(0, onboarding.profileComplete - 10),
+              extracurriculars: Math.max(0, onboarding.profileComplete - 20),
+              scholarships: Math.max(0, onboarding.profileComplete - 30),
+              profile: onboarding.profileComplete
+            }
+          : null)
+        : (demo?.applicationProgress ?? null),
+      academicProgress: demo?.academicProgress ?? null,
+      studentProfileStats: demo?.studentProfileStats ?? null,
+      opportunities: demo?.opportunities ?? [],
+      collegeJourney: demo?.collegeJourney ?? [],
+      essayTracker: demo?.essayTracker ?? [],
+      financialAidTracker: demo?.financialAidTracker ?? [],
+      pendingRequests: [
+        ...pendingMeetingRequests.map((m) => ({
         id: m.id,
         studentName: m.studentName || "Student",
         studentId: m.studentId,
@@ -354,9 +375,11 @@ export function DashboardDataProvider({ children, user }) {
           minute: "2-digit"
         }),
         type: m.title || "Meeting request"
-      })),
-      availability: [],
-      privateNotes: {},
+        })),
+        ...(demo?.pendingRequests ?? [])
+      ],
+      availability: demo?.availability ?? [],
+      privateNotes: demo?.privateNotes ?? {},
       refresh,
       scheduleMeeting,
       saveProfile,
@@ -394,6 +417,7 @@ export function DashboardDataProvider({ children, user }) {
     [
       loading,
       error,
+      demo,
       useSupabase,
       integrations,
       meetings,

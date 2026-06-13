@@ -1,16 +1,18 @@
 import {
+  Building2,
   Calendar,
+  GraduationCap,
   LayoutDashboard,
   MessageCircle,
-  Search,
-  Settings
+  TrendingUp
 } from "lucide-react";
 
-/** Primary top-nav tabs — keep compact; full list lives in mobile overflow (STUDENT_NAV). */
+/** Primary top-nav tabs for the student product dashboard (Healthink-style). */
 export const PRODUCT_STUDENT_NAV = [
   { to: "/overview", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/prelude-match", label: "Prelude Match", icon: Search },
-  { to: "/calendar", label: "Calendar", icon: Calendar },
+  { to: "/workspace", label: "Colleges", icon: Building2, workspaceTab: "colleges" },
+  { to: "/calendar", label: "Meetings", icon: Calendar },
+  { to: "/mentor", label: "My Mentor", icon: GraduationCap },
   { to: "/messages", label: "Messages", icon: MessageCircle },
-  { to: "/settings", label: "Settings", icon: Settings }
+  { to: "/profile-stats", label: "Progress", icon: TrendingUp }
 ];
