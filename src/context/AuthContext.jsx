@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStoredSession, signIn as authSignIn, signOut as authSignOut, signUp as authSignUp } from "../lib/auth.js";
+import { getDevBypassUser, isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { getPlan } from "../lib/plans.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 
@@ -26,6 +27,11 @@ export function AuthProvider({ children }) {
 
     async function bootstrap() {
       try {
+        if (isDevAuthBypassEnabled()) {
+          if (!cancelled) setUser(getDevBypassUser());
+          return;
+        }
+
         if (useSupabase) {
           const { resolveSupabaseAppUser, onAuthStateChange } = await loadSupabaseAuth();
           try {
