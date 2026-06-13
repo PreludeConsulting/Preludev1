@@ -4,14 +4,9 @@ import { Calendar, ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
-import {
-  DASHBOARD_PHASE,
-  getDashboardPhase,
-  getPhaseHeaderLabel
-} from "../../config/studentDashboardByGrade.js";
+import { getPhaseHeaderLabel } from "../../config/studentDashboardByGrade.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import AdmissionsCalendarVisual from "./AdmissionsCalendarVisual.jsx";
-import ApplicationDashboardCards from "./ApplicationDashboardCards.jsx";
 import PrepDashboardCards from "./PrepDashboardCards.jsx";
 
 function greetingForHour(hour) {
@@ -27,20 +22,14 @@ export default function StudentOverviewProduct() {
     meetings,
     mentor,
     events,
-    aiSuggestions,
     deadlines,
-    applicationProgress,
     academicProgress,
     opportunities,
-    studentProfileStats,
-    essayTracker,
-    financialAidTracker
+    studentProfileStats
   } = useDashboardData();
 
-  const firstName = user?.name?.split(" ")[0] || "Jordan";
-  const phase = getDashboardPhase(profile);
+  const firstName = user?.name?.split(" ")[0] || "there";
   const phaseLabel = getPhaseHeaderLabel(profile);
-  const isPrep = phase === DASHBOARD_PHASE.PREPARATION;
   const [upcomingEventsMountEl, setUpcomingEventsMountEl] = useState(null);
 
   return (
@@ -63,37 +52,28 @@ export default function StudentOverviewProduct() {
         </div>
       </header>
 
-      <div className={cn("dash-product-split", isPrep && "dash-product-split--prep")}>
-        <section className="dash-product-split__visual" aria-label={isPrep ? "Calendar" : "Admissions timeline"}>
+      <div className={cn("dash-product-split", "dash-product-split--prep")}>
+        <section className="dash-product-split__visual" aria-label="Calendar">
           <AdmissionsCalendarVisual
             deadlines={deadlines}
             meetings={meetings}
             events={events}
             mentorName={mentor?.name}
-            showUpcomingEvents={isPrep}
-            upcomingEventsPlacement={isPrep ? "external" : "inline"}
-            upcomingEventsMountEl={isPrep ? upcomingEventsMountEl : null}
+            showUpcomingEvents
+            upcomingEventsPlacement="external"
+            upcomingEventsMountEl={upcomingEventsMountEl}
           />
         </section>
 
-        {isPrep ? <div ref={setUpcomingEventsMountEl} className="dash-product-split__upcoming" /> : null}
+        <div ref={setUpcomingEventsMountEl} className="dash-product-split__upcoming" />
 
         <section className="dash-product-split__cards" aria-label="Dashboard summary">
-          {isPrep ? (
-            <PrepDashboardCards
-              academicProgress={academicProgress}
-              opportunities={opportunities}
-              profile={profile}
-              studentProfileStats={studentProfileStats}
-            />
-          ) : (
-            <ApplicationDashboardCards
-              applicationProgress={applicationProgress}
-              essayTracker={essayTracker}
-              financialAidTracker={financialAidTracker}
-              aiSuggestions={aiSuggestions}
-            />
-          )}
+          <PrepDashboardCards
+            academicProgress={academicProgress}
+            opportunities={opportunities}
+            profile={profile}
+            studentProfileStats={studentProfileStats}
+          />
         </section>
       </div>
     </div>

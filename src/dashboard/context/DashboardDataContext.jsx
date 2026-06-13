@@ -23,6 +23,14 @@ import {
 import { isDemoEmail } from "../../data/demoAccounts.js";
 import { getDemoDashboardForUser } from "../../data/demoDashboardData.js";
 import { shouldUseDemoFixtures } from "../../lib/devAuthBypass.js";
+import { roleFromUser } from "../../lib/dashboardRoutes.js";
+import {
+  DEFAULT_ACADEMIC_PROGRESS,
+  DEFAULT_OPPORTUNITIES,
+  DEFAULT_STUDENT_PROFILE,
+  DEFAULT_STUDENT_PROFILE_STATS,
+  buildDefaultStudentEvents
+} from "../config/studentDashboardByGrade.js";
 import { PLACEHOLDER_EVENTS, PLACEHOLDER_MESSAGES, PLACEHOLDER_MENTOR, PLACEHOLDER_STUDENTS, PLACEHOLDER_TASKS } from "../data/placeholders.js";
 import {
   cancelCalendarReminder,
@@ -31,6 +39,10 @@ import {
 } from "../lib/calendarReminders.js";
 
 const DashboardDataContext = createContext(null);
+
+function hasProfileData(profile) {
+  return Boolean(profile?.grade || profile?.graduationYear || profile?.gpa != null);
+}
 
 const EMPTY_ONBOARDING = {
   profileComplete: 0,
@@ -319,8 +331,21 @@ export function DashboardDataProvider({ children, user }) {
     [useSupabase, user]
   );
 
-  const value = useMemo(
-    () => ({
+  const value = useMemo(() => {
+    const isStudent = roleFromUser(user) === "student";
+    const resolvedEvents = demo?.events?.length
+      ? demo.events
+      : (events.length ? events : (isStudent ? buildDefaultStudentEvents() : PLACEHOLDER_EVENTS));
+    const resolvedProfile = demo?.profile
+      ?? (hasProfileData(profile) ? profile : (isStudent ? DEFAULT_STUDENT_PROFILE : profile));
+    const resolvedMentor = demo?.mentor ?? mentor ?? (isStudent ? PLACEHOLDER_MENTOR : null);
+    const resolvedAcademicProgress = demo?.academicProgress ?? (isStudent ? DEFAULT_ACADEMIC_PROGRESS : null);
+    const resolvedOpportunities = demo?.opportunities?.length
+      ? demo.opportunities
+      : (isStudent ? DEFAULT_OPPORTUNITIES : []);
+    const resolvedStudentProfileStats = demo?.studentProfileStats ?? (isStudent ? DEFAULT_STUDENT_PROFILE_STATS : null);
+
+    return {
       loading,
       error,
       isDemo: Boolean(demo),
@@ -334,9 +359,9 @@ export function DashboardDataProvider({ children, user }) {
       markNotificationsRead,
       scheduleEventReminder,
       cancelEventReminder,
-      events: demo?.events ?? (useSupabase ? events : PLACEHOLDER_EVENTS),
+      events: resolvedEvents,
       tasks: demo?.tasks ?? (useSupabase ? [] : PLACEHOLDER_TASKS),
-      mentor: demo?.mentor ?? (useSupabase ? mentor : PLACEHOLDER_MENTOR),
+      mentor: resolvedMentor,
       mentors,
       students: demo?.students ?? PLACEHOLDER_STUDENTS,
       messages: demo?.messages ?? (useSupabase ? messages : PLACEHOLDER_MESSAGES),
@@ -346,7 +371,7 @@ export function DashboardDataProvider({ children, user }) {
       essays: demo?.essays ?? [],
       extracurriculars: demo?.extracurriculars ?? [],
       aiSuggestions: demo?.aiSuggestions ?? [],
-      profile: demo?.profile ?? (useSupabase ? profile : null),
+      profile: resolvedProfile,
       preferences,
       onboarding,
       savedResources,
@@ -364,9 +389,9 @@ export function DashboardDataProvider({ children, user }) {
               }
             : null)
           : null),
-      academicProgress: demo?.academicProgress ?? null,
-      studentProfileStats: demo?.studentProfileStats ?? null,
-      opportunities: demo?.opportunities ?? [],
+      academicProgress: resolvedAcademicProgress,
+      studentProfileStats: resolvedStudentProfileStats,
+      opportunities: resolvedOpportunities,
       collegeJourney: demo?.collegeJourney ?? [],
       essayTracker: demo?.essayTracker ?? [],
       financialAidTracker: demo?.financialAidTracker ?? [],
@@ -421,8 +446,8 @@ export function DashboardDataProvider({ children, user }) {
         const { meetings: next } = await getMeetings();
         setMeetings(next);
       }
-    }),
-    [
+    };
+  }, [
       loading,
       error,
       demo,

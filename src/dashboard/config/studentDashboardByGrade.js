@@ -24,8 +24,7 @@ export function parseGradeNumber(profile) {
 export function getDashboardPhase(profile) {
   const grade = parseGradeNumber(profile);
   if (grade === 12) return DASHBOARD_PHASE.APPLICATION;
-  if (grade >= 9 && grade <= 11) return DASHBOARD_PHASE.PREPARATION;
-  return DASHBOARD_PHASE.APPLICATION;
+  return DASHBOARD_PHASE.PREPARATION;
 }
 
 export function getPhaseHeaderLabel(profile) {
@@ -113,6 +112,102 @@ export const DEFAULT_FINANCIAL_AID_TRACKER = [
   { id: "fa-3", label: "Scholarships Found", status: "In Progress", value: 8 },
   { id: "fa-4", label: "Scholarships Submitted", status: "In Progress", value: 3 }
 ];
+
+export const DEFAULT_STUDENT_PROFILE = {
+  grade: "11th grade",
+  graduationYear: 2027,
+  gpa: 3.86,
+  weightedGpa: 4.21,
+  majors: ["Computer Science", "Data Science"],
+  colleges: ["Georgia Tech", "UCLA", "University of Michigan"],
+  profileCompletion: 78
+};
+
+function dayOffset(days, hour = 9, minute = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(hour, minute, 0, 0);
+  return d;
+}
+
+function eventEnd(start, minutes = 60) {
+  return new Date(start.getTime() + minutes * 60 * 1000);
+}
+
+/** Seed calendar + upcoming events when a student has no synced events yet. */
+export function buildDefaultStudentEvents() {
+  const mentorToday = dayOffset(0, 16, 0);
+  const calcToday = dayOffset(0, 18, 30);
+  const roboticsTomorrow = dayOffset(1, 15, 30);
+  const scholarshipTomorrow = dayOffset(1, 9, 0);
+
+  return [
+    {
+      id: "default-upcoming-mentor",
+      title: "Mentor Meeting",
+      category: "mentor_meeting",
+      start: mentorToday.toISOString(),
+      end: eventEnd(mentorToday, 60).toISOString(),
+      shared: true
+    },
+    {
+      id: "default-upcoming-calc",
+      title: "AP Calculus Review",
+      category: "personal_task",
+      start: calcToday.toISOString(),
+      end: eventEnd(calcToday, 90).toISOString(),
+      shared: true
+    },
+    {
+      id: "default-upcoming-robotics",
+      title: "Robotics Club Meeting",
+      category: "personal_task",
+      start: roboticsTomorrow.toISOString(),
+      end: eventEnd(roboticsTomorrow, 90).toISOString(),
+      shared: true
+    },
+    {
+      id: "default-upcoming-scholarship",
+      title: "Scholarship Deadline",
+      category: "scholarship_deadline",
+      start: scholarshipTomorrow.toISOString(),
+      end: scholarshipTomorrow.toISOString(),
+      shared: true
+    },
+    {
+      id: "default-prep-ap",
+      title: "AP Calculus BC Exam",
+      category: "personal_task",
+      start: dayOffset(14).toISOString(),
+      end: dayOffset(14).toISOString(),
+      shared: true
+    },
+    {
+      id: "default-prep-sat",
+      title: "SAT Test Date",
+      category: "personal_task",
+      start: dayOffset(10).toISOString(),
+      end: dayOffset(10).toISOString(),
+      shared: true
+    },
+    {
+      id: "default-prep-club",
+      title: "Robotics Club Meeting",
+      category: "personal_task",
+      start: dayOffset(5, 15, 30).toISOString(),
+      end: eventEnd(dayOffset(5, 15, 30), 90).toISOString(),
+      shared: true
+    },
+    {
+      id: "default-prep-visit",
+      title: "Campus Visit",
+      category: "personal_task",
+      start: dayOffset(16).toISOString(),
+      end: dayOffset(16).toISOString(),
+      shared: true
+    }
+  ];
+}
 
 export const PREP_AI_SUGGESTIONS = [
   "Consider taking AP Statistics next year.",
