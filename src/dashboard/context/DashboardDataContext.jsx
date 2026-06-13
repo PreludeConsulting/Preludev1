@@ -22,6 +22,7 @@ import {
 } from "../../lib/supabaseData.js";
 import { isDemoEmail } from "../../data/demoAccounts.js";
 import { getDemoDashboardForUser } from "../../data/demoDashboardData.js";
+import { shouldUseDemoFixtures } from "../../lib/devAuthBypass.js";
 import { PLACEHOLDER_EVENTS, PLACEHOLDER_MESSAGES, PLACEHOLDER_MENTOR, PLACEHOLDER_STUDENTS, PLACEHOLDER_TASKS } from "../data/placeholders.js";
 import {
   cancelCalendarReminder,
@@ -60,12 +61,18 @@ export function DashboardDataProvider({ children, user }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const localDemo = useMemo(
-    () => (user?.email && isDemoEmail(user.email) ? getDemoDashboardForUser(user.email, user.role) : null),
-    [user?.email, user?.role]
-  );
+  const localDemo = useMemo(() => {
+    if (!user) return null;
+    if (user.email && isDemoEmail(user.email)) {
+      return getDemoDashboardForUser(user.email, user.role);
+    }
+    if (shouldUseDemoFixtures(user)) {
+      return getDemoDashboardForUser(user.email, user.role);
+    }
+    return null;
+  }, [user]);
 
-  const demo = useSupabase ? null : (apiDemo || localDemo);
+  const demo = localDemo || (!useSupabase ? apiDemo : null);
 
   const refresh = useCallback(async () => {
     if (!user) {
@@ -327,35 +334,36 @@ export function DashboardDataProvider({ children, user }) {
       markNotificationsRead,
       scheduleEventReminder,
       cancelEventReminder,
-      events: useSupabase ? events : (demo?.events ?? PLACEHOLDER_EVENTS),
-      tasks: useSupabase ? [] : (demo?.tasks ?? PLACEHOLDER_TASKS),
-      mentor: useSupabase ? mentor : (demo?.mentor ?? PLACEHOLDER_MENTOR),
+      events: demo?.events ?? (useSupabase ? events : PLACEHOLDER_EVENTS),
+      tasks: demo?.tasks ?? (useSupabase ? [] : PLACEHOLDER_TASKS),
+      mentor: demo?.mentor ?? (useSupabase ? mentor : PLACEHOLDER_MENTOR),
       mentors,
       students: demo?.students ?? PLACEHOLDER_STUDENTS,
-      messages: useSupabase ? messages : (demo?.messages ?? PLACEHOLDER_MESSAGES),
-      conversations: useSupabase ? conversations : (demo?.conversations ?? []),
+      messages: demo?.messages ?? (useSupabase ? messages : PLACEHOLDER_MESSAGES),
+      conversations: demo?.conversations ?? (useSupabase ? conversations : []),
       gamification: demo?.gamification ?? null,
       studentActivityFeed: demo?.studentActivityFeed ?? [],
       essays: demo?.essays ?? [],
       extracurriculars: demo?.extracurriculars ?? [],
       aiSuggestions: demo?.aiSuggestions ?? [],
-      profile: useSupabase ? profile : (demo?.profile ?? profile),
+      profile: demo?.profile ?? (useSupabase ? profile : null),
       preferences,
       onboarding,
       savedResources,
       summaryCards: demo?.summaryCards ?? null,
       deadlines: demo?.deadlines ?? [],
-      applicationProgress: useSupabase
-        ? (onboarding?.profileComplete
-          ? {
-              collegeList: onboarding.profileComplete,
-              essays: Math.max(0, onboarding.profileComplete - 10),
-              extracurriculars: Math.max(0, onboarding.profileComplete - 20),
-              scholarships: Math.max(0, onboarding.profileComplete - 30),
-              profile: onboarding.profileComplete
-            }
-          : null)
-        : (demo?.applicationProgress ?? null),
+      applicationProgress: demo?.applicationProgress
+        ?? (useSupabase
+          ? (onboarding?.profileComplete
+            ? {
+                collegeList: onboarding.profileComplete,
+                essays: Math.max(0, onboarding.profileComplete - 10),
+                extracurriculars: Math.max(0, onboarding.profileComplete - 20),
+                scholarships: Math.max(0, onboarding.profileComplete - 30),
+                profile: onboarding.profileComplete
+              }
+            : null)
+          : null),
       academicProgress: demo?.academicProgress ?? null,
       studentProfileStats: demo?.studentProfileStats ?? null,
       opportunities: demo?.opportunities ?? [],

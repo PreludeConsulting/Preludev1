@@ -6,6 +6,7 @@ import { isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { postAuthDestination } from "../lib/onboardingRoutes.js";
 import { startGoogleSignIn } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
+import { ALL_DEMO_ACCOUNTS, DEMO_STUDENT } from "../data/demoAccounts.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 import AppLink from "./AppLink.jsx";
@@ -39,7 +40,7 @@ function Alert({ children, tone = "info" }) {
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { signIn, user, ready } = useAuth();
+  const { signIn, signInAsDemo, user, ready } = useAuth();
   const supabaseAuth = isSupabaseConfigured();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -85,6 +86,19 @@ export function LoginPage() {
     await loginWithCredentials(email, password);
   }
 
+  async function continueAsJordanDemo() {
+    setLoading(true);
+    setError("");
+    try {
+      const nextUser = await signInAsDemo("student");
+      navigate(postAuthDestination(nextUser), { replace: true });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <Shell
       title="Log in"
@@ -102,6 +116,24 @@ export function LoginPage() {
           <AppLink className="underline" href="/register">Create an account</AppLink>
         </p>
       </form>
+
+      <div className="mt-8 rounded-2xl border border-primary/20 bg-primary/5 p-5">
+        <p className="text-sm font-semibold text-foreground">Try Jordan&apos;s demo dashboard</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Grade 11 college prep view with calendar, upcoming events, opportunity center, and Prelude AI — no account required.
+        </p>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={continueAsJordanDemo}
+          className="mt-4 w-full rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
+        >
+          {loading ? "Opening demo…" : `Continue as ${DEMO_STUDENT.firstName} ${DEMO_STUDENT.lastName}`}
+        </button>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Demo accounts: {ALL_DEMO_ACCOUNTS.map((account) => account.email).join(" · ")}
+        </p>
+      </div>
     </Shell>
   );
 }

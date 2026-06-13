@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStoredSession, signIn as authSignIn, signOut as authSignOut, signUp as authSignUp } from "../lib/auth.js";
-import { getDevBypassUser, isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
+import { getDevBypassUser, getDemoSessionUser, isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { getPlan } from "../lib/plans.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 
@@ -167,6 +167,14 @@ export function AuthProvider({ children }) {
     }
   }, [useSupabase]);
 
+  const signInAsDemo = useCallback(async (accountKey = "student") => {
+    setAuthError(null);
+    const next = getDemoSessionUser(accountKey);
+    setUser(next);
+    setSignInOpen(false);
+    return next;
+  }, []);
+
   const signOut = useCallback(async () => {
     if (useSupabase) {
       const { logOut } = await loadSupabaseAuth();
@@ -234,6 +242,7 @@ export function AuthProvider({ children }) {
       openAccount,
       closeModals,
       signIn,
+      signInAsDemo,
       signUp,
       signOut,
       saveUserPlan,
@@ -255,6 +264,7 @@ export function AuthProvider({ children }) {
       openAccount,
       closeModals,
       signIn,
+      signInAsDemo,
       signUp,
       signOut,
       saveUserPlan,
