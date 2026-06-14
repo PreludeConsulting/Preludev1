@@ -7,7 +7,7 @@ export default function MembershipPlanCard({ plan, planId }) {
         <span className="membership-plan-card__label">Membership Plan</span>
         <PlanBadge planId={planId} />
       </div>
-      <p className="membership-plan-card__name shopify-hero__headline">{plan.name}</p>
+      <p className="membership-plan-card__name">{plan.name}</p>
       <p className="membership-plan-card__summary">{plan.tagline}</p>
       <a href="#pricing" className="membership-plan-card__link">
         View plans

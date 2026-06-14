@@ -44,14 +44,14 @@ export default function Navbar() {
   }, [mobileOpen, closeMobile]);
 
   return (
-    <header className="nav-bar fixed left-0 right-0 top-0 z-50 px-4 py-5 md:px-8 lg:px-4">
+    <header className={`nav-bar fixed left-0 right-0 top-0 z-50 px-4 py-5 md:px-8 lg:px-4${isAuthenticated ? " nav-bar--authenticated" : ""}`}>
       <motion.div
         aria-hidden="true"
         className="nav-bar__backdrop absolute inset-0 border-b border-foreground/8"
         style={{ opacity: barOpacity }}
       />
       <div className="nav-bar__content relative z-10 mx-auto max-w-[118rem]">
-        <div className="nav-bar__row flex items-center gap-4">
+        <div className="nav-bar__row">
           <AppLink href="#home" className="nav-bar__logo-link shrink-0" aria-label={t("nav.homeLabel")}>
             <PreludeLogo className="prelude-logo--nav" />
           </AppLink>
@@ -64,7 +64,7 @@ export default function Navbar() {
             ))}
           </nav>
 
-          <div className="nav-bar__actions ml-auto flex items-center justify-end gap-3 sm:gap-4">
+          <div className="nav-bar__actions flex min-w-0 items-center justify-end gap-2 sm:gap-3">
             <div id="site-search-panel" className="nav-bar__search-wrap">
               <button
                 type="button"
@@ -80,17 +80,21 @@ export default function Navbar() {
             </div>
 
             {isAuthenticated ? (
-              <AccountMenuButton onClick={openAccount} className="hidden sm:inline-flex" />
+              <div className="nav-bar__account hidden min-w-0 sm:block">
+                <AccountMenuButton onClick={openAccount} className="w-full" />
+              </div>
             ) : (
-            <AppLink href="/login" className="ivy-nav-link hidden sm:inline-flex">
+            <AppLink href="/login" className="ivy-nav-link hidden shrink-0 sm:inline-flex">
               {t("nav.signIn")}
             </AppLink>
           )}
 
-          <Button as={Link} to="/register" className="rounded-full px-5 py-3 text-xs font-extrabold uppercase tracking-[0.12em]">
+          {!isAuthenticated ? (
+          <Button as={Link} to="/register" className="nav-bar__cta shrink-0 rounded-full px-4 py-3 text-xs font-extrabold uppercase tracking-[0.12em] sm:px-5">
               {t("nav.getStarted")}
               <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </Button>
+          ) : null}
 
             <button
               type="button"

@@ -55,7 +55,7 @@ export default function UserMenuDropdown({ className = "" }) {
         >
           <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" className="account-menu-btn__avatar" />
           <span className="account-menu-btn__name">{firstName}</span>
-          {user.plan ? <PlanBadge planId={user.plan} /> : null}
+          {user.plan ? <PlanBadge planId={user.plan} className="account-menu-btn__plan" /> : null}
           <ChevronDown className={`account-menu-btn__chevron h-4 w-4 ${open ? "user-menu__chevron--open" : ""}`} aria-hidden="true" />
         </button>
       )}

@@ -73,8 +73,8 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
             <header className="membership-drawer__header">
               <div className="membership-drawer__user">
                 <span className="membership-drawer__avatar">{userInitial(user.name)}</span>
-                <div>
-                  <h2 id="membership-drawer-title" className="membership-drawer__name shopify-hero__headline">
+                <div className="membership-drawer__identity">
+                  <h2 id="membership-drawer-title" className="membership-drawer__name">
                     {user.name}
                   </h2>
                   <p className="membership-drawer__email">{user.email}</p>

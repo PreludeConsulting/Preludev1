@@ -18,7 +18,7 @@ export default function AccountMenuButton({ onClick, className = "" }) {
         {userInitial(user.name)}
       </span>
       <span className="account-menu-btn__name">{firstName}</span>
-      <PlanBadge planId={user.plan} />
+      <PlanBadge planId={user.plan} className="account-menu-btn__plan" />
       <ChevronDown className="account-menu-btn__chevron h-4 w-4" aria-hidden="true" />
     </button>
   );
