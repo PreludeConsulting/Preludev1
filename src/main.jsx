@@ -12,6 +12,7 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { LegalModalProvider } from "./context/LegalModalContext.jsx";
 import LegalModal from "./components/LegalModal.jsx";
+import ScrollToTop from "./components/ScrollToTop.jsx";
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -29,6 +30,7 @@ import "./landing-ui.css";
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter basename={ROUTER_BASENAME || undefined}>
+      <ScrollToTop />
       <LanguageProvider>
         <AuthProvider>
           <LegalModalProvider>

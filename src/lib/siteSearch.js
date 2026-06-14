@@ -68,6 +68,11 @@ export function navigateToSiteResult(item) {
     sessionStorage.setItem(SCROLL_STORAGE_KEY, item.scrollTarget);
   }
 
+  if (window.location.pathname !== appPath("/")) {
+    window.location.href = appPath(`/${item.href}`);
+    return;
+  }
+
   const hashId = item.href.replace(/^#/, "");
 
   if (window.location.hash === item.href) {

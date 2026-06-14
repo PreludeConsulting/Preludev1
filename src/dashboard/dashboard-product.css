@@ -61,6 +61,10 @@
   overflow: visible;
 }
 
+.dash-product-nav > * {
+  min-width: 0;
+}
+
 .dash-product-nav__logo {
   display: inline-flex;
   align-items: center;
@@ -77,15 +81,22 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  width: max-content;
+  width: 100%;
   max-width: 100%;
-  justify-self: center;
+  min-width: 0;
+  justify-self: stretch;
   padding: 0.25rem 0.35rem;
   border-radius: 999px;
   background: #f4f3f8;
   overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  overscroll-behavior-inline: contain;
+  scroll-behavior: smooth;
+  scroll-padding-inline: 0.35rem;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .dash-product-nav__tabs::-webkit-scrollbar {

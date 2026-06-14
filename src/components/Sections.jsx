@@ -72,7 +72,7 @@ export function LowerFeatureIntro() {
 
   return (
     <div className="lower-landing">
-      <section className="lower-landing__section" id="admissions-counseling">
+      <section className="lower-landing__section">
         <Reveal>
           <p className="lower-landing__eyebrow">{t("sections.featureIntro.eyebrow")}</p>
           <h2 className="lower-landing__headline lower-landing__headline--wide">
@@ -93,7 +93,7 @@ export function LowerSplitVisual() {
 
   return (
     <div className="lower-landing">
-      <section className="lower-landing__section" id="mentorship">
+      <section className="lower-landing__section">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <Reveal>
             <p className="lower-landing__eyebrow">{t("sections.split.eyebrow")}</p>

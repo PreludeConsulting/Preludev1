@@ -25,7 +25,6 @@ function AppContent() {
   const { requestPersonalizedAi } = useAuth();
   const navigate = useNavigate();
   const [hash, setHash] = useState(window.location.hash);
-  const pathname = window.location.pathname;
 
   useEffect(() => {
     const onHashChange = () => setHash(window.location.hash);

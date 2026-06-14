@@ -3,7 +3,6 @@ import AccountMenuButton from "./AccountMenuButton.jsx";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { isAppRoute } from "../lib/appPaths.js";
 import { NAV_LINKS } from "../data/navLinks.js";
 import AppLink from "./AppLink.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -53,22 +52,16 @@ export default function Navbar() {
       />
       <div className="nav-bar__content relative z-10 mx-auto max-w-[118rem]">
         <div className="nav-bar__row flex items-center gap-4">
-          <a href="#home" className="nav-bar__logo-link shrink-0" aria-label={t("nav.homeLabel")}>
+          <AppLink href="#home" className="nav-bar__logo-link shrink-0" aria-label={t("nav.homeLabel")}>
             <PreludeLogo className="prelude-logo--nav" />
-          </a>
+          </AppLink>
 
-          <nav className="nav-bar__center hidden items-center gap-5 lg:flex" aria-label={t("nav.primaryLabel")}>
-            {NAV_LINKS.map(({ labelKey, href }) =>
-              isAppRoute(href) ? (
-                <Link className="ivy-nav-link" to={href} key={labelKey}>
-                  {t(labelKey)}
-                </Link>
-              ) : (
-                <a className="ivy-nav-link" href={href} key={labelKey}>
-                  {t(labelKey)}
-                </a>
-              )
-            )}
+          <nav className="nav-bar__center hidden items-center gap-5 sm:flex" aria-label={t("nav.primaryLabel")}>
+            {NAV_LINKS.map(({ labelKey, href }) => (
+              <AppLink className="ivy-nav-link" href={href} key={labelKey}>
+                {t(labelKey)}
+              </AppLink>
+            ))}
           </nav>
 
           <div className="nav-bar__actions ml-auto flex items-center justify-end gap-3 sm:gap-4">
@@ -101,7 +94,7 @@ export default function Navbar() {
 
             <button
               type="button"
-              className="nav-bar__menu-btn inline-flex rounded-full p-2 text-foreground transition hover:bg-foreground/[0.05] lg:hidden"
+              className="nav-bar__menu-btn inline-flex rounded-full p-2 text-foreground transition hover:bg-foreground/[0.05] sm:hidden"
               onClick={toggleMobile}
               aria-label={mobileOpen ? t("nav.menuCloseLabel") : t("nav.menuOpenLabel")}
               aria-expanded={mobileOpen}
@@ -114,24 +107,23 @@ export default function Navbar() {
         <AnimatePresence>
           {mobileOpen ? (
             <motion.nav
-              className="nav-bar__mobile-menu paper-card lg:hidden"
+              className="nav-bar__mobile-menu paper-card sm:hidden"
               aria-label={t("nav.primaryLabel")}
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
             >
-              {NAV_LINKS.map(({ labelKey, href }) =>
-                isAppRoute(href) ? (
-                  <Link className="nav-bar__mobile-link ivy-nav-link" to={href} key={labelKey} onClick={closeMobile}>
-                    {t(labelKey)}
-                  </Link>
-                ) : (
-                  <a className="nav-bar__mobile-link ivy-nav-link" href={href} key={labelKey} onClick={closeMobile}>
-                    {t(labelKey)}
-                  </a>
-                )
-              )}
+              {NAV_LINKS.map(({ labelKey, href }) => (
+                <AppLink
+                  className="nav-bar__mobile-link ivy-nav-link"
+                  href={href}
+                  key={labelKey}
+                  onClick={closeMobile}
+                >
+                  {t(labelKey)}
+                </AppLink>
+              ))}
             </motion.nav>
           ) : null}
         </AnimatePresence>
