@@ -412,6 +412,33 @@ async function handleVerifyEmail(req, res, url) {
   sendJson(res, 200, { message: "Email verified. You're all set.", emailVerified: true });
 }
 
+async function handleResendVerification(req, res) {
+  await rateLimit(req, "/api/auth/resend-verification", 5, 60 * 60);
+  const auth = await requireAuth(req);
+  if (auth.user.emailVerified) {
+    return sendJson(res, 400, { error: "already_verified", message: "Your email is already verified." });
+  }
+
+  const verificationToken = await db().$transaction(async (tx) => {
+    await tx.emailVerificationToken.updateMany({
+      where: { userId: auth.user.id, status: "ACTIVE" },
+      data: { status: "REVOKED" }
+    });
+    return issueVerification(tx, auth.user.id);
+  });
+
+  const verifyUrl = buildAuthUrl(req, `/verify-email?token=${verificationToken}`);
+  const delivery = await deliverAuthEmail({ kind: "verify-email", to: auth.user.email, url: verifyUrl, req });
+  await audit({ userId: auth.user.id, action: "VERIFICATION_EMAIL_RESENT", req, entityId: auth.user.id });
+
+  sendJson(res, 200, {
+    message: delivery.delivered
+      ? "Verification email sent. Check your inbox."
+      : "If email delivery is configured, a new verification link has been sent.",
+    emailSent: Boolean(delivery.delivered)
+  });
+}
+
 async function handleLogin(req, res) {
   await rateLimit(req, "/api/auth/login", 10, 15 * 60);
   const payload = loginSchema.parse(await readJsonBody(req));
@@ -654,6 +681,7 @@ export function createAuthApiMiddleware() {
       if (!["/api/auth/login", "/api/auth/register", "/api/auth/request-reset", "/api/auth/reset-password"].includes(url.pathname)) requireCsrf(req);
       if (url.pathname === "/api/auth/register" && req.method === "POST") return await handleRegister(req, res);
       if (url.pathname === "/api/auth/verify-email" && req.method === "GET") return await handleVerifyEmail(req, res, url);
+      if (url.pathname === "/api/auth/resend-verification" && req.method === "POST") return await handleResendVerification(req, res);
       if (url.pathname === "/api/auth/google/start" && req.method === "POST") {
         return sendJson(res, 200, {
           message:

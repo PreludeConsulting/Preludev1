@@ -104,6 +104,22 @@ export async function resetPassword(email) {
   return { error: null };
 }
 
+export async function resendSignupConfirmation(email) {
+  if (!isSupabaseConfigured()) {
+    return { message: "Supabase is not configured for this deployment." };
+  }
+  const supabase = getSupabase();
+  if (!supabase) return { message: "Supabase client unavailable." };
+
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: { emailRedirectTo: fullUrl("/login") }
+  });
+  if (error) throw new Error(friendlyError(error));
+  return { message: "Verification email sent. Check your inbox." };
+}
+
 export async function updatePassword(newPassword) {
   const { data, error } = await getSupabase().auth.updateUser({ password: newPassword });
   if (error) return { data: null, error: friendlyError(error) };

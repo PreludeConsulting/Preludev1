@@ -30,6 +30,7 @@ import PreludeMatchIntro from "../hero/PreludeMatchIntro.jsx";
 import PreludeMatchLoading from "../hero/PreludeMatchLoading.jsx";
 import PreludeMatchQuestionFlow from "../hero/PreludeMatchQuestionFlow.jsx";
 import MatchResultPanel from "./MatchResultPanel.jsx";
+import EmailVerificationBanner from "../EmailVerificationBanner.jsx";
 
 export default function PreludeMatchOnboardingPage() {
   const reducedMotion = useReducedMotion();
@@ -204,9 +205,10 @@ export default function PreludeMatchOnboardingPage() {
     getQuestionIndex(visibleQuestions, currentQuestion.id) === visibleQuestions.length - 1;
 
   const displayMentor = suggestedMentor || getMentorById(user.suggestedMentorId);
+  const showVerifyBanner = !user.emailVerified && phase === "result";
 
   return (
-    <main className="pm-onboarding-page">
+    <main className={`pm-onboarding-page${showVerifyBanner ? " pm-onboarding-page--verify-banner" : ""}`}>
       <div className="pm-onboarding-page__inner">
         <AppLink href="/" className="pm-onboarding-page__back">← Back to Prelude</AppLink>
         <header className="pm-onboarding-page__head">
@@ -293,6 +295,7 @@ export default function PreludeMatchOnboardingPage() {
           </div>
         </motion.div>
       </div>
+      {showVerifyBanner ? <EmailVerificationBanner /> : null}
     </main>
   );
 }

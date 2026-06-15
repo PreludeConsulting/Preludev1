@@ -151,7 +151,7 @@ export function AuthProvider({ children }) {
         }
         return {
           ...next,
-          emailVerified: Boolean(next && !needsEmailConfirmation),
+          emailVerified: Boolean(next?.emailVerified),
           needsEmailConfirmation
         };
       }

@@ -591,6 +591,14 @@
   gap: 0.4rem;
 }
 
+.dash-shell--verify-banner {
+  padding-bottom: 4.25rem;
+}
+
+.dash-shell--verify-banner .dash-toast-stack {
+  bottom: 5.25rem;
+}
+
 .dash-toast {
   padding: 0.65rem 1rem;
   border-radius: 0.65rem;

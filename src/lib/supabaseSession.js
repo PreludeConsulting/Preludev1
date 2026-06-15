@@ -35,7 +35,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     plan: planId,
     planName: plan?.name || null,
     planSelected: Boolean(planId),
-    emailVerified: Boolean(u.email_confirmed_at || session),
+    emailVerified: Boolean(u.email_confirmed_at),
     authProvider: "supabase",
     avatarUrl: profile?.avatar_url || null,
     ...onboardingFields,

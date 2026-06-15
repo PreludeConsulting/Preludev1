@@ -69,6 +69,7 @@ function attachFrontendFields(user) {
     plan: user.plan || "basic",
     planName: plan.name,
     planSelected: Boolean(user.plan),
+    emailVerified: Boolean(user.emailVerified),
     role: (user.role || "STUDENT").toLowerCase()
   };
 }
@@ -126,6 +127,10 @@ export async function resetPassword(token, password) {
 
 export async function verifyEmail(token) {
   return api(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+}
+
+export async function resendVerificationEmail() {
+  return api("/api/auth/resend-verification", { method: "POST" });
 }
 
 export async function getDashboardData() {
