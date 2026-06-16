@@ -3,11 +3,13 @@ import { Outlet } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import EmailVerificationBanner from "../../components/EmailVerificationBanner.jsx";
 import { applyPreferences } from "../lib/dashboardPreferences.js";
+import { useDashboardData } from "../context/DashboardDataContext.jsx";
 import CalendarReminderBootstrap from "./CalendarReminderBootstrap.jsx";
 import DashboardProductNav from "./product/DashboardProductNav.jsx";
 
 export default function DashboardLayout({ navItems, basePath, productNav }) {
   const { user } = useAuth();
+  const { error: dataError } = useDashboardData();
   const showVerifyBanner = Boolean(user && !user.emailVerified);
 
   useEffect(() => {
@@ -22,6 +24,11 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
         <div className="dash-product-frame">
           <DashboardProductNav navItems={productNav || navItems} basePath={basePath} />
           <main className="dash-product-main">
+            {dataError ? (
+              <div className="dash-callout dash-callout--error" role="alert">
+                <p>{dataError}</p>
+              </div>
+            ) : null}
             <Outlet />
           </main>
         </div>

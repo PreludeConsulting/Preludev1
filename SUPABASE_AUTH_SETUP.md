@@ -25,8 +25,13 @@ browser automation is explicitly enabled, and it was not.) Do the steps below.
 4. Click **Run**.
 5. Paste and run [`supabase/setup-dashboard.sql`](./supabase/setup-dashboard.sql) for per-user dashboard tables (preferences, events, messages, notifications, resources, mentor matches, onboarding progress).
 6. Paste and run [`supabase/setup-storage.sql`](./supabase/setup-storage.sql) for profile avatar uploads (Storage bucket + RLS).
-7. Verify the `public.profiles` table exists: **Table Editor → profiles**.
-6. Verify **Row Level Security is enabled** (the `profiles` table shows an
+
+**If profile or onboarding saves fail** with `Could not find the table public.onboarding_progress in the schema cache`, run the focused migration:
+
+7. Paste and run [`supabase/migrations/20260616000000_onboarding_progress.sql`](./supabase/migrations/20260616000000_onboarding_progress.sql) — creates `onboarding_progress`, backfills existing users, and reloads the API schema cache.
+
+8. Verify tables exist: **Table Editor → onboarding_progress** and **profiles**.
+9. Verify **Row Level Security is enabled** (the `profiles` table shows an
    "RLS enabled" badge). You can also run:
    ```sql
    select relrowsecurity from pg_class where oid = 'public.profiles'::regclass; -- true

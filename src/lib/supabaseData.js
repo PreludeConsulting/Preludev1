@@ -19,6 +19,20 @@ function db() {
   return getSupabase();
 }
 
+/** Turn PostgREST / Supabase load errors into actionable dashboard messages. */
+export function formatDashboardPersistenceError(errors = []) {
+  const messages = errors
+    .map((entry) => (typeof entry === "string" ? entry : entry?.message))
+    .filter(Boolean);
+
+  if (messages.some((msg) => /onboarding_progress/i.test(msg))) {
+    return "Profile progress could not be saved because the onboarding_progress table is missing. Run supabase/setup-dashboard-data.sql in the Supabase SQL Editor, then reload the page.";
+  }
+
+  if (messages.length) return messages.join(" ");
+  return "Some dashboard data could not be loaded. Try refreshing.";
+}
+
 function mapPreferences(row) {
   if (!row) return null;
   return {
@@ -43,7 +57,11 @@ function mapOnboarding(row) {
     profileComplete: row.profile_complete ?? 0,
     mentorMatchingStarted: row.mentor_matching_started,
     mentorMatchingComplete: row.mentor_matching_complete,
-    questionnaireAnswers: row.questionnaire_answers || {}
+    questionnaireAnswers: row.questionnaire_answers || {},
+    onboardingStatus: row.onboarding_status || null,
+    suggestedMentorId: row.suggested_mentor_id || null,
+    matchDecision: row.match_decision || null,
+    declinedMentorIds: row.declined_mentor_ids || []
   };
 }
 
@@ -168,6 +186,10 @@ export async function updateSupabaseOnboarding(userId, fields) {
   if (fields.mentorMatchingStarted !== undefined) payload.mentor_matching_started = fields.mentorMatchingStarted;
   if (fields.mentorMatchingComplete !== undefined) payload.mentor_matching_complete = fields.mentorMatchingComplete;
   if (fields.questionnaireAnswers !== undefined) payload.questionnaire_answers = fields.questionnaireAnswers;
+  if (fields.onboardingStatus !== undefined) payload.onboarding_status = fields.onboardingStatus;
+  if (fields.suggestedMentorId !== undefined) payload.suggested_mentor_id = fields.suggestedMentorId;
+  if (fields.matchDecision !== undefined) payload.match_decision = fields.matchDecision;
+  if (fields.declinedMentorIds !== undefined) payload.declined_mentor_ids = fields.declinedMentorIds;
 
   const { data, error } = await db()
     .from("onboarding_progress")

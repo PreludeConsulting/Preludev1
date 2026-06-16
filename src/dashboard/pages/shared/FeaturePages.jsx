@@ -327,17 +327,25 @@ export function StudentMentorMatching() {
   const [step, setStep] = useState(onboarding?.mentorMatchingStarted ? 1 : 0);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleStart() {
     setStep(1);
+    setError("");
     if (useSupabaseData) {
-      await saveOnboarding({ mentorMatchingStarted: true });
+      try {
+        await saveOnboarding({ mentorMatchingStarted: true });
+      } catch (err) {
+        setError(err.message || "Could not save your progress. Try again.");
+        setStep(0);
+      }
     }
   }
 
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true);
+    setError("");
     try {
       if (useSupabaseData) {
         await saveOnboarding({
@@ -348,6 +356,8 @@ export function StudentMentorMatching() {
       }
       setSaved(true);
       setStep(2);
+    } catch (err) {
+      setError(err.message || "Could not save your preferences. Try again.");
     } finally {
       setSaving(false);
     }
@@ -391,6 +401,7 @@ export function StudentMentorMatching() {
             Your responses are saved to your account and used when matching becomes available.
           </p>
           <PrimaryButton type="button" onClick={handleStart}>Start Matching</PrimaryButton>
+          {error ? <p className="dash-save-state dash-save-state--error">{error}</p> : null}
         </SectionCard>
       </div>
     );
@@ -416,6 +427,7 @@ export function StudentMentorMatching() {
           </label>
         ))}
         <div className="dash-form-actions">
+          {error ? <span className="dash-save-state dash-save-state--error">{error}</span> : null}
           <SecondaryButton type="button" onClick={() => setStep(0)}>Back</SecondaryButton>
           <PrimaryButton type="submit" disabled={saving}>{saving ? "Saving…" : "Submit preferences"}</PrimaryButton>
         </div>

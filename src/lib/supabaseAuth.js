@@ -242,10 +242,18 @@ export async function saveUserPlan(userId, planId) {
     return { error: friendlyError(error) };
   }
 
-  await getSupabase().from("onboarding_progress").upsert(
+  const { error: onboardingError } = await getSupabase().from("onboarding_progress").upsert(
     { user_id: userId, onboarding_status: "needs_match", updated_at: new Date().toISOString() },
     { onConflict: "user_id" }
   );
+  if (onboardingError) {
+    if (/onboarding_progress/i.test(onboardingError.message || "")) {
+      return {
+        error: "Plan saved, but onboarding progress could not be recorded. Run supabase/migrations/20260616000000_onboarding_progress.sql in Supabase."
+      };
+    }
+    return { error: friendlyError(onboardingError) };
+  }
 
   return { error: null, usedFallback: false };
 }

@@ -12,6 +12,7 @@ alter table public.profiles add column if not exists graduation_year text;
 alter table public.profiles add column if not exists gpa text;
 alter table public.profiles add column if not exists weighted_gpa text;
 alter table public.profiles add column if not exists sat text;
+alter table public.profiles add column if not exists act text;
 alter table public.profiles add column if not exists target_majors jsonb not null default '[]'::jsonb;
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
 
@@ -58,6 +59,12 @@ create table if not exists public.onboarding_progress (
   mentor_matching_started    boolean not null default false,
   mentor_matching_complete   boolean not null default false,
   questionnaire_answers      jsonb not null default '{}'::jsonb,
+  onboarding_status          text not null default 'needs_plan'
+    check (onboarding_status in ('needs_plan', 'needs_match', 'match_completed', 'onboarding_completed')),
+  suggested_mentor_id        text,
+  match_decision             text
+    check (match_decision is null or match_decision in ('accepted', 'declined')),
+  declined_mentor_ids        jsonb not null default '[]'::jsonb,
   updated_at                 timestamptz not null default now()
 );
 

@@ -244,16 +244,23 @@ function loadSectionEntries(sectionId, prefs, entriesKey, legacyKey, legacyFallb
   return entriesFromLegacy(legacy).map((entry) => normalizeSectionEntry(sectionId, entry));
 }
 
-function profileEntriesBySection(profile, sectionId) {
+function sectionEntriesSource(profile, sectionId) {
   const prefs = profile?.mentorPreferences || {};
   const map = {
-    activities: profile?.extracurricularActivities || prefs.extracurricularEntries,
-    awards: profile?.awards || prefs.awardsEntries,
-    leadership: profile?.leadership || prefs.leadershipEntries,
-    volunteer: profile?.volunteerExperience || prefs.volunteerEntries,
-    work: profile?.workExperience || prefs.workEntries
+    activities: profile?.extracurricularActivities ?? prefs.extracurricularEntries,
+    awards: profile?.awards ?? prefs.awardsEntries,
+    leadership: profile?.leadership ?? prefs.leadershipEntries,
+    volunteer: profile?.volunteerExperience ?? prefs.volunteerEntries,
+    work: profile?.workExperience ?? prefs.workEntries
   };
-  return normalizeSectionEntries(sectionId, map[sectionId] || []);
+  const raw = map[sectionId];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string" && raw.trim()) return entriesFromLegacy(raw);
+  return [];
+}
+
+function profileEntriesBySection(profile, sectionId) {
+  return normalizeSectionEntries(sectionId, sectionEntriesSource(profile, sectionId));
 }
 
 function hasProfileValue(value) {
@@ -282,6 +289,23 @@ function formatDateRangeDisplay(entry) {
   return start || end;
 }
 
+function formatActivityDateRange(entry) {
+  if (!entry?.startDate && !entry?.endDate && !entry?.present) return "";
+  const start = String(entry.startDate ?? "").trim();
+  const end = entry.present ? "Present" : String(entry.endDate ?? "").trim();
+  if (start && end) return `${start} – ${end}`;
+  return start || end;
+}
+
+function activityEntryPreviewLine(entry) {
+  const parts = [
+    String(entry?.name ?? "").trim(),
+    String(entry?.role ?? "").trim(),
+    formatActivityDateRange(entry)
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
 function hasEntryContent(entry) {
   if (!entry || typeof entry !== "object") return false;
   return Object.entries(entry).some(([key, value]) => {
@@ -292,8 +316,7 @@ function hasEntryContent(entry) {
 
 function sectionEntrySummaryLine(sectionId, entry) {
   if (sectionId === "activities") {
-    const parts = [entry.name, entry.role, formatDateRangeDisplay(entry)].filter(Boolean);
-    return parts.join(" | ");
+    return activityEntryPreviewLine(entry);
   }
   if (sectionId === "work") {
     const parts = [entry.name, entry.role, formatDateRangeDisplay(entry)].filter(Boolean);
@@ -319,14 +342,10 @@ function sectionEntrySummaryLine(sectionId, entry) {
 }
 
 function entryPreviewText(sectionId, entry) {
-  const title = entry.name || entry.role || entry.organization || "Untitled";
   if (sectionId === "activities") {
-    const parts = [title];
-    if (entry.role) parts.push(entry.role);
-    const dates = formatDateRange(entry);
-    if (dates) parts.push(dates);
-    return parts.join(" · ");
+    return activityEntryPreviewLine(entry);
   }
+  const title = entry.name || entry.role || entry.organization || "Untitled";
   if (sectionId === "work" || sectionId === "volunteer") {
     const parts = [title];
     if (entry.organization) parts.push(entry.organization);
@@ -578,6 +597,11 @@ function profileFieldsFromDraft(draft, existingProfile) {
     act,
     targetMajors: Array.isArray(draft.majors) ? draft.majors : (existingProfile?.majors || []),
     collegeInterests: preferredColleges.length ? preferredColleges : (existingProfile?.colleges || []),
+    extracurricularActivities: activities,
+    awards,
+    leadership,
+    volunteerExperience: volunteer,
+    workExperience: work,
     academicGoals: entriesToLegacy(activities) || null,
     bio: entriesToLegacy(leadership) || null,
     mentorPreferences
@@ -636,11 +660,17 @@ export function StudentProfileStats() {
         colleges: fields.collegeInterests
       });
       setCompletion(nextCompletion);
-      await saveOnboarding({ profileComplete: nextCompletion });
+      try {
+        await saveOnboarding({ profileComplete: nextCompletion });
+      } catch (onboardingErr) {
+        setError(onboardingErr.message || "Profile saved, but progress tracking failed.");
+      }
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2600);
+      return true;
     } catch (err) {
       setError(err.message || "Could not save profile. Try again.");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -670,15 +700,28 @@ export function StudentProfileStats() {
     };
   }
 
+  function loadSectionEditorEntries(sectionId) {
+    const fromProfile = profileEntriesBySection(profile, sectionId);
+    if (fromProfile.length) {
+      return fromProfile.map((entry) => normalizeSectionEntry(sectionId, entry));
+    }
+    return normalizeSectionEntries(sectionId, editorDraft[sectionId] || []);
+  }
+
   function openSectionEditor(sectionId) {
     setActiveEditor(sectionId);
     if (sectionId === "academic") {
       setModalDraft({ ...editorDraft.academic });
       setExpandedEntryIndex(null);
     } else {
-      const entries = profileEntriesBySection(profile, sectionId);
-      setModalDraft(entries);
-      setExpandedEntryIndex(entries.length === 1 ? 0 : null);
+      const entries = loadSectionEditorEntries(sectionId);
+      if (entries.length === 0) {
+        setModalDraft([createBlankEntry(sectionId)]);
+        setExpandedEntryIndex(0);
+      } else {
+        setModalDraft(entries);
+        setExpandedEntryIndex(null);
+      }
     }
   }
 
@@ -700,8 +743,9 @@ export function StudentProfileStats() {
           ...editorDraft,
           [activeEditor]: normalizeSectionEntries(activeEditor, modalDraft)
         };
+    const ok = await persistDraft(nextDraft);
+    if (!ok) return;
     setEditorDraft(nextDraft);
-    await persistDraft(nextDraft);
     closeSectionEditor();
   }
 
@@ -762,8 +806,9 @@ export function StudentProfileStats() {
 
   async function saveMajorsEditor() {
     const nextDraft = { ...editorDraft, majors: [...majorsDraft] };
+    const ok = await persistDraft(nextDraft);
+    if (!ok) return;
     setEditorDraft(nextDraft);
-    await persistDraft(nextDraft);
     closeMajorsEditor();
   }
 
