@@ -98,7 +98,7 @@ begin
   )
   on conflict (id) do nothing;
 
-  insert into public.user_preferences (user_id)
+  insert into public.user_settings (user_id)
   values (new.id)
   on conflict (user_id) do nothing;
 

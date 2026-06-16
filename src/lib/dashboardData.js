@@ -93,22 +93,12 @@ function mapMentorMatch(row) {
 const SETTINGS_TABLE = "user_settings";
 
 async function querySettings(userId) {
-  const supabase = db();
-  const settingsRes = await supabase.from(SETTINGS_TABLE).select("*").eq("user_id", userId).maybeSingle();
-  if (!settingsRes.error) return settingsRes;
-  return supabase.from("user_preferences").select("*").eq("user_id", userId).maybeSingle();
+  return db().from(SETTINGS_TABLE).select("*").eq("user_id", userId).maybeSingle();
 }
 
 async function upsertSettings(userId, payload) {
-  const supabase = db();
-  const settingsRes = await supabase
+  return db()
     .from(SETTINGS_TABLE)
-    .upsert({ user_id: userId, ...payload }, { onConflict: "user_id" })
-    .select()
-    .maybeSingle();
-  if (!settingsRes.error) return settingsRes;
-  return supabase
-    .from("user_preferences")
     .upsert({ user_id: userId, ...payload }, { onConflict: "user_id" })
     .select()
     .maybeSingle();

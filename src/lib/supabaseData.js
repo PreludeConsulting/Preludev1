@@ -29,6 +29,10 @@ export function formatDashboardPersistenceError(errors = []) {
     return "Profile progress could not be saved because the onboarding_progress table is missing. Run supabase/setup-dashboard-data.sql in the Supabase SQL Editor, then reload the page.";
   }
 
+  if (messages.some((msg) => /user_settings/i.test(msg))) {
+    return "Dashboard settings could not be loaded because the user_settings table is missing. Run supabase/setup-dashboard-data.sql in the Supabase SQL Editor, then reload the page.";
+  }
+
   if (messages.length) return messages.join(" ");
   return "Some dashboard data could not be loaded. Try refreshing.";
 }

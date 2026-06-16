@@ -16,8 +16,8 @@ alter table public.profiles add column if not exists act text;
 alter table public.profiles add column if not exists target_majors jsonb not null default '[]'::jsonb;
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
 
--- User preferences -------------------------------------------------------------
-create table if not exists public.user_preferences (
+-- User settings --------------------------------------------------------------
+create table if not exists public.user_settings (
   user_id              uuid primary key references public.profiles (id) on delete cascade,
   email_updates        boolean not null default true,
   meeting_reminders    boolean not null default true,
@@ -34,22 +34,22 @@ create table if not exists public.user_preferences (
   updated_at           timestamptz not null default now()
 );
 
-alter table public.user_preferences enable row level security;
+alter table public.user_settings enable row level security;
 
-drop policy if exists "User preferences are viewable by owner" on public.user_preferences;
-create policy "User preferences are viewable by owner"
-  on public.user_preferences for select to authenticated
+drop policy if exists "User settings viewable by owner" on public.user_settings;
+create policy "User settings viewable by owner"
+  on public.user_settings for select to authenticated
   using (auth.uid() = user_id);
 
-drop policy if exists "User preferences are updatable by owner" on public.user_preferences;
-create policy "User preferences are updatable by owner"
-  on public.user_preferences for update to authenticated
+drop policy if exists "User settings updatable by owner" on public.user_settings;
+create policy "User settings updatable by owner"
+  on public.user_settings for update to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
-drop policy if exists "User preferences are insertable by owner" on public.user_preferences;
-create policy "User preferences are insertable by owner"
-  on public.user_preferences for insert to authenticated
+drop policy if exists "User settings insertable by owner" on public.user_settings;
+create policy "User settings insertable by owner"
+  on public.user_settings for insert to authenticated
   with check (auth.uid() = user_id);
 
 -- Onboarding progress ----------------------------------------------------------
@@ -287,7 +287,7 @@ begin
   )
   on conflict (id) do nothing;
 
-  insert into public.user_preferences (user_id)
+  insert into public.user_settings (user_id)
   values (new.id)
   on conflict (user_id) do nothing;
 
