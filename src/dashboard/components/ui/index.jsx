@@ -131,11 +131,16 @@ export function SearchInput({ value, onChange, placeholder = "Search…" }) {
   );
 }
 
-export function Modal({ open, onClose, title, children, footer }) {
+export function Modal({ open, onClose, title, children, footer, className, scrollable }) {
   if (!open) return null;
   return (
     <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="dash-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <div
+        className={cn("dash-modal", scrollable && "dash-modal--scrollable", className)}
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="dash-modal__head">
           <h2 className="dash-modal__title">{title}</h2>
           <IconButton label="Close" onClick={onClose}>

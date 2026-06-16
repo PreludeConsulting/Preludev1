@@ -53,22 +53,20 @@
   position: relative;
   z-index: 100;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  column-gap: clamp(0.85rem, 2vw, 1.25rem);
+  column-gap: clamp(0.75rem, 1.5vw, 1.25rem);
   padding: 0.35rem 0.65rem 1rem;
   border-bottom: 1px solid rgb(35 39 48 / 0.06);
   overflow: visible;
-}
-
-.dash-product-nav > * {
-  min-width: 0;
 }
 
 .dash-product-nav__logo {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
+  justify-self: start;
+  grid-column: 1;
   text-decoration: none;
 }
 
@@ -78,13 +76,15 @@
 }
 
 .dash-product-nav__tabs {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.35rem;
-  width: 100%;
-  max-width: 100%;
+  width: max-content;
+  max-width: min(100%, calc(100vw - 14rem));
   min-width: 0;
-  justify-self: stretch;
+  justify-self: center;
+  grid-column: 2;
   padding: 0.25rem 0.35rem;
   border-radius: 999px;
   background: #f4f3f8;
@@ -106,16 +106,22 @@
 .dash-product-nav__tab {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  width: fit-content;
+  max-width: 100%;
   padding: 0.55rem 1rem;
   border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
   font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 600;
+  line-height: 1.2;
   color: hsl(var(--muted-foreground));
   text-decoration: none;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .dash-product-nav__tab:not(.dash-product-nav__tab--active):hover {
@@ -125,7 +131,10 @@
 }
 
 .dash-product-nav__tab--active {
+  width: fit-content;
+  flex: 0 0 auto;
   background: #232730;
+  border-color: transparent;
   color: #ffffff;
   box-shadow: 0 4px 14px rgb(35 39 48 / 0.18);
 }
@@ -142,6 +151,25 @@
   justify-content: flex-end;
   gap: 0.5rem;
   flex-shrink: 0;
+  justify-self: end;
+  grid-column: 3;
+}
+
+@media (max-width: 1280px) {
+  .dash-product-nav__tabs {
+    max-width: min(100%, calc(100vw - 18rem));
+  }
+
+  .dash-product-nav__tab {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8125rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dash-product-nav__tabs {
+    max-width: min(100%, calc(100vw - 10rem));
+  }
 }
 
 .dash-product-nav__notifications {
