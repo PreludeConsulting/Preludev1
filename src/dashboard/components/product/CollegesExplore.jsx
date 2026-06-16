@@ -65,6 +65,10 @@ export default function CollegesExplore() {
   );
 
   useEffect(() => {
+    setSavedColleges(persistedColleges || INITIAL_SAVED_COLLEGES);
+  }, [persistedColleges]);
+
+  useEffect(() => {
     if (!openFilter) {
       setMajorSearchQuery("");
     }

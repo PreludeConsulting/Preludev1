@@ -17,10 +17,13 @@ import {
   Mail,
   MessageCircle,
   Pencil,
+  Plus,
   Sparkles,
   Target,
+  Trash2,
   UserCheck,
-  Video
+  Video,
+  X
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { cn } from "../../../lib/utils.js";
@@ -43,8 +46,11 @@ import {
   SearchInput,
   SecondaryButton,
   SectionCard,
+  Modal,
   ViewAllLink
 } from "../../components/ui/index.jsx";
+import { PRINCETON_REVIEW_MAJORS } from "../../data/princetonReviewMajors.js";
+import { collegeById } from "../../data/collegeExploreData.js";
 import {
   AchievementPanel,
   ActivityFeed,
@@ -163,35 +169,326 @@ export function StudentAI() {
   );
 }
 
-const PROFILE_SECTIONS = [
-  { id: "academic", title: "Academic Profile", fields: ["Grade level", "Graduation year", "GPA", "Weighted GPA", "SAT score", "ACT score"] },
-  { id: "college", title: "College Preferences", fields: ["Intended majors", "Preferred colleges", "Location preferences", "College size preferences", "Budget / financial aid"] },
-  { id: "activities", title: "Extracurricular Activities", fields: ["Activities"], textarea: true },
-  { id: "awards", title: "Awards and Honors", fields: ["Awards"], textarea: true },
-  { id: "leadership", title: "Leadership", fields: ["Leadership roles"], textarea: true },
-  { id: "volunteer", title: "Volunteer Experience", fields: ["Volunteer work"], textarea: true },
-  { id: "work", title: "Work Experience", fields: ["Work experience"], textarea: true }
+const GPA_SCALE_OPTIONS = ["/4.00", "/5.00"];
+const GRADE_LEVEL_OPTIONS = ["9th grade", "10th grade", "11th grade", "12th grade", "Gap year"];
+const PROFILE_EDITOR_SECTIONS = [
+  { id: "academic", title: "Academic Profile" },
+  { id: "activities", title: "Extracurricular Activities" },
+  { id: "awards", title: "Awards and Honors" },
+  { id: "leadership", title: "Leadership" },
+  { id: "volunteer", title: "Volunteer Experience" },
+  { id: "work", title: "Work Experience" }
 ];
 
-function profileFieldValues(profile) {
+const SIMPLE_ENTRY_FIELDS = {
+  awards: [
+    { key: "name", label: "Award name" },
+    { key: "organization", label: "Organization" },
+    { key: "grade", label: "Grade received" },
+    { key: "description", label: "Description", textarea: true }
+  ],
+  leadership: [
+    { key: "name", label: "Leadership position" },
+    { key: "organization", label: "Organization" },
+    { key: "grade", label: "Grade(s)" },
+    { key: "description", label: "Description", textarea: true }
+  ]
+};
+
+const BLANK_ENTRY = {
+  activities: { name: "", role: "", startDate: "", endDate: "", present: false, weeklyHours: "", description: "" },
+  awards: { name: "", organization: "", grade: "", description: "" },
+  leadership: { name: "", organization: "", grade: "", description: "" },
+  volunteer: { name: "", organization: "", startDate: "", endDate: "", present: false, description: "" },
+  work: { name: "", organization: "", role: "", startDate: "", endDate: "", present: false, description: "" }
+};
+
+function createBlankEntry(sectionId) {
+  return { ...(BLANK_ENTRY[sectionId] || { name: "" }) };
+}
+
+function parseOptionalNumber(value) {
+  if (value === "" || value == null) return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function parseOptionalString(value) {
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function normalizeSectionEntry(sectionId, entry) {
   return {
-    "Grade level": profile?.grade ?? "",
-    "Graduation year": profile?.graduationYear ?? "",
-    GPA: profile?.gpa ?? "",
-    "Weighted GPA": profile?.weightedGpa ?? "",
-    "SAT score": profile?.sat ?? "",
-    "ACT score": profile?.act ?? "",
-    "Intended majors": profile?.majors?.join(", ") ?? "",
-    "Preferred colleges": profile?.colleges?.join(", ") ?? "",
-    "Location preferences": profile?.locationPreferences ?? "",
-    "College size preferences": profile?.collegeSizePreferences ?? "",
-    "Budget / financial aid": profile?.financialAidNotes ?? "",
-    Activities: profile?.activities ?? "",
-    Awards: profile?.awards ?? "",
-    "Leadership roles": profile?.leadershipRoles ?? "",
-    "Volunteer work": profile?.volunteerWork ?? "",
-    "Work experience": profile?.workExperience ?? ""
+    ...createBlankEntry(sectionId),
+    ...(entry || {}),
+    present: Boolean(entry?.present)
   };
+}
+
+function normalizeSectionEntries(sectionId, entries) {
+  return (Array.isArray(entries) ? entries : [])
+    .map((entry) => normalizeSectionEntry(sectionId, entry))
+    .filter(hasEntryContent);
+}
+
+function loadSectionEntries(sectionId, prefs, entriesKey, legacyKey, legacyFallback) {
+  const stored = prefs?.[entriesKey];
+  if (Array.isArray(stored)) {
+    return stored.map((entry) => normalizeSectionEntry(sectionId, entry));
+  }
+  if (Array.isArray(legacyFallback)) {
+    return legacyFallback.map((entry) => normalizeSectionEntry(sectionId, entry));
+  }
+  const legacy = prefs?.[legacyKey] || legacyFallback || "";
+  return entriesFromLegacy(legacy).map((entry) => normalizeSectionEntry(sectionId, entry));
+}
+
+function profileEntriesBySection(profile, sectionId) {
+  const prefs = profile?.mentorPreferences || {};
+  const map = {
+    activities: profile?.extracurricularActivities || prefs.extracurricularEntries,
+    awards: profile?.awards || prefs.awardsEntries,
+    leadership: profile?.leadership || prefs.leadershipEntries,
+    volunteer: profile?.volunteerExperience || prefs.volunteerEntries,
+    work: profile?.workExperience || prefs.workEntries
+  };
+  return normalizeSectionEntries(sectionId, map[sectionId] || []);
+}
+
+function hasProfileValue(value) {
+  return value != null && value !== "";
+}
+
+function formatDateRange(entry) {
+  if (!entry?.startDate && !entry?.endDate && !entry?.present) return "";
+  const start = entry.startDate || "—";
+  const end = entry.present ? "Present" : (entry.endDate || "—");
+  return `${start} – ${end}`;
+}
+
+function formatYearFromMonth(value) {
+  if (!value) return "";
+  const match = String(value).match(/^(\d{4})/);
+  return match ? match[1] : String(value);
+}
+
+function formatDateRangeDisplay(entry) {
+  if (!entry?.startDate && !entry?.endDate && !entry?.present) return "";
+  const start = formatYearFromMonth(entry.startDate);
+  const end = entry.present ? "Present" : formatYearFromMonth(entry.endDate);
+  if (!start && !end) return "";
+  if (start && end) return `${start}–${end}`;
+  return start || end;
+}
+
+function hasEntryContent(entry) {
+  if (!entry || typeof entry !== "object") return false;
+  return Object.entries(entry).some(([key, value]) => {
+    if (key === "present") return Boolean(value);
+    return value != null && String(value).trim() !== "";
+  });
+}
+
+function sectionEntrySummaryLine(sectionId, entry) {
+  if (sectionId === "activities") {
+    const parts = [entry.name, entry.role, formatDateRangeDisplay(entry)].filter(Boolean);
+    return parts.join(" | ");
+  }
+  if (sectionId === "work") {
+    const parts = [entry.name, entry.role, formatDateRangeDisplay(entry)].filter(Boolean);
+    return parts.join(" | ");
+  }
+  if (sectionId === "volunteer") {
+    const parts = [entry.name];
+    if (entry.hours) parts.push(`${entry.hours} hours`);
+    else {
+      const dates = formatDateRangeDisplay(entry);
+      if (dates) parts.push(dates);
+      else if (entry.organization) parts.push(entry.organization);
+    }
+    return parts.filter(Boolean).join(" | ");
+  }
+  if (sectionId === "awards") {
+    return [entry.name, entry.grade].filter(Boolean).join(" | ");
+  }
+  if (sectionId === "leadership") {
+    return [entry.name, entry.grade || entry.organization].filter(Boolean).join(" | ");
+  }
+  return entry.name || entry.role || entry.organization || "";
+}
+
+function entryPreviewText(sectionId, entry) {
+  const title = entry.name || entry.role || entry.organization || "Untitled";
+  if (sectionId === "activities") {
+    const parts = [title];
+    if (entry.role) parts.push(entry.role);
+    const dates = formatDateRange(entry);
+    if (dates) parts.push(dates);
+    return parts.join(" · ");
+  }
+  if (sectionId === "work" || sectionId === "volunteer") {
+    const parts = [title];
+    if (entry.organization) parts.push(entry.organization);
+    const dates = formatDateRange(entry);
+    if (dates) parts.push(dates);
+    return parts.join(" · ");
+  }
+  const parts = [title];
+  if (entry.organization) parts.push(entry.organization);
+  if (entry.grade) parts.push(`Grade ${entry.grade}`);
+  return parts.join(" · ");
+}
+
+function sanitizeNumericInput(value, { allowDecimal = false, maxDecimals = 2 } = {}) {
+  let next = String(value ?? "");
+  if (allowDecimal) {
+    next = next.replace(/[^\d.]/g, "");
+    const [whole = "", ...rest] = next.split(".");
+    if (rest.length) {
+      next = `${whole}.${rest.join("").slice(0, maxDecimals)}`;
+    } else {
+      next = whole;
+    }
+  } else {
+    next = next.replace(/\D/g, "");
+  }
+  return next;
+}
+
+function blockInvalidNumericKeys(event, { allowDecimal = false } = {}) {
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  const allowed = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Home", "End"];
+  if (allowed.includes(event.key)) return;
+  if (allowDecimal && event.key === "." && !String(event.currentTarget.value).includes(".")) return;
+  if (/^\d$/.test(event.key)) return;
+  event.preventDefault();
+}
+
+function NumericInput({ value, onChange, allowDecimal = false, maxDecimals = 2, className, ...props }) {
+  return (
+    <input
+      type="text"
+      inputMode={allowDecimal ? "decimal" : "numeric"}
+      autoComplete="off"
+      className={className}
+      value={value ?? ""}
+      onChange={(event) => onChange(sanitizeNumericInput(event.target.value, { allowDecimal, maxDecimals }))}
+      onKeyDown={(event) => blockInvalidNumericKeys(event, { allowDecimal })}
+      onPaste={(event) => {
+        event.preventDefault();
+        const pasted = event.clipboardData.getData("text");
+        onChange(sanitizeNumericInput(pasted, { allowDecimal, maxDecimals }));
+      }}
+      {...props}
+    />
+  );
+}
+
+function academicSummaryLine(academic) {
+  const parts = [];
+  if (academic.gradeLevel) parts.push(academic.gradeLevel);
+  if (academic.graduationYear) parts.push(`Graduation ${academic.graduationYear}`);
+  if (academic.gpa != null && academic.gpa !== "") parts.push(`GPA ${formatGpa(academic.gpa, academic.gpaScale)}`);
+  if (academic.weightedGpa != null && academic.weightedGpa !== "") parts.push(`Weighted GPA ${academic.weightedGpa}`);
+  if (academic.sat != null && academic.sat !== "") parts.push(`SAT ${academic.sat}`);
+  if (academic.act != null && academic.act !== "") parts.push(`ACT ${academic.act}`);
+  return parts.length ? parts.join(" | ") : "No academic details yet.";
+}
+
+function DateRangeWithPresent({ entry, onFieldChange, presentLabel }) {
+  return (
+    <div className="dash-profile-date-range dash-profile-modal-grid__full">
+      <label className="prelude-field">
+        <span>Start date</span>
+        <input type="month" value={entry.startDate ?? ""} onChange={(e) => onFieldChange("startDate", e.target.value)} />
+      </label>
+      {entry.present ? (
+        <label className="prelude-field">
+          <span>End date</span>
+          <input type="text" value="Present" readOnly disabled className="dash-profile-present-display" />
+        </label>
+      ) : (
+        <label className="prelude-field">
+          <span>End date</span>
+          <input type="month" value={entry.endDate ?? ""} onChange={(e) => onFieldChange("endDate", e.target.value)} />
+        </label>
+      )}
+      <label className="prelude-field dash-profile-present-check">
+        <span>{presentLabel}</span>
+        <input
+          type="checkbox"
+          checked={Boolean(entry.present)}
+          onChange={(e) => {
+            onFieldChange("present", e.target.checked);
+            if (e.target.checked) onFieldChange("endDate", "");
+          }}
+        />
+      </label>
+    </div>
+  );
+}
+
+function ProfileExpandedEntryForm({ sectionId, entry, onFieldChange }) {
+  if (sectionId === "activities") {
+    return (
+      <div className="dash-profile-modal-grid">
+        <label className="prelude-field"><span>Activity name</span><input value={entry.name ?? ""} onChange={(e) => onFieldChange("name", e.target.value)} /></label>
+        <label className="prelude-field"><span>Position/Role</span><input value={entry.role ?? ""} onChange={(e) => onFieldChange("role", e.target.value)} /></label>
+        <DateRangeWithPresent entry={entry} onFieldChange={onFieldChange} presentLabel="Still participating" />
+        <label className="prelude-field"><span>Weekly hours</span><NumericInput value={entry.weeklyHours ?? ""} onChange={(value) => onFieldChange("weeklyHours", value)} /></label>
+        <label className="prelude-field dash-profile-modal-grid__full">
+          <span>Description</span>
+          <textarea className="dash-profile-desc-textarea" rows={3} value={entry.description ?? ""} onChange={(e) => onFieldChange("description", e.target.value)} />
+        </label>
+      </div>
+    );
+  }
+
+  if (sectionId === "work") {
+    return (
+      <div className="dash-profile-modal-grid">
+        <label className="prelude-field"><span>Job/Internship</span><input value={entry.name ?? ""} onChange={(e) => onFieldChange("name", e.target.value)} /></label>
+        <label className="prelude-field"><span>Company/Organization</span><input value={entry.organization ?? ""} onChange={(e) => onFieldChange("organization", e.target.value)} /></label>
+        <label className="prelude-field"><span>Role</span><input value={entry.role ?? ""} onChange={(e) => onFieldChange("role", e.target.value)} /></label>
+        <DateRangeWithPresent entry={entry} onFieldChange={onFieldChange} presentLabel="Still working here" />
+        <label className="prelude-field dash-profile-modal-grid__full">
+          <span>Description</span>
+          <textarea className="dash-profile-desc-textarea" rows={3} value={entry.description ?? ""} onChange={(e) => onFieldChange("description", e.target.value)} />
+        </label>
+      </div>
+    );
+  }
+
+  if (sectionId === "volunteer") {
+    return (
+      <div className="dash-profile-modal-grid">
+        <label className="prelude-field"><span>Experience name</span><input value={entry.name ?? ""} onChange={(e) => onFieldChange("name", e.target.value)} /></label>
+        <label className="prelude-field"><span>Organization</span><input value={entry.organization ?? ""} onChange={(e) => onFieldChange("organization", e.target.value)} /></label>
+        <DateRangeWithPresent entry={entry} onFieldChange={onFieldChange} presentLabel="Present" />
+        <label className="prelude-field dash-profile-modal-grid__full">
+          <span>Description</span>
+          <textarea className="dash-profile-desc-textarea" rows={3} value={entry.description ?? ""} onChange={(e) => onFieldChange("description", e.target.value)} />
+        </label>
+      </div>
+    );
+  }
+
+  const fields = SIMPLE_ENTRY_FIELDS[sectionId] || [];
+  return (
+    <div className="dash-profile-modal-grid">
+      {fields.map((field) => (
+        <label key={field.key} className={cn("prelude-field", field.textarea && "dash-profile-modal-grid__full")}>
+          <span>{field.label}</span>
+          {field.textarea ? (
+            <textarea className="dash-profile-desc-textarea" rows={3} value={entry[field.key] ?? ""} onChange={(e) => onFieldChange(field.key, e.target.value)} />
+          ) : (
+            <input type={field.type || "text"} value={entry[field.key] ?? ""} onChange={(e) => onFieldChange(field.key, e.target.value)} />
+          )}
+        </label>
+      ))}
+    </div>
+  );
 }
 
 function parseCommaList(value) {
@@ -201,35 +498,99 @@ function parseCommaList(value) {
     .filter(Boolean);
 }
 
-function formValuesToProfileFields(values) {
+function entriesFromLegacy(text) {
+  if (!text) return [];
+  return String(text)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => ({ name: line }));
+}
+
+function entriesToLegacy(entries) {
+  return (entries || [])
+    .map((entry) => entry.name || entry.role || entry.organization || "")
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildProfileEditorDraft(profile) {
+  const prefs = profile?.mentorPreferences || {};
   return {
-    gradeLevel: values["Grade level"] || undefined,
-    graduationYear: values["Graduation year"] ? Number(values["Graduation year"]) : undefined,
-    gpa: values.GPA ? Number(values.GPA) : undefined,
-    weightedGpa: values["Weighted GPA"] ? Number(values["Weighted GPA"]) : undefined,
-    sat: values["SAT score"] ? Number(values["SAT score"]) : undefined,
-    targetMajors: parseCommaList(values["Intended majors"]),
-    collegeInterests: parseCommaList(values["Preferred colleges"]),
-    academicGoals: values.Activities || undefined,
-    bio: values["Leadership roles"] || undefined,
-    mentorPreferences: {
-      location: values["Location preferences"] || "",
-      size: values["College size preferences"] || "",
-      budget: values["Budget / financial aid"] || ""
-    }
+    academic: {
+      gradeLevel: profile?.grade ?? "",
+      graduationYear: profile?.graduationYear ?? "",
+      gpa: profile?.gpa ?? "",
+      gpaScale: profile?.gpaScale ?? prefs.gpaScale ?? "/4.00",
+      weightedGpa: profile?.weightedGpa ?? "",
+      sat: profile?.sat ?? "",
+      act: profile?.act ?? prefs.act ?? ""
+    },
+    majors: [...(profile?.majors || [])],
+    preferences: {
+      preferredColleges: (profile?.colleges || []).join(", "),
+      locationPreferences: profile?.locationPreferences ?? prefs.location ?? "",
+      collegeSizePreferences: profile?.collegeSizePreferences ?? prefs.size ?? "",
+      financialAidNotes: profile?.financialAidNotes ?? prefs.budget ?? ""
+    },
+    activities: loadSectionEntries("activities", prefs, "extracurricularEntries", "activities", profile?.extracurricularActivities || profile?.activities),
+    awards: loadSectionEntries("awards", prefs, "awardsEntries", "awards", profile?.awards),
+    leadership: loadSectionEntries("leadership", prefs, "leadershipEntries", "leadershipRoles", profile?.leadership || profile?.leadershipRoles),
+    volunteer: loadSectionEntries("volunteer", prefs, "volunteerEntries", "volunteerWork", profile?.volunteerExperience || profile?.volunteerWork),
+    work: loadSectionEntries("work", prefs, "workEntries", "workExperience", profile?.workExperience)
   };
 }
 
-function profileFieldsToDisplay(profile, fields) {
-  return {
-    grade: fields.gradeLevel ?? profile?.grade,
-    graduationYear: fields.graduationYear ?? profile?.graduationYear,
-    gpa: fields.gpa ?? profile?.gpa,
-    weightedGpa: fields.weightedGpa ?? profile?.weightedGpa,
-    sat: fields.sat ?? profile?.sat,
-    majors: fields.targetMajors ?? profile?.majors,
-    colleges: fields.collegeInterests ?? profile?.colleges
+function profileFieldsFromDraft(draft, existingProfile) {
+  const gpaScale = GPA_SCALE_OPTIONS.includes(draft.academic.gpaScale) ? draft.academic.gpaScale : "/4.00";
+  const preferredColleges = parseCommaList(draft.preferences?.preferredColleges);
+  const activities = normalizeSectionEntries("activities", draft.activities);
+  const awards = normalizeSectionEntries("awards", draft.awards);
+  const leadership = normalizeSectionEntries("leadership", draft.leadership);
+  const volunteer = normalizeSectionEntries("volunteer", draft.volunteer);
+  const work = normalizeSectionEntries("work", draft.work);
+  const act = parseOptionalNumber(draft.academic.act);
+  const mentorPreferences = {
+    location: draft.preferences?.locationPreferences || existingProfile?.mentorPreferences?.location || "",
+    size: draft.preferences?.collegeSizePreferences || existingProfile?.mentorPreferences?.size || "",
+    budget: draft.preferences?.financialAidNotes || existingProfile?.mentorPreferences?.budget || "",
+    gpaScale,
+    act,
+    extracurricularEntries: activities,
+    awardsEntries: awards,
+    leadershipEntries: leadership,
+    volunteerEntries: volunteer,
+    workEntries: work,
+    activities: entriesToLegacy(activities),
+    awards: entriesToLegacy(awards),
+    leadershipRoles: entriesToLegacy(leadership),
+    volunteerWork: entriesToLegacy(volunteer),
+    workExperience: entriesToLegacy(work)
   };
+
+  return {
+    gradeLevel: parseOptionalString(draft.academic.gradeLevel),
+    graduationYear: parseOptionalNumber(draft.academic.graduationYear),
+    gpa: parseOptionalNumber(draft.academic.gpa),
+    gpaScale,
+    weightedGpa: parseOptionalNumber(draft.academic.weightedGpa),
+    sat: parseOptionalNumber(draft.academic.sat),
+    act,
+    targetMajors: Array.isArray(draft.majors) ? draft.majors : (existingProfile?.majors || []),
+    collegeInterests: preferredColleges.length ? preferredColleges : (existingProfile?.colleges || []),
+    academicGoals: entriesToLegacy(activities) || null,
+    bio: entriesToLegacy(leadership) || null,
+    mentorPreferences
+  };
+}
+
+function formatGpa(gpa, scale = "/4.00") {
+  if (!hasProfileValue(gpa)) return null;
+  return `${gpa}${scale}`;
+}
+
+function profileDisplayValue(value) {
+  return hasProfileValue(value) ? value : null;
 }
 
 function computeLocalProfileCompletion(profile) {
@@ -240,34 +601,40 @@ function computeLocalProfileCompletion(profile) {
 
 export function StudentProfileStats() {
   const { user } = useAuth();
-  const { profile, mentor, saveProfile, saveOnboarding } = useDashboardData();
-  const [formValues, setFormValues] = useState(() => profileFieldValues(profile));
+  const { profile, mentor, saveProfile, saveOnboarding, savedColleges } = useDashboardData();
+  const [editorDraft, setEditorDraft] = useState(() => buildProfileEditorDraft(profile));
+  const [activeEditor, setActiveEditor] = useState(null);
+  const [modalDraft, setModalDraft] = useState(null);
+  const [expandedEntryIndex, setExpandedEntryIndex] = useState(null);
+  const [majorsEditorOpen, setMajorsEditorOpen] = useState(false);
+  const [majorsDraft, setMajorsDraft] = useState([]);
+  const [majorSearchQuery, setMajorSearchQuery] = useState("");
   const [completion, setCompletion] = useState(profile?.profileCompletion ?? computeLocalProfileCompletion(profile));
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
-  const majors = profile?.majors || [];
-  const colleges = profile?.colleges || [];
+  const majors = editorDraft.majors || [];
 
   useEffect(() => {
-    setFormValues(profileFieldValues(profile));
+    setEditorDraft(buildProfileEditorDraft(profile));
     setCompletion(profile?.profileCompletion ?? computeLocalProfileCompletion(profile));
   }, [profile]);
 
-  function updateField(label, value) {
-    setFormValues((prev) => ({ ...prev, [label]: value }));
-  }
-
-  async function handleSave(e) {
-    e.preventDefault();
+  async function persistDraft(nextDraft) {
     setSaving(true);
     setError("");
     try {
-      const fields = formValuesToProfileFields(formValues);
+      const fields = profileFieldsFromDraft(nextDraft, profile);
       await saveProfile(fields);
-      const display = profileFieldsToDisplay(profile, fields);
-      const nextCompletion = computeLocalProfileCompletion(display);
+      const nextCompletion = computeLocalProfileCompletion({
+        grade: fields.gradeLevel,
+        graduationYear: fields.graduationYear,
+        gpa: fields.gpa,
+        sat: fields.sat,
+        majors: fields.targetMajors,
+        colleges: fields.collegeInterests
+      });
       setCompletion(nextCompletion);
       await saveOnboarding({ profileComplete: nextCompletion });
       setSaved(true);
@@ -279,6 +646,132 @@ export function StudentProfileStats() {
     }
   }
 
+  function sectionSummary(sectionId) {
+    if (sectionId === "academic") {
+      return academicSummaryLine(editorDraft.academic);
+    }
+    const entries = profileEntriesBySection(profile, sectionId);
+    if (!entries.length) return "No entries yet.";
+    return sectionEntrySummaryLine(sectionId, entries[0]) || "No entries yet.";
+  }
+
+  function sectionPreviewData(sectionId) {
+    if (sectionId === "academic") return null;
+    const entries = profileEntriesBySection(profile, sectionId);
+    if (!entries.length) return null;
+    const bullets = entries
+      .slice(0, 3)
+      .map((entry) => sectionEntrySummaryLine(sectionId, entry))
+      .filter(Boolean);
+    if (!bullets.length) return null;
+    return {
+      bullets,
+      moreCount: Math.max(entries.length - bullets.length, 0)
+    };
+  }
+
+  function openSectionEditor(sectionId) {
+    setActiveEditor(sectionId);
+    if (sectionId === "academic") {
+      setModalDraft({ ...editorDraft.academic });
+      setExpandedEntryIndex(null);
+    } else {
+      const entries = profileEntriesBySection(profile, sectionId);
+      setModalDraft(entries);
+      setExpandedEntryIndex(entries.length === 1 ? 0 : null);
+    }
+  }
+
+  function closeSectionEditor() {
+    if (saving) return;
+    setActiveEditor(null);
+    setModalDraft(null);
+    setExpandedEntryIndex(null);
+  }
+
+  async function saveSectionEditor() {
+    if (!activeEditor) return;
+    const nextDraft = activeEditor === "academic"
+      ? {
+          ...editorDraft,
+          academic: { ...modalDraft }
+        }
+      : {
+          ...editorDraft,
+          [activeEditor]: normalizeSectionEntries(activeEditor, modalDraft)
+        };
+    setEditorDraft(nextDraft);
+    await persistDraft(nextDraft);
+    closeSectionEditor();
+  }
+
+  function updateAcademicField(key, value) {
+    setModalDraft((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function updateEntry(index, key, value) {
+    setModalDraft((prev) =>
+      prev.map((entry, i) => (i === index ? { ...entry, [key]: value } : entry))
+    );
+  }
+
+  function addEntry(sectionId) {
+    setModalDraft((prev) => {
+      const entries = prev || [];
+      const nextIndex = entries.length;
+      setExpandedEntryIndex(nextIndex);
+      return [...entries, createBlankEntry(sectionId)];
+    });
+  }
+
+  function removeEntry(index) {
+    setModalDraft((prev) => prev.filter((_, i) => i !== index));
+    setExpandedEntryIndex((current) => {
+      if (current === index) return null;
+      if (current != null && current > index) return current - 1;
+      return current;
+    });
+  }
+
+  function expandEntry(index) {
+    setExpandedEntryIndex(index);
+  }
+
+  function openMajorsEditor() {
+    setMajorsDraft([...(editorDraft.majors || [])]);
+    setMajorSearchQuery("");
+    setMajorsEditorOpen(true);
+  }
+
+  function closeMajorsEditor() {
+    if (saving) return;
+    setMajorsEditorOpen(false);
+    setMajorsDraft([]);
+    setMajorSearchQuery("");
+  }
+
+  function toggleMajorSelection(major) {
+    setMajorsDraft((current) => (
+      current.includes(major) ? current.filter((item) => item !== major) : [...current, major]
+    ));
+  }
+
+  function removeMajorSelection(major) {
+    setMajorsDraft((current) => current.filter((item) => item !== major));
+  }
+
+  async function saveMajorsEditor() {
+    const nextDraft = { ...editorDraft, majors: [...majorsDraft] };
+    setEditorDraft(nextDraft);
+    await persistDraft(nextDraft);
+    closeMajorsEditor();
+  }
+
+  const filteredMajors = PRINCETON_REVIEW_MAJORS.filter((major) => {
+    if (!majorSearchQuery.trim()) return true;
+    return major.toLowerCase().includes(majorSearchQuery.trim().toLowerCase());
+  });
+
   return (
     <div className="dash-page dash-page--premium">
       <SectionCard className="dash-profile-hero dash-panel" padding={false}>
@@ -289,7 +782,7 @@ export function StudentProfileStats() {
             <p className="dash-profile-hero__email"><Mail className="h-4 w-4" /> {user?.email || "Add your email"}</p>
             <div className="dash-profile-hero__badges">
               <DashBadge variant="soft">{roleLabel}</DashBadge>
-              {profile?.grade ? <DashBadge variant="lavender">{profile.grade}</DashBadge> : null}
+              {hasProfileValue(profile?.grade) ? <DashBadge variant="lavender">{profile.grade}</DashBadge> : null}
               {(mentor?.name || profile?.mentorName) ? (
                 <DashBadge variant="lavender"><GraduationCap className="h-3 w-3" /> {mentor?.name || profile?.mentorName}</DashBadge>
               ) : null}
@@ -315,15 +808,31 @@ export function StudentProfileStats() {
       ) : null}
 
       <div className="dash-metric-row">
-        <CompactStatCard icon={GraduationCap} label="Grade" value={profile?.grade || "—"} />
-        <CompactStatCard icon={CalendarDays} label="Graduation Year" value={profile?.graduationYear || "—"} />
-        <CompactStatCard icon={Target} label="GPA" value={profile?.gpa != null ? String(profile.gpa) : "—"} />
-        <CompactStatCard icon={Award} label="SAT" value={profile?.sat != null ? String(profile.sat) : "—"} />
+        {hasProfileValue(profile?.grade) ? (
+          <CompactStatCard icon={GraduationCap} label="Grade" value={profile.grade} />
+        ) : null}
+        {hasProfileValue(profile?.graduationYear) ? (
+          <CompactStatCard icon={CalendarDays} label="Graduation Year" value={String(profile.graduationYear)} />
+        ) : null}
+        {formatGpa(profile?.gpa, profile?.gpaScale) ? (
+          <CompactStatCard icon={Target} label="GPA" value={formatGpa(profile?.gpa, profile?.gpaScale)} />
+        ) : null}
+        {hasProfileValue(profile?.sat) ? (
+          <CompactStatCard icon={Award} label="SAT" value={String(profile.sat)} />
+        ) : null}
       </div>
 
       <div className="dash-overview-grid dash-overview-grid--premium">
         <div className="dash-overview-grid__col">
-          <SectionCard title="Intended majors" className="dash-panel">
+          <SectionCard
+            title="Intended majors"
+            className="dash-panel"
+            action={(
+              <SecondaryButton type="button" className="dash-btn--sm" onClick={openMajorsEditor}>
+                <Pencil className="h-4 w-4" /> Edit Majors
+              </SecondaryButton>
+            )}
+          >
             {majors.length ? (
               <div className="dash-tags">{majors.map((mj) => <DashBadge key={mj} variant="lavender">{mj}</DashBadge>)}</div>
             ) : (
@@ -332,15 +841,29 @@ export function StudentProfileStats() {
           </SectionCard>
 
           <SectionCard
-            title="College goals"
+            title="Colleges Saved"
             className="dash-panel"
-            action={<ViewAllLink to={`${STUDENT_DASHBOARD_BASE}/workspace`}>Open workspace</ViewAllLink>}
+            action={(
+              <SecondaryButton
+                as={Link}
+                to={`${STUDENT_DASHBOARD_BASE}/workspace`}
+                state={{ workspaceTab: "colleges" }}
+                className="dash-btn--sm"
+              >
+                View Colleges
+              </SecondaryButton>
+            )}
           >
-            {colleges.length ? (
+            {(savedColleges || []).length ? (
               <ul className="dash-goal-list">
-                {colleges.map((college) => (
-                  <li key={college}><Building2 className="h-4 w-4" /> {college}</li>
-                ))}
+                {(savedColleges || []).map((entry) => {
+                  const school = collegeById(entry.collegeId);
+                  if (!school) return null;
+                  const label = school.shortName || school.name;
+                  return (
+                    <li key={entry.collegeId}><span className="dash-goal-list__dot" aria-hidden="true">•</span> {label}</li>
+                  );
+                })}
               </ul>
             ) : (
               <EmptyPrompt text="Add target colleges to start building a balanced list." />
@@ -351,58 +874,238 @@ export function StudentProfileStats() {
         <div className="dash-overview-grid__col">
           <SectionCard title="Academic snapshot" className="dash-panel">
             <dl className="dash-kv">
-              <div><dt>Grade</dt><dd>{profile?.grade || "—"}</dd></div>
-              <div><dt>Graduation</dt><dd>{profile?.graduationYear || "—"}</dd></div>
-              <div><dt>GPA</dt><dd>{profile?.gpa ?? "—"}</dd></div>
-              <div><dt>Weighted GPA</dt><dd>{profile?.weightedGpa ?? "—"}</dd></div>
-              <div><dt>SAT</dt><dd>{profile?.sat ?? "—"}</dd></div>
-              <div><dt>Mentor</dt><dd>{mentor?.name || profile?.mentorName || "—"}</dd></div>
+              {hasProfileValue(profile?.grade) ? <div><dt>Grade</dt><dd>{profile.grade}</dd></div> : null}
+              {hasProfileValue(profile?.graduationYear) ? <div><dt>Graduation</dt><dd>{profile.graduationYear}</dd></div> : null}
+              {formatGpa(profile?.gpa, profile?.gpaScale) ? <div><dt>GPA</dt><dd>{formatGpa(profile?.gpa, profile?.gpaScale)}</dd></div> : null}
+              {hasProfileValue(profile?.weightedGpa) ? <div><dt>Weighted GPA</dt><dd>{profile.weightedGpa}</dd></div> : null}
+              {hasProfileValue(profile?.sat) ? <div><dt>SAT</dt><dd>{profile.sat}</dd></div> : null}
+              {hasProfileValue(profile?.act) ? <div><dt>ACT</dt><dd>{profile.act}</dd></div> : null}
+              {hasProfileValue(mentor?.name || profile?.mentorName) ? (
+                <div><dt>Mentor</dt><dd>{mentor?.name || profile?.mentorName}</dd></div>
+              ) : null}
             </dl>
+            {!hasProfileValue(profile?.grade)
+              && !hasProfileValue(profile?.graduationYear)
+              && !formatGpa(profile?.gpa, profile?.gpaScale)
+              && !hasProfileValue(profile?.weightedGpa)
+              && !hasProfileValue(profile?.sat)
+              && !hasProfileValue(profile?.act)
+              && !hasProfileValue(mentor?.name || profile?.mentorName) ? (
+                <EmptyPrompt text="Add academic details to see your snapshot here." />
+            ) : null}
           </SectionCard>
         </div>
       </div>
 
-      <form id="profile-edit" className="dash-profile-form" onSubmit={handleSave}>
+      <div id="profile-edit" className="dash-profile-form">
         <div className="dash-section-heading">
-          <h2 className="dash-section-heading__title">Edit profile details</h2>
-          <p className="dash-muted">Update each section, then save your changes.</p>
+          <h2 className="dash-section-heading__title">Edit Profile Details</h2>
+          <p className="dash-muted">Open each section to edit in a focused panel.</p>
         </div>
 
-        <div className="dash-profile-grid">
-          {PROFILE_SECTIONS.map((section) => (
-            <SectionCard key={section.id} title={section.title} className="dash-panel">
-              {section.fields.map((label) => (
-                <label key={label} className="prelude-field">
-                  <span>{label}</span>
-                  {section.textarea ? (
-                    <textarea
-                      rows={3}
-                      placeholder={`Add your ${section.title.toLowerCase()}…`}
-                      value={formValues[label] ?? ""}
-                      onChange={(e) => updateField(label, e.target.value)}
-                    />
-                  ) : (
-                    <input
-                      value={formValues[label] ?? ""}
-                      onChange={(e) => updateField(label, e.target.value)}
-                      placeholder={label}
-                    />
-                  )}
-                </label>
-              ))}
-              <SecondaryButton type="button" className="dash-btn--sm">Edit</SecondaryButton>
-            </SectionCard>
-          ))}
-        </div>
+        <SectionCard className="dash-panel dash-profile-unified">
+          <div className="dash-profile-unified__sections">
+            {PROFILE_EDITOR_SECTIONS.map((section) => (
+              <article key={section.id} className="dash-profile-summary-card">
+                <div className="dash-profile-summary-card__main">
+                  <h3 className="dash-profile-summary-card__title">{section.title}</h3>
+                  {section.id === "academic" ? (
+                    <p className="dash-profile-summary-card__preview dash-profile-summary-card__preview--wrap">
+                      {sectionSummary(section.id)}
+                    </p>
+                  ) : (() => {
+                    const preview = sectionPreviewData(section.id);
+                    if (!preview) {
+                      return <p className="dash-profile-summary-card__preview dash-profile-summary-card__preview--wrap">No entries yet.</p>;
+                    }
+                    return (
+                      <div className="dash-profile-summary-card__list-wrap">
+                        <ul className="dash-profile-summary-card__list">
+                          {preview.bullets.map((line, idx) => (
+                            <li key={`${section.id}-${idx}`}>{line}</li>
+                          ))}
+                        </ul>
+                        {preview.moreCount > 0 ? (
+                          <p className="dash-profile-summary-card__more">+ {preview.moreCount} more</p>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <SecondaryButton
+                  type="button"
+                  className="dash-btn--sm dash-profile-summary-card__edit"
+                  onClick={() => openSectionEditor(section.id)}
+                >
+                  Edit
+                </SecondaryButton>
+              </article>
+            ))}
+          </div>
+        </SectionCard>
 
         <div className="dash-form-actions">
           {error ? <span className="dash-save-state dash-save-state--error">{error}</span> : null}
           {saved ? (
             <span className="dash-save-state dash-save-state--ok"><Check className="h-4 w-4" /> Profile saved</span>
           ) : null}
-          <PrimaryButton type="submit" disabled={saving}>{saving ? "Saving…" : "Save profile"}</PrimaryButton>
         </div>
-      </form>
+      </div>
+
+      <Modal
+        open={Boolean(activeEditor)}
+        onClose={closeSectionEditor}
+        scrollable
+        className="dash-modal--profile"
+        title={PROFILE_EDITOR_SECTIONS.find((section) => section.id === activeEditor)?.title || "Edit section"}
+        footer={(
+          <>
+            <SecondaryButton type="button" onClick={closeSectionEditor} disabled={saving}>Cancel</SecondaryButton>
+            <PrimaryButton type="button" onClick={saveSectionEditor} disabled={saving}>
+              {saving ? "Saving…" : "Save Changes"}
+            </PrimaryButton>
+          </>
+        )}
+      >
+        {activeEditor === "academic" ? (
+          <div className="dash-profile-modal-grid dash-profile-modal-grid--academic">
+            <label className="prelude-field">
+              <span>Grade level</span>
+              <select value={modalDraft?.gradeLevel ?? ""} onChange={(e) => updateAcademicField("gradeLevel", e.target.value)}>
+                <option value="">Select grade</option>
+                {GRADE_LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </label>
+            <label className="prelude-field"><span>Graduation year</span><NumericInput value={modalDraft?.graduationYear ?? ""} onChange={(value) => updateAcademicField("graduationYear", value)} /></label>
+            <label className="prelude-field"><span>GPA</span><NumericInput allowDecimal value={modalDraft?.gpa ?? ""} onChange={(value) => updateAcademicField("gpa", value)} /></label>
+            <label className="prelude-field">
+              <span>GPA scale</span>
+              <select value={modalDraft?.gpaScale ?? "/4.00"} onChange={(e) => updateAcademicField("gpaScale", e.target.value)}>
+                {GPA_SCALE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </label>
+            <label className="prelude-field"><span>Weighted GPA</span><NumericInput allowDecimal value={modalDraft?.weightedGpa ?? ""} onChange={(value) => updateAcademicField("weightedGpa", value)} /></label>
+            <label className="prelude-field"><span>SAT score</span><NumericInput value={modalDraft?.sat ?? ""} onChange={(value) => updateAcademicField("sat", value)} /></label>
+            <label className="prelude-field"><span>ACT score</span><NumericInput value={modalDraft?.act ?? ""} onChange={(value) => updateAcademicField("act", value)} /></label>
+          </div>
+        ) : null}
+
+        {activeEditor && activeEditor !== "academic" ? (
+          <div className="dash-profile-entry-editor">
+            {(modalDraft || []).map((entry, index) => {
+              const sectionTitle = PROFILE_EDITOR_SECTIONS.find((section) => section.id === activeEditor)?.title;
+              const isExpanded = expandedEntryIndex === index;
+
+              if (!isExpanded) {
+                return (
+                  <div key={`${activeEditor}-${index}`} className="dash-profile-entry-row">
+                    <p className="dash-profile-entry-row__preview">{entryPreviewText(activeEditor, entry)}</p>
+                    <div className="dash-profile-entry-row__actions">
+                      <SecondaryButton type="button" className="dash-btn--sm" onClick={() => expandEntry(index)}>
+                        <Pencil className="h-4 w-4" /> Edit
+                      </SecondaryButton>
+                      <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" onClick={() => removeEntry(index)}>
+                        <Trash2 className="h-4 w-4" /> Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <section key={`${activeEditor}-${index}`} className="dash-profile-entry-card dash-profile-entry-card--expanded">
+                  <div className="dash-profile-entry-card__head">
+                    <strong>{sectionTitle} #{index + 1}</strong>
+                    <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" onClick={() => removeEntry(index)}>
+                      <Trash2 className="h-4 w-4" /> Remove
+                    </button>
+                  </div>
+                  <ProfileExpandedEntryForm
+                    sectionId={activeEditor}
+                    entry={entry}
+                    onFieldChange={(key, value) => updateEntry(index, key, value)}
+                  />
+                </section>
+              );
+            })}
+            <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" onClick={() => addEntry(activeEditor)}>
+              <Plus className="h-4 w-4" /> Add
+            </button>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={majorsEditorOpen}
+        onClose={closeMajorsEditor}
+        scrollable
+        className="dash-modal--profile dash-modal--majors"
+        title="Edit Intended Majors"
+        footer={(
+          <>
+            <SecondaryButton type="button" onClick={closeMajorsEditor} disabled={saving}>Cancel</SecondaryButton>
+            <PrimaryButton type="button" onClick={saveMajorsEditor} disabled={saving}>
+              {saving ? "Saving…" : "Save Changes"}
+            </PrimaryButton>
+          </>
+        )}
+      >
+        <div className="dash-profile-majors-editor">
+          {majorsDraft.length ? (
+            <div className="dash-profile-majors-editor__selected">
+              <p className="dash-profile-majors-editor__label">Selected majors</p>
+              <div className="dash-tags">
+                {majorsDraft.map((major) => (
+                  <button
+                    key={major}
+                    type="button"
+                    className="dash-profile-majors-editor__pill"
+                    onClick={() => removeMajorSelection(major)}
+                    aria-label={`Remove ${major}`}
+                  >
+                    <DashBadge variant="lavender">{major}</DashBadge>
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="dash-profile-majors-editor__empty">No majors selected yet. Search and choose from the list below.</p>
+          )}
+
+          <div className="dash-profile-majors-editor__search">
+            <SearchInput
+              value={majorSearchQuery}
+              onChange={(event) => setMajorSearchQuery(event.target.value)}
+              placeholder="Search majors…"
+            />
+          </div>
+
+          <div className="dash-profile-majors-editor__list" role="listbox" aria-label="Available majors" aria-multiselectable="true">
+            {filteredMajors.map((major) => {
+              const selected = majorsDraft.includes(major);
+              return (
+                <button
+                  key={major}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className={cn(
+                    "dash-profile-majors-editor__option",
+                    selected && "dash-profile-majors-editor__option--selected"
+                  )}
+                  onClick={() => toggleMajorSelection(major)}
+                >
+                  {major}
+                </button>
+              );
+            })}
+            {!filteredMajors.length ? (
+              <p className="dash-profile-majors-editor__empty">No majors match your search.</p>
+            ) : null}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
