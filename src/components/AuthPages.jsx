@@ -4,7 +4,7 @@ import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetP
 import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
 import { isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { postAuthDestination } from "../lib/onboardingRoutes.js";
-import { startGoogleSignIn } from "../lib/googleAuth.js";
+import { signInWithGoogle } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 import { ALL_DEMO_ACCOUNTS, DEMO_STUDENT } from "../data/demoAccounts.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -56,15 +56,23 @@ export function LoginPage() {
 
   async function onGoogle() {
     setError("");
+    setLoading(true);
     try {
-      const result = await startGoogleSignIn();
-      if (result.url) {
-        window.location.href = result.url;
+      const { url, error: oauthError, message } = await signInWithGoogle();
+      if (oauthError) {
+        setError(oauthError);
         return;
       }
-      setError(result.message || "Google sign-in is not configured yet.");
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      setError(message || "Google sign-in did not return a redirect URL.");
     } catch (err) {
-      setError(err.message);
+      console.error("Unexpected Google OAuth failure:", err);
+      setError(err?.message || "Request failed. Check Supabase/Google OAuth settings.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -104,7 +112,7 @@ export function LoginPage() {
       title="Log in"
       subtitle={supabaseAuth ? "Sign in to your Prelude account." : "Secure access uses HTTP-only cookies, CSRF protection, and server-side role checks."}
     >
-      <GoogleSignInButton onClick={onGoogle} disabled={loading} />
+      <GoogleSignInButton onClick={onGoogle} disabled={loading} loading={loading} />
       <p className="dash-auth-divider">or continue with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
@@ -146,15 +154,24 @@ export function RegisterPage() {
 
   async function onGoogle() {
     setError("");
+    setMessage("");
+    setLoading(true);
     try {
-      const result = await startGoogleSignIn();
-      if (result.url) {
-        window.location.href = result.url;
+      const { url, error: oauthError, message } = await signInWithGoogle();
+      if (oauthError) {
+        setError(oauthError);
         return;
       }
-      setMessage(result.message || "Google sign-up will be available once OAuth is configured.");
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      setMessage(message || "Google sign-up will be available once OAuth is configured.");
     } catch (err) {
-      setError(err.message);
+      console.error("Unexpected Google OAuth failure:", err);
+      setError(err?.message || "Request failed. Check Supabase/Google OAuth settings.");
+    } finally {
+      setLoading(false);
     }
   }
   const [message, setMessage] = useState("");
@@ -187,7 +204,7 @@ export function RegisterPage() {
 
   return (
     <Shell title="Create your free Prelude account" subtitle="Choose Student or Mentor to access the right Prelude dashboard after sign-up.">
-      <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} />
+      <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} loading={loading} />
       <p className="dash-auth-divider">or sign up with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}

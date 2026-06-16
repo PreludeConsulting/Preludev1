@@ -6,12 +6,19 @@
 import { createClient } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "./supabaseConfig.js";
 
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+if (!supabaseUrl?.trim() || !supabaseKey?.trim()) {
+  console.error("Missing Supabase environment variables.");
+}
+
 let client = null;
 
 export function getSupabase() {
   if (!isSupabaseConfigured()) return null;
   if (!client) {
-    client = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, {
+    client = createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,

@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { X } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
-import { startGoogleSignIn } from "../lib/googleAuth.js";
+import { signInWithGoogle } from "../lib/googleAuth.js";
 import { cn } from "../lib/utils.js";
 import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 
@@ -13,6 +13,7 @@ export default function SignInModal({ onSuccess }) {
   const { signInOpen, closeModals, signIn, signUp, authError } = useAuth();
   const [mode, setMode] = useState("signin");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -93,16 +94,30 @@ export default function SignInModal({ onSuccess }) {
         <div className="space-y-4 px-6 py-5">
           <GoogleSignInButton
             disabled={loading}
+            loading={loading}
             onClick={async () => {
+              setError("");
               setLoading(true);
               try {
-                const result = await startGoogleSignIn();
-                if (result.url) window.location.href = result.url;
+                const { url, error: oauthError, message } = await signInWithGoogle();
+                if (oauthError) {
+                  setError(oauthError);
+                  return;
+                }
+                if (url) {
+                  window.location.href = url;
+                  return;
+                }
+                setError(message || "Google sign-in did not return a redirect URL.");
+              } catch (err) {
+                console.error("Unexpected Google OAuth failure:", err);
+                setError(err?.message || "Request failed. Check Supabase/Google OAuth settings.");
               } finally {
                 setLoading(false);
               }
             }}
           />
+          {error ? <p className="text-sm text-accent">{error}</p> : null}
           <p className="dash-auth-divider">or use email</p>
         <form className="space-y-4" onSubmit={handleSubmit}>
           {mode === "signup" ? (
