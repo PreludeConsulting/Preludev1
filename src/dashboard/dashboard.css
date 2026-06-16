@@ -3187,6 +3187,12 @@
   margin: 0;
 }
 
+.dash-callout--error {
+  background: hsl(0 72% 97%);
+  border-color: hsl(0 65% 88%);
+  color: hsl(0 45% 32%);
+}
+
 .dash-empty-prompt {
   display: flex;
   align-items: center;

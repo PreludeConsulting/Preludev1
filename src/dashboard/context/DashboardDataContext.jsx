@@ -14,6 +14,7 @@ import {
   createCalendarEvent,
   createNotification,
   deleteCalendarEvent,
+  formatDashboardPersistenceError,
   loadSupabaseDashboard,
   markNotificationsRead as markSupabaseNotificationsRead,
   saveResource,
@@ -21,7 +22,8 @@ import {
   updateCalendarEvent,
   updateSupabaseOnboarding,
   updateSupabasePreferences,
-  updateSupabaseProfile
+  updateSupabaseProfile,
+  mapProfile
 } from "../../lib/supabaseData.js";
 import { isDemoEmail } from "../../data/demoAccounts.js";
 import { getDemoDashboardForUser } from "../../data/demoDashboardData.js";
@@ -49,8 +51,18 @@ import {
 
 const DashboardDataContext = createContext(null);
 
-function hasProfileData(profile) {
-  return Boolean(profile?.grade || profile?.graduationYear || profile?.gpa != null);
+function resolveStudentProfile(profile, profileOverrides, isStudent, demoProfile) {
+  if (demoProfile) return normalizeProfileShape(demoProfile);
+  const merged = normalizeProfileShape({ ...(profile || {}), ...profileOverrides });
+  if (profile != null || Object.keys(profileOverrides).length > 0) {
+    return merged;
+  }
+  return isStudent ? normalizeProfileShape(DEFAULT_STUDENT_PROFILE) : null;
+}
+
+function profileFromSupabaseRow(row, email, fallbackProfile, fields) {
+  if (row) return normalizeProfileShape(mapProfile(row, email));
+  return buildProfileDisplayUpdate(fallbackProfile, fields);
 }
 
 function buildProfileDisplayUpdate(prev, fields) {
@@ -65,6 +77,13 @@ function buildProfileDisplayUpdate(prev, fields) {
   if (fields.act !== undefined) display.act = fields.act;
   if (fields.targetMajors !== undefined) display.majors = fields.targetMajors;
   if (fields.collegeInterests !== undefined) display.colleges = fields.collegeInterests;
+  if (fields.extracurricularActivities !== undefined) display.extracurricularActivities = fields.extracurricularActivities;
+  if (fields.awards !== undefined && Array.isArray(fields.awards)) display.awards = fields.awards;
+  if (fields.leadership !== undefined && Array.isArray(fields.leadership)) display.leadership = fields.leadership;
+  if (fields.volunteerExperience !== undefined && Array.isArray(fields.volunteerExperience)) {
+    display.volunteerExperience = fields.volunteerExperience;
+  }
+  if (fields.workExperience !== undefined && Array.isArray(fields.workExperience)) display.workExperience = fields.workExperience;
 
   if (fields.mentorPreferences !== undefined) {
     const mp = fields.mentorPreferences;
@@ -76,10 +95,8 @@ function buildProfileDisplayUpdate(prev, fields) {
     if (mp.size !== undefined) display.collegeSizePreferences = mp.size;
     if (mp.budget !== undefined) display.financialAidNotes = mp.budget;
     if (mp.activities !== undefined) display.activities = mp.activities;
-    if (mp.awards !== undefined) display.awards = mp.awards;
     if (mp.leadershipRoles !== undefined) display.leadershipRoles = mp.leadershipRoles;
     if (mp.volunteerWork !== undefined) display.volunteerWork = mp.volunteerWork;
-    if (mp.workExperience !== undefined) display.workExperience = mp.workExperience;
     if (mp.extracurricularEntries !== undefined) display.extracurricularActivities = mp.extracurricularEntries;
     if (mp.awardsEntries !== undefined) display.awards = mp.awardsEntries;
     if (mp.leadershipEntries !== undefined) display.leadership = mp.leadershipEntries;
@@ -230,8 +247,10 @@ export function DashboardDataProvider({ children, user }) {
       try {
         const data = await loadSupabaseDashboard(user.id, user.email);
         if (data.errors?.length) {
-          setError("Some dashboard data could not be loaded. Try refreshing.");
+          setError(formatDashboardPersistenceError(data.errors));
         }
+        const store = loadLocalDashboardStore(user.id);
+        setProfileOverrides(store.profileOverrides || {});
         setProfile(data.profile);
         setPreferences(data.preferences);
         setOnboarding(data.onboarding || EMPTY_ONBOARDING);
@@ -424,14 +443,30 @@ export function DashboardDataProvider({ children, user }) {
     async (fields) => {
       if (!user) return null;
 
+      const persistLocalProfile = (nextProfile) => {
+        const normalized = normalizeProfileShape(nextProfile);
+        setProfile(normalized);
+        setProfileOverrides(normalized);
+        patchLocalDashboardStore(user.id, { profileOverrides: normalized });
+        return normalized;
+      };
+
       if (useSupabase) {
-        const { profile: next, error: err } = await updateSupabaseProfile(user.id, fields);
-        if (err) throw new Error(err);
-        setProfile((p) => buildProfileDisplayUpdate(p, fields));
-        const completion = computeProfileCompletion(buildProfileDisplayUpdate(profile, fields));
-        await updateSupabaseOnboarding(user.id, { profileComplete: completion });
-        setOnboarding((prev) => ({ ...prev, profileComplete: completion }));
-        return next;
+        const { profile: row, error: profileErr } = await updateSupabaseProfile(user.id, fields);
+        if (profileErr) throw new Error(profileErr);
+
+        const display = persistLocalProfile(
+          profileFromSupabaseRow(row, user.email, profile, fields)
+        );
+
+        const completion = computeProfileCompletion(display);
+        const { error: onboardingErr } = await updateSupabaseOnboarding(user.id, { profileComplete: completion });
+        if (onboardingErr) {
+          setError(formatDashboardPersistenceError([onboardingErr]));
+        } else {
+          setOnboarding((prev) => ({ ...prev, profileComplete: completion }));
+        }
+        return display;
       }
 
       try {
@@ -440,13 +475,7 @@ export function DashboardDataProvider({ children, user }) {
         /* demo / offline — local state still updates */
       }
 
-      setProfile((p) => buildProfileDisplayUpdate(p, fields));
-      const display = buildProfileDisplayUpdate(profile, fields);
-      setProfileOverrides((prev) => {
-        const next = buildProfileDisplayUpdate(prev, fields);
-        patchLocalDashboardStore(user.id, { profileOverrides: next });
-        return next;
-      });
+      const display = persistLocalProfile(buildProfileDisplayUpdate(profile, fields));
       return display;
     },
     [useSupabase, user, profile]
@@ -656,14 +685,7 @@ export function DashboardDataProvider({ children, user }) {
     const resolvedEvents = demo?.events?.length
       ? demo.events
       : (events.length ? events : (isStudent ? buildDefaultStudentEvents() : PLACEHOLDER_EVENTS));
-    const resolvedProfile = normalizeProfileShape(
-      demo?.profile
-        ?? (Object.keys(profileOverrides).length > 0
-          ? { ...(profile || {}), ...profileOverrides }
-          : hasProfileData(profile)
-            ? profile
-            : (isStudent ? DEFAULT_STUDENT_PROFILE : profile))
-    );
+    const resolvedProfile = resolveStudentProfile(profile, profileOverrides, isStudent, demo?.profile);
     const resolvedMentor = demo?.mentor ?? mentor ?? (isStudent ? PLACEHOLDER_MENTOR : null);
     const resolvedAcademicProgress = demo?.academicProgress ?? (isStudent ? DEFAULT_ACADEMIC_PROGRESS : null);
     const resolvedOpportunities = demo?.opportunities?.length
