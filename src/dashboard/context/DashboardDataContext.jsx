@@ -23,6 +23,12 @@ import {
   updateSupabasePreferences,
   updateSupabaseProfile
 } from "../../lib/supabaseData.js";
+import {
+  createTask,
+  updateTask,
+  saveEssayDraft as saveSupabaseEssayDraft,
+  saveMyCollegeList
+} from "../../lib/dashboardData.js";
 import { isDemoEmail } from "../../data/demoAccounts.js";
 import { getDemoDashboardForUser } from "../../data/demoDashboardData.js";
 import { shouldUseDemoFixtures } from "../../lib/devAuthBypass.js";
@@ -198,6 +204,10 @@ export function DashboardDataProvider({ children, user }) {
   const [userCalendarEvents, setUserCalendarEvents] = useState([]);
   const [localTasks, setLocalTasks] = useState(null);
   const [localEssays, setLocalEssays] = useState(null);
+  const [supabaseTasks, setSupabaseTasks] = useState([]);
+  const [supabaseEssays, setSupabaseEssays] = useState([]);
+  const [supabaseDeadlines, setSupabaseDeadlines] = useState([]);
+  const [supabaseSavedColleges, setSupabaseSavedColleges] = useState(null);
   const [savedColleges, setSavedColleges] = useState(null);
   const [localConversationMessages, setLocalConversationMessages] = useState([]);
   const [profileOverrides, setProfileOverrides] = useState({});
@@ -248,6 +258,10 @@ export function DashboardDataProvider({ children, user }) {
         );
         setNotifications(data.notifications || []);
         setSavedResources(data.savedResources || []);
+        setSupabaseTasks(data.tasks || []);
+        setSupabaseEssays(data.essays || []);
+        setSupabaseDeadlines(data.deadlines || []);
+        setSupabaseSavedColleges(data.savedColleges?.length ? data.savedColleges : null);
       } catch (err) {
         setError(err.message || "Failed to load dashboard data.");
       } finally {
@@ -302,6 +316,10 @@ export function DashboardDataProvider({ children, user }) {
       setUserCalendarEvents([]);
       setLocalTasks(null);
       setLocalEssays(null);
+      setSupabaseTasks([]);
+      setSupabaseEssays([]);
+      setSupabaseDeadlines([]);
+      setSupabaseSavedColleges(null);
       setSavedColleges(null);
       setLocalConversationMessages([]);
       setProfileOverrides({});
@@ -578,11 +596,20 @@ export function DashboardDataProvider({ children, user }) {
   );
 
   const addTask = useCallback(
-    (title) => {
+    async (title) => {
       if (!user || !title?.trim()) return null;
+      const trimmed = title.trim();
+
+      if (useSupabase) {
+        const { task, error: err } = await createTask(user.id, { title: trimmed });
+        if (err) throw new Error(err);
+        setSupabaseTasks((prev) => [...prev, task]);
+        return task;
+      }
+
       const task = {
         id: `task-${Date.now()}`,
-        title: title.trim(),
+        title: trimmed,
         done: false,
         priority: "medium"
       };
@@ -594,12 +621,20 @@ export function DashboardDataProvider({ children, user }) {
       });
       return task;
     },
-    [user]
+    [useSupabase, user]
   );
 
   const toggleTask = useCallback(
-    (taskId, done) => {
+    async (taskId, done) => {
       if (!user) return;
+
+      if (useSupabase) {
+        const { task, error: err } = await updateTask(user.id, taskId, { done });
+        if (err) throw new Error(err);
+        setSupabaseTasks((prev) => prev.map((t) => (t.id === taskId ? task : t)));
+        return;
+      }
+
       setLocalTasks((prev) => {
         const base = prev || [];
         const next = base.map((t) => (t.id === taskId ? { ...t, done } : t));
@@ -607,12 +642,33 @@ export function DashboardDataProvider({ children, user }) {
         return next;
       });
     },
-    [user]
+    [useSupabase, user]
   );
 
   const saveEssayDraft = useCallback(
-    (essayId, { title, body }) => {
+    async (essayId, { title, body }) => {
       if (!user) return null;
+
+      if (useSupabase) {
+        const isUuid = essayId && !String(essayId).startsWith("e-") && !String(essayId).startsWith("essay-");
+        const { essay, error: err } = await saveSupabaseEssayDraft(
+          user.id,
+          isUuid ? essayId : null,
+          { title, body }
+        );
+        if (err) throw new Error(err);
+        setSupabaseEssays((prev) => {
+          if (essayId && prev.some((e) => e.id === essayId)) {
+            return prev.map((e) => (e.id === essayId ? essay : e));
+          }
+          if (prev.some((e) => e.id === essay.id)) {
+            return prev.map((e) => (e.id === essay.id ? essay : e));
+          }
+          return [...prev, essay];
+        });
+        return essay;
+      }
+
       const words = body ? body.trim().split(/\s+/).filter(Boolean).length : 0;
       const updatedAt = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" });
       setLocalEssays((prev) => {
@@ -626,16 +682,22 @@ export function DashboardDataProvider({ children, user }) {
         return next;
       });
     },
-    [user]
+    [useSupabase, user]
   );
 
   const updateSavedColleges = useCallback(
-    (colleges) => {
+    async (colleges) => {
       if (!user) return;
+      if (useSupabase) {
+        const { error: err } = await saveMyCollegeList(user.id, colleges);
+        if (err) throw new Error(err);
+        setSupabaseSavedColleges(colleges);
+        return;
+      }
       setSavedColleges(colleges);
       patchLocalDashboardStore(user.id, { savedColleges: colleges });
     },
-    [user]
+    [useSupabase, user]
   );
 
   const markAllNotificationsRead = markNotificationsRead;
@@ -670,9 +732,13 @@ export function DashboardDataProvider({ children, user }) {
       ? demo.opportunities
       : (isStudent ? DEFAULT_OPPORTUNITIES : []);
     const resolvedStudentProfileStats = demo?.studentProfileStats ?? (isStudent ? DEFAULT_STUDENT_PROFILE_STATS : null);
-    const resolvedTasks = demo?.tasks ?? localTasks ?? (useSupabase ? [] : PLACEHOLDER_TASKS);
-    const resolvedEssays = demo?.essays?.length ? demo.essays : (localEssays?.length ? localEssays : []);
-    const resolvedSavedColleges = savedColleges ?? INITIAL_SAVED_COLLEGES;
+    const resolvedTasks = demo?.tasks ?? (useSupabase ? supabaseTasks : localTasks) ?? (useSupabase ? [] : PLACEHOLDER_TASKS);
+    const resolvedEssays = demo?.essays?.length
+      ? demo.essays
+      : useSupabase
+        ? supabaseEssays
+        : (localEssays?.length ? localEssays : []);
+    const resolvedSavedColleges = demo?.savedColleges ?? supabaseSavedColleges ?? savedColleges ?? INITIAL_SAVED_COLLEGES;
     const resolvedConversations = (() => {
       let base = demo?.conversations?.length
         ? demo.conversations
@@ -741,7 +807,7 @@ export function DashboardDataProvider({ children, user }) {
       onboarding,
       savedResources,
       summaryCards: demo?.summaryCards ?? null,
-      deadlines: demo?.deadlines ?? [],
+      deadlines: demo?.deadlines ?? (useSupabase ? supabaseDeadlines : []),
       applicationProgress: demo?.applicationProgress
         ?? (useSupabase
           ? (onboarding?.profileComplete
@@ -825,6 +891,10 @@ export function DashboardDataProvider({ children, user }) {
       userCalendarEvents,
       localTasks,
       localEssays,
+      supabaseTasks,
+      supabaseEssays,
+      supabaseDeadlines,
+      supabaseSavedColleges,
       savedColleges,
       localConversationMessages,
       profileOverrides,

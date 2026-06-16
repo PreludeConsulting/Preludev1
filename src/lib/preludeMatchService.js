@@ -111,6 +111,7 @@ export async function saveMatchDecision(userId, { decision, mentorId, declinedId
       await getSupabase().from("mentor_matches").delete().eq("user_id", userId).eq("status", "assigned");
       await getSupabase().from("mentor_matches").insert({
         user_id: userId,
+        student_id: userId,
         mentor_name: mentor.name,
         mentor_email: null,
         mentor_college: mentor.school || mentor.university,
@@ -133,6 +134,7 @@ export async function requestMentorMatch(userId, mentorId) {
   await getSupabase().from("mentor_matches").delete().eq("user_id", userId).eq("status", "saved");
   const { error } = await getSupabase().from("mentor_matches").insert({
     user_id: userId,
+    student_id: userId,
     mentor_name: mentor.name,
     mentor_college: mentor.school || mentor.university,
     mentor_major: mentor.major,

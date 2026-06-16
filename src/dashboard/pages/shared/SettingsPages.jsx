@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bell,
@@ -48,11 +48,18 @@ export function StudentSettingsPage() {
     connectZoomAccount,
     disconnectZoomAccount,
     savePreferences: savePrefsToBackend,
-    useSupabaseData
+    useSupabaseData,
+    preferences: loadedPreferences
   } = useDashboardData();
   const [tab, setTab] = useState("profile");
   const [prefs, setPrefs] = useState(() => loadPreferences());
   const [savedSection, setSavedSection] = useState("");
+
+  useEffect(() => {
+    if (loadedPreferences) {
+      setPrefs((current) => ({ ...current, ...loadedPreferences }));
+    }
+  }, [loadedPreferences]);
 
   const roleLabel = "Student";
   const planName = planDetails?.name || user?.planName || "Basic";
