@@ -133,6 +133,25 @@ export async function resendVerificationEmail() {
   return api("/api/auth/resend-verification", { method: "POST" });
 }
 
+export async function verifyAccountPassword(password) {
+  return api("/api/account/verify-password", {
+    method: "POST",
+    body: JSON.stringify({ password })
+  });
+}
+
+export async function deleteAccount({ password, confirmPassword, confirmationPhrase }) {
+  try {
+    return await api("/api/account/delete", {
+      method: "POST",
+      body: JSON.stringify({ password, confirmPassword, confirmationPhrase })
+    });
+  } finally {
+    sessionStorage.removeItem(CSRF_KEY);
+    localStorage.removeItem(LEGACY_SESSION_KEY);
+  }
+}
+
 export async function getDashboardData() {
   return api("/api/dashboard");
 }

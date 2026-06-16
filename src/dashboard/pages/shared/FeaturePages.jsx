@@ -310,7 +310,7 @@ export function StudentHelp() {
 
         <SectionCard title="Quick links" className="dash-panel">
           <nav className="dash-help-links">
-            <Link to={`${STUDENT_DASHBOARD_BASE}/profile`}><HelpCircle className="h-4 w-4" /> Settings</Link>
+            <Link to={`${STUDENT_DASHBOARD_BASE}/settings`}><HelpCircle className="h-4 w-4" /> Settings</Link>
             <Link to={`${STUDENT_DASHBOARD_BASE}/billing`}><CreditCard className="h-4 w-4" /> Plans and Billing</Link>
             <Link to={`${STUDENT_DASHBOARD_BASE}/resources`}><BookOpen className="h-4 w-4" /> Resources</Link>
             <Link to="/"><Sparkles className="h-4 w-4" /> Back to Prelude homepage</Link>

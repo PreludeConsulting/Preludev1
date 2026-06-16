@@ -6,7 +6,8 @@ import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import {
   buildAuthUrl,
-  deliverAuthEmail
+  deliverAuthEmail,
+  deliverAccountDeletedEmail
 } from "./lib/authEmail.js";
 import { formatAuthApiError, logAuthApiError } from "./lib/dbErrors.js";
 
@@ -59,6 +60,25 @@ const questionnaireAnswerSchema = z.object({
 const questionnaireSchema = z.object({
   answers: z.array(questionnaireAnswerSchema).min(1).max(100),
   completionPercent: z.number().int().min(0).max(100).optional()
+});
+
+const DELETE_ACCOUNT_PHRASE = "I agree to delete my account.";
+
+const deleteAccountSchema = z
+  .object({
+    password: z.string().min(1, "Password is required."),
+    confirmPassword: z.string().min(1, "Please confirm your password."),
+    confirmationPhrase: z.literal(DELETE_ACCOUNT_PHRASE, {
+      errorMap: () => ({ message: `Type exactly: ${DELETE_ACCOUNT_PHRASE}` })
+    })
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match.",
+    path: ["confirmPassword"]
+  });
+
+const verifyPasswordSchema = z.object({
+  password: z.string().min(1, "Password is required.")
 });
 
 const profileSchema = z.object({
@@ -648,6 +668,103 @@ async function handleSessions(req, res, url) {
   sendJson(res, 200, { message: "Session revoked." });
 }
 
+async function handleVerifyPassword(req, res) {
+  await rateLimit(req, "/api/account/verify-password", 10, 15 * 60);
+  const auth = await requireAuth(req);
+  const payload = verifyPasswordSchema.parse(await readJsonBody(req));
+
+  if (!auth.user.passwordHash) {
+    return sendJson(res, 400, {
+      error: "password_not_set",
+      message: "This account does not have a password. Reset your password first, then try again."
+    });
+  }
+
+  const valid = await argon2.verify(auth.user.passwordHash, payload.password);
+  if (!valid) {
+    await securityEvent({
+      userId: auth.user.id,
+      eventType: "PASSWORD_VERIFY_FAILED",
+      severity: "MEDIUM",
+      req,
+      metadata: { context: "account_delete" }
+    });
+    return sendJson(res, 401, { error: "invalid_password", message: "Password is incorrect." });
+  }
+
+  sendJson(res, 200, { valid: true });
+}
+
+async function handleDeleteAccount(req, res) {
+  await rateLimit(req, "/api/account/delete", 3, 60 * 60);
+  const auth = await requireAuth(req);
+  const payload = deleteAccountSchema.parse(await readJsonBody(req));
+
+  if (!auth.user.passwordHash) {
+    return sendJson(res, 400, {
+      error: "password_not_set",
+      message: "This account does not have a password. Reset your password first, then try again."
+    });
+  }
+
+  const valid = await argon2.verify(auth.user.passwordHash, payload.password);
+  if (!valid) {
+    await securityEvent({
+      userId: auth.user.id,
+      eventType: "ACCOUNT_DELETE_FAILED",
+      severity: "MEDIUM",
+      req,
+      metadata: { reason: "BAD_PASSWORD" }
+    });
+    return sendJson(res, 401, { error: "invalid_password", message: "Password is incorrect." });
+  }
+
+  const { email, firstName, id: userId } = auth.user;
+
+  await db().$transaction(async (tx) => {
+    await tx.refreshToken.updateMany({
+      where: { userId, status: "ACTIVE" },
+      data: { status: "REVOKED", revokedAt: new Date() }
+    });
+    await tx.session.updateMany({
+      where: { userId, status: "ACTIVE" },
+      data: { status: "REVOKED", revokedAt: new Date() }
+    });
+    await tx.user.delete({ where: { id: userId } });
+  });
+
+  await deliverAccountDeletedEmail({ to: email, firstName, req });
+  await securityEvent({
+    eventType: "ACCOUNT_DELETED",
+    severity: "HIGH",
+    req,
+    metadata: { deletedEmail: email }
+  });
+
+  sendJson(
+    res,
+    200,
+    { message: "Your account has been permanently deleted.", emailSent: true },
+    { "Set-Cookie": cookiesForTokens({ clear: true }) }
+  );
+}
+
+const deletedNotifySchema = z.object({
+  email: z.string().trim().email(),
+  firstName: z.string().trim().min(1).max(80).optional()
+});
+
+async function handleDeletedNotify(req, res) {
+  await rateLimit(req, "/api/account/deleted-notify", 5, 60 * 60);
+  const payload = deletedNotifySchema.parse(await readJsonBody(req));
+  await deliverAccountDeletedEmail({
+    to: normalizeEmail(payload.email),
+    firstName: payload.firstName || "there",
+    req
+  });
+  sendJson(res, 200, { message: "Deletion confirmation sent." });
+}
+
 async function handleStudentRead(req, res, url) {
   const auth = await requireAuth(req);
   const studentProfileId = url.pathname.split("/").pop();
@@ -678,7 +795,7 @@ export function createAuthApiMiddleware() {
     }
 
     try {
-      if (!["/api/auth/login", "/api/auth/register", "/api/auth/request-reset", "/api/auth/reset-password"].includes(url.pathname)) requireCsrf(req);
+      if (!["/api/auth/login", "/api/auth/register", "/api/auth/request-reset", "/api/auth/reset-password", "/api/account/deleted-notify"].includes(url.pathname)) requireCsrf(req);
       if (url.pathname === "/api/auth/register" && req.method === "POST") return await handleRegister(req, res);
       if (url.pathname === "/api/auth/verify-email" && req.method === "GET") return await handleVerifyEmail(req, res, url);
       if (url.pathname === "/api/auth/resend-verification" && req.method === "POST") return await handleResendVerification(req, res);
@@ -695,6 +812,9 @@ export function createAuthApiMiddleware() {
       if (url.pathname === "/api/auth/reset-password" && req.method === "POST") return await handleResetPassword(req, res);
       if (url.pathname === "/api/auth/me" && req.method === "GET") return await handleMe(req, res);
       if (url.pathname === "/api/account/profile" && ["GET", "PATCH"].includes(req.method)) return await handleProfile(req, res);
+      if (url.pathname === "/api/account/verify-password" && req.method === "POST") return await handleVerifyPassword(req, res);
+      if (url.pathname === "/api/account/delete" && req.method === "POST") return await handleDeleteAccount(req, res);
+      if (url.pathname === "/api/account/deleted-notify" && req.method === "POST") return await handleDeletedNotify(req, res);
       if (url.pathname === "/api/prelude-match-questionnaire" && ["GET", "POST"].includes(req.method)) return await handlePreludeMatchQuestionnaire(req, res);
       if (url.pathname === "/api/account/sessions" && req.method === "GET") return await handleSessions(req, res, url);
       if (url.pathname.startsWith("/api/account/sessions/") && req.method === "DELETE") return await handleSessions(req, res, url);

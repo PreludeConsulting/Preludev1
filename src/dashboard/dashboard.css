@@ -3713,3 +3713,175 @@
     transition: none;
   }
 }
+
+.dash-panel--danger {
+  border-color: rgb(244 63 94 / 0.18);
+}
+
+.dash-delete-account {
+  display: grid;
+  gap: 1rem;
+}
+
+.dash-delete-account__warning {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgb(244 63 94 / 0.22);
+  background: rgb(255 241 242 / 0.75);
+  color: #9f1239;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.dash-delete-account__warning p {
+  margin: 0;
+}
+
+.dash-delete-account__warning--inline {
+  margin-bottom: 1rem;
+}
+
+.dash-delete-account__phrase-hint {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.65rem;
+  background: hsl(var(--foreground) / 0.04);
+  font-size: 0.875rem;
+}
+
+.dash-delete-account__phrase-hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  color: hsl(var(--foreground));
+}
+
+.dash-delete-account__error {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.8125rem;
+}
+
+.dash-delete-account__success {
+  display: grid;
+  gap: 0.65rem;
+  justify-items: center;
+  text-align: center;
+  padding: 0.5rem 0 0.25rem;
+  color: hsl(var(--foreground));
+}
+
+.dash-delete-account__success svg {
+  color: #15803d;
+}
+
+.dash-delete-account__demo-note {
+  margin-top: 0.75rem;
+}
+
+/* Settings page — tappable tab navigation */
+.dash-settings-page__body {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 900px) {
+  .dash-settings-page__body {
+    grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.dash-settings-page__tabs {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+  scrollbar-width: thin;
+}
+
+@media (min-width: 900px) {
+  .dash-settings-page__tabs {
+    flex-direction: column;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+}
+
+.dash-settings-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 9.5rem;
+  flex-shrink: 0;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 0.9rem;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.dash-settings-tab:hover {
+  border-color: hsl(var(--primary) / 0.25);
+  background: hsl(var(--primary) / 0.03);
+}
+
+.dash-settings-tab--active {
+  border-color: rgb(120 106 255 / 0.35);
+  background: #ede9ff;
+  box-shadow: 0 8px 20px rgb(120 106 255 / 0.1);
+}
+
+.dash-settings-tab__icon {
+  width: 1rem;
+  height: 1rem;
+  color: hsl(var(--primary));
+}
+
+.dash-settings-tab__label {
+  font-family: var(--dash-font-sans);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: hsl(230 24% 20%);
+}
+
+.dash-settings-tab__desc {
+  font-family: var(--dash-font-sans);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-settings-page__content {
+  min-width: 0;
+}
+
+.dash-settings-page__content-head {
+  margin-bottom: 1rem;
+}
+
+.dash-settings-page__content-title {
+  margin: 0;
+  font-family: var(--dash-font-sans);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: hsl(230 24% 18%);
+}
+
+.dash-settings-page__content-sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-settings-page__panels {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(0.85rem, 1.8vw, 1.25rem);
+}

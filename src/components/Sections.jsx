@@ -14,7 +14,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { getPricingPlans } from "../lib/plans.js";
 import PricingCard from "./PricingCard.jsx";
 import { startBillingCheckout } from "../lib/auth.js";
-import { NAV_LINKS } from "../data/navLinks.js";
+import { FOOTER_LINK_COLUMNS } from "../data/footerLinks.js";
 import AppLink from "./AppLink.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
 
@@ -287,10 +287,6 @@ export function LowerCta() {
 export function LowerFooter() {
   const { t } = useLanguage();
   const { openLegal } = useLegalModal();
-  const discoverLinks = NAV_LINKS.map(({ labelKey, href }) => ({
-    label: t(labelKey),
-    href
-  }));
   const followLinks = [
     { label: "Instagram", href: "https://instagram.com/" },
     { label: "X", href: "https://x.com/" },
@@ -302,48 +298,57 @@ export function LowerFooter() {
   return (
     <footer className="lower-landing lower-landing__footer">
       <div className="lower-landing__footer-inner">
-        <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
-          <div>
+        <div className="lower-landing__footer-top">
+          <div className="lower-landing__footer-brand">
             <PreludeLogo className="prelude-logo--footer" />
-            <p className="mt-2 max-w-xs font-body text-sm font-light leading-6 text-muted-foreground">
+            <p className="lower-landing__footer-tagline">
               {t("sections.footer.body")}
             </p>
           </div>
           <div className="lower-landing__footer-link-groups">
-            <nav className="lower-landing__footer-link-group" aria-label={t("sections.footer.discoverLabel")}>
-              <h2 className="lower-landing__footer-heading">{t("sections.footer.discover")}</h2>
-              <div className="lower-landing__footer-links">
-                {discoverLinks.map(({ label, href }) => (
-                  <AppLink key={label} href={href} className="lower-landing__footer-link">
-                    {label}
-                  </AppLink>
-                ))}
-              </div>
-            </nav>
+            {FOOTER_LINK_COLUMNS.map((column) => (
+              <nav
+                key={column.headingKey}
+                className="lower-landing__footer-link-group"
+                aria-label={t(column.ariaLabelKey)}
+              >
+                <h2 className="lower-landing__footer-heading">{t(column.headingKey)}</h2>
+                <ul className="lower-landing__footer-links">
+                  {column.links.map(({ labelKey, href }) => (
+                    <li key={`${column.headingKey}-${labelKey}`}>
+                      <AppLink href={href} className="lower-landing__footer-link">
+                        {t(labelKey)}
+                      </AppLink>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
 
             <section className="lower-landing__footer-link-group" aria-labelledby="footer-follow-heading">
               <h2 id="footer-follow-heading" className="lower-landing__footer-heading">
                 {t("sections.footer.follow")}
               </h2>
-              <div className="lower-landing__footer-links">
+              <ul className="lower-landing__footer-links">
                 {followLinks.map(({ label, href }) => (
-                  <a
-                    key={label}
-                    href={href}
-                    target={href.startsWith("mailto:") ? undefined : "_blank"}
-                    rel={href.startsWith("mailto:") ? undefined : "noopener noreferrer"}
-                    className="lower-landing__footer-link lower-landing__footer-link--button"
-                  >
-                    {label}
-                  </a>
+                  <li key={label}>
+                    <a
+                      href={href}
+                      target={href.startsWith("mailto:") ? undefined : "_blank"}
+                      rel={href.startsWith("mailto:") ? undefined : "noopener noreferrer"}
+                      className="lower-landing__footer-link"
+                    >
+                      {label}
+                    </a>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </section>
           </div>
         </div>
-        <div className="mt-10 flex flex-col gap-3 border-t border-foreground/8 pt-6 font-body text-xs text-muted-foreground md:flex-row md:items-center md:justify-between">
+        <div className="lower-landing__footer-bottom">
           <p>{t("sections.footer.copyright")}</p>
-          <div className="flex gap-6">
+          <div className="lower-landing__footer-legal">
             <button
               type="button"
               className="lower-landing__footer-legal-link"

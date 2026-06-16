@@ -165,7 +165,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
           {profileOpen ? (
             <div className="dash-product-nav__menu-panel dash-product-nav__profile-menu" role="menu">
               <NavLink
-                to={`${basePath}/profile`}
+                to={`${basePath}/settings`}
                 className="dash-product-nav__menu-item"
                 role="menuitem"
                 onClick={() => setProfileOpen(false)}

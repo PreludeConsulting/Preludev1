@@ -50,7 +50,7 @@ export default function DashboardHeader({ routeMeta, basePath, onMenuToggle }) {
             </button>
             {profileOpen ? (
               <div className="dash-dropdown">
-                <NavLink to={`${basePath}/profile`} className="dash-dropdown__item" onClick={() => setProfileOpen(false)}>
+                <NavLink to={`${basePath}/settings`} className="dash-dropdown__item" onClick={() => setProfileOpen(false)}>
                   Profile & settings
                 </NavLink>
                 <button type="button" className="dash-dropdown__item" onClick={openAccount}>

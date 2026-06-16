@@ -3,6 +3,7 @@
  * when VITE_SUPABASE_* env vars are set.
  */
 
+import { createClient } from "@supabase/supabase-js";
 import { getSupabase } from "./supabase.js";
 import { appPath } from "./appPaths.js";
 import { getPublicAppOrigin, isSupabaseConfigured } from "./supabaseConfig.js";
@@ -118,6 +119,78 @@ export async function resendSignupConfirmation(email) {
   });
   if (error) throw new Error(friendlyError(error));
   return { message: "Verification email sent. Check your inbox." };
+}
+
+function createEphemeralSupabaseClient() {
+  if (!isSupabaseConfigured()) return null;
+  return createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    }
+  });
+}
+
+export async function verifySupabasePassword({ email, password }) {
+  const tempClient = createEphemeralSupabaseClient();
+  if (!tempClient) throw new Error("Supabase client unavailable.");
+
+  const { data, error } = await tempClient.auth.signInWithPassword({ email, password });
+  if (error || !data?.session) {
+    throw new Error(friendlyError(error) || "That email or password doesn't match our records.");
+  }
+
+  await tempClient.auth.signOut();
+  return data;
+}
+
+export async function deleteSupabaseAccount({ email, password, confirmPassword, confirmationPhrase }) {
+  const { DELETE_ACCOUNT_PHRASE } = await import("./accountDeletion.js");
+  if (password !== confirmPassword) {
+    throw new Error("Passwords do not match.");
+  }
+  if (confirmationPhrase !== DELETE_ACCOUNT_PHRASE) {
+    throw new Error(`Type exactly: ${DELETE_ACCOUNT_PHRASE}`);
+  }
+
+  await verifySupabasePassword({ email, password });
+
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Supabase client unavailable.");
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Could not verify your session.");
+  if ((user.email || "").toLowerCase() !== (email || "").toLowerCase()) {
+    throw new Error("Session mismatch. Please sign in again and retry.");
+  }
+
+  const firstName = (user.user_metadata?.full_name || "User").split(/\s+/)[0];
+  const userEmail = user.email || email;
+
+  const { error: rpcError } = await supabase.rpc("delete_own_account");
+  if (rpcError) {
+    throw new Error(
+      rpcError.message?.includes("function")
+        ? "Account deletion is not enabled for this Supabase project yet. Ask an admin to run supabase/delete-account.sql."
+        : friendlyError(rpcError)
+    );
+  }
+
+  try {
+    await fetch("/api/account/deleted-notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: userEmail, firstName })
+    });
+  } catch {
+    /* email is best-effort for Supabase path */
+  }
+
+  await supabase.auth.signOut();
+  return { message: "Your account has been permanently deleted." };
 }
 
 export async function updatePassword(newPassword) {

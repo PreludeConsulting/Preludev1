@@ -314,7 +314,7 @@ function SupabaseAccountPage() {
 
   async function onLogout() {
     await logOut();
-    navigate("/auth/login", { replace: true });
+    navigate("/", { replace: true });
   }
 
   const role = profile?.role || user?.user_metadata?.role || "student";

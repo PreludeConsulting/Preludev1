@@ -12,7 +12,6 @@ import {
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import CalendarPanel from "../../components/CalendarPanel.jsx";
-import IntegrationConnect from "../../components/IntegrationConnect.jsx";
 import MessagesPanel from "../../components/MessagesPanel.jsx";
 import ScheduleMeetingForm from "../../components/ScheduleMeetingForm.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
@@ -382,34 +381,6 @@ export function MentorAvailability() {
       </SectionCard>
       <SectionCard title="Approve meeting requests">
         <ScheduleMeetingForm onSubmit={(p) => scheduleMeeting(p)} />
-      </SectionCard>
-    </div>
-  );
-}
-
-export function MentorProfileSettings() {
-  const { integrations, connectGoogle, disconnectGoogle, connectZoomAccount, disconnectZoomAccount } = useDashboardData();
-  const [completion] = useState(74);
-
-  return (
-    <div className="dash-page">
-      <SectionCard title="Profile completion">
-        <ProgressBar label="Mentor profile" value={completion} />
-      </SectionCard>
-      <form className="dash-profile-sections" onSubmit={(e) => e.preventDefault()}>
-        <SectionCard title="Mentor profile">
-          {["Name", "University", "Major", "Graduation year", "Biography", "Areas of expertise", "Mentoring topics"].map((label) => (
-            <label key={label} className="prelude-field">
-              <span>{label}</span>
-              {label === "Biography" ? <textarea rows={3} /> : <input />}
-            </label>
-          ))}
-          <PrimaryButton type="submit">Save profile</PrimaryButton>
-        </SectionCard>
-      </form>
-      <SectionCard title="Integrations">
-        <IntegrationConnect label="Google Calendar" connectLabel="Connect Google Calendar" connected={integrations.googleCalendar?.connected} onConnect={connectGoogle} onDisconnect={disconnectGoogle} />
-        <IntegrationConnect label="Zoom" connectLabel="Connect Zoom Account" connected={integrations.zoom?.connected} onConnect={connectZoomAccount} onDisconnect={disconnectZoomAccount} />
       </SectionCard>
     </div>
   );

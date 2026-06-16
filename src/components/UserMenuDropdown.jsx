@@ -6,7 +6,7 @@ import {
   LogOut,
   Settings
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   billingPathForRole,
@@ -24,7 +24,6 @@ import DropdownMenu, {
 
 export default function UserMenuDropdown({ className = "" }) {
   const { user, signOut, planDetails } = useAuth();
-  const navigate = useNavigate();
 
   if (!user) return null;
 
@@ -38,7 +37,6 @@ export default function UserMenuDropdown({ className = "" }) {
   async function handleLogout(close) {
     close();
     await signOut();
-    navigate("/", { replace: true });
   }
 
   return (

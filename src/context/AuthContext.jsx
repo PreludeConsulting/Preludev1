@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getStoredSession, signIn as authSignIn, signOut as authSignOut, signUp as authSignUp } from "../lib/auth.js";
+import { getStoredSession, signIn as authSignIn, signOut as authSignOut, signUp as authSignUp, deleteAccount as authDeleteAccount, verifyAccountPassword as authVerifyAccountPassword } from "../lib/auth.js";
 import { getDevBypassUser, getDemoSessionUser, isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { getPlan } from "../lib/plans.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
@@ -176,15 +176,71 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    if (useSupabase) {
-      const { logOut } = await loadSupabaseAuth();
-      await logOut();
-    } else {
-      await authSignOut();
+    setAuthError(null);
+    closeModals();
+    navigate("/", { replace: true });
+
+    try {
+      if (useSupabase) {
+        const { logOut } = await loadSupabaseAuth();
+        await logOut();
+      } else {
+        await authSignOut();
+      }
+    } catch (error) {
+      console.warn("[prelude-auth] Sign out failed:", error?.message || error);
     }
+
     setUser(null);
+    setSignInOpen(false);
     setAccountOpen(false);
-  }, [useSupabase]);
+  }, [useSupabase, navigate, closeModals]);
+
+  const verifyAccountPassword = useCallback(
+    async (password) => {
+      if (!user?.email) throw new Error("You must be signed in to verify your password.");
+      setAuthError(null);
+      try {
+        if (useSupabase) {
+          const { verifySupabasePassword } = await loadSupabaseAuth();
+          await verifySupabasePassword({ email: user.email, password });
+        } else {
+          await authVerifyAccountPassword(password);
+        }
+        return { valid: true };
+      } catch (error) {
+        setAuthError(error.message);
+        throw error;
+      }
+    },
+    [useSupabase, user]
+  );
+
+  const deleteAccount = useCallback(
+    async (payload) => {
+      if (!user?.email) throw new Error("You must be signed in to delete your account.");
+      setAuthError(null);
+      try {
+        if (useSupabase) {
+          const { deleteSupabaseAccount } = await loadSupabaseAuth();
+          await deleteSupabaseAccount({ ...payload, email: user.email });
+        } else {
+          await authDeleteAccount(payload);
+        }
+        return { success: true };
+      } catch (error) {
+        setAuthError(error.message);
+        throw error;
+      }
+    },
+    [useSupabase, user]
+  );
+
+  const finishAccountDeletion = useCallback(() => {
+    setUser(null);
+    closeModals();
+    navigate("/", { replace: true });
+  }, [navigate, closeModals]);
 
   const refreshUser = useCallback(async () => {
     if (useSupabase) {
@@ -245,6 +301,9 @@ export function AuthProvider({ children }) {
       signInAsDemo,
       signUp,
       signOut,
+      verifyAccountPassword,
+      deleteAccount,
+      finishAccountDeletion,
       saveUserPlan,
       setAuthError,
       personalizedAiRequest,
@@ -267,6 +326,9 @@ export function AuthProvider({ children }) {
       signInAsDemo,
       signUp,
       signOut,
+      verifyAccountPassword,
+      deleteAccount,
+      finishAccountDeletion,
       saveUserPlan,
       personalizedAiRequest,
       requestPersonalizedAi,

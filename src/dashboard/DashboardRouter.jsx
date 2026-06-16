@@ -14,7 +14,6 @@ import {
   StudentMentor,
   StudentMessages,
   StudentOverview,
-  StudentProfileSettings,
   StudentProfileStats,
   StudentWorkspace
 } from "./pages/student/StudentPages.jsx";
@@ -23,10 +22,10 @@ import {
   MentorCalendar,
   MentorMessages,
   MentorOverview,
-  MentorProfileSettings,
   MentorStudentDetail,
   MentorStudents
 } from "./pages/mentor/MentorPages.jsx";
+import { MentorSettingsPage, StudentSettingsPage } from "./pages/shared/SettingsPages.jsx";
 import {
   MentorBilling,
   MentorHelp,
@@ -67,9 +66,9 @@ function StudentRoutes() {
             <Route path="resources" element={<StudentResources />} />
             <Route path="billing" element={<StudentBilling />} />
             <Route path="help" element={<StudentHelp />} />
-            <Route path="settings" element={<StudentProfileSettings />} />
+            <Route path="settings" element={<StudentSettingsPage />} />
             <Route path="profile-stats" element={<StudentProfileStats />} />
-            <Route path="profile" element={<LegacyStudentRedirect to="profile-stats" />} />
+            <Route path="profile" element={<LegacyStudentRedirect to="settings" />} />
             <Route path="mentor-matching" element={<LegacyStudentRedirect to="prelude-match" />} />
             <Route index element={<Navigate to="overview" replace />} />
           </Route>
@@ -92,7 +91,7 @@ function MentorRoutes() {
           <Route path="messages" element={<MentorMessages />} />
           <Route path="notifications" element={<MentorNotifications />} />
           <Route path="availability" element={<MentorAvailability />} />
-          <Route path="settings" element={<MentorProfileSettings />} />
+          <Route path="settings" element={<MentorSettingsPage />} />
           <Route path="profile" element={<Navigate to="settings" replace />} />
           <Route path="billing" element={<MentorBilling />} />
           <Route path="help" element={<MentorHelp />} />
