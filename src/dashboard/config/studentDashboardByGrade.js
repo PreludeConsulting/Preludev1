@@ -121,7 +121,6 @@ export const DEFAULT_STUDENT_PROFILE = {
   grade: "11th grade",
   graduationYear: 2027,
   gpa: 3.86,
-  gpaScale: "/4.00",
   weightedGpa: 4.21,
   majors: ["Computer Science", "Data Science"],
   colleges: ["Georgia Tech", "UCLA", "University of Michigan"],

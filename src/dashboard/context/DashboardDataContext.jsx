@@ -53,65 +53,12 @@ function hasProfileData(profile) {
   return Boolean(profile?.grade || profile?.graduationYear || profile?.gpa != null);
 }
 
-function buildProfileDisplayUpdate(prev, fields) {
-  const display = { ...(prev || {}) };
-
-  if (fields.gradeLevel !== undefined) display.grade = fields.gradeLevel;
-  if (fields.graduationYear !== undefined) display.graduationYear = fields.graduationYear;
-  if (fields.gpa !== undefined) display.gpa = fields.gpa;
-  if (fields.gpaScale !== undefined) display.gpaScale = fields.gpaScale;
-  if (fields.weightedGpa !== undefined) display.weightedGpa = fields.weightedGpa;
-  if (fields.sat !== undefined) display.sat = fields.sat;
-  if (fields.act !== undefined) display.act = fields.act;
-  if (fields.targetMajors !== undefined) display.majors = fields.targetMajors;
-  if (fields.collegeInterests !== undefined) display.colleges = fields.collegeInterests;
-
-  if (fields.mentorPreferences !== undefined) {
-    const mp = fields.mentorPreferences;
-    display.mentorPreferences = {
-      ...(prev?.mentorPreferences || {}),
-      ...mp
-    };
-    if (mp.location !== undefined) display.locationPreferences = mp.location;
-    if (mp.size !== undefined) display.collegeSizePreferences = mp.size;
-    if (mp.budget !== undefined) display.financialAidNotes = mp.budget;
-    if (mp.activities !== undefined) display.activities = mp.activities;
-    if (mp.awards !== undefined) display.awards = mp.awards;
-    if (mp.leadershipRoles !== undefined) display.leadershipRoles = mp.leadershipRoles;
-    if (mp.volunteerWork !== undefined) display.volunteerWork = mp.volunteerWork;
-    if (mp.workExperience !== undefined) display.workExperience = mp.workExperience;
-    if (mp.extracurricularEntries !== undefined) display.extracurricularActivities = mp.extracurricularEntries;
-    if (mp.awardsEntries !== undefined) display.awards = mp.awardsEntries;
-    if (mp.leadershipEntries !== undefined) display.leadership = mp.leadershipEntries;
-    if (mp.volunteerEntries !== undefined) display.volunteerExperience = mp.volunteerEntries;
-    if (mp.workEntries !== undefined) display.workExperience = mp.workEntries;
-  }
-
-  return normalizeProfileShape(display);
-}
-
 function normalizeProfileShape(profile) {
   if (!profile) return profile;
-  const prefs = profile.mentorPreferences || {};
   return {
     ...profile,
     majors: profile.majors || profile.targetMajors || [],
-    colleges: profile.colleges || profile.collegeInterests || [],
-    extracurricularActivities: Array.isArray(profile.extracurricularActivities)
-      ? profile.extracurricularActivities
-      : (Array.isArray(prefs.extracurricularEntries) ? prefs.extracurricularEntries : []),
-    awards: Array.isArray(profile.awards)
-      ? profile.awards
-      : (Array.isArray(prefs.awardsEntries) ? prefs.awardsEntries : []),
-    leadership: Array.isArray(profile.leadership)
-      ? profile.leadership
-      : (Array.isArray(prefs.leadershipEntries) ? prefs.leadershipEntries : []),
-    volunteerExperience: Array.isArray(profile.volunteerExperience)
-      ? profile.volunteerExperience
-      : (Array.isArray(prefs.volunteerEntries) ? prefs.volunteerEntries : []),
-    workExperience: Array.isArray(profile.workExperience)
-      ? profile.workExperience
-      : (Array.isArray(prefs.workEntries) ? prefs.workEntries : [])
+    colleges: profile.colleges || profile.collegeInterests || []
   };
 }
 
@@ -427,8 +374,8 @@ export function DashboardDataProvider({ children, user }) {
       if (useSupabase) {
         const { profile: next, error: err } = await updateSupabaseProfile(user.id, fields);
         if (err) throw new Error(err);
-        setProfile((p) => buildProfileDisplayUpdate(p, fields));
-        const completion = computeProfileCompletion(buildProfileDisplayUpdate(profile, fields));
+        setProfile((p) => normalizeProfileShape({ ...p, ...fields }));
+        const completion = computeProfileCompletion({ ...fields });
         await updateSupabaseOnboarding(user.id, { profileComplete: completion });
         setOnboarding((prev) => ({ ...prev, profileComplete: completion }));
         return next;
@@ -440,16 +387,35 @@ export function DashboardDataProvider({ children, user }) {
         /* demo / offline — local state still updates */
       }
 
-      setProfile((p) => buildProfileDisplayUpdate(p, fields));
-      const display = buildProfileDisplayUpdate(profile, fields);
+      setProfile((p) => {
+        const display = {
+          grade: fields.gradeLevel ?? p?.grade,
+          graduationYear: fields.graduationYear ?? p?.graduationYear,
+          gpa: fields.gpa ?? p?.gpa,
+          weightedGpa: fields.weightedGpa ?? p?.weightedGpa,
+          sat: fields.sat ?? p?.sat,
+          majors: fields.targetMajors ?? p?.majors ?? p?.targetMajors,
+          colleges: fields.collegeInterests ?? p?.colleges ?? p?.collegeInterests
+        };
+        return normalizeProfileShape({ ...p, ...display });
+      });
+      const display = {
+        grade: fields.gradeLevel ?? profile?.grade,
+        graduationYear: fields.graduationYear ?? profile?.graduationYear,
+        gpa: fields.gpa ?? profile?.gpa,
+        weightedGpa: fields.weightedGpa ?? profile?.weightedGpa,
+        sat: fields.sat ?? profile?.sat,
+        majors: fields.targetMajors ?? profile?.majors ?? profile?.targetMajors,
+        colleges: fields.collegeInterests ?? profile?.colleges ?? profile?.collegeInterests
+      };
       setProfileOverrides((prev) => {
-        const next = buildProfileDisplayUpdate(prev, fields);
+        const next = { ...prev, ...display };
         patchLocalDashboardStore(user.id, { profileOverrides: next });
         return next;
       });
       return display;
     },
-    [useSupabase, user, profile]
+    [useSupabase, user]
   );
 
   const savePreferences = useCallback(
@@ -658,11 +624,9 @@ export function DashboardDataProvider({ children, user }) {
       : (events.length ? events : (isStudent ? buildDefaultStudentEvents() : PLACEHOLDER_EVENTS));
     const resolvedProfile = normalizeProfileShape(
       demo?.profile
-        ?? (Object.keys(profileOverrides).length > 0
-          ? { ...(profile || {}), ...profileOverrides }
-          : hasProfileData(profile)
-            ? profile
-            : (isStudent ? DEFAULT_STUDENT_PROFILE : profile))
+        ?? (hasProfileData(profile) || Object.keys(profileOverrides).length
+          ? { ...(hasProfileData(profile) ? profile : (isStudent ? DEFAULT_STUDENT_PROFILE : {})), ...profileOverrides }
+          : (isStudent ? DEFAULT_STUDENT_PROFILE : profile))
     );
     const resolvedMentor = demo?.mentor ?? mentor ?? (isStudent ? PLACEHOLDER_MENTOR : null);
     const resolvedAcademicProgress = demo?.academicProgress ?? (isStudent ? DEFAULT_ACADEMIC_PROGRESS : null);
