@@ -5,7 +5,7 @@
 
 import { DEMO_MENTOR, DEMO_STUDENT, DEMO_STUDENT_2 } from "./demoAccounts.js";
 import { conversationsToInbox, getDemoConversations } from "../dashboard/data/demoConversations.js";
-import { buildDefaultGamification, levelFromXp } from "../dashboard/data/gamification.js";
+import { buildDefaultGamification } from "../dashboard/data/gamification.js";
 
 /** Stable slugs used in events/meetings before DB IDs are known. */
 export const DEMO_SLUGS = {
@@ -475,19 +475,6 @@ function mentorBundle() {
     mentor: SHARED_MENTOR,
     students: [
       {
-        id: DEMO_SLUGS.jordan,
-        name: "Jordan Lee",
-        grade: "11th",
-        major: "Computer Science",
-        profileCompletion: 78,
-        upcomingDeadlines: 4,
-        lastMeeting: "May 28, 2026",
-        nextMeeting: jordanMeetingStart.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
-        priorities: ["Finalize college list", "Personal statement draft"],
-        gamification: { ...buildDefaultGamification(true), level: levelFromXp(420) },
-        needsAttention: true
-      },
-      {
         id: DEMO_SLUGS.alex,
         name: "Alex Kim",
         grade: "12th",
@@ -495,10 +482,101 @@ function mentorBundle() {
         profileCompletion: 64,
         upcomingDeadlines: 5,
         lastMeeting: "May 30, 2026",
-        nextMeeting: alexMeetingStart.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+        nextMeeting: "Jul 1, 2026",
+        applicationPhase: "applying",
         priorities: ["Scholarship essays", "FAFSA follow-up"],
-        gamification: { ...buildDefaultGamification(false), level: levelFromXp(285) },
-        needsAttention: false
+        gamification: { ...buildDefaultGamification(false), streak: 3 }
+      },
+      {
+        id: DEMO_SLUGS.jordan,
+        name: "Jordan Lee",
+        grade: "11th",
+        major: "Computer Science",
+        profileCompletion: 78,
+        upcomingDeadlines: 4,
+        lastMeeting: "May 28, 2026",
+        nextMeeting: "Jun 28, 2026",
+        applicationPhase: "researching",
+        priorities: ["Finalize college list", "Personal statement draft"],
+        gamification: { ...buildDefaultGamification(true), streak: 5 }
+      },
+      {
+        id: "student-demo-maya",
+        name: "Maya Chen",
+        grade: "12th",
+        major: "English Literature",
+        profileCompletion: 71,
+        upcomingDeadlines: 2,
+        lastMeeting: "Jun 2, 2026",
+        nextMeeting: "Jul 8, 2026",
+        applicationPhase: "applying",
+        priorities: ["Supplement essays", "Interview prep"],
+        gamification: { ...buildDefaultGamification(false), streak: 9 }
+      },
+      {
+        id: "student-demo-sofia",
+        name: "Sofia Ramirez",
+        grade: "11th",
+        major: "Business",
+        profileCompletion: 58,
+        upcomingDeadlines: 6,
+        lastMeeting: "Jun 4, 2026",
+        nextMeeting: "Aug 12, 2026",
+        applicationPhase: "researching",
+        priorities: ["Build college list", "Summer program applications"],
+        gamification: { ...buildDefaultGamification(false), streak: 1 }
+      },
+      {
+        id: "student-demo-ethan",
+        name: "Ethan Brooks",
+        grade: "12th",
+        major: "Biology",
+        profileCompletion: 82,
+        upcomingDeadlines: 3,
+        lastMeeting: "Jun 6, 2026",
+        nextMeeting: "Jul 15, 2026",
+        applicationPhase: "submitted",
+        priorities: ["Financial aid forms", "Scholarship follow-ups"],
+        gamification: { ...buildDefaultGamification(false), streak: 12 }
+      },
+      {
+        id: "student-demo-priya",
+        name: "Priya Shah",
+        grade: "11th",
+        major: "Engineering",
+        profileCompletion: 69,
+        upcomingDeadlines: 4,
+        lastMeeting: "Jun 8, 2026",
+        nextMeeting: "Jul 3, 2026",
+        applicationPhase: "researching",
+        priorities: ["STEM summer programs", "Activity descriptions"],
+        gamification: { ...buildDefaultGamification(false), streak: 6 }
+      },
+      {
+        id: "student-demo-noah",
+        name: "Noah Williams",
+        grade: "12th",
+        major: "Political Science",
+        profileCompletion: 75,
+        upcomingDeadlines: 2,
+        lastMeeting: "Jun 10, 2026",
+        nextMeeting: "Jun 30, 2026",
+        applicationPhase: "deciding",
+        priorities: ["Compare aid packages", "Campus visits"],
+        gamification: { ...buildDefaultGamification(false), streak: 4 }
+      },
+      {
+        id: "student-demo-lily",
+        name: "Lily Nguyen",
+        grade: "10th",
+        major: "Psychology",
+        profileCompletion: 52,
+        upcomingDeadlines: 1,
+        lastMeeting: "Jun 12, 2026",
+        nextMeeting: "Aug 1, 2026",
+        applicationPhase: "researching",
+        priorities: ["Explore majors", "Build extracurricular depth"],
+        gamification: { ...buildDefaultGamification(false), streak: 2 }
       }
     ],
     meetings,
@@ -516,9 +594,56 @@ function mentorBundle() {
       ...MENTOR_PRIVATE_EVENTS
     ],
     availability: [
-      { id: "av-1", day: "Tuesday", time: "4:00–6:00 PM ET", active: true },
-      { id: "av-2", day: "Thursday", time: "3:00–5:00 PM ET", active: true },
-      { id: "av-3", day: "Saturday", time: "Unavailable", active: false }
+      {
+        id: "av-mon",
+        day: "Monday",
+        startTime: "09:00",
+        endTime: "17:00",
+        timezone: "ET",
+        time: "9:00 AM – 5:00 PM ET",
+        recurring: true,
+        active: true
+      },
+      {
+        id: "av-tue",
+        day: "Tuesday",
+        startTime: "14:00",
+        endTime: "18:00",
+        timezone: "ET",
+        time: "2:00 PM – 6:00 PM ET",
+        recurring: true,
+        active: true
+      },
+      {
+        id: "av-wed",
+        day: "Wednesday",
+        startTime: "16:00",
+        endTime: "20:00",
+        timezone: "ET",
+        time: "4:00 PM – 8:00 PM ET",
+        recurring: true,
+        active: true
+      },
+      {
+        id: "av-thu",
+        day: "Thursday",
+        startTime: "13:00",
+        endTime: "17:00",
+        timezone: "ET",
+        time: "1:00 PM – 5:00 PM ET",
+        recurring: true,
+        active: true
+      },
+      {
+        id: "av-fri",
+        day: "Friday",
+        startTime: "09:00",
+        endTime: "13:00",
+        timezone: "ET",
+        time: "9:00 AM – 1:00 PM ET",
+        recurring: true,
+        active: true
+      }
     ],
     privateNotes: {
       [DEMO_SLUGS.jordan]: "Strong STEM narrative — encourage more specificity in activity descriptions. Watch essay tone in paragraph 2.",
@@ -527,11 +652,12 @@ function mentorBundle() {
     conversations,
     messages: conversationsToInbox(conversations),
     summaryCards: {
-      students: 2,
+      students: 24,
       meetingsThisWeek: 2,
       pendingRequests: 1,
       unreadMessages: 1,
-      upcomingDeadlines: 6
+      upcomingDeadlines: 6,
+      upcomingBookings: 5
     },
     pendingRequests: [
       {

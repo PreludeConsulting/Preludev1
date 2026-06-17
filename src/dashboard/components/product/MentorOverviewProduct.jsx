@@ -8,7 +8,6 @@ import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { buildMentorCalendarExtras } from "../../lib/mentorCalendarFeed.js";
 import AdmissionsCalendarVisual from "./AdmissionsCalendarVisual.jsx";
 import MentorDashboardCards from "./MentorDashboardCards.jsx";
-import MentorStudentPreviewModal from "./MentorStudentPreviewModal.jsx";
 
 function greetingForHour(hour) {
   if (hour < 12) return "Good Morning";
@@ -29,7 +28,6 @@ export default function MentorOverviewProduct() {
 
   const firstName = user?.name?.split(" ")[0] || "there";
   const [upcomingEventsMountEl, setUpcomingEventsMountEl] = useState(null);
-  const [previewStudent, setPreviewStudent] = useState(null);
 
   const calendarEvents = useMemo(
     () => [
@@ -56,7 +54,7 @@ export default function MentorOverviewProduct() {
             {new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
           </span>
           <Link to={`${MENTOR_DASHBOARD_BASE}/calendar`} className="dash-product-greeting__cta">
-            Weekly view <ChevronRight className="h-4 w-4" />
+            Meetings <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
       </header>
@@ -86,16 +84,9 @@ export default function MentorOverviewProduct() {
             students={students}
             availability={availability}
             pendingRequests={pendingRequests}
-            onViewStudent={setPreviewStudent}
           />
         </section>
       </div>
-
-      <MentorStudentPreviewModal
-        student={previewStudent}
-        open={Boolean(previewStudent)}
-        onClose={() => setPreviewStudent(null)}
-      />
     </div>
   );
 }

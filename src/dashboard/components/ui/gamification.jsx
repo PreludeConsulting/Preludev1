@@ -161,7 +161,7 @@ export function StudentProgressCard({ student, basePath, needsAttention }) {
         <span>Next: {student.nextMeeting}</span>
         <span>{student.upcomingDeadlines} deadlines</span>
       </div>
-      <Link to={`${basePath}/students/${student.id}`} className="dash-btn dash-btn--secondary dash-btn--sm">
+      <Link to={`${basePath}/students/${student.id}/overview`} className="dash-btn dash-btn--secondary dash-btn--sm">
         View Student
       </Link>
     </article>

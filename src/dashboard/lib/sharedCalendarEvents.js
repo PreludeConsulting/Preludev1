@@ -18,8 +18,11 @@ export function syncSharedEventToStudent(studentId, event) {
   const store = loadLocalDashboardStore(userId);
   const sharedEvent = {
     ...event,
-    shared: true,
+    shared: event.shared !== false,
+    sharedWithStudent: event.sharedWithStudent ?? event.shared !== false,
     mentorCreated: true,
+    createdByRole: event.createdByRole || "mentor",
+    itemType: event.itemType || event.calendarItemType || event.formVariant || "event",
     studentId,
     studentName: event.studentName
   };

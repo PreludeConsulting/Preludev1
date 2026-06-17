@@ -1,10 +1,9 @@
-import { Flame } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Flame } from "lucide-react";
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
-import { SecondaryButton } from "../ui/index.jsx";
 import MentorPendingRequestsPanel from "./MentorPendingRequestsPanel.jsx";
 
-function AssignedStudentRow({ student, onViewStudent }) {
+function AssignedStudentRow({ student }) {
   const streak = student.gamification?.streak ?? 0;
 
   return (
@@ -23,14 +22,19 @@ function AssignedStudentRow({ student, onViewStudent }) {
           <span>{student.upcomingDeadlines ?? 0} deadline{(student.upcomingDeadlines ?? 0) === 1 ? "" : "s"}</span>
         </div>
       </div>
-      <SecondaryButton type="button" className="dash-btn--sm" onClick={() => onViewStudent(student)}>
+      <Link
+        to={`${MENTOR_DASHBOARD_BASE}/students/${student.id}/overview`}
+        className="dash-btn dash-btn--secondary dash-btn--sm"
+      >
         View Student
-      </SecondaryButton>
+      </Link>
     </article>
   );
 }
 
-function AssignedStudentsCard({ students, onViewStudent }) {
+function AssignedStudentsCard({ students }) {
+  const previewStudents = students.slice(0, 4);
+
   return (
     <article className="dash-product-card dash-product-card--mentor-students">
       <header className="dash-product-card__head">
@@ -41,8 +45,8 @@ function AssignedStudentsCard({ students, onViewStudent }) {
         </Link>
       </header>
       <div className="dash-mentor-students">
-        {students.map((student) => (
-          <AssignedStudentRow key={student.id} student={student} onViewStudent={onViewStudent} />
+        {previewStudents.map((student) => (
+          <AssignedStudentRow key={student.id} student={student} />
         ))}
       </div>
     </article>
@@ -79,11 +83,11 @@ function AvailabilitySummaryCard({ availability }) {
   );
 }
 
-export default function MentorDashboardCards({ students, availability, pendingRequests, onViewStudent }) {
+export default function MentorDashboardCards({ students, availability, pendingRequests }) {
   return (
     <>
       <MentorPendingRequestsPanel requests={pendingRequests} />
-      <AssignedStudentsCard students={students} onViewStudent={onViewStudent} />
+      <AssignedStudentsCard students={students} />
       <AvailabilitySummaryCard availability={availability} />
     </>
   );

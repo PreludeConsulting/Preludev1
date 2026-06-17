@@ -22,9 +22,9 @@ import {
   MentorCalendar,
   MentorMessages,
   MentorOverview,
-  MentorStudentDetail,
   MentorStudents
 } from "./pages/mentor/MentorPages.jsx";
+import MentorStudentDashboard from "./components/product/MentorStudentDashboard.jsx";
 import { MentorSettingsPage, StudentSettingsPage } from "./pages/shared/SettingsPages.jsx";
 import {
   MentorBilling,
@@ -87,7 +87,7 @@ function MentorRoutes() {
           <Route path="overview" element={<MentorOverview />} />
           <Route path="calendar" element={<MentorCalendar />} />
           <Route path="students" element={<MentorStudents />} />
-          <Route path="students/:studentId" element={<MentorStudentDetail />} />
+          <Route path="students/:studentId/*" element={<MentorStudentDashboard />} />
           <Route path="messages" element={<MentorMessages />} />
           <Route path="notifications" element={<MentorNotifications />} />
           <Route path="availability" element={<MentorAvailability />} />

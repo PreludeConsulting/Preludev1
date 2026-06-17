@@ -15,11 +15,11 @@ export const STUDENT_ROUTE_META = {
 
 export const MENTOR_ROUTE_META = {
   overview: { title: "Overview", subtitle: "" },
-  calendar: { title: "Calendar", subtitle: "Shared student events, availability, and private blocks." },
+  calendar: { title: "Meetings", subtitle: "Manage student meetings, requests, and schedules." },
   students: { title: "Students", subtitle: "Manage assigned students and priorities." },
   messages: { title: "Messages", subtitle: "Inbox limited to assigned students." },
   notifications: { title: "Notifications", subtitle: "Student requests and schedule updates." },
-  availability: { title: "Availability", subtitle: "Recurring slots and meeting requests." },
+  availability: { title: "Availability", subtitle: "Set the times you're available for students to book meetings." },
   settings: { title: "Settings", subtitle: "Profile, account, and preferences." },
   billing: { title: "Plans and Billing", subtitle: "Mentor account billing." },
   help: { title: "Help and Support", subtitle: "Resources for Prelude mentors." },

@@ -168,7 +168,8 @@ export function CalendarAddEventModal({
   submitLabel,
   meetingRequestMode = false,
   onRequestMeeting,
-  inline = false
+  inline = false,
+  defaultStudentId = ""
 }) {
   const [form, setForm] = useState({ ...DEFAULT_FORM, category: initialCategory });
   const [errors, setErrors] = useState({});
@@ -180,19 +181,25 @@ export function CalendarAddEventModal({
   const isEventForm = formVariant === "event";
   const isTaskForm = formVariant === "task";
   const isSimplifiedForm = isEventForm || isTaskForm;
+  const lockedStudent = students.find((student) => student.id === defaultStudentId);
   useEffect(() => {
     if (!open && !inline) return;
     if (initialEvent) {
       setForm(buildFormFromEvent(initialEvent, initialCategory));
     } else {
-      setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: DEFAULT_REMINDER_MINUTES });
+      setForm({
+        ...DEFAULT_FORM,
+        category: initialCategory,
+        reminderMinutes: DEFAULT_REMINDER_MINUTES,
+        studentId: defaultStudentId || ""
+      });
     }
     setErrors({});
     setRequestSent(false);
     setSubmitting(false);
     setPermissionWarning("");
     setReminderSavedWarning("");
-  }, [open, inline, initialCategory, initialEvent]);
+  }, [open, inline, initialCategory, initialEvent, defaultStudentId]);
 
   function updatePermissionWarning(reminderMinutes) {
     const permission = getNotificationPermission();
@@ -258,7 +265,7 @@ export function CalendarAddEventModal({
       if (!form.endTime || form.endTime.length < 5) next.endTime = "Enter a complete end time.";
       if (form.startTime && form.endTime && form.endTime <= form.startTime) next.endTime = "End must be after start.";
     }
-    if (role === "mentor" && (isEventForm || (!isSimplifiedForm && form.category === "mentor_meeting")) && !form.studentId) {
+    if (role === "mentor" && !defaultStudentId && (isEventForm || (!isSimplifiedForm && form.category === "mentor_meeting")) && !form.studentId) {
       next.studentId = "Select a student.";
     }
     setErrors(next);
@@ -305,7 +312,8 @@ export function CalendarAddEventModal({
       return;
     }
 
-    const selectedStudent = students.find((s) => s.id === form.studentId);
+    const resolvedStudentId = form.studentId || defaultStudentId || undefined;
+    const selectedStudent = students.find((s) => s.id === resolvedStudentId);
 
     onSave?.({
       id: initialEvent?.id || `evt-${Date.now()}`,
@@ -314,7 +322,7 @@ export function CalendarAddEventModal({
       start: start.toISOString(),
       end: end.toISOString(),
       description: form.description,
-      studentId: form.studentId || undefined,
+      studentId: resolvedStudentId,
       studentName: selectedStudent?.name,
       shared: role === "mentor" && isEventForm ? true : form.shared,
       mentorOnly: role === "mentor" && isEventForm ? false : (!form.shared && role === "mentor"),
@@ -402,29 +410,43 @@ export function CalendarAddEventModal({
             <textarea rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </label>
           {role === "mentor" && isEventForm ? (
-            <label className="prelude-field">
-              <span>Student</span>
-              <select value={form.studentId} onChange={(e) => setForm((f) => ({ ...f, studentId: e.target.value }))}>
-                <option value="">Select a student</option>
-                {students.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-              {errors.studentId ? <em className="dash-field-error">{errors.studentId}</em> : null}
-            </label>
-          ) : null}
-          {role === "mentor" && !isSimplifiedForm ? (
-            <>
+            defaultStudentId && lockedStudent ? (
               <label className="prelude-field">
-                <span>Student (for meetings)</span>
+                <span>Student</span>
+                <input type="text" value={lockedStudent.name} readOnly className="dash-input dash-input--readonly" />
+              </label>
+            ) : (
+              <label className="prelude-field">
+                <span>Student</span>
                 <select value={form.studentId} onChange={(e) => setForm((f) => ({ ...f, studentId: e.target.value }))}>
-                  <option value="">—</option>
+                  <option value="">Select a student</option>
                   {students.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
                 {errors.studentId ? <em className="dash-field-error">{errors.studentId}</em> : null}
               </label>
+            )
+          ) : null}
+          {role === "mentor" && !isSimplifiedForm ? (
+            <>
+              {defaultStudentId && lockedStudent ? (
+                <label className="prelude-field">
+                  <span>Student (for meetings)</span>
+                  <input type="text" value={lockedStudent.name} readOnly className="dash-input dash-input--readonly" />
+                </label>
+              ) : (
+                <label className="prelude-field">
+                  <span>Student (for meetings)</span>
+                  <select value={form.studentId} onChange={(e) => setForm((f) => ({ ...f, studentId: e.target.value }))}>
+                    <option value="">—</option>
+                    {students.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  {errors.studentId ? <em className="dash-field-error">{errors.studentId}</em> : null}
+                </label>
+              )}
               <label className="dash-check-label">
                 <input type="checkbox" checked={form.shared} onChange={(e) => setForm((f) => ({ ...f, shared: e.target.checked }))} />
                 Shared with student (uncheck for private mentor-only)

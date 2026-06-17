@@ -204,7 +204,7 @@ const EMPTY_ONBOARDING = {
   questionnaireAnswers: {}
 };
 
-export function DashboardDataProvider({ children, user }) {
+export function DashboardDataProvider({ children, user, overrides = null, mentorViewStudent = null }) {
   const useSupabase = isSupabaseConfigured() && user?.authProvider === "supabase";
   const [integrations, setIntegrations] = useState({
     googleCalendar: { connected: false },
@@ -580,13 +580,24 @@ export function DashboardDataProvider({ children, user }) {
     [mentor, useSupabase, user]
   );
 
+  const reloadLocalCalendar = useCallback(() => {
+    if (!user) return;
+    const store = loadLocalDashboardStore(user.id);
+    setUserCalendarEvents(store.calendarEvents || []);
+  }, [user]);
+
   const persistCalendarItem = useCallback(
     async (item, existingId = null) => {
       if (!user) return item;
 
       const maybeSyncToStudent = (stored) => {
         if (stored.studentId && stored.shared !== false && roleFromUser(user) === "mentor") {
-          syncSharedEventToStudent(stored.studentId, stored);
+          syncSharedEventToStudent(stored.studentId, {
+            ...stored,
+            createdByRole: stored.createdByRole || "mentor",
+            sharedWithStudent: stored.sharedWithStudent ?? stored.shared !== false,
+            itemType: stored.itemType || stored.calendarItemType || stored.formVariant || "event"
+          });
         }
         return stored;
       };
@@ -808,6 +819,25 @@ export function DashboardDataProvider({ children, user }) {
     [useSupabase, user]
   );
 
+  const effectivePersistCalendarItem = useCallback(
+    async (item, existingId = null) => {
+      const handler = overrides?.persistCalendarItem ?? persistCalendarItem;
+      const result = await handler(item, existingId);
+      reloadLocalCalendar();
+      return result;
+    },
+    [overrides, persistCalendarItem, reloadLocalCalendar]
+  );
+
+  const effectiveDeleteCalendarItem = useCallback(
+    async (eventId) => {
+      const handler = overrides?.deleteCalendarItem ?? deleteCalendarItem;
+      await handler(eventId);
+      reloadLocalCalendar();
+    },
+    [overrides, deleteCalendarItem, reloadLocalCalendar]
+  );
+
   const markAllNotificationsRead = markNotificationsRead;
 
   const saveUserResource = useCallback(
@@ -823,6 +853,7 @@ export function DashboardDataProvider({ children, user }) {
 
   const value = useMemo(() => {
     const isStudent = roleFromUser(user) === "student";
+    const isMentorStudentViewMode = Boolean(mentorViewStudent);
     const resolvedEvents = demo?.events?.length
       ? demo.events
       : (events.length ? events : (isStudent ? buildDefaultStudentEvents() : PLACEHOLDER_EVENTS));
@@ -885,11 +916,14 @@ export function DashboardDataProvider({ children, user }) {
       cancelEventReminder,
       events: resolvedEvents,
       userCalendarEvents,
-      persistCalendarItem,
-      deleteCalendarItem,
+      persistCalendarItem: effectivePersistCalendarItem,
+      deleteCalendarItem: effectiveDeleteCalendarItem,
+      reloadLocalCalendar,
+      mentorViewStudent,
+      isMentorStudentView: Boolean(mentorViewStudent),
       tasks: resolvedTasks,
-      addTask,
-      toggleTask,
+      addTask: isMentorStudentViewMode ? async () => null : addTask,
+      toggleTask: isMentorStudentViewMode ? async () => null : toggleTask,
       mentor: resolvedMentor,
       mentors,
       students: demo?.students ?? PLACEHOLDER_STUDENTS,
@@ -898,9 +932,9 @@ export function DashboardDataProvider({ children, user }) {
       gamification: demo?.gamification ?? null,
       studentActivityFeed: demo?.studentActivityFeed ?? [],
       essays: resolvedEssays,
-      saveEssayDraft,
+      saveEssayDraft: isMentorStudentViewMode ? () => {} : saveEssayDraft,
       savedColleges: resolvedSavedColleges,
-      updateSavedColleges,
+      updateSavedColleges: isMentorStudentViewMode ? async () => null : updateSavedColleges,
       extracurriculars: demo?.extracurriculars ?? [],
       aiSuggestions: demo?.aiSuggestions ?? [],
       profile: resolvedProfile,
@@ -951,28 +985,36 @@ export function DashboardDataProvider({ children, user }) {
       availability: demo?.availability ?? [],
       privateNotes: demo?.privateNotes ?? {},
       refresh,
-      scheduleMeeting,
-      acceptMeetingRequest,
-      declineMeetingRequest,
-      saveProfile,
-      savePreferences,
-      saveOnboarding,
-      postMessage,
+      scheduleMeeting: isMentorStudentViewMode ? async () => null : scheduleMeeting,
+      acceptMeetingRequest: isMentorStudentViewMode ? () => null : acceptMeetingRequest,
+      declineMeetingRequest: isMentorStudentViewMode ? () => {} : declineMeetingRequest,
+      saveProfile: isMentorStudentViewMode ? async () => null : saveProfile,
+      savePreferences: isMentorStudentViewMode ? async () => null : savePreferences,
+      saveOnboarding: isMentorStudentViewMode ? async () => null : saveOnboarding,
+      postMessage: isMentorStudentViewMode ? async () => null : postMessage,
       markAllNotificationsRead,
-      saveUserResource,
-      connectGoogle: async () => {
+      saveUserResource: isMentorStudentViewMode ? async () => null : saveUserResource,
+      connectGoogle: isMentorStudentViewMode
+        ? async () => null
+        : async () => {
         const r = await connectGoogleCalendar();
         setIntegrations(r.integrations);
       },
-      disconnectGoogle: async () => {
+      disconnectGoogle: isMentorStudentViewMode
+        ? async () => null
+        : async () => {
         const r = await disconnectGoogleCalendar();
         setIntegrations(r.integrations);
       },
-      connectZoomAccount: async () => {
+      connectZoomAccount: isMentorStudentViewMode
+        ? async () => null
+        : async () => {
         const r = await connectZoom();
         setIntegrations(r.integrations);
       },
-      disconnectZoomAccount: async () => {
+      disconnectZoomAccount: isMentorStudentViewMode
+        ? async () => null
+        : async () => {
         const r = await disconnectZoom();
         setIntegrations(r.integrations);
       },
@@ -1019,8 +1061,10 @@ export function DashboardDataProvider({ children, user }) {
       markNotificationsRead,
       scheduleEventReminder,
       cancelEventReminder,
-      persistCalendarItem,
-      deleteCalendarItem,
+      effectivePersistCalendarItem,
+      effectiveDeleteCalendarItem,
+      reloadLocalCalendar,
+      mentorViewStudent,
       addTask,
       toggleTask,
       saveEssayDraft,

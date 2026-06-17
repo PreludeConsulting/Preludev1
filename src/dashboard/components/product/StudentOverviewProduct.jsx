@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Calendar, ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
-import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { MENTOR_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { getPhaseHeaderLabel } from "../../config/studentDashboardByGrade.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import AdmissionsCalendarVisual from "./AdmissionsCalendarVisual.jsx";
@@ -17,6 +17,7 @@ function greetingForHour(hour) {
 
 export default function StudentOverviewProduct() {
   const { user } = useAuth();
+  const { studentId } = useParams();
   const {
     profile,
     meetings,
@@ -25,15 +26,22 @@ export default function StudentOverviewProduct() {
     deadlines,
     academicProgress,
     opportunities,
-    studentProfileStats
+    studentProfileStats,
+    isMentorStudentView,
+    mentorViewStudent
   } = useDashboardData();
 
-  const firstName = user?.name?.split(" ")[0] || "there";
+  const firstName = isMentorStudentView
+    ? mentorViewStudent?.name?.split(" ")[0] || "there"
+    : user?.name?.split(" ")[0] || "there";
   const phaseLabel = getPhaseHeaderLabel(profile);
   const [upcomingEventsMountEl, setUpcomingEventsMountEl] = useState(null);
+  const calendarPath = isMentorStudentView
+    ? `${MENTOR_DASHBOARD_BASE}/students/${studentId}/calendar`
+    : `${STUDENT_DASHBOARD_BASE}/calendar`;
 
   return (
-    <div className="dash-product-overview">
+    <div className={cn("dash-product-overview", isMentorStudentView && "dash-product-overview--mentor-view")}>
       <header className="dash-product-greeting">
         <div>
           <h1 className="dash-product-greeting__title">
@@ -46,13 +54,13 @@ export default function StudentOverviewProduct() {
             <Calendar className="h-4 w-4" />
             {new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
           </span>
-          <Link to={`${STUDENT_DASHBOARD_BASE}/calendar`} className="dash-product-greeting__cta">
+          <Link to={calendarPath} className="dash-product-greeting__cta">
             Weekly view <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
       </header>
 
-      <div className={cn("dash-product-split", "dash-product-split--prep")}>
+      <div className={cn("dash-product-split", "dash-product-split--prep", isMentorStudentView && "dash-product-split--mentor-view")}>
         <div className="dash-product-split__calendar-stack">
           <section className="dash-product-split__visual" aria-label="Calendar">
             <AdmissionsCalendarVisual
@@ -69,7 +77,10 @@ export default function StudentOverviewProduct() {
           <div ref={setUpcomingEventsMountEl} className="dash-product-split__upcoming" />
         </div>
 
-        <section className="dash-product-split__cards" aria-label="Dashboard summary">
+        <section
+          className={cn("dash-product-split__cards", isMentorStudentView && "dash-mentor-view-readonly")}
+          aria-label="Dashboard summary"
+        >
           <PrepDashboardCards
             academicProgress={academicProgress}
             opportunities={opportunities}

@@ -135,12 +135,12 @@ export function StudentOverview() {
 }
 
 export function StudentCalendar() {
-  const { meetings, events, mentor, deadlines } = useDashboardData();
+  const { meetings, events, mentor, deadlines, isMentorStudentView } = useDashboardData();
   const [upcomingEventsMountEl, setUpcomingEventsMountEl] = useState(null);
 
   return (
-    <div className="dash-page dash-page--meetings">
-      <div className="dash-meetings-layout">
+    <div className={cn("dash-page", "dash-page--meetings", isMentorStudentView && "dash-page--mentor-view")}>
+      <div className={cn("dash-meetings-layout", isMentorStudentView && "dash-meetings-layout--mentor-view")}>
         <div className="dash-meetings-layout__calendar">
           <AdmissionsCalendarVisual
             deadlines={deadlines}
@@ -152,7 +152,7 @@ export function StudentCalendar() {
             upcomingEventsMountEl={upcomingEventsMountEl}
           />
         </div>
-        <aside className="dash-meetings-layout__side">
+        <aside className={cn("dash-meetings-layout__side", isMentorStudentView && "dash-mentor-view-readonly")}>
           <MentorLiveUpdatesSection />
           <div ref={setUpcomingEventsMountEl} className="dash-meetings-layout__upcoming" />
         </aside>

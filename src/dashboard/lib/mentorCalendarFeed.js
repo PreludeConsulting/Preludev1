@@ -33,8 +33,38 @@ export function parseRequestedTime(value) {
   return new Date(year, month, day, hour, minute, 0, 0);
 }
 
-function parseAvailabilityHours(timeRange = "") {
-  const match = String(timeRange).match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+function parseAvailabilityHours(slotOrTime = "") {
+  const slot = typeof slotOrTime === "object" && slotOrTime ? slotOrTime : null;
+  const timeRange = slot?.time ?? String(slotOrTime || "");
+
+  if (slot?.startTime && slot?.endTime) {
+    const [sh, sm] = slot.startTime.split(":").map(Number);
+    const [eh, em] = slot.endTime.split(":").map(Number);
+    return { startHour: sh, startMinute: sm, endHour: eh, endMinute: em };
+  }
+
+  const pairedMatch = timeRange.match(
+    /(\d{1,2}):(\d{2})\s*(AM|PM)\s*[–-]\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i
+  );
+  if (pairedMatch) {
+    const to24 = (hour, minute, period) => {
+      let h = Number.parseInt(hour, 10);
+      const m = Number.parseInt(minute, 10);
+      if (period.toUpperCase() === "PM" && h < 12) h += 12;
+      if (period.toUpperCase() === "AM" && h === 12) h = 0;
+      return { hour: h, minute: m };
+    };
+    const start = to24(pairedMatch[1], pairedMatch[2], pairedMatch[3]);
+    const end = to24(pairedMatch[4], pairedMatch[5], pairedMatch[6]);
+    return {
+      startHour: start.hour,
+      startMinute: start.minute,
+      endHour: end.hour,
+      endMinute: end.minute
+    };
+  }
+
+  const match = timeRange.match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   if (!match) return { startHour: 16, startMinute: 0, endHour: 18, endMinute: 0 };
 
   let startHour = Number.parseInt(match[1], 10);
@@ -102,7 +132,7 @@ export function buildMentorCalendarExtras({
   availability
     .filter((slot) => slot.active)
     .forEach((slot) => {
-      const { startHour, startMinute, endHour, endMinute } = parseAvailabilityHours(slot.time);
+      const { startHour, startMinute, endHour, endMinute } = parseAvailabilityHours(slot);
       nextWeekdayOccurrences(slot.day, 6).forEach((date, index) => {
         const start = new Date(date);
         start.setHours(startHour, startMinute, 0, 0);
