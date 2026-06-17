@@ -54,6 +54,11 @@ import {
   patchLocalDashboardStore,
   saveLocalDashboardStore
 } from "../lib/localDashboardStore.js";
+import {
+  removeSharedEventFromStudent,
+  syncSharedEventToStudent
+} from "../lib/sharedCalendarEvents.js";
+import { parseRequestedTime } from "../lib/mentorCalendarFeed.js";
 
 const DashboardDataContext = createContext(null);
 
@@ -207,6 +212,7 @@ export function DashboardDataProvider({ children, user }) {
   });
   const [meetings, setMeetings] = useState([]);
   const [pendingMeetingRequests, setPendingMeetingRequests] = useState([]);
+  const [resolvedPendingRequestIds, setResolvedPendingRequestIds] = useState([]);
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -321,6 +327,7 @@ export function DashboardDataProvider({ children, user }) {
     } else {
       setMeetings([]);
       setPendingMeetingRequests([]);
+      setResolvedPendingRequestIds([]);
       setEvents([]);
       setNotifications([]);
       setMessages([]);
@@ -577,6 +584,13 @@ export function DashboardDataProvider({ children, user }) {
     async (item, existingId = null) => {
       if (!user) return item;
 
+      const maybeSyncToStudent = (stored) => {
+        if (stored.studentId && stored.shared !== false && roleFromUser(user) === "mentor") {
+          syncSharedEventToStudent(stored.studentId, stored);
+        }
+        return stored;
+      };
+
       if (useSupabase) {
         const payload = calendarItemToSupabase(item);
         if (existingId) {
@@ -584,13 +598,13 @@ export function DashboardDataProvider({ children, user }) {
           if (err) throw new Error(err);
           const stored = { ...item, ...event, id: event.id, userCreated: true };
           setUserCalendarEvents((prev) => prev.map((e) => (e.id === existingId ? stored : e)));
-          return stored;
+          return maybeSyncToStudent(stored);
         }
         const { event, error: err } = await createCalendarEvent(user.id, payload);
         if (err) throw new Error(err);
         const stored = { ...item, ...event, id: event.id, userCreated: true };
         setUserCalendarEvents((prev) => [...prev, stored]);
-        return stored;
+        return maybeSyncToStudent(stored);
       }
 
       const id = existingId || item.id || `evt-${Date.now()}`;
@@ -601,7 +615,8 @@ export function DashboardDataProvider({ children, user }) {
         saveLocalDashboardStore(user.id, { ...store, calendarEvents: next });
         return next;
       });
-      return stored;
+
+      return maybeSyncToStudent(stored);
     },
     [useSupabase, user]
   );
@@ -609,6 +624,8 @@ export function DashboardDataProvider({ children, user }) {
   const deleteCalendarItem = useCallback(
     async (eventId) => {
       if (!user || !eventId) return;
+
+      const existing = userCalendarEvents.find((item) => item.id === eventId);
 
       if (useSupabase) {
         const { error: err } = await deleteCalendarEvent(user.id, eventId);
@@ -619,9 +636,71 @@ export function DashboardDataProvider({ children, user }) {
         saveLocalDashboardStore(user.id, { ...store, calendarEvents: next });
       }
 
+      if (existing?.studentId && roleFromUser(user) === "mentor") {
+        removeSharedEventFromStudent(existing.studentId, eventId);
+      }
+
       setUserCalendarEvents((prev) => prev.filter((e) => e.id !== eventId));
     },
-    [useSupabase, user]
+    [useSupabase, user, userCalendarEvents]
+  );
+
+  const declineMeetingRequest = useCallback((requestId) => {
+    if (!requestId) return;
+    setPendingMeetingRequests((prev) => prev.filter((item) => item.id !== requestId));
+    setResolvedPendingRequestIds((prev) => (prev.includes(requestId) ? prev : [...prev, requestId]));
+  }, []);
+
+  const acceptMeetingRequest = useCallback(
+    async (request) => {
+      if (!request?.id) return null;
+
+      const parsedStart = request.startTime
+        ? new Date(request.startTime)
+        : parseRequestedTime(request.requestedTime || request.start);
+      const startTime = parsedStart && !Number.isNaN(parsedStart.getTime())
+        ? parsedStart.toISOString()
+        : new Date().toISOString();
+      const endTime = request.endTime
+        || new Date(new Date(startTime).getTime() + 45 * 60 * 1000).toISOString();
+
+      const meeting = {
+        id: `mt-${request.id}`,
+        title: request.type || request.title || "Zoom check-in",
+        studentId: request.studentId,
+        studentName: request.studentName,
+        startTime,
+        endTime,
+        meetingType: "zoom",
+        zoomJoinUrl: request.zoomJoinUrl || "https://zoom.us/j/placeholder-approved",
+        status: "scheduled",
+        notes: request.notes
+      };
+
+      setPendingMeetingRequests((prev) => prev.filter((item) => item.id !== request.id));
+      setResolvedPendingRequestIds((prev) => (prev.includes(request.id) ? prev : [...prev, request.id]));
+      setMeetings((prev) => [...prev.filter((item) => item.id !== meeting.id), meeting]);
+
+      await persistCalendarItem({
+        id: `evt-${request.id}`,
+        title: meeting.title,
+        category: "mentor_meeting",
+        start: startTime,
+        end: endTime,
+        studentId: meeting.studentId,
+        studentName: meeting.studentName,
+        shared: true,
+        formVariant: "event",
+        calendarItemType: "event",
+        meetingType: "zoom",
+        zoomJoinUrl: meeting.zoomJoinUrl,
+        status: "scheduled",
+        pillColor: "blue"
+      });
+
+      return meeting;
+    },
+    [persistCalendarItem]
   );
 
   const addTask = useCallback(
@@ -860,14 +939,21 @@ export function DashboardDataProvider({ children, user }) {
           hour: "numeric",
           minute: "2-digit"
         }),
+        startTime: m.startTime || m.start,
+        endTime: m.endTime || m.end,
         type: m.title || "Meeting request"
         })),
-        ...(demo?.pendingRequests ?? [])
-      ],
+        ...(demo?.pendingRequests ?? []).map((request) => ({
+          ...request,
+          startTime: request.startTime || parseRequestedTime(request.requestedTime)?.toISOString()
+        }))
+      ].filter((request) => !resolvedPendingRequestIds.includes(request.id)),
       availability: demo?.availability ?? [],
       privateNotes: demo?.privateNotes ?? {},
       refresh,
       scheduleMeeting,
+      acceptMeetingRequest,
+      declineMeetingRequest,
       saveProfile,
       savePreferences,
       saveOnboarding,
@@ -908,6 +994,7 @@ export function DashboardDataProvider({ children, user }) {
       integrations,
       meetings,
       pendingMeetingRequests,
+      resolvedPendingRequestIds,
       notifications,
       events,
       userCalendarEvents,
@@ -940,6 +1027,8 @@ export function DashboardDataProvider({ children, user }) {
       updateSavedColleges,
       refresh,
       scheduleMeeting,
+      acceptMeetingRequest,
+      declineMeetingRequest,
       saveProfile,
       savePreferences,
       saveOnboarding,

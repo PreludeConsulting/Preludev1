@@ -1,15 +1,9 @@
 import { Link, useParams } from "react-router-dom";
 import { useState } from "react";
 import {
-  AlertCircle,
-  Calendar,
-  Clock,
   Flame,
-  MessageCircle,
-  Users,
   Video
 } from "lucide-react";
-import { useAuth } from "../../../context/AuthContext.jsx";
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import CalendarPanel from "../../components/CalendarPanel.jsx";
 import MessagesPanel from "../../components/MessagesPanel.jsx";
@@ -25,15 +19,13 @@ import {
   SecondaryButton,
   SectionCard
 } from "../../components/ui/index.jsx";
+import MentorOverviewProduct from "../../components/product/MentorOverviewProduct.jsx";
 import {
   AchievementPanel,
-  ActivityFeed,
-  CompactStatCard,
   LevelBadge,
   MeetingCardPremium,
   MentorMissionAssign,
   MissionCard,
-  OverviewHero,
   ProgressRing,
   StudentProgressCard,
   XPProgressBar
@@ -41,114 +33,7 @@ import {
 import { levelFromXp } from "../../data/gamification.js";
 
 export function MentorOverview() {
-  const { user } = useAuth();
-  const { meetings, students, messages, summaryCards, availability, pendingRequests, studentActivityFeed } = useDashboardData();
-  const cards = summaryCards || {};
-  const firstName = user?.name?.split(" ")[0] || "there";
-  const attentionCount = students.filter((s) => s.needsAttention).length;
-
-  return (
-    <div className="dash-page dash-page--premium">
-      <OverviewHero
-        title="Your Prelude Dashboard"
-        welcome={`Welcome back, ${firstName} · ${students.length} students assigned.`}
-        actions={
-          <>
-            <Link to={`${MENTOR_DASHBOARD_BASE}/calendar`} className="dash-btn dash-btn--primary">
-              <Calendar className="h-4 w-4" /> Schedule Meeting
-            </Link>
-            <Link to={`${MENTOR_DASHBOARD_BASE}/students`} className="dash-btn dash-btn--secondary">
-              <Users className="h-4 w-4" /> View Students
-            </Link>
-          </>
-        }
-      />
-
-      <div className="dash-metric-row dash-metric-row--5">
-        <CompactStatCard icon={Users} label="Assigned Students" value={String(cards.students ?? students.length)} />
-        <CompactStatCard icon={Calendar} label="Meetings This Week" value={String(cards.meetingsThisWeek ?? meetings.length)} />
-        <CompactStatCard icon={Clock} label="Pending Requests" value={String(cards.pendingRequests ?? pendingRequests.length)} trend="Review" />
-        <CompactStatCard icon={AlertCircle} label="Needs Attention" value={String(attentionCount)} trend="Priority" />
-        <CompactStatCard icon={MessageCircle} label="Unread Messages" value={String(cards.unreadMessages ?? messages.filter((m) => m.unread).length)} />
-      </div>
-
-      <div className="dash-overview-grid dash-overview-grid--premium">
-        <div className="dash-overview-grid__col">
-          <SectionCard title="Student Progress Overview" className="dash-panel">
-            <div className="dash-progress-card-grid">
-              {students.map((s) => (
-                <StudentProgressCard key={s.id} student={s} basePath={MENTOR_DASHBOARD_BASE} needsAttention={s.needsAttention} />
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Upcoming Meetings" className="dash-panel">
-            {meetings.map((m) => {
-              const student = students.find((s) => s.id === m.studentId);
-              return (
-                <MeetingCardPremium
-                  key={m.id}
-                  meeting={m}
-                  studentName={student?.name || "Student"}
-                  role="mentor"
-                  messagePath={`${MENTOR_DASHBOARD_BASE}/messages`}
-                />
-              );
-            })}
-          </SectionCard>
-        </div>
-
-        <div className="dash-overview-grid__col">
-          <SectionCard title="Pending Requests" className="dash-panel">
-            {pendingRequests.length ? (
-              pendingRequests.map((r) => (
-                <div key={r.id} className="dash-request-row">
-                  <div>
-                    <p className="dash-request-row__name">{r.studentName}</p>
-                    <p className="dash-muted">{r.requestedTime} · {r.type}</p>
-                  </div>
-                  <div className="dash-request-row__actions">
-                    <PrimaryButton type="button" className="dash-btn--sm">Accept</PrimaryButton>
-                    <SecondaryButton type="button" className="dash-btn--sm">Decline</SecondaryButton>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="dash-muted">No pending requests.</p>
-            )}
-          </SectionCard>
-
-          <SectionCard
-            title="Availability Summary"
-            className="dash-panel"
-            action={<Link to={`${MENTOR_DASHBOARD_BASE}/availability`} className="dash-btn dash-btn--secondary dash-btn--sm">Edit Availability</Link>}
-          >
-            <ul className="dash-slot-list">
-              {availability.map((s) => (
-                <li key={s.id}>
-                  <span>{s.day}</span>
-                  <span className={s.active ? "" : "dash-muted"}>{s.time}</span>
-                  {s.active ? <DashBadge variant="soft">Open</DashBadge> : <DashBadge>Closed</DashBadge>}
-                </li>
-              ))}
-            </ul>
-          </SectionCard>
-
-          <SectionCard title="Student Activity Feed" className="dash-panel">
-            <ActivityFeed
-              items={(studentActivityFeed || []).map((a) => ({
-                id: a.id,
-                type: "task",
-                text: a.text,
-                sub: `${a.studentName} · ${a.sub}`,
-                time: a.time
-              }))}
-            />
-          </SectionCard>
-        </div>
-      </div>
-    </div>
-  );
+  return <MentorOverviewProduct />;
 }
 
 export function MentorCalendar() {

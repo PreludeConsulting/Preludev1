@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
 import { compactEventTitle } from "../CalendarEventPill.jsx";
+import { formatCalendarPillTitle } from "../../lib/calendarDisplay.js";
+import { isMentorUpcomingMeeting } from "../../lib/mentorCalendarFilters.js";
 import { CalendarAddEventModal, CalendarEventDetailModal } from "../CalendarEventModals.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { EVENT_CATEGORY_LABELS } from "../../data/placeholders.js";
@@ -165,15 +167,17 @@ function normalizeDeadline(deadline) {
   });
 }
 
-function normalizeMeeting(meeting) {
-  if (meeting.status === "pending") return null;
+function normalizeMeeting(meeting, { mentorView = false } = {}) {
+  if (!mentorView && meeting.status === "pending") return null;
 
   const date = parseDate(meeting.startTime);
   if (!date) return null;
 
+  const isPending = meeting.status === "pending";
+
   return withItemKind({
     id: `mt-${meeting.id}`,
-    title: meeting.title,
+    title: isPending ? `Pending: ${meeting.title}` : meeting.title,
     date,
     endDate: parseDate(meeting.endTime),
     type: "mentor",
@@ -181,35 +185,52 @@ function normalizeMeeting(meeting) {
     description: meeting.notes,
     zoomJoinUrl: meeting.zoomJoinUrl,
     meeting,
-    colorTone: resolveSamplePillTone(meeting.title),
+    studentId: meeting.studentId,
+    studentName: meeting.studentName,
+    colorTone: isPending ? "orange" : resolveSamplePillTone(meeting.title),
+    category: isPending ? "pending_request" : "mentor_meeting",
     source: "meeting",
     raw: meeting
   });
 }
 
-function normalizeCalendarEvent(event) {
-  if (event.mentorOnly || event.category === "mentor_private" || event.category === "mentor_availability") return null;
+function normalizeCalendarEvent(event, { mentorView = false } = {}) {
+  const isMentorScoped =
+    event.mentorOnly
+    || event.category === "mentor_private"
+    || event.category === "mentor_availability"
+    || event.category === "pending_request";
+
+  if (isMentorScoped && !mentorView) return null;
 
   const date = parseDate(event.start || event.startTime);
   if (!date) return null;
 
   const endDate = parseDate(event.end || event.endTime);
   const isUserCreated = Boolean(event.userCreated) || Boolean(event.pillColor) || event.eventType === "personal" || event.eventType === "session" || String(event.id).startsWith("evt-");
+  const category = event.category || TYPE_TO_CATEGORY[event.type] || "application_deadline";
 
   return withItemKind({
     id: `ev-${event.id}`,
     title: event.title,
     date,
     endDate,
-    type: mapCategoryToType(event.category),
+    type: mapCategoryToType(category),
     allDay: !endDate || date.toDateString() === endDate.toDateString(),
     description: event.description || event.notes,
     zoomJoinUrl: event.zoomJoinUrl,
     meeting: event.meeting,
-    colorTone: event.pillColor || resolveSamplePillTone(event.title),
+    studentId: event.studentId,
+    studentName: event.studentName,
+    colorTone:
+      event.pillColor
+      || (category === "pending_request" ? "orange" : null)
+      || (category === "mentor_availability" ? "green" : null)
+      || (category === "mentor_private" ? "purple" : null)
+      || resolveSamplePillTone(event.title),
     formVariant: event.formVariant,
     calendarItemType: event.calendarItemType,
-    category: event.category,
+    category,
     source: isUserCreated ? "local" : "event",
     raw: event
   });
@@ -235,11 +256,11 @@ function dayCellTone(dayEvents) {
   return null;
 }
 
-function mergeEvents({ deadlines = [], meetings = [], events = [] }) {
+function mergeEvents({ deadlines = [], meetings = [], events = [], mentorView = false }) {
   const merged = [
-    ...deadlines.map(normalizeDeadline).filter(Boolean),
-    ...meetings.map(normalizeMeeting).filter(Boolean),
-    ...events.map(normalizeCalendarEvent).filter(Boolean)
+    ...(mentorView ? [] : deadlines.map(normalizeDeadline).filter(Boolean)),
+    ...meetings.map((meeting) => normalizeMeeting(meeting, { mentorView })).filter(Boolean),
+    ...events.map((event) => normalizeCalendarEvent(event, { mentorView })).filter(Boolean)
   ];
 
   const byKey = new Map();
@@ -285,9 +306,12 @@ function formatEventTime(event) {
   return event.date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-function toDetailModalEvent(event, mentorName) {
+function toDetailModalEvent(event, mentorName, students = []) {
   const end = event.endDate || event.date;
   const category = resolveCategory(event);
+  const studentName = event.studentName
+    || event.raw?.studentName
+    || students.find((student) => student.id === event.studentId)?.name;
 
   return {
     id: event.id,
@@ -302,6 +326,8 @@ function toDetailModalEvent(event, mentorName) {
       meeting: event.meeting,
       meetingType: event.raw?.meetingType,
       mentorName,
+      studentId: event.studentId || event.raw?.studentId,
+      studentName,
       manageable: event.source === "local"
     }
   };
@@ -332,8 +358,9 @@ function useMaxVisibleEvents() {
   return max;
 }
 
-function UpcomingEventRow({ event, onSelect }) {
+function UpcomingEventRow({ event, onSelect, mentorView = false }) {
   const tone = resolvePillTone(event);
+  const label = formatCalendarPillTitle(event, { mentorView });
 
   return (
     <li>
@@ -343,7 +370,7 @@ function UpcomingEventRow({ event, onSelect }) {
           aria-hidden="true"
         />
         <span className="dash-upcoming-events__content">
-          <span className="dash-upcoming-events__event-title">{compactEventTitle(event.title)}</span>
+          <span className="dash-upcoming-events__event-title">{label}</span>
           <span className="dash-upcoming-events__event-meta">{formatEventTime(event)}</span>
         </span>
       </button>
@@ -351,14 +378,14 @@ function UpcomingEventRow({ event, onSelect }) {
   );
 }
 
-function UpcomingEventsColumn({ label, events, onEventSelect }) {
+function UpcomingEventsColumn({ label, events, onEventSelect, mentorView = false }) {
   return (
     <section className="dash-upcoming-events__column">
       <h4 className="dash-upcoming-events__column-label">{label}</h4>
       {events.length ? (
         <ul className="dash-upcoming-events__list">
           {events.map((event) => (
-            <UpcomingEventRow key={event.id} event={event} onSelect={onEventSelect} />
+            <UpcomingEventRow key={event.id} event={event} onSelect={onEventSelect} mentorView={mentorView} />
           ))}
         </ul>
       ) : (
@@ -368,19 +395,26 @@ function UpcomingEventsColumn({ label, events, onEventSelect }) {
   );
 }
 
-function UpcomingEventsPanel({ allEvents, onEventSelect }) {
+function UpcomingEventsPanel({
+  allEvents,
+  onEventSelect,
+  title = "Upcoming Events",
+  mentorView = false,
+  eventFilter = null
+}) {
   const now = new Date();
   const tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const todayEvents = eventsForCalendarDate(allEvents, now);
-  const tomorrowEvents = eventsForCalendarDate(allEvents, tomorrow);
+  const sourceEvents = eventFilter ? allEvents.filter(eventFilter) : allEvents;
+  const todayEvents = eventsForCalendarDate(sourceEvents, now);
+  const tomorrowEvents = eventsForCalendarDate(sourceEvents, tomorrow);
   const hasEvents = todayEvents.length > 0 || tomorrowEvents.length > 0;
 
   return (
     <article className="dash-product-card dash-upcoming-events">
       <header className="dash-upcoming-events__head">
-        <h3 className="dash-upcoming-events__title">Upcoming Events</h3>
+        <h3 className="dash-upcoming-events__title">{title}</h3>
         {hasEvents ? (
           <p className="dash-upcoming-events__summary">
             {todayEvents.length} Today · {tomorrowEvents.length} Tomorrow
@@ -389,8 +423,8 @@ function UpcomingEventsPanel({ allEvents, onEventSelect }) {
       </header>
       {hasEvents ? (
         <div className="dash-upcoming-events__columns">
-          <UpcomingEventsColumn label="Today" events={todayEvents} onEventSelect={onEventSelect} />
-          <UpcomingEventsColumn label="Tomorrow" events={tomorrowEvents} onEventSelect={onEventSelect} />
+          <UpcomingEventsColumn label="Today" events={todayEvents} onEventSelect={onEventSelect} mentorView={mentorView} />
+          <UpcomingEventsColumn label="Tomorrow" events={tomorrowEvents} onEventSelect={onEventSelect} mentorView={mentorView} />
         </div>
       ) : (
         <p className="dash-upcoming-events__empty">No upcoming events.</p>
@@ -399,10 +433,11 @@ function UpcomingEventsPanel({ allEvents, onEventSelect }) {
   );
 }
 
-function EventPill({ event, onSelect }) {
+function EventPill({ event, onSelect, mentorView = false }) {
   const category = resolveCategory(event);
   const tone = resolvePillTone(event);
   const label = EVENT_CATEGORY_LABELS[category] || category;
+  const displayTitle = formatCalendarPillTitle(event, { mentorView });
 
   return (
     <button
@@ -412,9 +447,9 @@ function EventPill({ event, onSelect }) {
         e.stopPropagation();
         onSelect(event);
       }}
-      aria-label={`${event.title}, ${label}, ${formatEventTime(event)}`}
+      aria-label={`${displayTitle}, ${label}, ${formatEventTime(event)}`}
     >
-      <span className="dash-cal-visual__pill-label">{compactEventTitle(event.title)}</span>
+      <span className="dash-cal-visual__pill-label">{displayTitle}</span>
       <span className="dash-cal-visual__pill-tip" role="tooltip">
         <strong>{event.title}</strong>
         <span>{label} · {formatEventTime(event)}</span>
@@ -479,7 +514,7 @@ function CalendarCreateMenu({ onSelect }) {
   );
 }
 
-function DayAgendaPanel({ date, events, onClose, onEventSelect }) {
+function DayAgendaPanel({ date, events, onClose, onEventSelect, mentorView = false }) {
   if (!date) return null;
 
   const label = date.toLocaleDateString(undefined, {
@@ -505,7 +540,7 @@ function DayAgendaPanel({ date, events, onClose, onEventSelect }) {
               <li key={event.id}>
                 <button type="button" className="dash-cal-visual__agenda-item" onClick={() => onEventSelect(event)}>
                   <span className={cn("dash-cal-visual__pill", `dash-cal-visual__pill--${tone}`, "dash-cal-visual__agenda-pill")}>
-                    {compactEventTitle(event.title)}
+                    {formatCalendarPillTitle(event, { mentorView })}
                   </span>
                   <span className="dash-cal-visual__agenda-meta">
                     {EVENT_CATEGORY_LABELS[category]} · {formatEventTime(event)}
@@ -526,10 +561,14 @@ export default function AdmissionsCalendarVisual({
   deadlines = [],
   meetings = [],
   events = [],
+  students = [],
   mentorName = "Maya Patel",
+  role = "student",
+  mentorView = false,
   showUpcomingEvents = false,
   upcomingEventsPlacement = "inline",
-  upcomingEventsMountEl = null
+  upcomingEventsMountEl = null,
+  upcomingTitle = "Upcoming Events"
 }) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -541,17 +580,30 @@ export default function AdmissionsCalendarVisual({
   const [editDraft, setEditDraft] = useState(null);
   const [colorCycleIndex, setColorCycleIndex] = useState(0);
   const maxVisible = useMaxVisibleEvents();
+  const isMentorCalendar = role === "mentor" || mentorView;
   const { scheduleEventReminder, cancelEventReminder, scheduleMeeting, userCalendarEvents, persistCalendarItem, deleteCalendarItem } = useDashboardData();
 
   const handleSaveLocalEvent = useCallback(async (saved) => {
+    const linkedStudent = students.find((student) => student.id === saved.studentId);
+    const enriched = isMentorCalendar && saved.formVariant === "event"
+      ? {
+          ...saved,
+          studentName: saved.studentName || linkedStudent?.name,
+          shared: true,
+          mentorOnly: false,
+          category: saved.category || "mentor_meeting",
+          status: "scheduled"
+        }
+      : saved;
+
     if (editDraft) {
       const nextItem = {
-        ...saved,
+        ...enriched,
         id: editDraft.id,
-        pillColor: saved.pillColor || editDraft.pillColor,
+        pillColor: enriched.pillColor || editDraft.pillColor,
         formVariant: editDraft.formVariant,
         calendarItemType: editDraft.calendarItemType ?? editDraft.formVariant,
-        reminderMinutes: saved.reminderMinutes ?? editDraft.reminderMinutes
+        reminderMinutes: enriched.reminderMinutes ?? editDraft.reminderMinutes
       };
       await persistCalendarItem(nextItem, editDraft.id);
       scheduleEventReminder({
@@ -567,11 +619,11 @@ export default function AdmissionsCalendarVisual({
 
     const autoColor = PILL_COLOR_CYCLE[colorCycleIndex % PILL_COLOR_CYCLE.length];
     const nextItem = {
-      ...saved,
-      pillColor: saved.pillColor || autoColor,
-      formVariant: saved.formVariant ?? createDraft?.formVariant ?? "event",
-      calendarItemType: saved.calendarItemType ?? createDraft?.formVariant ?? "event",
-      reminderMinutes: saved.reminderMinutes
+      ...enriched,
+      pillColor: enriched.pillColor || autoColor,
+      formVariant: enriched.formVariant ?? createDraft?.formVariant ?? "event",
+      calendarItemType: enriched.calendarItemType ?? createDraft?.formVariant ?? "event",
+      reminderMinutes: enriched.reminderMinutes
     };
     const stored = await persistCalendarItem(nextItem);
     scheduleEventReminder({
@@ -581,9 +633,9 @@ export default function AdmissionsCalendarVisual({
       reminderMinutes: stored.reminderMinutes,
       formVariant: stored.formVariant
     });
-    if (!saved.pillColor) setColorCycleIndex((index) => index + 1);
+    if (!enriched.pillColor) setColorCycleIndex((index) => index + 1);
     setCreateDraft(null);
-  }, [colorCycleIndex, createDraft, editDraft, persistCalendarItem, scheduleEventReminder]);
+  }, [colorCycleIndex, createDraft, editDraft, isMentorCalendar, persistCalendarItem, scheduleEventReminder, students]);
 
   const handleEditEvent = useCallback((modalEvent) => {
     const raw = findLocalEventRaw(modalEvent, userCalendarEvents);
@@ -600,10 +652,23 @@ export default function AdmissionsCalendarVisual({
     setDetailEvent(null);
   }, [cancelEventReminder, deleteCalendarItem, userCalendarEvents]);
 
-  const allEvents = useMemo(
-    () => mergeEvents({ deadlines, meetings, events: [...events, ...userCalendarEvents] }),
-    [deadlines, meetings, events, userCalendarEvents]
-  );
+  const allEvents = useMemo(() => {
+    const merged = mergeEvents({
+      deadlines,
+      meetings,
+      events: [...events, ...userCalendarEvents],
+      mentorView: isMentorCalendar
+    });
+
+    if (!isMentorCalendar || !students.length) return merged;
+
+    return merged.map((event) => {
+      if (event.studentName) return event;
+      const studentId = event.studentId || event.raw?.studentId;
+      const student = students.find((item) => item.id === studentId);
+      return student ? { ...event, studentName: student.name } : event;
+    });
+  }, [deadlines, meetings, events, userCalendarEvents, isMentorCalendar, students]);
 
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString(undefined, {
     month: "long",
@@ -652,7 +717,13 @@ export default function AdmissionsCalendarVisual({
   const showUpcomingInline = showUpcomingEvents && upcomingEventsPlacement === "inline";
   const showUpcomingExternal = showUpcomingEvents && upcomingEventsPlacement === "external" && upcomingEventsMountEl;
   const upcomingPanel = showUpcomingEvents ? (
-    <UpcomingEventsPanel allEvents={allEvents} onEventSelect={setDetailEvent} />
+    <UpcomingEventsPanel
+      allEvents={allEvents}
+      onEventSelect={setDetailEvent}
+      title={upcomingTitle}
+      mentorView={isMentorCalendar}
+      eventFilter={isMentorCalendar ? isMentorUpcomingMeeting : null}
+    />
   ) : null;
 
   return (
@@ -697,7 +768,7 @@ export default function AdmissionsCalendarVisual({
                   </span>
                   <div className="dash-cal-visual__mobile-day-events">
                     {dayEvents.map((event) => (
-                      <EventPill key={event.id} event={event} onSelect={setDetailEvent} />
+                      <EventPill key={event.id} event={event} onSelect={setDetailEvent} mentorView={isMentorCalendar} />
                     ))}
                   </div>
                 </button>
@@ -743,7 +814,7 @@ export default function AdmissionsCalendarVisual({
                     <span className="dash-cal-visual__day-num">{day}</span>
                     <div className="dash-cal-visual__day-events">
                       {visible.map((event) => (
-                        <EventPill key={event.id} event={event} onSelect={setDetailEvent} />
+                        <EventPill key={event.id} event={event} onSelect={setDetailEvent} mentorView={isMentorCalendar} />
                       ))}
                       {overflow > 0 ? (
                         <span
@@ -780,9 +851,11 @@ export default function AdmissionsCalendarVisual({
 
       {detailEvent ? (
         <CalendarEventDetailModal
-          event={toDetailModalEvent(detailEvent, mentorName)}
-          role="student"
+          event={toDetailModalEvent(detailEvent, mentorName, students)}
+          role={role}
           mentorName={mentorName}
+          studentName={detailEvent.studentName || students.find((student) => student.id === detailEvent.studentId)?.name}
+          students={students}
           onClose={() => setDetailEvent(null)}
           onEdit={detailEvent.source === "local" ? handleEditEvent : undefined}
           onDelete={detailEvent.source === "local" ? handleDeleteEvent : undefined}
@@ -793,6 +866,7 @@ export default function AdmissionsCalendarVisual({
         <DayAgendaPanel
           date={agendaDate}
           events={agendaEvents}
+          mentorView={isMentorCalendar}
           onClose={() => setAgendaDate(null)}
           onEventSelect={(event) => {
             setAgendaDate(null);
@@ -807,7 +881,8 @@ export default function AdmissionsCalendarVisual({
           setCreateDraft(null);
           setEditDraft(null);
         }}
-        role="student"
+        role={role}
+        students={students}
         initialCategory={editDraft?.category ?? createDraft?.category ?? "personal_task"}
         initialEvent={editDraft}
         modalTitle={
@@ -819,7 +894,7 @@ export default function AdmissionsCalendarVisual({
         }
         formVariant={editDraft?.formVariant ?? createDraft?.formVariant ?? "full"}
         submitLabel={editDraft ? (editDraft.formVariant === "task" ? "Save task" : "Save event") : undefined}
-        meetingRequestMode={Boolean(createDraft?.formVariant === "event" && !editDraft)}
+        meetingRequestMode={!isMentorCalendar && Boolean(createDraft?.formVariant === "event" && !editDraft)}
         onRequestMeeting={(payload) => scheduleMeeting({ ...payload, status: "pending" })}
         onSave={handleSaveLocalEvent}
       />

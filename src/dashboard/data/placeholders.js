@@ -117,7 +117,8 @@ export const EVENT_CATEGORY_LABELS = {
   scholarship_deadline: "Scholarship Deadline",
   personal_task: "Personal Task",
   mentor_availability: "Mentor Availability",
-  mentor_private: "Mentor-Only Private Event"
+  mentor_private: "Mentor-Only Private Event",
+  pending_request: "Pending Request"
 };
 
 export const EVENT_CATEGORY_COLORS = {
@@ -127,5 +128,6 @@ export const EVENT_CATEGORY_COLORS = {
   scholarship_deadline: "#9a6700",
   personal_task: "#9b8cff",
   mentor_availability: "#5b4fd6",
-  mentor_private: "#94a3b8"
+  mentor_private: "#94a3b8",
+  pending_request: "#f97316"
 };

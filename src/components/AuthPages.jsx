@@ -6,7 +6,7 @@ import { isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { postAuthDestination } from "../lib/onboardingRoutes.js";
 import { signInWithGoogle } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
-import { ALL_DEMO_ACCOUNTS, DEMO_STUDENT } from "../data/demoAccounts.js";
+import { ALL_DEMO_ACCOUNTS, DEMO_MENTOR, DEMO_STUDENT } from "../data/demoAccounts.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 import AppLink from "./AppLink.jsx";
@@ -94,11 +94,11 @@ export function LoginPage() {
     await loginWithCredentials(email, password);
   }
 
-  async function continueAsJordanDemo() {
+  async function continueAsDemo(accountKey) {
     setLoading(true);
     setError("");
     try {
-      const nextUser = await signInAsDemo("student");
+      const nextUser = await signInAsDemo(accountKey);
       navigate(postAuthDestination(nextUser), { replace: true });
     } catch (err) {
       setError(err.message);
@@ -126,20 +126,30 @@ export function LoginPage() {
       </form>
 
       <div className="mt-8 rounded-2xl border border-primary/20 bg-primary/5 p-5">
-        <p className="text-sm font-semibold text-foreground">Try Jordan&apos;s demo dashboard</p>
+        <p className="text-sm font-semibold text-foreground">Try a demo dashboard</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Grade 11 college prep view with calendar, upcoming events, opportunity center, and Prelude AI — no account required.
+          Explore Prelude as a student or mentor — calendar, messages, and dashboard tools with no account required.
         </p>
-        <button
-          type="button"
-          disabled={loading}
-          onClick={continueAsJordanDemo}
-          className="mt-4 w-full rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
-        >
-          {loading ? "Opening demo…" : `Continue as ${DEMO_STUDENT.firstName} ${DEMO_STUDENT.lastName}`}
-        </button>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => continueAsDemo("student")}
+            className="rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
+          >
+            {loading ? "Opening demo…" : `Student · ${DEMO_STUDENT.firstName} ${DEMO_STUDENT.lastName}`}
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => continueAsDemo("mentor")}
+            className="rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
+          >
+            {loading ? "Opening demo…" : `Mentor · ${DEMO_MENTOR.firstName} ${DEMO_MENTOR.lastName}`}
+          </button>
+        </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          Demo accounts: {ALL_DEMO_ACCOUNTS.map((account) => account.email).join(" · ")}
+          Or sign in with demo credentials: {ALL_DEMO_ACCOUNTS.map((account) => account.email).join(" · ")}
         </p>
       </div>
     </Shell>

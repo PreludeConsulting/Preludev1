@@ -149,6 +149,7 @@ function buildFormFromEvent(initialEvent, initialCategory) {
     endTime: toTimeInputValue(end),
     description: initialEvent.description || "",
     meetingType: initialEvent.meetingType || "zoom",
+    studentId: initialEvent.studentId || initialEvent.raw?.studentId || "",
     calendarColor: initialEvent.pillColor || "",
     reminderMinutes: initialEvent.reminderMinutes || DEFAULT_REMINDER_MINUTES
   };
@@ -257,7 +258,7 @@ export function CalendarAddEventModal({
       if (!form.endTime || form.endTime.length < 5) next.endTime = "Enter a complete end time.";
       if (form.startTime && form.endTime && form.endTime <= form.startTime) next.endTime = "End must be after start.";
     }
-    if (role === "mentor" && !isSimplifiedForm && form.category === "mentor_meeting" && !form.studentId) {
+    if (role === "mentor" && (isEventForm || (!isSimplifiedForm && form.category === "mentor_meeting")) && !form.studentId) {
       next.studentId = "Select a student.";
     }
     setErrors(next);
@@ -304,6 +305,8 @@ export function CalendarAddEventModal({
       return;
     }
 
+    const selectedStudent = students.find((s) => s.id === form.studentId);
+
     onSave?.({
       id: initialEvent?.id || `evt-${Date.now()}`,
       title: form.title.trim(),
@@ -312,14 +315,16 @@ export function CalendarAddEventModal({
       end: end.toISOString(),
       description: form.description,
       studentId: form.studentId || undefined,
-      shared: form.shared,
-      mentorOnly: !form.shared && role === "mentor",
+      studentName: selectedStudent?.name,
+      shared: role === "mentor" && isEventForm ? true : form.shared,
+      mentorOnly: role === "mentor" && isEventForm ? false : (!form.shared && role === "mentor"),
       meetingType,
       zoomJoinUrl,
       formVariant: isTaskForm ? "task" : isEventForm ? "event" : undefined,
       calendarItemType: isTaskForm ? "task" : isEventForm ? "event" : undefined,
       pillColor: form.calendarColor || undefined,
-      reminderMinutes: isSimplifiedForm ? form.reminderMinutes : "none"
+      reminderMinutes: isSimplifiedForm ? form.reminderMinutes : "none",
+      status: "scheduled"
     });
     onClose();
     setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: DEFAULT_REMINDER_MINUTES });
@@ -396,6 +401,18 @@ export function CalendarAddEventModal({
             <span>{isEventForm && meetingRequestMode ? "Notes" : "Description"}</span>
             <textarea rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </label>
+          {role === "mentor" && isEventForm ? (
+            <label className="prelude-field">
+              <span>Student</span>
+              <select value={form.studentId} onChange={(e) => setForm((f) => ({ ...f, studentId: e.target.value }))}>
+                <option value="">Select a student</option>
+                {students.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              {errors.studentId ? <em className="dash-field-error">{errors.studentId}</em> : null}
+            </label>
+          ) : null}
           {role === "mentor" && !isSimplifiedForm ? (
             <>
               <label className="prelude-field">

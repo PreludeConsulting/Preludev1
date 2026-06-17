@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Calendar, ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
-import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
-import { getPhaseHeaderLabel } from "../../config/studentDashboardByGrade.js";
+import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
+import { buildMentorCalendarExtras } from "../../lib/mentorCalendarFeed.js";
 import AdmissionsCalendarVisual from "./AdmissionsCalendarVisual.jsx";
-import PrepDashboardCards from "./PrepDashboardCards.jsx";
+import MentorDashboardCards from "./MentorDashboardCards.jsx";
+import MentorStudentPreviewModal from "./MentorStudentPreviewModal.jsx";
 
 function greetingForHour(hour) {
   if (hour < 12) return "Good Morning";
@@ -15,69 +16,86 @@ function greetingForHour(hour) {
   return "Good Evening";
 }
 
-export default function StudentOverviewProduct() {
+export default function MentorOverviewProduct() {
   const { user } = useAuth();
   const {
-    profile,
     meetings,
-    mentor,
+    students,
+    availability,
+    pendingRequests,
     events,
-    deadlines,
-    academicProgress,
-    opportunities,
-    studentProfileStats
+    mentor
   } = useDashboardData();
 
   const firstName = user?.name?.split(" ")[0] || "there";
-  const phaseLabel = getPhaseHeaderLabel(profile);
   const [upcomingEventsMountEl, setUpcomingEventsMountEl] = useState(null);
+  const [previewStudent, setPreviewStudent] = useState(null);
+
+  const calendarEvents = useMemo(
+    () => [
+      ...events,
+      ...buildMentorCalendarExtras({ pendingRequests, availability, students })
+    ],
+    [events, pendingRequests, availability, students]
+  );
 
   return (
-    <div className="dash-product-overview">
+    <div className="dash-product-overview dash-product-overview--mentor">
       <header className="dash-product-greeting">
         <div>
           <h1 className="dash-product-greeting__title">
             {greetingForHour(new Date().getHours())}, {firstName}
           </h1>
-          <p className="dash-product-greeting__phase">{phaseLabel}</p>
+          <p className="dash-product-greeting__phase">
+            {students.length} student{students.length === 1 ? "" : "s"} assigned · Mentor dashboard
+          </p>
         </div>
         <div className="dash-product-greeting__actions">
           <span className="dash-product-greeting__date">
             <Calendar className="h-4 w-4" />
             {new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
           </span>
-          <Link to={`${STUDENT_DASHBOARD_BASE}/calendar`} className="dash-product-greeting__cta">
+          <Link to={`${MENTOR_DASHBOARD_BASE}/calendar`} className="dash-product-greeting__cta">
             Weekly view <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
       </header>
 
-      <div className={cn("dash-product-split", "dash-product-split--prep")}>
+      <div className={cn("dash-product-split", "dash-product-split--mentor")}>
         <div className="dash-product-split__calendar-stack">
           <section className="dash-product-split__visual" aria-label="Calendar">
             <AdmissionsCalendarVisual
-              deadlines={deadlines}
               meetings={meetings}
-              events={events}
+              events={calendarEvents}
+              students={students}
               mentorName={mentor?.name}
+              role="mentor"
+              mentorView
               showUpcomingEvents
               upcomingEventsPlacement="external"
               upcomingEventsMountEl={upcomingEventsMountEl}
+              upcomingTitle="Upcoming Meetings"
             />
           </section>
 
           <div ref={setUpcomingEventsMountEl} className="dash-product-split__upcoming" />
         </div>
 
-        <section className="dash-product-split__cards" aria-label="Dashboard summary">
-          <PrepDashboardCards
-            academicProgress={academicProgress}
-            opportunities={opportunities}
-            profile={profile}
-            studentProfileStats={studentProfileStats}
+        <section className="dash-product-split__cards" aria-label="Mentor dashboard summary">
+          <MentorDashboardCards
+            students={students}
+            availability={availability}
+            pendingRequests={pendingRequests}
+            onViewStudent={setPreviewStudent}
           />
         </section>
       </div>
+
+      <MentorStudentPreviewModal
+        student={previewStudent}
+        open={Boolean(previewStudent)}
+        onClose={() => setPreviewStudent(null)}
+      />
     </div>
   );
 }
