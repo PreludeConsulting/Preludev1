@@ -33,7 +33,6 @@ import { CalendarAddEventModal } from "../../components/CalendarEventModals.jsx"
 import MentorLiveUpdatesSection from "../../components/product/MentorLiveUpdatesSection.jsx";
 import MessagesPanel from "../../components/MessagesPanel.jsx";
 import PreludeChatPanel from "../../components/PreludeChatPanel.jsx";
-import { PLACEHOLDER_ESSAYS } from "../../data/placeholders.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import {
   Avatar,
@@ -1174,8 +1173,8 @@ export function StudentWorkspace() {
   const [essayBody, setEssayBody] = useState("");
   const [essaySavedAt, setEssaySavedAt] = useState("");
   const isCollegesView = tab === "colleges";
-  const activeEssay = essays[0] || PLACEHOLDER_ESSAYS[0];
-  const defaultEssayBody = "Growing up, I learned to debug problems before I learned to drive…";
+  const activeEssay = essays[0] || null;
+  const draftEssayId = activeEssay?.id || "new-essay";
 
   useEffect(() => {
     if (location.state?.workspaceTab) {
@@ -1184,18 +1183,19 @@ export function StudentWorkspace() {
   }, [location.state?.workspaceTab]);
 
   useEffect(() => {
-    setEssayTitle(activeEssay?.title || PLACEHOLDER_ESSAYS[0].title);
-    setEssayBody(activeEssay?.body || defaultEssayBody);
+    setEssayTitle(activeEssay?.title || "");
+    setEssayBody(activeEssay?.body || "");
   }, [activeEssay?.id, activeEssay?.title, activeEssay?.body]);
 
   useEffect(() => {
-    if (tab !== "essays" || !activeEssay?.id) return undefined;
+    if (tab !== "essays") return undefined;
+    if (!essayTitle.trim() && !essayBody.trim()) return undefined;
     const timer = window.setTimeout(() => {
-      saveEssayDraft(activeEssay.id, { title: essayTitle, body: essayBody });
+      saveEssayDraft(draftEssayId, { title: essayTitle, body: essayBody });
       setEssaySavedAt("just now");
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [tab, activeEssay?.id, essayTitle, essayBody, saveEssayDraft]);
+  }, [tab, draftEssayId, essayTitle, essayBody, saveEssayDraft]);
 
   const filteredTasks = tasks.filter(
     (t) => taskFilter === "all" || t.title.toLowerCase().includes(String(taskFilter).toLowerCase())
@@ -1271,11 +1271,15 @@ export function StudentWorkspace() {
 
       {tab === "activities" ? (
         <SectionCard title="Extracurriculars">
-          <ul className="dash-task-list">
-            {(extracurriculars.length ? extracurriculars : ["Add your activities"]).map((name) => (
-              <li key={name}><input type="checkbox" readOnly checked /> {name}</li>
-            ))}
-          </ul>
+          {extracurriculars.length ? (
+            <ul className="dash-task-list">
+              {extracurriculars.map((name) => (
+                <li key={name}><input type="checkbox" readOnly checked /> {name}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="dash-muted">No activities yet. Add extracurriculars from your profile or workspace.</p>
+          )}
         </SectionCard>
       ) : null}
 

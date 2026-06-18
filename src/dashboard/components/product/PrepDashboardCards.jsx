@@ -1,10 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Bot, Code2, FlaskConical, Sun, Trophy } from "lucide-react";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
-import {
-  DEFAULT_ACADEMIC_PROGRESS,
-  DEFAULT_OPPORTUNITIES
-} from "../../config/studentDashboardByGrade.js";
 import { DashBadge } from "../ui/index.jsx";
 import { formatOrdinal } from "../ui/gamification.jsx";
 import PreludeAIWorkspace from "./PreludeAIWorkspace.jsx";
@@ -100,8 +96,8 @@ export default function PrepDashboardCards({
   profile,
   studentProfileStats
 }) {
-  const progress = academicProgress || DEFAULT_ACADEMIC_PROGRESS;
-  const opps = opportunities?.length ? opportunities : DEFAULT_OPPORTUNITIES;
+  const hasAcademicProgress = Boolean(academicProgress);
+  const opps = opportunities || [];
 
   return (
     <>
@@ -111,10 +107,26 @@ export default function PrepDashboardCards({
           <h3 className="dash-product-card__title">Profile strength</h3>
           <p className="dash-profile-strength__helper">Compared with students in your grade.</p>
         </header>
-        <ProfileStrengthBars progress={progress} />
+        {hasAcademicProgress ? (
+          <ProfileStrengthBars progress={academicProgress} />
+        ) : (
+          <p className="dash-profile-strength__empty dash-muted">
+            Add your academics and activities to see how your profile compares with students in your grade.
+          </p>
+        )}
       </article>
 
-      <OpportunityCenter opportunities={opps} />
+      {opps.length ? (
+        <OpportunityCenter opportunities={opps} />
+      ) : (
+        <article className="dash-product-card dash-product-card--wide dash-product-card--opportunity">
+          <header className="dash-product-card__head dash-product-card__head--opportunity">
+            <p className="dash-product-card__eyebrow">Opportunity Center</p>
+            <h3 className="dash-product-card__title">Recommended for You</h3>
+          </header>
+          <p className="dash-muted">No recommendations yet. As you build your profile, Prelude will surface opportunities here.</p>
+        </article>
+      )}
 
       <article className="dash-product-card dash-product-card--wide dash-product-card--ai">
         <header className="dash-product-card__head">

@@ -1868,6 +1868,12 @@
   color: hsl(var(--muted-foreground));
 }
 
+.dash-profile-strength__empty {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
 .dash-profile-strength__bars {
   display: flex;
   flex-direction: column;

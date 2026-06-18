@@ -128,6 +128,11 @@ export const DEFAULT_STUDENT_PROFILE = {
   profileCompletion: 78
 };
 
+/** Blank profile for newly registered students (not demo accounts). */
+export const EMPTY_STUDENT_PROFILE = {
+  profileCompletion: 0
+};
+
 function dayOffset(days, hour = 9, minute = 0) {
   const d = new Date();
   d.setDate(d.getDate() + days);

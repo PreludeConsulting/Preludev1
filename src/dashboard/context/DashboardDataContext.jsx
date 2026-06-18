@@ -35,15 +35,7 @@ import { isDemoEmail } from "../../data/demoAccounts.js";
 import { getDemoDashboardForUser } from "../../data/demoDashboardData.js";
 import { shouldUseDemoFixtures } from "../../lib/devAuthBypass.js";
 import { roleFromUser } from "../../lib/dashboardRoutes.js";
-import {
-  DEFAULT_ACADEMIC_PROGRESS,
-  DEFAULT_OPPORTUNITIES,
-  DEFAULT_STUDENT_PROFILE,
-  DEFAULT_STUDENT_PROFILE_STATS,
-  buildDefaultStudentEvents
-} from "../config/studentDashboardByGrade.js";
-import { INITIAL_SAVED_COLLEGES } from "../data/collegeExploreData.js";
-import { PLACEHOLDER_ESSAYS, PLACEHOLDER_EVENTS, PLACEHOLDER_MESSAGES, PLACEHOLDER_MENTOR, PLACEHOLDER_STUDENTS, PLACEHOLDER_TASKS } from "../data/placeholders.js";
+import { EMPTY_STUDENT_PROFILE } from "../config/studentDashboardByGrade.js";
 import {
   cancelCalendarReminder,
   isReminderEnabled,
@@ -68,7 +60,7 @@ function resolveStudentProfile(profile, profileOverrides, isStudent, demoProfile
   if (profile != null || Object.keys(profileOverrides).length > 0) {
     return merged;
   }
-  return isStudent ? normalizeProfileShape(DEFAULT_STUDENT_PROFILE) : null;
+  return isStudent ? normalizeProfileShape(EMPTY_STUDENT_PROFILE) : null;
 }
 
 function profileFromSupabaseRow(row, email, fallbackProfile, fields) {
@@ -791,7 +783,10 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       const words = body ? body.trim().split(/\s+/).filter(Boolean).length : 0;
       const updatedAt = new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" });
       setLocalEssays((prev) => {
-        const base = prev?.length ? prev : PLACEHOLDER_ESSAYS;
+        const base = prev?.length ? prev : [];
+        if (!base.length && essayId) {
+          return [{ id: essayId, title: title || "Untitled essay", body: body ?? "", words, updatedAt, status: words > 0 ? "In Progress" : "Not Started" }];
+        }
         const next = base.map((e) =>
           e.id === essayId
             ? { ...e, title: title || e.title, body: body ?? e.body, words, updatedAt, status: words > 0 ? "In Progress" : e.status }
@@ -854,31 +849,31 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   const value = useMemo(() => {
     const isStudent = roleFromUser(user) === "student";
     const isMentorStudentViewMode = Boolean(mentorViewStudent);
-    const resolvedEvents = demo?.events?.length
-      ? demo.events
-      : (events.length ? events : (isStudent ? buildDefaultStudentEvents() : PLACEHOLDER_EVENTS));
+    const resolvedEvents = demo?.events?.length ? demo.events : events;
     const resolvedProfile = resolveStudentProfile(profile, profileOverrides, isStudent, demo?.profile);
-    const resolvedMentor = demo?.mentor ?? mentor ?? (isStudent ? PLACEHOLDER_MENTOR : null);
-    const resolvedAcademicProgress = demo?.academicProgress ?? (isStudent ? DEFAULT_ACADEMIC_PROGRESS : null);
-    const resolvedOpportunities = demo?.opportunities?.length
-      ? demo.opportunities
-      : (isStudent ? DEFAULT_OPPORTUNITIES : []);
-    const resolvedStudentProfileStats = demo?.studentProfileStats ?? (isStudent ? DEFAULT_STUDENT_PROFILE_STATS : null);
-    const resolvedTasks = demo?.tasks ?? (useSupabase ? supabaseTasks : localTasks) ?? (useSupabase ? [] : PLACEHOLDER_TASKS);
+    const resolvedMentor = demo?.mentor ?? mentor ?? null;
+    const resolvedAcademicProgress = demo?.academicProgress ?? null;
+    const resolvedOpportunities = demo?.opportunities ?? [];
+    const resolvedStudentProfileStats = demo?.studentProfileStats ?? null;
+    const resolvedTasks = demo?.tasks ?? (useSupabase ? supabaseTasks : localTasks) ?? [];
     const resolvedEssays = demo?.essays?.length
       ? demo.essays
       : useSupabase
         ? supabaseEssays
         : (localEssays?.length ? localEssays : []);
-    const resolvedSavedColleges = demo?.savedColleges ?? supabaseSavedColleges ?? savedColleges ?? INITIAL_SAVED_COLLEGES;
+    const resolvedSavedColleges = demo?.savedColleges ?? supabaseSavedColleges ?? savedColleges ?? [];
     const resolvedConversations = (() => {
-      let base = demo?.conversations?.length
-        ? demo.conversations
-        : useSupabase
+      if (demo?.conversations?.length) return demo.conversations;
+
+      let base = useSupabase
+        ? conversations
+        : conversations.length
           ? conversations
-          : conversations.length
-            ? conversations
-            : buildMentorConversation(resolvedMentor, localConversationMessages, user?.name);
+          : [];
+
+      if (!base.length && localConversationMessages.length && resolvedMentor) {
+        return buildMentorConversation(resolvedMentor, localConversationMessages, user?.name);
+      }
 
       if (localConversationMessages.length && base.length) {
         const extra = localConversationMessages.map((m) => ({
@@ -926,8 +921,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       toggleTask: isMentorStudentViewMode ? async () => null : toggleTask,
       mentor: resolvedMentor,
       mentors,
-      students: demo?.students ?? PLACEHOLDER_STUDENTS,
-      messages: demo?.messages ?? (useSupabase ? messages : PLACEHOLDER_MESSAGES),
+      students: demo?.students ?? [],
+      messages: demo?.messages ?? messages,
       conversations: resolvedConversations,
       gamification: demo?.gamification ?? null,
       studentActivityFeed: demo?.studentActivityFeed ?? [],

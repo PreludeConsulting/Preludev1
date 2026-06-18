@@ -14,7 +14,6 @@ import {
   COLLEGE_FILTER_GROUPS,
   EXPLORE_COLLEGES,
   FILTER_OPTION_SETS,
-  INITIAL_SAVED_COLLEGES,
   SORT_OPTIONS,
   collegeById,
   filterColleges,
@@ -34,7 +33,7 @@ function activeFilterCount(filters) {
 
 export default function CollegesExplore() {
   const { savedColleges: persistedColleges, updateSavedColleges } = useDashboardData();
-  const [savedColleges, setSavedColleges] = useState(persistedColleges || INITIAL_SAVED_COLLEGES);
+  const [savedColleges, setSavedColleges] = useState(persistedColleges ?? []);
   const [filters, setFilters] = useState({});
   const [openFilter, setOpenFilter] = useState(null);
   const [sortBy, setSortBy] = useState("ranking");
@@ -65,7 +64,7 @@ export default function CollegesExplore() {
   );
 
   useEffect(() => {
-    setSavedColleges(persistedColleges || INITIAL_SAVED_COLLEGES);
+    setSavedColleges(persistedColleges ?? []);
   }, [persistedColleges]);
 
   useEffect(() => {
@@ -136,7 +135,7 @@ export default function CollegesExplore() {
   }
 
   useEffect(() => {
-    setSavedColleges(persistedColleges || INITIAL_SAVED_COLLEGES);
+    setSavedColleges(persistedColleges ?? []);
   }, [persistedColleges]);
 
   function persistColleges(updater) {
