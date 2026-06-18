@@ -42,14 +42,30 @@ export function getCsrfToken() {
   return sessionStorage.getItem(CSRF_KEY) || decodeURIComponent(readCookie("prelude_csrf") || "");
 }
 
+function isCsrfError(response, payload) {
+  return response.status === 403 && /csrf token missing or invalid/i.test(payload?.message || "");
+}
+
+async function refreshCsrfToken() {
+  const response = await fetch("/api/auth/me", { credentials: "include", headers: { Accept: "application/json" } });
+  const payload = await response.json().catch(() => ({}));
+  if (payload.csrfToken) storeCsrf(payload.csrfToken);
+  return response.ok && Boolean(payload.csrfToken);
+}
+
 export async function api(path, options = {}) {
+  const { _csrfRetry, ...fetchOptions } = options;
   const headers = { Accept: "application/json", ...(options.headers || {}) };
   if (options.body && !(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
   const csrf = getCsrfToken();
   if (csrf && !["GET", "HEAD", "OPTIONS"].includes(options.method || "GET")) headers["X-CSRF-Token"] = csrf;
-  const response = await fetch(path, { credentials: "include", ...options, headers });
+  const response = await fetch(path, { credentials: "include", ...fetchOptions, headers });
   const payload = await response.json().catch(() => ({}));
   if (payload.csrfToken) storeCsrf(payload.csrfToken);
+  if (!response.ok && isCsrfError(response, payload) && !_csrfRetry) {
+    const refreshed = await refreshCsrfToken();
+    if (refreshed) return api(path, { ...options, _csrfRetry: true });
+  }
   if (!response.ok) {
     const message = sanitizeClientErrorMessage(payload, payload.error);
     const error = new Error(message);

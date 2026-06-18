@@ -1,14 +1,25 @@
 import Stripe from "stripe";
 import { z } from "zod";
 import { db, readJsonBody, requireAuth, requireCsrf, sendJson } from "./authApi.js";
-import { billingNotConfiguredPayload, getAppBaseUrl, getBillingConfig, getPlanPriceId, PAID_PLAN_IDS } from "./billingConfig.js";
+import {
+  billingNotConfiguredPayload,
+  getAppBaseUrl,
+  getBillingConfig,
+  getPlanPriceId,
+  PAID_PLAN_IDS,
+  STRIPE_API_VERSION
+} from "./billingConfig.js";
 
 const checkoutSchema = z.object({ planId: z.enum(["basic", "plus", "pro"]) });
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 
 function getStripeClient(config = getBillingConfig()) {
   if (!config.stripeSecretKey) return null;
-  return new Stripe(config.stripeSecretKey);
+  return new Stripe(config.stripeSecretKey, {
+    apiVersion: STRIPE_API_VERSION,
+    appInfo: { name: "Prelude", version: "1.0.0" },
+    maxNetworkRetries: 2
+  });
 }
 
 function stripeObjectId(value) {
@@ -47,8 +58,8 @@ async function handleCheckout(req, res) {
   const config = getBillingConfig();
   if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
 
-  requireCsrf(req);
   const auth = await requireAuth(req);
+  requireCsrf(req);
   const payload = checkoutSchema.parse(await readJsonBody(req));
   const priceId = getPlanPriceId(payload.planId, config);
   if (!priceId) return sendJson(res, 400, { error: "invalid_plan", message: "That paid plan is not available." });
@@ -76,8 +87,8 @@ async function handlePortal(req, res) {
   const config = getBillingConfig();
   if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
 
-  requireCsrf(req);
   const auth = await requireAuth(req);
+  requireCsrf(req);
   if (!auth.user.stripeCustomerId) {
     return sendJson(res, 400, { error: "billing_customer_missing", message: "No billing profile exists for this account yet." });
   }

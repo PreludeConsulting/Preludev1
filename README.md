@@ -362,12 +362,31 @@ Billing can remain disabled for local development. To enable Stripe, configure t
 BILLING_PROVIDER=stripe
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_BASIC_MONTHLY=price_...
-STRIPE_PRICE_PLUS_MONTHLY=price_...
-STRIPE_PRICE_PRO_MONTHLY=price_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_PRICE_ID_BASIC=price_...
+STRIPE_PRICE_ID_PLUS=price_...
+STRIPE_PRICE_ID_PRO=price_...
 ```
 
 When billing is disabled, the billing config endpoint reports disabled state and checkout/portal routes return a configuration response instead of attempting Stripe calls.
+
+### Local Stripe webhook testing
+
+The local webhook route is available at `/api/billing/webhook`. It verifies Stripe signatures with `STRIPE_WEBHOOK_SECRET`, records event IDs to avoid duplicate processing, and syncs subscription state for checkout, invoice, and subscription events.
+
+Terminal 1:
+
+```bash
+npm run dev
+```
+
+Terminal 2:
+
+```bash
+npm run stripe:webhook
+```
+
+Copy the `whsec_...` signing secret printed by Stripe CLI into `.env` as `STRIPE_WEBHOOK_SECRET`, then restart the dev server so the endpoint can verify forwarded events. If you run the standalone API server directly, use `npm run stripe:webhook:api` instead.
 
 ## Scripts
 
@@ -380,6 +399,8 @@ When billing is disabled, the billing config endpoint reports disabled state and
 | `npm run db:stop` | Stop the local PostgreSQL container. |
 | `npm run db:migrate` | Apply Prisma migrations in development. |
 | `npm run seed:demo` | Seed demo student and mentor accounts. |
+| `npm run stripe:webhook` | Forward Stripe CLI webhook events to the Vite dev API route. |
+| `npm run stripe:webhook:api` | Forward Stripe CLI webhook events to the standalone API server. |
 | `npm run build` | Create a production Vite build. |
 | `npm run preview` | Preview the production build locally. |
 | `npm test` | Run Vitest, Node server tests, and API route smoke tests. |

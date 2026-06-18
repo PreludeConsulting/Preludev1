@@ -13,6 +13,8 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "seed:demo": "node scripts/seed-demo.mjs",
+    "stripe:webhook": "stripe listen --forward-to localhost:5173/api/billing/webhook",
+    "stripe:webhook:api": "stripe listen --forward-to localhost:3001/api/billing/webhook",
     "sync:main": "node scripts/sync-main.mjs",
     "build": "vite build",
     "preview": "vite preview",

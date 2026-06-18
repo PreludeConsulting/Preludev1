@@ -210,6 +210,15 @@ function cookiesForTokens({ accessToken, refreshToken, csrfToken, clear = false 
   ];
 }
 
+function csrfCookie(csrfToken) {
+  return cookie.serialize(CSRF_COOKIE, csrfToken, {
+    secure: isProduction(),
+    sameSite: "strict",
+    path: "/",
+    maxAge: REFRESH_TTL_DAYS * 24 * 60 * 60
+  });
+}
+
 export function requireCsrf(req) {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return;
   const parsed = cookie.parse(req.headers.cookie || "");
@@ -556,7 +565,8 @@ async function handleResetPassword(req, res) {
 
 async function handleMe(req, res) {
   const auth = await requireAuth(req);
-  sendJson(res, 200, { user: publicUser(auth.user) });
+  const csrfToken = randomToken(24);
+  sendJson(res, 200, { user: publicUser(auth.user), csrfToken }, { "Set-Cookie": csrfCookie(csrfToken) });
 }
 
 async function handleProfile(req, res) {

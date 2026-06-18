@@ -163,7 +163,7 @@ export function LowerBenefits() {
 }
 
 export function LowerPlans() {
-  const { isAuthenticated, openRegister } = useAuth();
+  const { user, isAuthenticated, openRegister } = useAuth();
   const { t } = useLanguage();
   const [billingNotice, setBillingNotice] = useState("");
   const [loadingPlan, setLoadingPlan] = useState(null);
@@ -182,8 +182,9 @@ export function LowerPlans() {
   });
   async function handlePlanClick(plan) {
     setBillingNotice("");
+    const requiresRealAccount = user?.authProvider === "demo" || user?.authProvider === "dev";
     if (!plan.paid) {
-      if (isAuthenticated) {
+      if (isAuthenticated && !requiresRealAccount) {
         window.location.hash = "dashboard";
       } else {
         setBillingNotice(t("sections.plans.notices.basicFree"));
@@ -192,7 +193,7 @@ export function LowerPlans() {
       return;
     }
 
-    if (!isAuthenticated) {
+    if (!isAuthenticated || requiresRealAccount) {
       setBillingNotice(t("sections.plans.notices.signInFirst"));
       openRegister();
       return;
@@ -205,6 +206,9 @@ export function LowerPlans() {
     } catch (error) {
       if (error.payload?.error === "billing_not_configured") {
         setBillingNotice(t("sections.plans.notices.comingSoon"));
+      } else if (error.status === 401 || error.status === 403) {
+        setBillingNotice(t("sections.plans.notices.signInFirst"));
+        openRegister();
       } else {
         setBillingNotice(error.message || t("sections.plans.notices.unavailable"));
       }

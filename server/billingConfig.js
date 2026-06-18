@@ -1,5 +1,6 @@
 export const BILLING_PROVIDER_DISABLED = "disabled";
 export const BILLING_PROVIDER_STRIPE = "stripe";
+export const STRIPE_API_VERSION = "2026-05-27.dahlia";
 
 export const PAID_PLAN_IDS = ["basic", "plus", "pro"];
 
@@ -13,7 +14,7 @@ export function getBillingConfig(env = process.env) {
   const provider = (env.BILLING_PROVIDER || BILLING_PROVIDER_DISABLED).toLowerCase();
   const stripeSecretKey = env.STRIPE_SECRET_KEY || "";
   const stripeWebhookSecret = env.STRIPE_WEBHOOK_SECRET || "";
-  const stripePublishableKey = env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+  const stripePublishableKey = env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || env.STRIPE_PUBLISHABLE_KEY || "";
   // Prefer the STRIPE_PRICE_ID_* names used by Stripe Checkout setup.
   // The older *_MONTHLY aliases are still accepted so existing deployments do not break.
   const prices = {
