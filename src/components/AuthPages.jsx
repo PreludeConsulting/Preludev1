@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
 import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
 import { isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { postAuthDestination } from "../lib/onboardingRoutes.js";
 import { signInWithGoogle } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
-import { ALL_DEMO_ACCOUNTS, DEMO_MENTOR, DEMO_STUDENT } from "../data/demoAccounts.js";
+import { ALL_DEMO_ACCOUNTS, DEMO_MENTOR, DEMO_PARENT, DEMO_STUDENT } from "../data/demoAccounts.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 import AppLink from "./AppLink.jsx";
@@ -130,7 +130,7 @@ export function LoginPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Explore Prelude as a student or mentor — calendar, messages, and dashboard tools with no account required.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <button
             type="button"
             disabled={loading}
@@ -147,6 +147,14 @@ export function LoginPage() {
           >
             {loading ? "Opening demo…" : `Mentor · ${DEMO_MENTOR.firstName} ${DEMO_MENTOR.lastName}`}
           </button>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => continueAsDemo("parent")}
+            className="rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
+          >
+            {loading ? "Opening demo…" : `Parent · ${DEMO_PARENT.firstName} ${DEMO_PARENT.lastName}`}
+          </button>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
           Or sign in with demo credentials: {ALL_DEMO_ACCOUNTS.map((account) => account.email).join(" · ")}
@@ -158,9 +166,20 @@ export function LoginPage() {
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const parentInviteToken = searchParams.get("parentInvite") || "";
+  const invitedAsParent = searchParams.get("role") === "parent" || Boolean(parentInviteToken);
   const { signUp } = useAuth();
   const supabaseAuth = isSupabaseConfigured();
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", role: "STUDENT", termsAccepted: false });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    role: invitedAsParent ? "PARENT" : "STUDENT",
+    termsAccepted: false,
+    parentInviteToken
+  });
 
   async function onGoogle() {
     setError("");
@@ -195,7 +214,8 @@ export function RegisterPage() {
     setError("");
     setMessage("");
     try {
-      const result = await signUp(form);
+      const payload = { ...form, parentInviteToken: parentInviteToken || form.parentInviteToken };
+      const result = await signUp(payload);
       if (result?.needsEmailConfirmation) {
         setMessage("Account created! Check your email and confirm your address, then log in.");
         return;
@@ -213,7 +233,14 @@ export function RegisterPage() {
   }
 
   return (
-    <Shell title="Create your free Prelude account" subtitle="Choose Student or Mentor to access the right Prelude dashboard after sign-up.">
+    <Shell
+      title={invitedAsParent ? "Create your Prelude parent account" : "Create your free Prelude account"}
+      subtitle={
+        invitedAsParent
+          ? "You've been invited to follow your student's college journey on Prelude."
+          : "Choose Student or Mentor to access the right Prelude dashboard after sign-up."
+      }
+    >
       <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} loading={loading} />
       <p className="dash-auth-divider">or sign up with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
@@ -233,9 +260,15 @@ export function RegisterPage() {
           <p className="text-xs text-muted-foreground">At least 6 characters.</p>
         )}
         <label className="block text-sm font-medium">I am a
-          <select className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3" value={form.role} onChange={update("role")}>
+          <select
+            className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3"
+            value={form.role}
+            onChange={update("role")}
+            disabled={invitedAsParent}
+          >
             <option value="STUDENT">Student</option>
             <option value="MENTOR">Mentor</option>
+            {invitedAsParent ? <option value="PARENT">Parent / Guardian</option> : null}
           </select>
         </label>
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>

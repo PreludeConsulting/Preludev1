@@ -153,7 +153,8 @@ export function mapOnboardingToUserFields(onboarding, hasAssignedMentor) {
       matchOnboardingComplete: false,
       matchDecision: null,
       onboardingStatus: ONBOARDING_STATUS.NEEDS_MATCH,
-      suggestedMentorId: null
+      suggestedMentorId: null,
+      parentInviteStepComplete: false
     };
   }
 
@@ -171,6 +172,7 @@ export function mapOnboardingToUserFields(onboarding, hasAssignedMentor) {
     matchDecision: onboarding.match_decision || null,
     onboardingStatus: status,
     suggestedMentorId: onboarding.suggested_mentor_id || null,
-    questionnaireAnswers: onboarding.questionnaire_answers || {}
+    questionnaireAnswers: onboarding.questionnaire_answers || {},
+    parentInviteStepComplete: Boolean(onboarding.parent_invite_step_completed)
   };
 }

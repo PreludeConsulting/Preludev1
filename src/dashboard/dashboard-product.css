@@ -4376,3 +4376,198 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Parent portal -------------------------------------------------------------- */
+.dash-parent-overview__head {
+  margin-bottom: 1.5rem;
+}
+
+.dash-parent-children-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dash-parent-child-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--dash-border, rgba(255, 255, 255, 0.08));
+  background: rgba(255, 255, 255, 0.02);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dash-parent-child-card:hover {
+  border-color: rgba(167, 139, 250, 0.35);
+  background: rgba(167, 139, 250, 0.06);
+}
+
+.dash-parent-child-card__avatar {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: rgba(167, 139, 250, 0.12);
+  color: rgb(196, 181, 253);
+}
+
+.dash-parent-child-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-parent-child-card__text span {
+  font-size: 0.85rem;
+  color: var(--dash-muted, rgba(255, 255, 255, 0.55));
+}
+
+.dash-parent-child-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.dash-parent-child-nav__link {
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.875rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.dash-parent-child-nav__link:hover,
+.dash-parent-child-nav__link.active {
+  border-color: rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.1);
+}
+
+.dash-parent-viewing-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  background: rgba(167, 139, 250, 0.08);
+  margin-bottom: 0.5rem;
+}
+
+.dash-parent-viewing-banner p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.dash-parent-reminder {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 60;
+  max-width: min(26rem, calc(100vw - 2rem));
+}
+
+.dash-parent-reminder__inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 0.65rem 0.75rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  background: rgba(24, 20, 36, 0.96);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.dash-parent-reminder__inner p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.dash-parent-reminder__close {
+  display: grid;
+  place-items: center;
+  padding: 0.25rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.dash-parent-invite-card__icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 1rem;
+  border-radius: 999px;
+  background: rgba(167, 139, 250, 0.12);
+  color: rgb(196, 181, 253);
+}
+
+.dash-parent-invite-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.dash-parent-invite-form__input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.85rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.dash-parent-invite-form__input-wrap input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.75rem 0;
+  color: inherit;
+  outline: none;
+}
+
+.dash-parent-invite-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.dash-parent-invite-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.dash-parent-invite-list__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 0.9rem;
+}
+
+.dash-parent-invite-list__item .dash-badge {
+  margin-left: auto;
+}

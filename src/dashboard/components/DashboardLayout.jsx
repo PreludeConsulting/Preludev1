@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import EmailVerificationBanner from "../../components/EmailVerificationBanner.jsx";
+import ParentReminderBanner from "./ParentReminderBanner.jsx";
+import { roleFromUser } from "../../lib/dashboardRoutes.js";
 import { applyPreferences } from "../lib/dashboardPreferences.js";
 import { useDashboardData } from "../context/DashboardDataContext.jsx";
 import CalendarReminderBootstrap from "./CalendarReminderBootstrap.jsx";
@@ -11,6 +13,7 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
   const { user } = useAuth();
   const { error: dataError } = useDashboardData();
   const showVerifyBanner = Boolean(user && !user.emailVerified);
+  const showParentReminder = roleFromUser(user) === "student";
 
   useEffect(() => {
     applyPreferences();
@@ -34,6 +37,7 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
         </div>
       </div>
       {showVerifyBanner ? <EmailVerificationBanner /> : null}
+      {showParentReminder ? <ParentReminderBanner /> : null}
     </div>
   );
 }

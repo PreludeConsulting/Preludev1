@@ -6,6 +6,7 @@
 import { getPlan } from "./plans.js";
 import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
 import { mapOnboardingToUserFields } from "./preludeMatchService.js";
+import { readParentInviteStepComplete } from "./parentLinks.js";
 
 export function mapSupabaseUser(session, profile = null, onboarding = null, hasAssignedMentor = false) {
   if (!session?.user) return null;
@@ -18,9 +19,13 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
   const planId = profile?.plan_id || cachedPlan || null;
   const plan = planId ? getPlan(planId) : null;
   const onboardingFields = mapOnboardingToUserFields(onboarding, hasAssignedMentor);
+  const parentInviteStepComplete =
+    onboardingFields.parentInviteStepComplete || readParentInviteStepComplete(u.id);
 
   let onboardingStatus = onboardingFields.onboardingStatus;
-  if (!planId) onboardingStatus = ONBOARDING_STATUS.NEEDS_PLAN;
+  if (role === "parent") {
+    onboardingStatus = ONBOARDING_STATUS.ONBOARDING_COMPLETED;
+  } else if (!planId) onboardingStatus = ONBOARDING_STATUS.NEEDS_PLAN;
   else if (planId && onboardingStatus === ONBOARDING_STATUS.NEEDS_PLAN) {
     onboardingStatus = ONBOARDING_STATUS.NEEDS_MATCH;
   }
@@ -39,6 +44,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     authProvider: "supabase",
     avatarUrl: profile?.avatar_url || null,
     ...onboardingFields,
+    parentInviteStepComplete,
     onboardingStatus
   };
 }

@@ -31,7 +31,16 @@ export const DEMO_MENTOR = {
   role: "MENTOR"
 };
 
-export const ALL_DEMO_ACCOUNTS = [DEMO_STUDENT, DEMO_STUDENT_2, DEMO_MENTOR];
+export const DEMO_PARENT = {
+  key: "parent",
+  email: "parent@prelude-demo.com",
+  password: "Parent123!",
+  firstName: "Sam",
+  lastName: "Lee",
+  role: "PARENT"
+};
+
+export const ALL_DEMO_ACCOUNTS = [DEMO_STUDENT, DEMO_STUDENT_2, DEMO_MENTOR, DEMO_PARENT];
 
 export function isDemoEmail(email) {
   const normalized = (email || "").trim().toLowerCase();

@@ -9,7 +9,7 @@ import { appPath } from "./appPaths.js";
 import { getPublicAppOrigin, isSupabaseConfigured } from "./supabaseConfig.js";
 import { mapSupabaseUser } from "./supabaseSession.js";
 
-export const SELECTABLE_ROLES = ["student", "mentor"];
+export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
 
 function fullUrl(path) {
   const origin = getPublicAppOrigin() || window.location.origin;

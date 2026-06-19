@@ -4,13 +4,7 @@ import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { PRELUDE_MATCH_QUESTIONS } from "../../data/preludeMatchQuestions.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { roleFromUser } from "../../lib/dashboardRoutes.js";
-import {
-  dashboardPathForRole,
-  MATCH_ONBOARDING_PATH,
-  preludeMatchPathForRole,
-  userNeedsMatchOnboarding,
-  userNeedsPlanSelection
-} from "../../lib/onboardingRoutes.js";
+import { PARENT_ONBOARDING_PATH, userNeedsMatchOnboarding, userNeedsPlanSelection } from "../../lib/onboardingRoutes.js";
 import {
   getMentorById,
   pickSuggestedMentor,
@@ -171,7 +165,7 @@ export default function PreludeMatchOnboardingPage() {
         if (err) throw new Error(err);
       }
       await refreshUser();
-      navigate(dashboardPathForRole(user.role), { replace: true });
+      navigate(PARENT_ONBOARDING_PATH, { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -192,7 +186,7 @@ export default function PreludeMatchOnboardingPage() {
         if (err) throw new Error(err);
       }
       await refreshUser();
-      navigate(preludeMatchPathForRole(user.role), { replace: true });
+      navigate(PARENT_ONBOARDING_PATH, { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

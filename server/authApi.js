@@ -7,7 +7,8 @@ import { z } from "zod";
 import {
   buildAuthUrl,
   deliverAuthEmail,
-  deliverAccountDeletedEmail
+  deliverAccountDeletedEmail,
+  deliverParentInviteEmail
 } from "./lib/authEmail.js";
 import { formatAuthApiError, logAuthApiError } from "./lib/dbErrors.js";
 
@@ -775,6 +776,32 @@ async function handleDeletedNotify(req, res) {
   sendJson(res, 200, { message: "Deletion confirmation sent." });
 }
 
+const parentInviteSendSchema = z.object({
+  parentEmail: z.string().trim().email(),
+  studentName: z.string().trim().min(1).max(120),
+  inviteToken: z.string().trim().min(8).max(200)
+});
+
+async function handleParentInviteSend(req, res) {
+  await rateLimit(req, "/api/parent-invites/send", 10, 60 * 60);
+  await requireAuth(req);
+  const payload = parentInviteSendSchema.parse(await readJsonBody(req));
+  const url = buildAuthUrl(
+    req,
+    `/register?${new URLSearchParams({ parentInvite: payload.inviteToken, role: "parent" }).toString()}`
+  );
+  const result = await deliverParentInviteEmail({
+    to: normalizeEmail(payload.parentEmail),
+    studentName: payload.studentName,
+    url,
+    req
+  });
+  sendJson(res, 200, {
+    message: "Invitation email sent.",
+    emailSent: Boolean(result.delivered || result.logged)
+  });
+}
+
 async function handleStudentRead(req, res, url) {
   const auth = await requireAuth(req);
   const studentProfileId = url.pathname.split("/").pop();
@@ -791,6 +818,7 @@ export function createAuthApiMiddleware() {
       !url.pathname.startsWith("/api/account") &&
       !url.pathname.startsWith("/api/dashboard") &&
       !url.pathname.startsWith("/api/students") &&
+      !url.pathname.startsWith("/api/parent-invites") &&
       url.pathname !== "/api/prelude-match-questionnaire"
     ) {
       return next();
@@ -829,6 +857,7 @@ export function createAuthApiMiddleware() {
       if (url.pathname === "/api/account/sessions" && req.method === "GET") return await handleSessions(req, res, url);
       if (url.pathname.startsWith("/api/account/sessions/") && req.method === "DELETE") return await handleSessions(req, res, url);
       if (url.pathname === "/api/dashboard" && req.method === "GET") return await handleDashboard(req, res);
+      if (url.pathname === "/api/parent-invites/send" && req.method === "POST") return await handleParentInviteSend(req, res);
       if (url.pathname.startsWith("/api/students/") && req.method === "GET") return await handleStudentRead(req, res, url);
       sendJson(res, 404, { error: "not_found" });
     } catch (error) {

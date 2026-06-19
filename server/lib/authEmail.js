@@ -44,7 +44,8 @@ export function buildAuthUrl(req, pathWithQuery) {
 const EMAIL_SUBJECTS = {
   "verify-email": "Verify your Prelude account",
   "password-reset": "Reset your Prelude password",
-  "account-deleted": "Your Prelude account has been deleted"
+  "account-deleted": "Your Prelude account has been deleted",
+  "parent-invite": "You're invited to follow your student's Prelude journey"
 };
 
 function escapeHtml(value) {
@@ -188,6 +189,57 @@ export async function deliverAccountDeletedEmail({ to, firstName, req }) {
 
   if (shouldLogAuthEmails()) {
     console.info(`[prelude-auth:account-deleted] To ${to}: account permanently deleted.`);
+  }
+
+  return { delivered: false, logged: shouldLogAuthEmails(), devOnly: !hasResendConfig() };
+}
+
+function buildParentInviteHtml({ studentName, url }) {
+  const safeName = escapeHtml(studentName || "your student");
+  const safeUrl = escapeHtml(url);
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f6f4f0;font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f6f4f0;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background:#ffffff;border:1px solid #e8e2d8;border-radius:16px;padding:32px 28px;">
+        <tr><td>
+          <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#8a7f72;">Prelude</p>
+          <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;font-weight:600;">Follow ${safeName}'s college journey</h1>
+          <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#4a4540;">
+            ${safeName} invited you to Prelude as a parent or guardian. Create your account to see a summarized view of their progress, calendar, and mentor updates.
+          </p>
+          <p style="margin:0 0 28px;">
+            <a href="${safeUrl}" style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:999px;font-size:15px;font-weight:600;">Accept invitation</a>
+          </p>
+          <p style="margin:0;font-size:13px;line-height:1.5;color:#8a7f72;">If you were not expecting this, you can ignore this email.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+/** Email sent when a student invites a parent/guardian. */
+export async function deliverParentInviteEmail({ to, studentName, url, req }) {
+  const subject = EMAIL_SUBJECTS["parent-invite"];
+  const html = buildParentInviteHtml({ studentName, url });
+
+  if (hasResendConfig()) {
+    const result = await sendHtmlViaResend({ subject, to, html });
+    if (result.delivered) return result;
+    if (isProductionEnv()) return result;
+  } else if (isProductionEnv()) {
+    console.error(
+      "[prelude-auth] Parent invite not sent: set RESEND_API_KEY and AUTH_EMAIL_FROM in production."
+    );
+    return { delivered: false, reason: "missing_provider" };
+  }
+
+  if (shouldLogAuthEmails()) {
+    console.info(`[prelude-auth:parent-invite] To ${to} for student ${studentName}:\n${url}`);
   }
 
   return { delivered: false, logged: shouldLogAuthEmails(), devOnly: !hasResendConfig() };

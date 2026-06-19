@@ -641,12 +641,15 @@ export default function AdmissionsCalendarVisual({
     persistCalendarItem,
     deleteCalendarItem,
     isMentorStudentView,
-    mentorViewStudent
+    isParentStudentView,
+    mentorViewStudent,
+    parentViewStudent
   } = useDashboardData();
-  const activeStudent = mentorViewStudent || students.find((item) => item.id === defaultStudentId);
+  const activeStudent = mentorViewStudent || parentViewStudent || students.find((item) => item.id === defaultStudentId);
   const calendarRole = isMentorStudentView ? "mentor" : role;
-  const calendarStudents = isMentorStudentView && activeStudent ? [activeStudent] : students;
-  const lockedStudentId = isMentorStudentView ? activeStudent?.id : defaultStudentId;
+  const isGuardianStudentView = isMentorStudentView || isParentStudentView;
+  const calendarStudents = isGuardianStudentView && activeStudent ? [activeStudent] : students;
+  const lockedStudentId = isGuardianStudentView ? activeStudent?.id : defaultStudentId;
 
   const handleSaveLocalEvent = useCallback(async (saved) => {
     const linkedStudent = calendarStudents.find((student) => student.id === saved.studentId);
@@ -965,7 +968,7 @@ export default function AdmissionsCalendarVisual({
           students={calendarStudents}
           onClose={() => setDetailEvent(null)}
           onEdit={detailEvent.source === "local" ? handleEditEvent : undefined}
-          onDelete={detailEvent.source === "local" ? handleDeleteEvent : undefined}
+          onDelete={detailEvent.source === "local" && !isParentStudentView ? handleDeleteEvent : undefined}
         />
       ) : null}
 

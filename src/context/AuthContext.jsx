@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStoredSession, signIn as authSignIn, signOut as authSignOut, signUp as authSignUp, deleteAccount as authDeleteAccount, verifyAccountPassword as authVerifyAccountPassword } from "../lib/auth.js";
+import { acceptPendingParentInvite, storePendingParentInvite } from "../lib/parentLinks.js";
 import { getDevBypassUser, getDemoSessionUser, isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { getPlan } from "../lib/plans.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
@@ -117,6 +118,9 @@ export function AuthProvider({ children }) {
         const { logIn } = await loadSupabaseAuth();
         const { user: next, error } = await logIn({ email, password });
         if (error) throw new Error(error);
+        if (next?.role === "parent") {
+          await acceptPendingParentInvite(next.id);
+        }
         setUser(next);
         setSignInOpen(false);
         return next;
@@ -137,14 +141,21 @@ export function AuthProvider({ children }) {
       if (useSupabase) {
         const { signUp: supabaseSignUp } = await loadSupabaseAuth();
         const fullName = `${payload.firstName || ""} ${payload.lastName || ""}`.trim();
-        const role = (payload.role || "STUDENT").toLowerCase() === "mentor" ? "mentor" : "student";
+        const roleRaw = (payload.role || "STUDENT").toLowerCase();
+        const role = roleRaw === "mentor" ? "mentor" : roleRaw === "parent" ? "parent" : "student";
+        if (role === "parent" && payload.parentInviteToken) {
+          storePendingParentInvite(payload.parentInviteToken);
+        }
         const { user: next, error, needsEmailConfirmation } = await supabaseSignUp({
           email: payload.email,
           password: payload.password,
-          fullName: fullName || "Student User",
+          fullName: fullName || (role === "parent" ? "Parent User" : "Student User"),
           role
         });
         if (error) throw new Error(error);
+        if (next?.role === "parent") {
+          await acceptPendingParentInvite(next.id);
+        }
         if (next) {
           setUser(next);
           setSignInOpen(false);

@@ -1,8 +1,9 @@
 import { PLAN_IDS } from "./plans.js";
-import { dashboardHomeForRole, roleFromUser, STUDENT_DASHBOARD_BASE, MENTOR_DASHBOARD_BASE } from "./dashboardRoutes.js";
+import { dashboardHomeForRole, roleFromUser, STUDENT_DASHBOARD_BASE, MENTOR_DASHBOARD_BASE, PARENT_DASHBOARD_BASE } from "./dashboardRoutes.js";
 
 export const PLAN_SELECTION_PATH = "/onboarding/plan";
 export const MATCH_ONBOARDING_PATH = "/onboarding/match";
+export const PARENT_ONBOARDING_PATH = "/onboarding/parent";
 
 export const ONBOARDING_STATUS = {
   NEEDS_PLAN: "needs_plan",
@@ -33,7 +34,9 @@ export function dashboardPathForRole(role) {
 
 export function settingsPathForRole(role) {
   const r = roleFromUser({ role });
-  return r === "mentor" ? mentorRoute("settings") : studentRoute("settings");
+  if (r === "mentor") return mentorRoute("settings");
+  if (r === "parent") return `${PARENT_DASHBOARD_BASE}/overview`;
+  return studentRoute("settings");
 }
 
 /** @deprecated Use settingsPathForRole — profile lives in Settings. */
@@ -82,7 +85,8 @@ export function myMentorsPathForRole(role) {
 
 export function deriveOnboardingStatus(user, onboarding, hasAcceptedMentor = false) {
   if (!user) return null;
-  if (roleFromUser(user) === "mentor") return ONBOARDING_STATUS.ONBOARDING_COMPLETED;
+  const role = roleFromUser(user);
+  if (role === "mentor" || role === "parent") return ONBOARDING_STATUS.ONBOARDING_COMPLETED;
   if (!user.planSelected) return ONBOARDING_STATUS.NEEDS_PLAN;
   if (!onboarding?.mentor_matching_complete) return ONBOARDING_STATUS.NEEDS_MATCH;
   if (hasAcceptedMentor || onboarding?.match_decision === "accepted") {
@@ -96,14 +100,15 @@ export function deriveOnboardingStatus(user, onboarding, hasAcceptedMentor = fal
 
 export function userNeedsPlanSelection(user) {
   if (!user) return false;
-  if (roleFromUser(user) === "mentor") return false;
+  const role = roleFromUser(user);
+  if (role === "mentor" || role === "parent") return false;
   if (user.onboardingStatus) return user.onboardingStatus === ONBOARDING_STATUS.NEEDS_PLAN;
   if (user.authProvider === "supabase") return !user.planSelected;
   return !user.plan;
 }
 
 export function userNeedsMatchOnboarding(user) {
-  if (!user || roleFromUser(user) === "mentor") return false;
+  if (!user || roleFromUser(user) !== "student") return false;
   // Only Supabase students go through Prelude Match onboarding.
   if (user.authProvider !== "supabase") return false;
   if (!user.planSelected) return false;
@@ -114,8 +119,18 @@ export function userNeedsMatchOnboarding(user) {
 }
 
 export function userNeedsMatchDecision(user) {
-  if (!user || roleFromUser(user) === "mentor") return false;
+  if (!user || roleFromUser(user) !== "student") return false;
   return user.onboardingStatus === ONBOARDING_STATUS.MATCH_COMPLETED && !user.matchDecision;
+}
+
+export function userNeedsParentInviteStep(user) {
+  if (!user || roleFromUser(user) !== "student") return false;
+  if (user.authProvider === "demo" || user.authProvider === "dev") return false;
+  if (user.parentInviteStepComplete) return false;
+  if (userNeedsPlanSelection(user)) return false;
+  if (userNeedsMatchOnboarding(user)) return false;
+  if (userNeedsMatchDecision(user)) return false;
+  return true;
 }
 
 export function postAuthDestination(user) {
@@ -123,14 +138,16 @@ export function postAuthDestination(user) {
   if (userNeedsPlanSelection(user)) return PLAN_SELECTION_PATH;
   if (userNeedsMatchOnboarding(user)) return MATCH_ONBOARDING_PATH;
   if (userNeedsMatchDecision(user)) return `${MATCH_ONBOARDING_PATH}?step=result`;
+  if (userNeedsParentInviteStep(user)) return PARENT_ONBOARDING_PATH;
   return dashboardPathForRole(user.role);
 }
 
 export function canAccessDashboard(user) {
   if (!user) return false;
-  if (roleFromUser(user) === "mentor") return true;
+  if (roleFromUser(user) === "mentor" || roleFromUser(user) === "parent") return true;
   if (userNeedsPlanSelection(user)) return false;
   if (userNeedsMatchOnboarding(user)) return false;
   if (userNeedsMatchDecision(user)) return false;
+  if (userNeedsParentInviteStep(user)) return false;
   return true;
 }

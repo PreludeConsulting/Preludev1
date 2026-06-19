@@ -26,6 +26,10 @@ import {
 } from "./pages/mentor/MentorPages.jsx";
 import MentorStudentDashboard from "./components/product/MentorStudentDashboard.jsx";
 import { MentorSettingsPage, StudentSettingsPage } from "./pages/shared/SettingsPages.jsx";
+import { ParentOverview, ParentChildRoutes } from "./pages/parent/ParentPages.jsx";
+import { PRODUCT_PARENT_NAV } from "./config/parentNav.js";
+import { PARENT_ROUTE_META } from "./config/parentRouteMeta.js";
+import { PARENT_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
 import {
   MentorBilling,
   MentorHelp,
@@ -102,6 +106,22 @@ function MentorRoutes() {
   );
 }
 
+function ParentRoutes() {
+  const { user } = useAuth();
+  return (
+    <DashboardDataProvider user={user}>
+      <Routes>
+        <Route element={<DashboardLayout productNav={PRODUCT_PARENT_NAV} basePath={PARENT_DASHBOARD_BASE} routeMeta={PARENT_ROUTE_META} />}>
+          <Route path="overview" element={<ParentOverview />} />
+          <Route path="children" element={<ParentOverview />} />
+          <Route path="children/:childId/*" element={<ParentChildRoutes />} />
+          <Route index element={<Navigate to="overview" replace />} />
+        </Route>
+      </Routes>
+    </DashboardDataProvider>
+  );
+}
+
 /**
  * Routes are RELATIVE to the parent /dashboard/* match in main.jsx.
  * Do not prefix with /student — that would match /student/* at the site root instead.
@@ -123,6 +143,14 @@ export default function DashboardRouter() {
         element={
           <RoleGuard role="mentor">
             <MentorRoutes />
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="parent/*"
+        element={
+          <RoleGuard role="parent">
+            <ParentRoutes />
           </RoleGuard>
         }
       />

@@ -10,8 +10,10 @@ import {
   Monitor,
   Pencil,
   Shield,
-  User
+  User,
+  Users
 } from "lucide-react";
+import ParentGuardianSettingsPanel from "../../components/settings/ParentGuardianSettingsPanel.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import IntegrationConnect from "../../components/IntegrationConnect.jsx";
@@ -28,6 +30,7 @@ const STUDENT_SETTINGS_TABS = [
   { id: "calendar", label: "Calendar", icon: Calendar, description: "Meetings and reminders" },
   { id: "display", label: "Display", icon: Monitor, description: "Layout and accessibility" },
   { id: "integrations", label: "Connected accounts", icon: Link2, description: "Google and Zoom" },
+  { id: "family", label: "Family", icon: Users, description: "Parents and guardians" },
   { id: "security", label: "Security", icon: Shield, description: "Password and deletion" },
   { id: "support", label: "Support", icon: HelpCircle, description: "Help and contact" }
 ];
@@ -54,6 +57,13 @@ export function StudentSettingsPage() {
   const [tab, setTab] = useState("profile");
   const [prefs, setPrefs] = useState(() => loadPreferences());
   const [savedSection, setSavedSection] = useState("");
+
+  useEffect(() => {
+    const hash = (window.location.hash || "").replace(/^#/, "");
+    if (hash && STUDENT_SETTINGS_TABS.some((item) => item.id === hash)) {
+      setTab(hash);
+    }
+  }, []);
 
   useEffect(() => {
     if (loadedPreferences) {
@@ -211,6 +221,8 @@ export function StudentSettingsPage() {
           />
         </SectionCard>
       ) : null}
+
+      {tab === "family" ? <ParentGuardianSettingsPanel user={user} /> : null}
 
       {tab === "security" ? <SecuritySettingsPanel user={user} onOpenAccount={openAccount} /> : null}
 

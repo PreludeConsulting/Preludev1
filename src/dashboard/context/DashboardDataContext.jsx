@@ -196,8 +196,8 @@ const EMPTY_ONBOARDING = {
   questionnaireAnswers: {}
 };
 
-export function DashboardDataProvider({ children, user, overrides = null, mentorViewStudent = null }) {
-  const useSupabase = isSupabaseConfigured() && user?.authProvider === "supabase";
+export function DashboardDataProvider({ children, user, overrides = null, mentorViewStudent = null, parentViewStudent = null }) {
+  const useSupabase = isSupabaseConfigured() && (user?.authProvider === "supabase" || Boolean(parentViewStudent));
   const [integrations, setIntegrations] = useState({
     googleCalendar: { connected: false },
     zoom: { connected: false }
@@ -849,6 +849,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   const value = useMemo(() => {
     const isStudent = roleFromUser(user) === "student";
     const isMentorStudentViewMode = Boolean(mentorViewStudent);
+    const isParentStudentViewMode = Boolean(parentViewStudent);
+    const isGuardianViewMode = isMentorStudentViewMode || isParentStudentViewMode;
     const resolvedEvents = demo?.events?.length ? demo.events : events;
     const resolvedProfile = resolveStudentProfile(profile, profileOverrides, isStudent, demo?.profile);
     const resolvedMentor = demo?.mentor ?? mentor ?? null;
@@ -915,10 +917,13 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       deleteCalendarItem: effectiveDeleteCalendarItem,
       reloadLocalCalendar,
       mentorViewStudent,
-      isMentorStudentView: Boolean(mentorViewStudent),
+      parentViewStudent,
+      isMentorStudentView: isMentorStudentViewMode,
+      isParentStudentView: isParentStudentViewMode,
+      isGuardianViewMode,
       tasks: resolvedTasks,
-      addTask: isMentorStudentViewMode ? async () => null : addTask,
-      toggleTask: isMentorStudentViewMode ? async () => null : toggleTask,
+      addTask: isGuardianViewMode ? async () => null : addTask,
+      toggleTask: isGuardianViewMode ? async () => null : toggleTask,
       mentor: resolvedMentor,
       mentors,
       students: demo?.students ?? [],
@@ -927,9 +932,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       gamification: demo?.gamification ?? null,
       studentActivityFeed: demo?.studentActivityFeed ?? [],
       essays: resolvedEssays,
-      saveEssayDraft: isMentorStudentViewMode ? () => {} : saveEssayDraft,
+      saveEssayDraft: isGuardianViewMode ? () => {} : saveEssayDraft,
       savedColleges: resolvedSavedColleges,
-      updateSavedColleges: isMentorStudentViewMode ? async () => null : updateSavedColleges,
+      updateSavedColleges: isGuardianViewMode ? async () => null : updateSavedColleges,
       extracurriculars: demo?.extracurriculars ?? [],
       aiSuggestions: demo?.aiSuggestions ?? [],
       profile: resolvedProfile,
@@ -980,34 +985,34 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       availability: demo?.availability ?? [],
       privateNotes: demo?.privateNotes ?? {},
       refresh,
-      scheduleMeeting: isMentorStudentViewMode ? async () => null : scheduleMeeting,
-      acceptMeetingRequest: isMentorStudentViewMode ? () => null : acceptMeetingRequest,
-      declineMeetingRequest: isMentorStudentViewMode ? () => {} : declineMeetingRequest,
-      saveProfile: isMentorStudentViewMode ? async () => null : saveProfile,
-      savePreferences: isMentorStudentViewMode ? async () => null : savePreferences,
-      saveOnboarding: isMentorStudentViewMode ? async () => null : saveOnboarding,
-      postMessage: isMentorStudentViewMode ? async () => null : postMessage,
+      scheduleMeeting: isGuardianViewMode ? async () => null : scheduleMeeting,
+      acceptMeetingRequest: isGuardianViewMode ? () => null : acceptMeetingRequest,
+      declineMeetingRequest: isGuardianViewMode ? () => {} : declineMeetingRequest,
+      saveProfile: isGuardianViewMode ? async () => null : saveProfile,
+      savePreferences: isGuardianViewMode ? async () => null : savePreferences,
+      saveOnboarding: isGuardianViewMode ? async () => null : saveOnboarding,
+      postMessage: isGuardianViewMode ? async () => null : postMessage,
       markAllNotificationsRead,
-      saveUserResource: isMentorStudentViewMode ? async () => null : saveUserResource,
-      connectGoogle: isMentorStudentViewMode
+      saveUserResource: isGuardianViewMode ? async () => null : saveUserResource,
+      connectGoogle: isGuardianViewMode
         ? async () => null
         : async () => {
         const r = await connectGoogleCalendar();
         setIntegrations(r.integrations);
       },
-      disconnectGoogle: isMentorStudentViewMode
+      disconnectGoogle: isGuardianViewMode
         ? async () => null
         : async () => {
         const r = await disconnectGoogleCalendar();
         setIntegrations(r.integrations);
       },
-      connectZoomAccount: isMentorStudentViewMode
+      connectZoomAccount: isGuardianViewMode
         ? async () => null
         : async () => {
         const r = await connectZoom();
         setIntegrations(r.integrations);
       },
-      disconnectZoomAccount: isMentorStudentViewMode
+      disconnectZoomAccount: isGuardianViewMode
         ? async () => null
         : async () => {
         const r = await disconnectZoom();

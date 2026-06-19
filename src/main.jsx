@@ -7,6 +7,7 @@ import MentorsPage from "./components/MentorsPage.jsx";
 import { CheckoutCancelPage, CheckoutSuccessPage } from "./components/BillingResultPage.jsx";
 import PlanSelectionPage from "./components/PlanSelectionPage.jsx";
 import PreludeMatchOnboardingPage from "./components/onboarding/PreludeMatchOnboardingPage.jsx";
+import ParentInviteOnboardingPage from "./components/onboarding/ParentInviteOnboardingPage.jsx";
 import RequirePlanGuard from "./components/RequirePlanGuard.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
@@ -43,6 +44,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/onboarding/plan" element={<PlanSelectionPage />} />
             <Route path="/onboarding/match" element={<PreludeMatchOnboardingPage />} />
+            <Route path="/onboarding/parent" element={<ParentInviteOnboardingPage />} />
             <Route
               path="/dashboard/*"
               element={
