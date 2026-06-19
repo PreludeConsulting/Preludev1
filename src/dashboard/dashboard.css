@@ -620,7 +620,7 @@
 .dash-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 500;
   background: rgb(35 39 48 / 0.4);
   display: grid;
   place-items: center;

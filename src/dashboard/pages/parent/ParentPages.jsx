@@ -7,6 +7,7 @@ import { listLinkedChildren } from "../../../lib/parentLinks.js";
 import { shouldUseDemoFixtures } from "../../../lib/devAuthBypass.js";
 import { DEMO_STUDENT } from "../../../data/demoAccounts.js";
 import { DEMO_SLUGS } from "../../../data/demoDashboardData.js";
+import { resolveStudentAuthUser } from "../../lib/studentDemoBundle.js";
 import ParentChildDashboard from "../../components/product/ParentChildDashboard.jsx";
 import { SectionCard } from "../../components/ui/index.jsx";
 
@@ -110,12 +111,15 @@ export function ParentChildRoutes() {
 
   const studentUser = useMemo(() => {
     if (!child) return null;
+    if (shouldUseDemoFixtures(user)) {
+      return resolveStudentAuthUser({ id: child.id, name: child.name });
+    }
     return {
       id: child.id,
       email: `${child.id}@linked.student`,
       name: child.name,
       role: "student",
-      authProvider: shouldUseDemoFixtures(user) ? "demo" : "supabase"
+      authProvider: "supabase"
     };
   }, [child, user]);
 

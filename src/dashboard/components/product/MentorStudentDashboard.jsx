@@ -8,7 +8,6 @@ import MentorStudentNav from "./MentorStudentNav.jsx";
 import MentorStudentToolbar from "./MentorStudentToolbar.jsx";
 import MentorViewingBanner from "./MentorViewingBanner.jsx";
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
-import { enrichMentorStudentCalendarItem } from "../../lib/mentorStudentCalendar.js";
 import { resolveStudentAuthUser } from "../../lib/studentDemoBundle.js";
 import {
   StudentAI,
@@ -19,25 +18,8 @@ import {
 } from "../../pages/student/StudentPages.jsx";
 
 function MentorStudentDashboardRoutes({ student, studentUser }) {
-  const mentorData = useDashboardData();
-
-  const overrides = useMemo(
-    () => ({
-      persistCalendarItem: async (item, existingId) => {
-        const enriched = enrichMentorStudentCalendarItem(item, student);
-        return mentorData.persistCalendarItem(enriched, existingId);
-      },
-      deleteCalendarItem: async (eventId) => mentorData.deleteCalendarItem(eventId)
-    }),
-    [mentorData, student]
-  );
-
   return (
-    <DashboardDataProvider
-      user={studentUser}
-      overrides={overrides}
-      mentorViewStudent={student}
-    >
+    <DashboardDataProvider user={studentUser} mentorViewStudent={student}>
       <StudentGamificationShell user={studentUser}>
         <div className="dash-mentor-student-dashboard">
           <MentorStudentToolbar />

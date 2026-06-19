@@ -1352,7 +1352,7 @@ function mentorHeadshot(mentor) {
 }
 
 export function StudentMentor() {
-  const { mentor, meetings, scheduleMeeting } = useDashboardData();
+  const { mentor, meetings, scheduleMeeting, persistCalendarItem, scheduleEventReminder } = useDashboardData();
   const m = mentor;
   const upcoming = [...(meetings || [])]
     .filter((m) => m.status !== "pending")
@@ -1457,7 +1457,7 @@ export function StudentMentor() {
         </SectionCard>
 
         <SectionCard title="Schedule Meeting" className="dash-panel dash-mentor-sessions-grid__schedule" id="mentor-schedule">
-          <p className="dash-muted">Request a time and your mentor will confirm the meeting.</p>
+          <p className="dash-muted">Add an event to your calendar, or send a time to your mentor for review.</p>
           <CalendarAddEventModal
             inline
             open
@@ -1466,7 +1466,16 @@ export function StudentMentor() {
             initialCategory="mentor_meeting"
             meetingRequestMode
             onRequestMeeting={(payload) => scheduleMeeting({ ...payload, status: "pending" })}
-            onSave={() => {}}
+            onSave={async (saved) => {
+              const stored = await persistCalendarItem(saved);
+              scheduleEventReminder({
+                id: stored.id,
+                title: stored.title,
+                start: stored.start,
+                reminderMinutes: saved.reminderMinutes,
+                formVariant: saved.formVariant
+              });
+            }}
             onClose={() => {}}
           />
         </SectionCard>

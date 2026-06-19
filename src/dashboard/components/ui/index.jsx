@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { cn } from "../../../lib/utils.js";
 
@@ -133,7 +134,7 @@ export function SearchInput({ value, onChange, placeholder = "Search…" }) {
 
 export function Modal({ open, onClose, title, children, footer, className, scrollable }) {
   if (!open) return null;
-  return (
+  const modalNode = (
     <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
       <div
         className={cn("dash-modal", scrollable && "dash-modal--scrollable", className)}
@@ -152,6 +153,7 @@ export function Modal({ open, onClose, title, children, footer, className, scrol
       </div>
     </div>
   );
+  return typeof document !== "undefined" ? createPortal(modalNode, document.body) : modalNode;
 }
 
 export function DeadlineRow({ title, dueDate, category, priority, done }) {

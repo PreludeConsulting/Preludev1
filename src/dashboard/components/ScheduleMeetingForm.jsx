@@ -1,6 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MaskedDateInput, MaskedTimeInput } from "./MaskedInputs.jsx";
 import { isScheduleFormValid } from "../lib/scheduleFormValidation.js";
+
+function addHoursToTime(time24, hours = 1) {
+  if (!time24 || time24.length < 5) return "";
+  const [h, m] = time24.split(":").map((part) => parseInt(part, 10));
+  if (Number.isNaN(h) || Number.isNaN(m)) return "";
+  const totalMinutes = h * 60 + m + hours * 60;
+  const nextHour = Math.floor(totalMinutes / 60) % 24;
+  const nextMinute = totalMinutes % 60;
+  return `${String(nextHour).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}`;
+}
 
 const MEETING_TYPES = [
   { value: "zoom", label: "Zoom" },
@@ -27,6 +37,7 @@ export default function ScheduleMeetingForm({ onSubmit, defaultStudentId, compac
   const [requestSent, setRequestSent] = useState(false);
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const endTimeManuallyEdited = useRef(false);
 
   function applyFormUpdate(updater) {
     setForm((current) => {
@@ -53,6 +64,22 @@ export default function ScheduleMeetingForm({ onSubmit, defaultStudentId, compac
   function resetForm() {
     setForm(createDefaultForm(defaultStudentId));
     setFormError("");
+    endTimeManuallyEdited.current = false;
+  }
+
+  function handleStartTimeChange(startTime) {
+    applyFormUpdate((current) => {
+      const next = { ...current, startTime };
+      if (!endTimeManuallyEdited.current && startTime?.length >= 5) {
+        next.endTime = addHoursToTime(startTime, 1);
+      }
+      return next;
+    });
+  }
+
+  function handleEndTimeChange(endTime) {
+    endTimeManuallyEdited.current = true;
+    applyFormUpdate((current) => ({ ...current, endTime }));
   }
 
   async function handleSubmit(e) {
@@ -128,11 +155,11 @@ export default function ScheduleMeetingForm({ onSubmit, defaultStudentId, compac
       <div className="dash-event-form__row">
         <label className="prelude-field">
           <span>Start time</span>
-          <MaskedTimeInput value={form.startTime} onChange={update("startTime")} />
+          <MaskedTimeInput value={form.startTime} onChange={handleStartTimeChange} />
         </label>
         <label className="prelude-field">
           <span>End time</span>
-          <MaskedTimeInput value={form.endTime} onChange={update("endTime")} />
+          <MaskedTimeInput value={form.endTime} onChange={handleEndTimeChange} />
         </label>
       </div>
       <label className="prelude-field dash-schedule-form__notes">

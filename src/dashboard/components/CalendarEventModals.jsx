@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Video, X } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 import {
@@ -136,6 +137,16 @@ function toTimeInputValue(date) {
   return date.toTimeString().slice(0, 5);
 }
 
+function addHoursToTime(time24, hours = 1) {
+  if (!time24 || time24.length < 5) return "";
+  const [h, m] = time24.split(":").map((part) => parseInt(part, 10));
+  if (Number.isNaN(h) || Number.isNaN(m)) return "";
+  const totalMinutes = h * 60 + m + hours * 60;
+  const nextHour = Math.floor(totalMinutes / 60) % 24;
+  const nextMinute = totalMinutes % 60;
+  return `${String(nextHour).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}`;
+}
+
 function buildFormFromEvent(initialEvent, initialCategory) {
   const start = new Date(initialEvent.start);
   const end = new Date(initialEvent.end || initialEvent.start);
@@ -178,12 +189,15 @@ export function CalendarAddEventModal({
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [permissionWarning, setPermissionWarning] = useState("");
   const [reminderSavedWarning, setReminderSavedWarning] = useState("");
+  const endTimeManuallyEdited = useRef(false);
   const isEventForm = formVariant === "event";
   const isTaskForm = formVariant === "task";
   const isSimplifiedForm = isEventForm || isTaskForm;
+  const showStudentEventChoice = meetingRequestMode && isEventForm && !initialEvent && role === "student";
   const lockedStudent = students.find((student) => student.id === defaultStudentId);
   useEffect(() => {
     if (!open && !inline) return;
+    endTimeManuallyEdited.current = false;
     if (initialEvent) {
       setForm(buildFormFromEvent(initialEvent, initialCategory));
     } else {
@@ -200,6 +214,21 @@ export function CalendarAddEventModal({
     setPermissionWarning("");
     setReminderSavedWarning("");
   }, [open, inline, initialCategory, initialEvent, defaultStudentId]);
+
+  function handleStartTimeChange(startTime) {
+    setForm((current) => {
+      const next = { ...current, startTime };
+      if (!endTimeManuallyEdited.current && startTime?.length >= 5) {
+        next.endTime = addHoursToTime(startTime, 1);
+      }
+      return next;
+    });
+  }
+
+  function handleEndTimeChange(endTime) {
+    endTimeManuallyEdited.current = true;
+    setForm((current) => ({ ...current, endTime }));
+  }
 
   function updatePermissionWarning(reminderMinutes) {
     const permission = getNotificationPermission();
@@ -272,8 +301,8 @@ export function CalendarAddEventModal({
     return Object.keys(next).length === 0;
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  async function handleSubmit(e, submitMode = "direct") {
+    e?.preventDefault?.();
     if (!validate()) return;
 
     const start = isTaskForm
@@ -290,7 +319,9 @@ export function CalendarAddEventModal({
         ? "https://meet.google.com/placeholder-new"
         : initialEvent?.zoomJoinUrl;
 
-    if (meetingRequestMode && isEventForm && !initialEvent) {
+    const sendToMentor = submitMode === "mentor";
+
+    if (sendToMentor) {
       setSubmitting(true);
       try {
         await onRequestMeeting?.({
@@ -301,11 +332,8 @@ export function CalendarAddEventModal({
           notes: form.description,
           status: "pending"
         });
-        setRequestSent(true);
-        setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: DEFAULT_REMINDER_MINUTES });
-        setErrors({});
-        setPermissionWarning("");
-        setReminderSavedWarning("");
+        resetFormState();
+        onClose();
       } finally {
         setSubmitting(false);
       }
@@ -334,11 +362,17 @@ export function CalendarAddEventModal({
       reminderMinutes: isSimplifiedForm ? form.reminderMinutes : "none",
       status: "scheduled"
     });
+    resetFormState();
     onClose();
+  }
+
+  function resetFormState() {
     setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: DEFAULT_REMINDER_MINUTES });
     setErrors({});
+    setRequestSent(false);
     setPermissionWarning("");
     setReminderSavedWarning("");
+    endTimeManuallyEdited.current = false;
   }
 
   if (!open && !inline) return null;
@@ -385,18 +419,18 @@ export function CalendarAddEventModal({
               <label className="prelude-field">
                 <span>Start time</span>
                 {isSimplifiedForm ? (
-                  <MaskedTimeInput value={form.startTime} onChange={(startTime) => setForm((f) => ({ ...f, startTime }))} />
+                  <MaskedTimeInput value={form.startTime} onChange={handleStartTimeChange} />
                 ) : (
-                  <input type="time" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
+                  <input type="time" value={form.startTime} onChange={(e) => handleStartTimeChange(e.target.value)} />
                 )}
                 {errors.startTime ? <em className="dash-field-error">{errors.startTime}</em> : null}
               </label>
               <label className="prelude-field">
                 <span>End time</span>
                 {isSimplifiedForm ? (
-                  <MaskedTimeInput value={form.endTime} onChange={(endTime) => setForm((f) => ({ ...f, endTime }))} />
+                  <MaskedTimeInput value={form.endTime} onChange={handleEndTimeChange} />
                 ) : (
-                  <input type="time" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
+                  <input type="time" value={form.endTime} onChange={(e) => handleEndTimeChange(e.target.value)} />
                 )}
                 {errors.endTime ? <em className="dash-field-error">{errors.endTime}</em> : null}
               </label>
@@ -521,11 +555,30 @@ export function CalendarAddEventModal({
           )}>
             <div className="dash-modal__footer-actions">
               {!inline ? <SecondaryButton type="button" onClick={onClose}>Cancel</SecondaryButton> : null}
-              <PrimaryButton type="submit" disabled={submitting}>
-                {resolvedSubmitLabel}
-              </PrimaryButton>
+              {showStudentEventChoice ? (
+                <>
+                  <SecondaryButton
+                    type="button"
+                    disabled={submitting}
+                    onClick={(event) => handleSubmit(event, "mentor")}
+                  >
+                    {submitting ? "Sending…" : "Send to mentor for review"}
+                  </SecondaryButton>
+                  <PrimaryButton
+                    type="button"
+                    disabled={submitting}
+                    onClick={(event) => handleSubmit(event, "direct")}
+                  >
+                    {submitting ? "Saving…" : "Add to my calendar"}
+                  </PrimaryButton>
+                </>
+              ) : (
+                <PrimaryButton type="submit" disabled={submitting}>
+                  {resolvedSubmitLabel}
+                </PrimaryButton>
+              )}
             </div>
-            {meetingRequestMode && requestSent ? (
+            {meetingRequestMode && requestSent && !showStudentEventChoice ? (
               <p className="dash-schedule-form__request-sent" role="status">
                 A request has been made to your mentor!
               </p>
@@ -547,7 +600,7 @@ export function CalendarAddEventModal({
     );
   }
 
-  return (
+  const modalNode = (
     <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
       <div className="dash-modal dash-modal--wide" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div className="dash-modal__head">
@@ -563,4 +616,6 @@ export function CalendarAddEventModal({
       />
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(modalNode, document.body) : modalNode;
 }

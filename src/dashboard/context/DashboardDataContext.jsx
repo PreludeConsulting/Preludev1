@@ -48,9 +48,20 @@ import {
 } from "../lib/localDashboardStore.js";
 import {
   removeSharedEventFromStudent,
+  resolveStudentUserId,
   syncSharedEventToStudent
 } from "../lib/sharedCalendarEvents.js";
 import { parseRequestedTime } from "../lib/mentorCalendarFeed.js";
+import { getStudentDemoBundleBySlug } from "../lib/studentDemoBundle.js";
+import { aggregateStudentCalendars } from "../lib/studentCalendarAggregate.js";
+import { deriveAcademicProgress, deriveOpportunitiesFromDeadlines } from "../lib/studentProgressSync.js";
+import {
+  matchesAssignedStudentSync,
+  matchesStudentSyncTarget,
+  notifyStudentDashboardChanged,
+  subscribeStudentDashboardChanged
+} from "../lib/studentDashboardSync.js";
+import { enrichMentorStudentCalendarItem } from "../lib/mentorStudentCalendar.js";
 
 const DashboardDataContext = createContext(null);
 
@@ -197,7 +208,7 @@ const EMPTY_ONBOARDING = {
 };
 
 export function DashboardDataProvider({ children, user, overrides = null, mentorViewStudent = null, parentViewStudent = null }) {
-  const useSupabase = isSupabaseConfigured() && (user?.authProvider === "supabase" || Boolean(parentViewStudent));
+  const useSupabase = isSupabaseConfigured() && user?.authProvider === "supabase";
   const [integrations, setIntegrations] = useState({
     googleCalendar: { connected: false },
     zoom: { connected: false }
@@ -228,9 +239,15 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   const [profileOverrides, setProfileOverrides] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [studentSyncTick, setStudentSyncTick] = useState(0);
 
   const localDemo = useMemo(() => {
     if (!user) return null;
+    const guardianSlug = mentorViewStudent?.id || parentViewStudent?.id;
+    if (guardianSlug) {
+      const guardianBundle = getStudentDemoBundleBySlug(guardianSlug);
+      if (guardianBundle) return guardianBundle;
+    }
     if (user.email && isDemoEmail(user.email)) {
       return getDemoDashboardForUser(user.email, user.role);
     }
@@ -238,7 +255,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       return getDemoDashboardForUser(user.email, user.role);
     }
     return null;
-  }, [user]);
+  }, [user, mentorViewStudent?.id, parentViewStudent?.id]);
 
   const demo = localDemo || (!useSupabase ? apiDemo : null);
 
@@ -344,6 +361,47 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setLoading(false);
     }
   }, [user?.id, refresh]);
+
+  const reloadLocalCalendar = useCallback(() => {
+    if (!user) return;
+    const store = loadLocalDashboardStore(user.id);
+    setUserCalendarEvents(store.calendarEvents || []);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    function handleStudentSync(event) {
+      const assignedStudents = (localDemo || apiDemo)?.students ?? [];
+      const matchesDirect = matchesStudentSyncTarget(event.detail, {
+        userId: user.id,
+        mentorViewStudent,
+        parentViewStudent
+      });
+      const matchesMentorRoster = roleFromUser(user) === "mentor"
+        && matchesAssignedStudentSync(event.detail, assignedStudents);
+
+      if (!matchesDirect && !matchesMentorRoster) return;
+
+      reloadLocalCalendar();
+      setStudentSyncTick((tick) => tick + 1);
+      if (useSupabase) {
+        refresh();
+      }
+    }
+
+    function handleStorage(event) {
+      if (!event.key?.startsWith("prelude_dash_store_")) return;
+      handleStudentSync({ detail: { studentId: user.id } });
+    }
+
+    const unsubscribe = subscribeStudentDashboardChanged(handleStudentSync);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [user?.id, user?.role, mentorViewStudent, parentViewStudent, useSupabase, refresh, reloadLocalCalendar, localDemo, apiDemo]);
 
   const addNotification = useCallback((notification) => {
     setNotifications((prev) => [
@@ -572,46 +630,60 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     [mentor, useSupabase, user]
   );
 
-  const reloadLocalCalendar = useCallback(() => {
-    if (!user) return;
-    const store = loadLocalDashboardStore(user.id);
-    setUserCalendarEvents(store.calendarEvents || []);
-  }, [user]);
-
   const persistCalendarItem = useCallback(
     async (item, existingId = null) => {
       if (!user) return item;
 
-      const maybeSyncToStudent = (stored) => {
-        if (stored.studentId && stored.shared !== false && roleFromUser(user) === "mentor") {
-          syncSharedEventToStudent(stored.studentId, {
+      let workingItem = item;
+      if (mentorViewStudent) {
+        workingItem = enrichMentorStudentCalendarItem(item, mentorViewStudent);
+      }
+
+      const maybeSyncToStudent = async (stored) => {
+        const studentSlug = stored.studentId;
+        const studentUserId = studentSlug ? resolveStudentUserId(studentSlug) : null;
+        if (studentSlug && stored.shared !== false && roleFromUser(user) === "mentor") {
+          syncSharedEventToStudent(studentSlug, {
             ...stored,
             createdByRole: stored.createdByRole || "mentor",
             sharedWithStudent: stored.sharedWithStudent ?? stored.shared !== false,
             itemType: stored.itemType || stored.calendarItemType || stored.formVariant || "event"
           });
+          if (useSupabase && studentUserId && studentUserId !== user.id) {
+            const payload = calendarItemToSupabase(stored);
+            if (existingId) {
+              await updateCalendarEvent(studentUserId, existingId, payload);
+            } else {
+              await createCalendarEvent(studentUserId, payload);
+            }
+          }
+          notifyStudentDashboardChanged(studentSlug);
+          if (studentUserId) notifyStudentDashboardChanged(studentUserId);
         }
+        notifyStudentDashboardChanged(user.id);
+        if (mentorViewStudent?.id) notifyStudentDashboardChanged(mentorViewStudent.id);
+        if (parentViewStudent?.id) notifyStudentDashboardChanged(parentViewStudent.id);
         return stored;
       };
 
       if (useSupabase) {
-        const payload = calendarItemToSupabase(item);
+        const payload = calendarItemToSupabase(workingItem);
         if (existingId) {
           const { event, error: err } = await updateCalendarEvent(user.id, existingId, payload);
           if (err) throw new Error(err);
-          const stored = { ...item, ...event, id: event.id, userCreated: true };
+          const stored = { ...workingItem, ...event, id: event.id, userCreated: true };
           setUserCalendarEvents((prev) => prev.map((e) => (e.id === existingId ? stored : e)));
           return maybeSyncToStudent(stored);
         }
         const { event, error: err } = await createCalendarEvent(user.id, payload);
         if (err) throw new Error(err);
-        const stored = { ...item, ...event, id: event.id, userCreated: true };
+        const stored = { ...workingItem, ...event, id: event.id, userCreated: true };
         setUserCalendarEvents((prev) => [...prev, stored]);
         return maybeSyncToStudent(stored);
       }
 
-      const id = existingId || item.id || `evt-${Date.now()}`;
-      const stored = { ...item, id, userCreated: true };
+      const id = existingId || workingItem.id || `evt-${Date.now()}`;
+      const stored = { ...workingItem, id, userCreated: true };
       setUserCalendarEvents((prev) => {
         const next = existingId ? prev.map((e) => (e.id === existingId ? stored : e)) : [...prev, stored];
         const store = loadLocalDashboardStore(user.id);
@@ -621,7 +693,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
       return maybeSyncToStudent(stored);
     },
-    [useSupabase, user]
+    [useSupabase, user, mentorViewStudent, parentViewStudent]
   );
 
   const deleteCalendarItem = useCallback(
@@ -641,11 +713,21 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
       if (existing?.studentId && roleFromUser(user) === "mentor") {
         removeSharedEventFromStudent(existing.studentId, eventId);
+        const studentUserId = resolveStudentUserId(existing.studentId);
+        if (useSupabase && studentUserId && studentUserId !== user.id) {
+          await deleteCalendarEvent(studentUserId, eventId);
+        }
+        notifyStudentDashboardChanged(existing.studentId);
+        if (studentUserId) notifyStudentDashboardChanged(studentUserId);
       }
+
+      notifyStudentDashboardChanged(user.id);
+      if (mentorViewStudent?.id) notifyStudentDashboardChanged(mentorViewStudent.id);
+      if (parentViewStudent?.id) notifyStudentDashboardChanged(parentViewStudent.id);
 
       setUserCalendarEvents((prev) => prev.filter((e) => e.id !== eventId));
     },
-    [useSupabase, user, userCalendarEvents]
+    [useSupabase, user, userCalendarEvents, mentorViewStudent, parentViewStudent]
   );
 
   const declineMeetingRequest = useCallback((requestId) => {
@@ -851,11 +933,48 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     const isMentorStudentViewMode = Boolean(mentorViewStudent);
     const isParentStudentViewMode = Boolean(parentViewStudent);
     const isGuardianViewMode = isMentorStudentViewMode || isParentStudentViewMode;
-    const resolvedEvents = demo?.events?.length ? demo.events : events;
+    const isMentorAccount = roleFromUser(user) === "mentor" && !isGuardianViewMode;
+    const assignedStudents = demo?.students ?? [];
+    const aggregatedStudentCalendar = isMentorAccount && assignedStudents.length
+      ? aggregateStudentCalendars(assignedStudents)
+      : null;
+
     const resolvedProfile = resolveStudentProfile(profile, profileOverrides, isStudent, demo?.profile);
     const resolvedMentor = demo?.mentor ?? mentor ?? null;
-    const resolvedAcademicProgress = demo?.academicProgress ?? null;
-    const resolvedOpportunities = demo?.opportunities ?? [];
+    const resolvedApplicationProgress = demo?.applicationProgress
+      ?? (useSupabase && onboarding?.profileComplete
+        ? {
+            collegeList: onboarding.profileComplete,
+            essays: Math.max(0, onboarding.profileComplete - 10),
+            extracurriculars: Math.max(0, onboarding.profileComplete - 20),
+            scholarships: Math.max(0, onboarding.profileComplete - 30),
+            profile: onboarding.profileComplete
+          }
+        : null);
+
+    const resolvedDeadlines = demo?.deadlines?.length
+      ? demo.deadlines
+      : aggregatedStudentCalendar?.deadlines?.length
+        ? aggregatedStudentCalendar.deadlines
+        : (useSupabase ? supabaseDeadlines : []);
+
+    const resolvedFixtureEvents = demo?.events?.length && !isMentorAccount
+      ? demo.events
+      : aggregatedStudentCalendar?.fixtureEvents?.length
+        ? [...events, ...aggregatedStudentCalendar.fixtureEvents]
+        : events;
+
+    const resolvedUserCalendarEvents = aggregatedStudentCalendar?.userEvents?.length
+      ? [...userCalendarEvents, ...aggregatedStudentCalendar.userEvents]
+      : userCalendarEvents;
+
+    const resolvedAcademicProgress = demo?.academicProgress
+      ?? deriveAcademicProgress(resolvedProfile, resolvedApplicationProgress);
+
+    const resolvedOpportunities = demo?.opportunities?.length
+      ? demo.opportunities
+      : deriveOpportunitiesFromDeadlines(resolvedDeadlines);
+
     const resolvedStudentProfileStats = demo?.studentProfileStats ?? null;
     const resolvedTasks = demo?.tasks ?? (useSupabase ? supabaseTasks : localTasks) ?? [];
     const resolvedEssays = demo?.essays?.length
@@ -911,8 +1030,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       markNotificationsRead,
       scheduleEventReminder,
       cancelEventReminder,
-      events: resolvedEvents,
-      userCalendarEvents,
+      events: resolvedFixtureEvents,
+      userCalendarEvents: resolvedUserCalendarEvents,
       persistCalendarItem: effectivePersistCalendarItem,
       deleteCalendarItem: effectiveDeleteCalendarItem,
       reloadLocalCalendar,
@@ -942,19 +1061,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       onboarding,
       savedResources,
       summaryCards: demo?.summaryCards ?? null,
-      deadlines: demo?.deadlines ?? (useSupabase ? supabaseDeadlines : []),
-      applicationProgress: demo?.applicationProgress
-        ?? (useSupabase
-          ? (onboarding?.profileComplete
-            ? {
-                collegeList: onboarding.profileComplete,
-                essays: Math.max(0, onboarding.profileComplete - 10),
-                extracurriculars: Math.max(0, onboarding.profileComplete - 20),
-                scholarships: Math.max(0, onboarding.profileComplete - 30),
-                profile: onboarding.profileComplete
-              }
-            : null)
-          : null),
+      deadlines: resolvedDeadlines,
+      applicationProgress: resolvedApplicationProgress,
       academicProgress: resolvedAcademicProgress,
       studentProfileStats: resolvedStudentProfileStats,
       opportunities: resolvedOpportunities,
@@ -1040,6 +1148,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       notifications,
       events,
       userCalendarEvents,
+      studentSyncTick,
       localTasks,
       localEssays,
       supabaseTasks,

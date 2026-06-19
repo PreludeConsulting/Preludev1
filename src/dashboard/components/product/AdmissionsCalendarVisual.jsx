@@ -1006,7 +1006,12 @@ export default function AdmissionsCalendarVisual({
         }
         formVariant={editDraft?.formVariant ?? createDraft?.formVariant ?? "full"}
         submitLabel={editDraft ? (editDraft.formVariant === "task" ? "Save task" : "Save event") : undefined}
-        meetingRequestMode={!isMentorCalendar && !isMentorStudentView && Boolean(createDraft?.formVariant === "event" && !editDraft)}
+        meetingRequestMode={
+          !isMentorCalendar &&
+          !isGuardianStudentView &&
+          calendarRole === "student" &&
+          Boolean(createDraft?.formVariant === "event" && !editDraft)
+        }
         onRequestMeeting={(payload) => scheduleMeeting({ ...payload, status: "pending" })}
         onSave={handleSaveLocalEvent}
       />
