@@ -26,6 +26,7 @@ import "./index.css";
 import "./dashboard/dashboard.css";
 import "./dashboard/dashboard-premium.css";
 import "./dashboard/dashboard-product.css";
+import "./dashboard/prelude-chat.css";
 import "./landing-ui.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(

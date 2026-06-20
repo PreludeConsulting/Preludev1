@@ -8,6 +8,7 @@ import { applyPreferences } from "../lib/dashboardPreferences.js";
 import { useDashboardData } from "../context/DashboardDataContext.jsx";
 import CalendarReminderBootstrap from "./CalendarReminderBootstrap.jsx";
 import DashboardProductNav from "./product/DashboardProductNav.jsx";
+import PreludeFloatingChat from "./chat/PreludeFloatingChat.jsx";
 
 export default function DashboardLayout({ navItems, basePath, productNav }) {
   const { user } = useAuth();
@@ -38,6 +39,7 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
       </div>
       {showVerifyBanner ? <EmailVerificationBanner /> : null}
       {showParentReminder ? <ParentReminderBanner /> : null}
+      <PreludeFloatingChat />
     </div>
   );
 }
