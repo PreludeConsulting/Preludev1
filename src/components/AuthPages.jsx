@@ -13,9 +13,9 @@ import AppLink from "./AppLink.jsx";
 
 function Shell({ title, subtitle, children }) {
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-6 py-16 text-foreground">
+    <main className="mx-auto min-h-screen max-w-3xl px-4 py-8 text-foreground sm:px-6 sm:py-16">
       <AppLink href="/" className="text-sm text-muted-foreground hover:text-foreground">← Back to Prelude</AppLink>
-      <section className="mt-8 rounded-3xl border border-border/70 bg-card/90 p-8 shadow-2xl shadow-black/20 backdrop-blur">
+      <section className="mt-8 rounded-3xl border border-border/70 bg-card/90 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8">
         <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
         {subtitle ? <p className="mt-2 text-muted-foreground">{subtitle}</p> : null}
         <div className="mt-8">{children}</div>
@@ -35,7 +35,7 @@ function Field({ label, ...props }) {
 
 function Alert({ children, tone = "info" }) {
   const cls = tone === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-primary/30 bg-primary/10 text-foreground";
-  return <div className={`rounded-2xl border px-4 py-3 text-sm ${cls}`}>{children}</div>;
+  return <div className={`rounded-2xl border px-4 py-3 text-sm ${cls}`} role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"}>{children}</div>;
 }
 
 export function LoginPage() {
@@ -156,7 +156,7 @@ export function LoginPage() {
             {loading ? "Opening demo…" : `Parent · ${DEMO_PARENT.firstName} ${DEMO_PARENT.lastName}`}
           </button>
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="mt-3 break-words text-xs text-muted-foreground">
           Or sign in with demo credentials: {ALL_DEMO_ACCOUNTS.map((account) => account.email).join(" · ")}
         </p>
       </div>

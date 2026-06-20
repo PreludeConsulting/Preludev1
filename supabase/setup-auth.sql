@@ -11,7 +11,7 @@
 create table if not exists public.profiles (
   id           uuid primary key references auth.users (id) on delete cascade,
   full_name    text,
-  role         text not null default 'student' check (role in ('student', 'mentor', 'admin')),
+  role         text not null default 'student' check (role in ('student', 'mentor', 'parent', 'admin')),
   school       text,
   grade_level  text,
   plan_id      text check (plan_id is null or plan_id in ('basic', 'plus', 'pro')),
@@ -22,6 +22,11 @@ comment on table public.profiles is 'Public profile data linked 1:1 to auth.user
 
 -- Add plan_id for existing deployments (safe to re-run).
 alter table public.profiles add column if not exists plan_id text check (plan_id is null or plan_id in ('basic', 'plus', 'pro'));
+
+-- Keep the role allow-list aligned with the application's supported account roles.
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check
+  check (role in ('student', 'mentor', 'parent', 'admin'));
 
 -- 2) Row Level Security -------------------------------------------------------
 alter table public.profiles enable row level security;
@@ -50,10 +55,10 @@ create policy "Profiles are updatable by their owner"
 -- No INSERT policy: rows are created exclusively by the SECURITY DEFINER signup
 -- trigger below. No DELETE policy: end users cannot delete profiles.
 
--- 3) Block self-promotion to admin (defense-in-depth, OLD/NEW are unambiguous) -
+-- 3) Block authenticated users from changing their own authorization role -----
 -- auth.uid() is NULL for the service_role / SQL Editor, so a developer can still
--- promote a user manually. A normal authenticated user editing their OWN row can
--- never set role = 'admin'.
+-- change a role manually. A normal authenticated user editing their own row can
+-- never change the authorization role.
 create or replace function public.enforce_profile_role_guard()
 returns trigger
 language plpgsql
@@ -61,10 +66,8 @@ security definer
 set search_path = ''
 as $$
 begin
-  if auth.uid() is not null and auth.uid() = old.id then
-    if new.role = 'admin' and old.role <> 'admin' then
-      raise exception 'You are not allowed to assign the admin role.';
-    end if;
+  if auth.uid() is not null and auth.uid() = old.id and new.role is distinct from old.role then
+    raise exception 'You are not allowed to change your account role.';
   end if;
   return new;
 end;
@@ -77,7 +80,7 @@ create trigger profiles_role_guard
 
 -- 4) Auto-create a profile on signup -----------------------------------------
 -- Reads full_name + role from Auth metadata (set during signUp). Only 'student'
--- or 'mentor' are accepted from metadata; anything else (including 'admin' or a
+-- 'mentor', or 'parent' are accepted from metadata; anything else (including 'admin' or a
 -- forged value) falls back to 'student'. So a user CANNOT become admin by
 -- passing role:"admin" in signup metadata.
 create or replace function public.handle_new_user()
@@ -92,7 +95,7 @@ declare
 begin
   requested_role := coalesce(new.raw_user_meta_data ->> 'role', 'student');
 
-  if requested_role in ('student', 'mentor') then
+  if requested_role in ('student', 'mentor', 'parent') then
     safe_role := requested_role;
   else
     safe_role := 'student';

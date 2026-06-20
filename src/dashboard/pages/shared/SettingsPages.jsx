@@ -56,7 +56,7 @@ export function StudentSettingsPage() {
   } = useDashboardData();
   const [tab, setTab] = useState("profile");
   const [prefs, setPrefs] = useState(() => loadPreferences());
-  const [savedSection, setSavedSection] = useState("");
+  const [saveState, setSaveState] = useState(null);
 
   useEffect(() => {
     const hash = (window.location.hash || "").replace(/^#/, "");
@@ -79,16 +79,21 @@ export function StudentSettingsPage() {
   }
 
   async function saveSection(section) {
+    setSaveState({ section, status: "saving", message: "" });
     savePreferences(prefs);
-    if (useSupabaseData) {
-      try {
+    try {
+      if (useSupabaseData) {
         await savePrefsToBackend(prefs);
-      } catch {
-        /* local prefs still saved */
       }
+      setSaveState({ section, status: "saved", message: "" });
+      window.setTimeout(() => setSaveState((current) => current?.section === section ? null : current), 2600);
+    } catch (error) {
+      setSaveState({
+        section,
+        status: "error",
+        message: error?.message ? `Saved locally, but sync failed: ${error.message}` : "Saved locally, but sync failed. Try again."
+      });
     }
-    setSavedSection(section);
-    window.setTimeout(() => setSavedSection(""), 2600);
   }
 
   return (
@@ -131,7 +136,7 @@ export function StudentSettingsPage() {
           <SettingToggle id="mentorMessages" label="Mentor message alerts" description="Notify me when my mentor sends a message." checked={prefs.mentorMessages} onChange={(v) => setPref("mentorMessages", v)} />
           <SettingToggle id="weeklyDigest" label="Weekly progress digest" description="A summary of deadlines and progress each week." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />
           <SettingToggle id="productTips" label="Tips &amp; best practices" description="Occasional admissions tips from Prelude." checked={prefs.productTips} onChange={(v) => setPref("productTips", v)} />
-          <SaveRow section="notifications" savedSection={savedSection} onSave={saveSection} />
+          <SaveRow section="notifications" saveState={saveState} onSave={saveSection} />
         </SectionCard>
       ) : null}
 
@@ -173,7 +178,7 @@ export function StudentSettingsPage() {
               { value: "monday", label: "Monday" }
             ]}
           />
-          <SaveRow section="calendar" savedSection={savedSection} onSave={saveSection} />
+          <SaveRow section="calendar" saveState={saveState} onSave={saveSection} />
         </SectionCard>
       ) : null}
 
@@ -197,7 +202,7 @@ export function StudentSettingsPage() {
             checked={prefs.reduceMotion}
             onChange={(v) => setPref("reduceMotion", v)}
           />
-          <SaveRow section="display" savedSection={savedSection} onSave={saveSection} />
+          <SaveRow section="display" saveState={saveState} onSave={saveSection} />
         </SectionCard>
       ) : null}
 

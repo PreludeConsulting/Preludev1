@@ -76,14 +76,11 @@ export default function MessagesPanel({
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [draft, setDraft] = useState("");
   const scrollRef = useRef(null);
-  const statusTimers = useRef([]);
 
   useEffect(() => {
     setThreads(conversations.map(normalizeConversation));
     if (!conversations.find((c) => c.id === activeId)) setActiveId(conversations[0]?.id);
   }, [conversations, activeId]);
-
-  useEffect(() => () => statusTimers.current.forEach(clearTimeout), []);
 
   const sorted = useMemo(() => {
     const list = threads.filter(
@@ -126,6 +123,20 @@ export default function MessagesPanel({
     );
   }
 
+  async function persistOutgoingMessage(conversationId, messageId, text) {
+    try {
+      await onSendMessage?.(text, conversationId);
+      updateMessageInThread(conversationId, messageId, (message) =>
+        advanceMessageStatus(message, "sent")
+      );
+    } catch {
+      updateMessageInThread(conversationId, messageId, (message) => ({
+        ...message,
+        status: "failed"
+      }));
+    }
+  }
+
   function sendMessage() {
     const text = draft.trim();
     if (!text || !active) return;
@@ -136,14 +147,7 @@ export default function MessagesPanel({
       )
     );
     setDraft("");
-    onSendMessage?.(text, active.id);
-
-    statusTimers.current.push(
-      setTimeout(() => updateMessageInThread(active.id, msg.id, (m) => advanceMessageStatus(m, "sent")), 450)
-    );
-    statusTimers.current.push(
-      setTimeout(() => updateMessageInThread(active.id, msg.id, (m) => advanceMessageStatus(m, "delivered")), 1100)
-    );
+    void persistOutgoingMessage(active.id, msg.id, text);
   }
 
   function onComposerKeyDown(e) {
@@ -229,7 +233,16 @@ export default function MessagesPanel({
                       ))}
                       <div className="dash-chat-group__meta">
                         <time>{formatTime(g.items[g.items.length - 1].createdAt)}</time>
-                        {g.side === "me" ? <MessageReceipt status={g.items[g.items.length - 1].status} /> : null}
+                        {g.side === "me" ? (
+                          <MessageReceipt
+                            status={g.items[g.items.length - 1].status}
+                            onRetry={() => {
+                              const message = g.items[g.items.length - 1];
+                              updateMessageInThread(active.id, message.id, (item) => ({ ...item, status: "sending" }));
+                              void persistOutgoingMessage(active.id, message.id, message.body || message.text);
+                            }}
+                          />
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -244,7 +257,9 @@ export default function MessagesPanel({
                 sendMessage();
               }}
             >
-              <IconButton label="Attach file" type="button"><Paperclip className="h-4 w-4" /></IconButton>
+              <IconButton label="Attach file (not available yet)" type="button" disabled title="File attachments are not available yet">
+                <Paperclip className="h-4 w-4" />
+              </IconButton>
               <textarea
                 rows={1}
                 value={draft}
@@ -252,7 +267,9 @@ export default function MessagesPanel({
                 onKeyDown={onComposerKeyDown}
                 placeholder={placeholder}
               />
-              <IconButton label="Emoji" type="button"><Smile className="h-4 w-4" /></IconButton>
+              <IconButton label="Emoji picker (not available yet)" type="button" disabled title="Emoji picker is not available yet">
+                <Smile className="h-4 w-4" />
+              </IconButton>
               <PrimaryButton type="submit" className="dash-btn--icon" aria-label="Send">
                 <Send className="h-4 w-4" />
               </PrimaryButton>

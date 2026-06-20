@@ -539,6 +539,12 @@
   color: hsl(var(--primary));
 }
 
+.dash-integration__error {
+  margin: 0.65rem 0 0;
+  color: #b42318;
+  font-size: 0.8125rem;
+}
+
 .dash-meeting-card {
   padding: 1rem;
   margin-bottom: 0.75rem;
@@ -2878,6 +2884,26 @@
   font-style: italic;
 }
 
+.dash-receipt--failed {
+  color: #b42318;
+}
+
+.dash-receipt__retry {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.dash-icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .dash-receipt--read {
   color: #5b4fd6;
 }
@@ -4042,7 +4068,12 @@
   }
 
   .dash-setting-row {
+    flex-direction: column;
     align-items: flex-start;
+  }
+
+  .dash-setting-row .dash-select {
+    width: 100%;
   }
 }
 

@@ -198,27 +198,15 @@ export async function acceptParentInvite({ parentId, inviteToken }) {
   const supabase = getSupabase();
   if (!supabase) return { error: "Supabase unavailable." };
 
-  const { data: invite, error: findError } = await supabase
-    .from("parent_invites")
-    .select("*")
-    .eq("invite_token", inviteToken)
-    .eq("status", "pending")
-    .maybeSingle();
+  const { data: studentId, error } = await supabase.rpc("accept_parent_invite", {
+    invite_token: inviteToken
+  });
 
-  if (findError || !invite) return { error: "This invitation is invalid or has already been used." };
+  if (error || !studentId) {
+    return { error: error?.message || "This invitation is invalid or has already been used." };
+  }
 
-  const { error: linkError } = await supabase.from("parent_student_links").upsert(
-    { parent_id: parentId, student_id: invite.student_id },
-    { onConflict: "parent_id,student_id" }
-  );
-  if (linkError) return { error: linkError.message };
-
-  await supabase
-    .from("parent_invites")
-    .update({ status: "accepted", accepted_at: new Date().toISOString() })
-    .eq("id", invite.id);
-
-  return { studentId: invite.student_id };
+  return { studentId };
 }
 
 export function storePendingParentInvite(inviteToken) {

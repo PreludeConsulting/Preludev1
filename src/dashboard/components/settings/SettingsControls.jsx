@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { AlertCircle, Check } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
 import { PrimaryButton } from "../ui/index.jsx";
 
@@ -40,13 +40,20 @@ export function SettingSelect({ id, label, description, value, onChange, options
   );
 }
 
-export function SaveRow({ section, savedSection, onSave }) {
+export function SaveRow({ section, saveState, onSave }) {
+  const isCurrent = saveState?.section === section;
+  const isSaving = isCurrent && saveState.status === "saving";
   return (
     <div className="dash-form-actions">
-      {savedSection === section ? (
-        <span className="dash-save-state dash-save-state--ok"><Check className="h-4 w-4" /> Saved</span>
+      {isCurrent && saveState.status === "saved" ? (
+        <span className="dash-save-state dash-save-state--ok" role="status" aria-live="polite"><Check className="h-4 w-4" /> Saved</span>
       ) : null}
-      <PrimaryButton type="button" className="dash-btn--sm" onClick={() => onSave(section)}>Save changes</PrimaryButton>
+      {isCurrent && saveState.status === "error" ? (
+        <span className="dash-save-state dash-save-state--error" role="alert"><AlertCircle className="h-4 w-4" /> {saveState.message}</span>
+      ) : null}
+      <PrimaryButton type="button" className="dash-btn--sm" onClick={() => onSave(section)} disabled={isSaving}>
+        {isSaving ? "Saving…" : "Save changes"}
+      </PrimaryButton>
     </div>
   );
 }

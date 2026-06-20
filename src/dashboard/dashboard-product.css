@@ -97,6 +97,7 @@
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+  mask-image: linear-gradient(to right, transparent, #000 0.75rem, #000 calc(100% - 0.75rem), transparent);
 }
 
 .dash-product-nav__tabs::-webkit-scrollbar {
@@ -181,8 +182,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border: none;
   border-radius: 999px;
   background: #f4f3f8;
@@ -303,6 +304,7 @@
   background: transparent;
   cursor: pointer;
   text-align: left;
+  min-height: 2.75rem;
 }
 
 .dash-product-nav__profile-btn:hover,
@@ -352,6 +354,8 @@
 
 .dash-product-nav__profile-text {
   line-height: 1.2;
+  min-width: 0;
+  max-width: 10rem;
 }
 
 .dash-product-nav__name {
@@ -360,6 +364,9 @@
   font-size: 0.8125rem;
   font-weight: 700;
   color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dash-product-nav__role {

@@ -1493,11 +1493,8 @@ export function StudentMessages() {
         meetings={meetings}
         schedulePath={`${STUDENT_DASHBOARD_BASE}/mentor`}
         placeholder="Message your mentor…"
-        onSendMessage={(body, threadId) => {
-          postMessage(body, threadId).catch(() => {});
-        }}
+        onSendMessage={(body, threadId) => postMessage(body, threadId)}
       />
     </div>
   );
 }
-

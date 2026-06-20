@@ -63,6 +63,56 @@ create policy "Parents insert own links"
   on public.parent_student_links for insert to authenticated
   with check (auth.uid() = parent_id);
 
+-- Accept an invite without exposing invite rows through RLS. The signed-in
+-- account email must match the invited email, and only pending invites change.
+create or replace function public.accept_parent_invite(invite_token text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  invite_record public.parent_invites%rowtype;
+  signed_in_email text;
+begin
+  if auth.uid() is null then
+    raise exception 'You must be signed in to accept an invitation.';
+  end if;
+
+  signed_in_email := lower(coalesce(auth.jwt() ->> 'email', ''));
+
+  if not exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'parent'
+  ) then
+    raise exception 'Only parent accounts can accept parent invitations.';
+  end if;
+
+  select * into invite_record
+  from public.parent_invites as invite
+  where invite.invite_token = $1
+    and status = 'pending'
+  for update;
+
+  if invite_record.id is null or lower(invite_record.parent_email) <> signed_in_email then
+    raise exception 'This invitation is invalid or does not match your account.';
+  end if;
+
+  insert into public.parent_student_links (parent_id, student_id)
+  values (auth.uid(), invite_record.student_id)
+  on conflict (parent_id, student_id) do nothing;
+
+  update public.parent_invites
+  set status = 'accepted', accepted_at = now()
+  where id = invite_record.id;
+
+  return invite_record.student_id;
+end;
+$$;
+
+revoke all on function public.accept_parent_invite(text) from public;
+grant execute on function public.accept_parent_invite(text) to authenticated;
+
 -- Helper: is the current user a linked parent of this student? ----------------
 create or replace function public.is_parent_of(student_uuid uuid)
 returns boolean

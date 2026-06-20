@@ -15,6 +15,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notificationsRef = useRef(null);
   const profileRef = useRef(null);
+  const tabsRef = useRef(null);
   const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
   const unreadCount = useMemo(
     () => notifications.filter((item) => item.unread).length,
@@ -47,6 +48,11 @@ export default function DashboardProductNav({ navItems, basePath }) {
       document.removeEventListener("mousedown", onPointerDown);
     };
   }, [profileOpen, notificationsOpen]);
+
+  useEffect(() => {
+    const activeTab = tabsRef.current?.querySelector(".dash-product-nav__tab--active");
+    activeTab?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [location.pathname, location.state]);
 
   function isTabActive(item) {
     const path = `${basePath}${item.to}`;
@@ -86,7 +92,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
         <PreludeLogo className="prelude-logo--compact" />
       </Link>
 
-      <nav className="dash-product-nav__tabs" aria-label="Dashboard sections">
+      <nav className="dash-product-nav__tabs" aria-label="Dashboard sections" ref={tabsRef}>
         {navItems.map(({ to, label, icon: Icon, end, workspaceTab }) => (
           <NavLink
             key={`${to}-${workspaceTab || label}`}

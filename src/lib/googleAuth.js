@@ -3,14 +3,6 @@ import { appPath } from "./appPaths.js";
 import { getSupabase } from "./supabase.js";
 import { getPublicAppOrigin, isSupabaseConfigured } from "./supabaseConfig.js";
 
-function logOAuthDebugContext() {
-  const hasUrl = Boolean(import.meta.env.VITE_SUPABASE_URL?.trim());
-  const hasKey = Boolean(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim());
-  console.info("[prelude-oauth] window.location.origin:", window.location.origin);
-  console.info("[prelude-oauth] VITE_SUPABASE_URL set:", hasUrl);
-  console.info("[prelude-oauth] VITE_SUPABASE_PUBLISHABLE_KEY set:", hasKey);
-}
-
 /** Where Supabase should send the browser after Google OAuth completes. */
 export function getGoogleOAuthRedirectTo() {
   const origin = getPublicAppOrigin() || window.location.origin;
@@ -22,8 +14,6 @@ export function getGoogleOAuthRedirectTo() {
  * @returns {{ url: string | null, error: string | null, message?: string }}
  */
 export async function signInWithGoogle() {
-  logOAuthDebugContext();
-
   if (isSupabaseConfigured()) {
     const supabase = getSupabase();
     if (!supabase) {
@@ -34,7 +24,6 @@ export async function signInWithGoogle() {
     }
 
     const redirectTo = getGoogleOAuthRedirectTo();
-    console.info("[prelude-oauth] redirectTo:", redirectTo);
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -53,7 +42,6 @@ export async function signInWithGoogle() {
     }
 
     if (data?.url) {
-      console.log("Google OAuth started:", { provider: "google", url: data.url });
       return { url: data.url, error: null };
     }
 
