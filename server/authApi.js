@@ -11,6 +11,7 @@ import {
   deliverParentInviteEmail
 } from "./lib/authEmail.js";
 import { formatAuthApiError, logAuthApiError } from "./lib/dbErrors.js";
+import { recommendCollegesFromQuestionnaire } from "./datasets/collegeRecommendations.js";
 
 export function db() {
   if (!globalThis.__preludePrisma) globalThis.__preludePrisma = new PrismaClient();
@@ -638,6 +639,23 @@ async function handlePreludeMatchQuestionnaire(req, res) {
   sendJson(res, 200, { questionnaire });
 }
 
+async function handleCollegeRecommendations(req, res) {
+  const auth = await requireAuth(req);
+  if (!["STUDENT", "ADMIN"].includes(auth.user.role)) {
+    return sendJson(res, 403, { error: "forbidden", message: "Only student accounts can request college recommendations." });
+  }
+
+  const [profile, questionnaire] = await Promise.all([
+    db().studentProfile.findUnique({ where: { userId: auth.user.id } }),
+    db().preludeMatchQuestionnaire.findUnique({ where: { userId: auth.user.id } })
+  ]);
+  const recommendations = recommendCollegesFromQuestionnaire({ profile, questionnaire, limit: 8 });
+  sendJson(res, 200, {
+    ...recommendations,
+    generatedAt: new Date().toISOString()
+  });
+}
+
 async function handleDashboard(req, res) {
   const auth = await requireAuth(req);
   const user = auth.user;
@@ -819,7 +837,8 @@ export function createAuthApiMiddleware() {
       !url.pathname.startsWith("/api/dashboard") &&
       !url.pathname.startsWith("/api/students") &&
       !url.pathname.startsWith("/api/parent-invites") &&
-      url.pathname !== "/api/prelude-match-questionnaire"
+      url.pathname !== "/api/prelude-match-questionnaire" &&
+      url.pathname !== "/api/college-recommendations"
     ) {
       return next();
     }
@@ -854,6 +873,7 @@ export function createAuthApiMiddleware() {
       if (url.pathname === "/api/account/delete" && req.method === "POST") return await handleDeleteAccount(req, res);
       if (url.pathname === "/api/account/deleted-notify" && req.method === "POST") return await handleDeletedNotify(req, res);
       if (url.pathname === "/api/prelude-match-questionnaire" && ["GET", "POST"].includes(req.method)) return await handlePreludeMatchQuestionnaire(req, res);
+      if (url.pathname === "/api/college-recommendations" && req.method === "GET") return await handleCollegeRecommendations(req, res);
       if (url.pathname === "/api/account/sessions" && req.method === "GET") return await handleSessions(req, res, url);
       if (url.pathname.startsWith("/api/account/sessions/") && req.method === "DELETE") return await handleSessions(req, res, url);
       if (url.pathname === "/api/dashboard" && req.method === "GET") return await handleDashboard(req, res);

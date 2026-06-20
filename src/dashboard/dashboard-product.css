@@ -2821,6 +2821,47 @@
   gap: 0.45rem;
 }
 
+.dash-college-ai-modal__text-field {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0 0 0.85rem;
+  font-family: var(--dash-font-sans);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.dash-college-ai-modal__text-field textarea,
+.dash-college-ai-modal__text-field input,
+.dash-college-ai-modal__text-field select {
+  width: 100%;
+  border: 1px solid rgb(35 39 48 / 0.12);
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  font-family: var(--dash-font-sans);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: hsl(var(--foreground));
+}
+
+.dash-college-ai-modal__text-field textarea {
+  resize: vertical;
+}
+
+.dash-college-ai-modal__text-field textarea:focus,
+.dash-college-ai-modal__text-field input:focus,
+.dash-college-ai-modal__text-field select:focus {
+  border-color: rgb(120 106 255 / 0.45);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(120 106 255 / 0.12);
+}
+
+.dash-college-ai-modal__score-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
 .dash-college-ai-modal__option {
   border: 1px solid rgb(35 39 48 / 0.1);
   border-radius: 999px;
@@ -2869,6 +2910,10 @@
   background: #f8f7fb;
 }
 
+.dash-college-ai-modal__result--ranked {
+  align-items: flex-start;
+}
+
 .dash-college-ai-modal__result-name {
   margin: 0;
   font-family: var(--dash-font-sans);
@@ -2877,11 +2922,45 @@
   color: hsl(var(--foreground));
 }
 
+.dash-college-ai-modal__result-name span {
+  color: hsl(var(--primary));
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.dash-college-ai-modal__description {
+  max-width: 34rem;
+  margin: 0.35rem 0 0;
+  font-family: var(--dash-font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: hsl(var(--foreground) / 0.82);
+}
+
 .dash-college-ai-modal__result-meta {
   margin: 0.2rem 0 0;
   font-family: var(--dash-font-sans);
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
+}
+
+.dash-college-ai-modal__scroll-hint {
+  margin: -0.25rem 0 0.75rem;
+  font-family: var(--dash-font-sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: hsl(var(--primary));
+}
+
+.dash-college-ai-modal__reasons {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.45rem 0 0;
+  padding-left: 1rem;
+  font-family: var(--dash-font-sans);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: hsl(var(--foreground) / 0.78);
 }
 
 @media (max-width: 900px) {

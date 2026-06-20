@@ -637,6 +637,42 @@ export function sortColleges(colleges, sortId) {
   }
 }
 
+const SPECIALIZED_ENGINEERING_MAJORS = new Set([
+  "aerospace engineering",
+  "biomedical engineering",
+  "chemical engineering",
+  "civil engineering",
+  "computer engineering",
+  "electrical engineering",
+  "environmental engineering",
+  "industrial engineering",
+  "mechanical engineering"
+]);
+
+function normalizeMajor(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function majorFitScore(school, major) {
+  const selected = normalizeMajor(major);
+  if (!selected) return 0;
+  const schoolMajors = (school.majors || []).map(normalizeMajor);
+  const exact = schoolMajors.includes(selected);
+  if (exact) return SPECIALIZED_ENGINEERING_MAJORS.has(selected) ? 28 : 18;
+  if (SPECIALIZED_ENGINEERING_MAJORS.has(selected)) return -30;
+  return schoolMajors.some((schoolMajor) => schoolMajor.includes(selected) || selected.includes(schoolMajor)) ? 12 : 0;
+}
+
+function parseScore(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function actToSat(act) {
+  if (act == null) return null;
+  return Math.round(590 + act * 28);
+}
+
 export function matchCollegesWithProfile(answers) {
   const {
     major = "",
@@ -646,22 +682,35 @@ export function matchCollegesWithProfile(answers) {
     budget = "",
     matchPreference = ""
   } = answers;
+  const locations = Array.isArray(location) ? location : (location ? [location] : []);
+  const budgets = Array.isArray(budget) ? budget : (budget ? [budget] : []);
+  const gpa = parseScore(answers.gpa);
+  const sat = parseScore(answers.sat) ?? actToSat(parseScore(answers.act));
 
   const scored = EXPLORE_COLLEGES.map((school) => {
     let score = 100 - school.rank * 0.4;
 
-    if (major && school.majors.some((m) => m.toLowerCase().includes(major.toLowerCase()))) score += 18;
-    if (location && school.region === location) score += 14;
-    if (type && school.type === type) score += 10;
+    score += majorFitScore(school, major);
+    if (locations.length && locations.includes(school.region)) score += 14;
+    if (type && type !== "both" && school.type === type) score += 10;
     if (matchPreference && school.matchCategory === matchPreference) score += 12;
 
     if (size === "small" && school.enrollment < 8000) score += 8;
     if (size === "medium" && school.enrollment >= 8000 && school.enrollment <= 20000) score += 8;
     if (size === "large" && school.enrollment > 20000) score += 8;
 
-    if (budget === "value" && school.affordability === "value") score += 10;
-    if (budget === "moderate" && school.affordability === "moderate") score += 8;
-    if (budget === "premium" && school.affordability === "premium") score += 6;
+    if (budgets.includes("value") && school.affordability === "value") score += 10;
+    if (budgets.includes("moderate") && school.affordability === "moderate") score += 8;
+    if (budgets.includes("premium") && school.affordability === "premium") score += 6;
+    if (answers.setting === "big-city" && school.campusLife.includes("Urban")) score += 10;
+    if (answers.setting === "suburban" && school.campusLife.includes("Suburban")) score += 10;
+    if (answers.setting === "small-city" && school.enrollment < 12000) score += 6;
+    if (answers.setting === "college-town" && school.enrollment >= 8000 && school.enrollment <= 30000) score += 6;
+    if (gpa != null && school.acceptanceRate <= 15 && gpa < 3.7) score -= 10;
+    if (gpa != null && school.acceptanceRate >= 45 && gpa >= 3.3) score += 6;
+    if (sat != null && sat >= school.satMin && sat <= school.satMax) score += 10;
+    if (sat != null && sat < school.satMin - 80) score -= 8;
+    if (sat != null && sat > school.satMax) score += 5;
 
     return { school, score };
   });

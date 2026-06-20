@@ -188,6 +188,10 @@ export async function savePreludeMatchQuestionnaire(payload) {
   return api("/api/prelude-match-questionnaire", { method: "POST", body: JSON.stringify(payload) });
 }
 
+export async function getCollegeRecommendations() {
+  return api("/api/college-recommendations");
+}
+
 export async function getSessions() {
   return api("/api/account/sessions");
 }
