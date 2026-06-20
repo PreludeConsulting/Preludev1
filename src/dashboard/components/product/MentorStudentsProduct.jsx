@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Calendar, ChevronDown, Search, Users } from "lucide-react";
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
+import { EmptyState } from "../ui/index.jsx";
 import MentorStudentDirectoryCard from "./MentorStudentDirectoryCard.jsx";
 
 const PAGE_SIZE = 4;
@@ -204,7 +205,11 @@ export default function MentorStudentsProduct() {
         </div>
 
         {filteredStudents.length === 0 ? (
-          <p className="dash-mentor-directory-empty">No students match your filters.</p>
+          <EmptyState
+            icon={Search}
+            title="No students match your filters"
+            description="Try a different name, grade, or sort option."
+          />
         ) : null}
 
         <MentorStudentsPagination page={page} totalPages={totalPages} onPageChange={setPage} />

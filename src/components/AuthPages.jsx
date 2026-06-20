@@ -13,12 +13,12 @@ import AppLink from "./AppLink.jsx";
 
 function Shell({ title, subtitle, children }) {
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-4 py-8 text-foreground sm:px-6 sm:py-16">
+    <main className="auth-page mx-auto min-h-screen max-w-3xl px-4 py-8 text-foreground sm:px-6 sm:py-16">
       <AppLink href="/" className="text-sm text-muted-foreground hover:text-foreground">← Back to Prelude</AppLink>
-      <section className="mt-8 rounded-3xl border border-border/70 bg-card/90 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8">
-        <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-        {subtitle ? <p className="mt-2 text-muted-foreground">{subtitle}</p> : null}
-        <div className="mt-8">{children}</div>
+      <section className="auth-card mt-8 rounded-3xl border border-border/70 bg-card/90 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8">
+        <h1 className="auth-title text-3xl font-semibold tracking-tight">{title}</h1>
+        {subtitle ? <p className="auth-subtitle mt-2 text-muted-foreground">{subtitle}</p> : null}
+        <div className="auth-content mt-8">{children}</div>
       </section>
     </main>
   );
@@ -26,16 +26,16 @@ function Shell({ title, subtitle, children }) {
 
 function Field({ label, ...props }) {
   return (
-    <label className="block text-sm font-medium text-foreground">
+    <label className="auth-field block text-sm font-medium text-foreground">
       {label}
-      <input className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-primary" {...props} />
+      <input className="auth-input mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-primary" {...props} />
     </label>
   );
 }
 
 function Alert({ children, tone = "info" }) {
   const cls = tone === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-primary/30 bg-primary/10 text-foreground";
-  return <div className={`rounded-2xl border px-4 py-3 text-sm ${cls}`} role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"}>{children}</div>;
+  return <div className={`auth-alert rounded-2xl border px-4 py-3 text-sm ${cls}`} role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"}>{children}</div>;
 }
 
 export function LoginPage() {
@@ -118,7 +118,7 @@ export function LoginPage() {
         {error ? <Alert tone="error">{error}</Alert> : null}
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        <button disabled={loading} className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Logging in…" : "Log in"}</button>
+        <button disabled={loading} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Logging in…" : "Log in"}</button>
         <p className="text-sm text-muted-foreground">
           <AppLink className="underline" href="/forgot-password">Forgot password?</AppLink> ·{" "}
           <AppLink className="underline" href="/register">Create an account</AppLink>
@@ -272,7 +272,7 @@ export function RegisterPage() {
           </select>
         </label>
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
-        <button disabled={loading} className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>
+        <button disabled={loading} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>
         <p className="text-sm text-muted-foreground">
           Already have an account? <AppLink className="underline" href="/login">Log in</AppLink>
         </p>
@@ -316,7 +316,7 @@ export function ForgotPasswordPage() {
         {error ? <Alert tone="error">{error}</Alert> : null}
         {message ? <Alert>{message}</Alert> : null}
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <button disabled={loading} className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
+        <button disabled={loading} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
           {loading ? "Sending…" : "Send reset link"}
         </button>
         <p className="text-sm text-muted-foreground">
@@ -400,7 +400,7 @@ export function ResetPasswordPage() {
           ) : null}
           <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
           <Field label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} />
-          <button disabled={loading} className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
+          <button disabled={loading} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
             {loading ? "Updating…" : "Update password"}
           </button>
         </form>
@@ -415,7 +415,7 @@ export function ResetPasswordPage() {
         {message ? <Alert>{message}</Alert> : null}
         <Field label="Reset token" value={token} onChange={(e) => setToken(e.target.value)} required />
         <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={12} />
-        <button disabled={loading} className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">Reset password</button>
+        <button disabled={loading} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">Reset password</button>
       </form>
     </Shell>
   );

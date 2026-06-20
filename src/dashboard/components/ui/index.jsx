@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { useId } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { cn } from "../../../lib/utils.js";
@@ -93,7 +94,7 @@ export function ProgressBar({ label, value, max = 100 }) {
 export function EmptyState({ icon: Icon, title, description, action }) {
   return (
     <div className="dash-empty">
-      {Icon ? <Icon className="dash-empty__icon" /> : null}
+      {Icon ? <Icon className="dash-empty__icon" aria-hidden="true" /> : null}
       <p className="dash-empty__title">{title}</p>
       {description ? <p className="dash-empty__desc">{description}</p> : null}
       {action}
@@ -133,6 +134,7 @@ export function SearchInput({ value, onChange, placeholder = "Search…" }) {
 }
 
 export function Modal({ open, onClose, title, children, footer, className, scrollable }) {
+  const titleId = useId();
   if (!open) return null;
   const modalNode = (
     <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
@@ -140,10 +142,11 @@ export function Modal({ open, onClose, title, children, footer, className, scrol
         className={cn("dash-modal", scrollable && "dash-modal--scrollable", className)}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="dash-modal__head">
-          <h2 className="dash-modal__title">{title}</h2>
+          <h2 id={titleId} className="dash-modal__title">{title}</h2>
           <IconButton label="Close" onClick={onClose}>
             <X className="h-4 w-4" />
           </IconButton>

@@ -8,7 +8,7 @@ import { isMentorUpcomingMeeting } from "../../lib/mentorCalendarFilters.js";
 import { CalendarAddEventModal, CalendarEventDetailModal } from "../CalendarEventModals.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { EVENT_CATEGORY_LABELS } from "../../data/placeholders.js";
-import { Modal, SecondaryButton } from "../ui/index.jsx";
+import { EmptyState, Modal, SecondaryButton } from "../ui/index.jsx";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -867,24 +867,31 @@ export default function AdmissionsCalendarVisual({
           <div className="dash-cal-visual__mobile-agenda">
             {mobileAgendaDays.length ? (
               mobileAgendaDays.map(({ day, events: dayEvents }) => (
-                <button
+                <div
                   key={day}
-                  type="button"
                   className="dash-cal-visual__mobile-day"
-                  onClick={() => openDayAgenda(viewYear, viewMonth, day)}
                 >
-                  <span className="dash-cal-visual__mobile-day-label">
+                  <button
+                    type="button"
+                    className="dash-cal-visual__mobile-day-trigger dash-cal-visual__mobile-day-label"
+                    onClick={() => openDayAgenda(viewYear, viewMonth, day)}
+                    aria-label={`Open ${new Date(viewYear, viewMonth, day).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} agenda`}
+                  >
                     {new Date(viewYear, viewMonth, day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-                  </span>
+                  </button>
                   <div className="dash-cal-visual__mobile-day-events">
                     {dayEvents.map((event) => (
                       <EventPill key={event.id} event={event} onSelect={setDetailEvent} mentorView={isMentorCalendar} mentorStudentView={isMentorStudentView} />
                     ))}
                   </div>
-                </button>
+                </div>
               ))
             ) : (
-              <p className="dash-cal-visual__agenda-empty">No events this month.</p>
+              <EmptyState
+                icon={CalendarDays}
+                title="No events this month"
+                description="Create an event or task to start building your schedule."
+              />
             )}
           </div>
         ) : (
@@ -909,45 +916,42 @@ export default function AdmissionsCalendarVisual({
                 const cellTone = !isToday && !isSelected ? dayCellTone(dayEvents) : null;
 
                 return (
-                  <button
+                  <div
                     key={`${viewYear}-${viewMonth}-${day}`}
-                    type="button"
                     className={cn(
                       "dash-cal-visual__day",
                       isToday && "dash-cal-visual__day--today",
                       isSelected && "dash-cal-visual__day--selected",
                       cellTone && `dash-cal-visual__day--${cellTone}`
                     )}
-                    onClick={() => openDayAgenda(viewYear, viewMonth, day)}
-                    aria-label={`${new Date(viewYear, viewMonth, day).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${dayEvents.length ? `, ${dayEvents.length} events` : ""}`}
                   >
-                    <span className="dash-cal-visual__day-num">{day}</span>
+                    <button
+                      type="button"
+                      className="dash-cal-visual__day-trigger"
+                      onClick={() => openDayAgenda(viewYear, viewMonth, day)}
+                      aria-label={`${new Date(viewYear, viewMonth, day).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${dayEvents.length ? `, ${dayEvents.length} events` : ""}`}
+                    >
+                      <span className="dash-cal-visual__day-num">{day}</span>
+                    </button>
                     <div className="dash-cal-visual__day-events">
                       {visible.map((event) => (
                         <EventPill key={event.id} event={event} onSelect={setDetailEvent} mentorView={isMentorCalendar} mentorStudentView={isMentorStudentView} />
                       ))}
                       {overflow > 0 ? (
-                        <span
+                        <button
+                          type="button"
                           className="dash-cal-visual__more"
-                          role="button"
-                          tabIndex={0}
                           onClick={(e) => {
                             e.stopPropagation();
                             openDayAgenda(viewYear, viewMonth, day);
                           }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              openDayAgenda(viewYear, viewMonth, day);
-                            }
-                          }}
+                          aria-label={`Show ${overflow} more events on ${new Date(viewYear, viewMonth, day).toLocaleDateString()}`}
                         >
                           +{overflow} more
-                        </span>
+                        </button>
                       ) : null}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>

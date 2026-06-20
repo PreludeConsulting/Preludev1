@@ -82,7 +82,7 @@ export function PreludeMatchBrowsePage() {
     <div className="dash-page dash-page--premium">
       <DashboardPageHeader
         title="Prelude Match"
-        subtitle="Browse mentors and find the best fit for your goals. Demo mentor catalog — connect a live mentor network when ready."
+        subtitle="Browse mentor profiles and find the best fit for your goals."
         actions={
           <Link to={myMentorsPathForRole(user?.role)} className="dash-btn dash-btn--secondary dash-btn--sm">
             My Mentors

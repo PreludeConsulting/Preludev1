@@ -96,7 +96,7 @@ export function StudentNotifications() {
         }
       />
 
-      {loading ? <p className="dash-muted">Loading notifications…</p> : null}
+      {loading ? <p className="dash-muted" role="status" aria-live="polite">Loading notifications…</p> : null}
 
       {!loading && notifications.length === 0 ? (
         <EmptyState

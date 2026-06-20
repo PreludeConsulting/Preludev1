@@ -7,8 +7,8 @@
 .dash-topbar--slim {
   padding: clamp(0.75rem, 1.5vw, 1rem) clamp(1rem, 2vw, 1.5rem);
   margin-bottom: clamp(1rem, 2vw, 1.5rem);
-  border-radius: 1rem;
-  box-shadow: 0 1px 3px rgb(35 39 48 / 0.06);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-subtle);
 }
 
 .dash-topbar--compact .dash-topbar__page-subtitle {
@@ -33,8 +33,8 @@
   padding: clamp(1.25rem, 2.5vw, 1.85rem) clamp(1.25rem, 3vw, 2.1rem);
   background: #fff;
   border: 1px solid rgb(35 39 48 / 0.08);
-  border-radius: 1.25rem;
-  box-shadow: 0 2px 14px rgb(35 39 48 / 0.05);
+  border-radius: var(--radius-card-lg);
+  box-shadow: var(--shadow-subtle);
 }
 
 .dash-hero__main {
@@ -156,14 +156,14 @@
   padding: clamp(0.9rem, 1.6vw, 1.15rem);
   background: #fff;
   border: 1px solid rgb(35 39 48 / 0.07);
-  border-radius: 1rem;
-  box-shadow: 0 1px 4px rgb(35 39 48 / 0.04);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-subtle);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .dash-metric-card:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgb(120 106 255 / 0.08);
+  box-shadow: var(--shadow-card);
 }
 
 .dash-metric-card > div:not(.dash-metric-card__icon) {
@@ -218,7 +218,7 @@
 }
 
 .dash-panel {
-  border-radius: 1.1rem;
+  border-radius: var(--radius-card);
 }
 
 .dash-panel .dash-section-card__head {

@@ -9,7 +9,7 @@ import { DEMO_STUDENT } from "../../../data/demoAccounts.js";
 import { DEMO_SLUGS } from "../../../data/demoDashboardData.js";
 import { resolveStudentAuthUser } from "../../lib/studentDemoBundle.js";
 import ParentChildDashboard from "../../components/product/ParentChildDashboard.jsx";
-import { SectionCard } from "../../components/ui/index.jsx";
+import { EmptyState, SectionCard } from "../../components/ui/index.jsx";
 
 function demoLinkedChildren() {
   return [
@@ -56,11 +56,13 @@ export function ParentOverview() {
       </header>
 
       <SectionCard title="Your students" className="dash-panel">
-        {loading ? <p className="dash-muted">Loading linked students…</p> : null}
+        {loading ? <p className="dash-muted" role="status" aria-live="polite">Loading linked students…</p> : null}
         {!loading && !children.length ? (
-          <p className="dash-muted">
-            No students linked yet. Ask your student to invite you from their Prelude Settings → Family tab.
-          </p>
+          <EmptyState
+            icon={Users}
+            title="No students linked yet"
+            description="Ask your student to invite you from Prelude Settings → Family."
+          />
         ) : null}
         <ul className="dash-parent-children-list">
           {children.map((child) => (

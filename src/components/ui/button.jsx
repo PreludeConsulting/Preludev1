@@ -10,14 +10,15 @@ const variants = {
 
 export function Button({ as: Component = "a", variant = "primary", className, children, ...props }) {
   const MotionComponent = motion.create(Component);
+  const isDisabled = Boolean(props.disabled || props["aria-disabled"] === true);
 
   return (
     <MotionComponent
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={isDisabled ? undefined : { y: -1 }}
+      whileTap={isDisabled ? undefined : { scale: 0.98 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-body text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring",
+        "inline-flex min-h-[var(--control-height)] items-center justify-center gap-2 rounded-[var(--radius-control)] px-[var(--control-padding-inline)] py-2.5 font-body text-sm font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50",
         variants[variant],
         className
       )}

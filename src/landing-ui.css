@@ -6,9 +6,10 @@
   gap: 0.35rem;
   min-width: 0;
   max-width: 100%;
-  padding: 0.3rem 0.45rem 0.3rem 0.3rem;
+  min-height: var(--control-height);
+  padding: 0.3rem 0.55rem 0.3rem 0.3rem;
   border-radius: 999px;
-  border: 1px solid hsl(var(--foreground) / 0.1);
+  border: 1px solid var(--border-subtle);
   background: rgb(255 255 255 / 0.85);
   font-family: "Barlow", sans-serif;
   font-size: 0.8125rem;
@@ -119,7 +120,7 @@
   overflow: hidden;
   background: #fff;
   border-left: 1px solid hsl(var(--foreground) / 0.08);
-  box-shadow: -12px 0 40px rgb(35 39 48 / 0.12);
+  box-shadow: var(--shadow-elevated);
   font-family: "Barlow", sans-serif;
 }
 
@@ -192,8 +193,10 @@
   align-self: center;
   border: none;
   background: transparent;
+  width: var(--control-height);
+  height: var(--control-height);
   padding: 0.35rem;
-  border-radius: 999px;
+  border-radius: var(--radius-control);
   cursor: pointer;
   color: hsl(var(--foreground));
 }
@@ -316,8 +319,8 @@
   flex-direction: column;
   gap: 0.45rem;
   padding: 0.85rem 1rem;
-  border-radius: 0.85rem;
-  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-subtle);
   background: #faf9ff;
   min-width: 0;
 }
@@ -369,21 +372,21 @@
   flex-direction: column;
   height: 100%;
   padding: clamp(1.25rem, 3vw, 1.75rem);
-  border-radius: 1.25rem;
-  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: var(--radius-card-lg);
+  border: 1px solid var(--border-subtle);
   background: #ffffff;
-  box-shadow: 0 4px 20px rgb(35 39 48 / 0.04);
+  box-shadow: var(--shadow-subtle);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .pricing-card:hover {
-  box-shadow: 0 12px 32px rgb(120 106 255 / 0.1);
-  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+  transform: translateY(-1px);
 }
 
 .pricing-card--featured {
   border-color: hsl(var(--primary) / 0.35);
-  box-shadow: 0 16px 48px hsl(var(--primary) / 0.1);
+  box-shadow: 0 8px 26px hsl(var(--primary) / 0.1);
 }
 
 .pricing-card__header {
@@ -413,7 +416,7 @@
 .pricing-card__title-block {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: var(--space-3);
 }
 
 .pricing-card__name {
@@ -436,9 +439,9 @@
 .pricing-card__desc {
   margin: 0.5rem 0 0;
   font-family: "Barlow", sans-serif;
-  font-size: 0.875rem;
-  font-weight: 300;
-  line-height: 1.55;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.6;
   color: hsl(var(--muted-foreground));
 }
 
@@ -457,8 +460,8 @@
   gap: 0.45rem;
   align-items: flex-start;
   font-family: "Barlow", sans-serif;
-  font-size: 0.875rem;
-  font-weight: 300;
+  font-size: 0.9375rem;
+  font-weight: 400;
   line-height: 1.5;
   color: hsl(var(--foreground) / 0.82);
 }

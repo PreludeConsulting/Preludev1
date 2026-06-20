@@ -43,6 +43,8 @@ export const translations = {
     },
     hero: {
       headline: ["College admissions,", "", "made simple."],
+      typingPrefix: "made",
+      typingPhrases: ["simple.", "personal.", "clearer.", "possible.", "less stressful."],
       subcopy: "Access a network of students from top universities who guide you through every step of the admissions process.",
       emailLabel: "Email address",
       emailPlaceholder: "Enter your email address",
@@ -327,6 +329,8 @@ export const translations = {
     },
     hero: {
       headline: ["대학 입시,", "", "새롭게."],
+      typingPrefix: "",
+      typingPhrases: ["더 간단하게.", "더 개인적으로.", "더 명확하게.", "더 가능하게.", "덜 부담스럽게."],
       subcopy: "또래 멘토링, 개인 맞춤 전략, 재정 가이드를 통해 학생들이 자신 있게 돋보이는 지원서를 만들 수 있도록 돕습니다.",
       emailLabel: "이메일 주소",
       emailPlaceholder: "이메일 주소를 입력하세요",
@@ -611,6 +615,8 @@ export const translations = {
     },
     hero: {
       headline: ["大学申请，", "", "更简单。"],
+      typingPrefix: "",
+      typingPhrases: ["更简单。", "更个性化。", "更清晰。", "更可实现。", "更少压力。"],
       subcopy: "由同龄导师驱动的辅导、个性化策略和财务规划指导，帮助学生自信打造出色的申请材料。",
       emailLabel: "电子邮箱地址",
       emailPlaceholder: "输入你的电子邮箱地址",
@@ -895,6 +901,8 @@ export const translations = {
     },
     hero: {
       headline: ["Admisiones,", "", "más simples."],
+      typingPrefix: "",
+      typingPhrases: ["más simples.", "más personales.", "más claras.", "más posibles.", "menos estresantes."],
       subcopy: "Accede a una red de estudiantes de universidades líderes que te guían en cada paso del proceso de admisión.",
       emailLabel: "Correo electrónico",
       emailPlaceholder: "Ingresa tu correo electrónico",

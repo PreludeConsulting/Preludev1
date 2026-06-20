@@ -24,12 +24,12 @@ import SupabaseProtectedRoute from "./SupabaseProtectedRoute.jsx";
 
 function Shell({ title, subtitle, children }) {
   return (
-    <main className="mx-auto min-h-screen max-w-xl px-6 py-16 text-foreground">
+    <main className="auth-page mx-auto min-h-screen max-w-xl px-4 py-8 text-foreground sm:px-6 sm:py-16">
       <Link to="/" className="text-sm text-muted-foreground transition hover:text-foreground">← Back to Prelude</Link>
-      <section className="mt-8 rounded-3xl border border-border/70 bg-card/90 p-8 shadow-2xl shadow-black/20 backdrop-blur">
-        <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-        {subtitle ? <p className="mt-2 text-muted-foreground">{subtitle}</p> : null}
-        <div className="mt-8">{children}</div>
+      <section className="auth-card mt-8 rounded-3xl border border-border/70 bg-card/90 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8">
+        <h1 className="auth-title text-3xl font-semibold tracking-tight">{title}</h1>
+        {subtitle ? <p className="auth-subtitle mt-2 text-muted-foreground">{subtitle}</p> : null}
+        <div className="auth-content mt-8">{children}</div>
       </section>
     </main>
   );
@@ -37,10 +37,10 @@ function Shell({ title, subtitle, children }) {
 
 function Field({ label, ...props }) {
   return (
-    <label className="block text-sm font-medium text-foreground">
+    <label className="auth-field block text-sm font-medium text-foreground">
       {label}
       <input
-        className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-primary"
+        className="auth-input mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-primary"
         {...props}
       />
     </label>
@@ -54,7 +54,7 @@ function Alert({ children, tone = "info" }) {
       : tone === "success"
         ? "border-emerald-500/30 bg-emerald-500/10 text-foreground"
         : "border-primary/30 bg-primary/10 text-foreground";
-  return <div className={`rounded-2xl border px-4 py-3 text-sm ${cls}`}>{children}</div>;
+  return <div className={`auth-alert rounded-2xl border px-4 py-3 text-sm ${cls}`} role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"}>{children}</div>;
 }
 
 function SubmitButton({ loading, children, loadingLabel }) {
@@ -62,7 +62,7 @@ function SubmitButton({ loading, children, loadingLabel }) {
     <button
       type="submit"
       disabled={loading}
-      className="w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground transition disabled:opacity-60"
+      className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground transition disabled:opacity-60"
     >
       {loading ? loadingLabel : children}
     </button>
@@ -167,7 +167,7 @@ function SupabaseSignupPage() {
         <label className="block text-sm font-medium text-foreground">
           I am a
           <select
-            className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-primary"
+            className="auth-input mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-primary"
             value={form.role}
             onChange={update("role")}
           >

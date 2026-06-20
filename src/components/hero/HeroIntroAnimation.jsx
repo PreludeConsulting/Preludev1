@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { useLanguage } from "../../context/LanguageContext.jsx";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
+import TypingPhrase from "./TypingPhrase.jsx";
 
 const line = {
   hidden: { opacity: 0, y: 14 },
@@ -15,47 +16,31 @@ export function HeroHeadline() {
   const reducedMotion = useReducedMotion();
   const { t } = useLanguage();
   const [lineOne, lineTwo, lineThree] = t("hero.headline");
-  const lines = [
-    { text: lineOne, accent: false },
-    { text: lineTwo, accent: false },
-    { text: lineThree, accent: true }
-  ].filter(({ text }) => text);
+  const typingPrefix = t("hero.typingPrefix");
+  const typingPhrases = t("hero.typingPhrases");
+  const staticPhrase = typingPhrases?.[0] || lineThree || "";
 
   if (reducedMotion) {
     return (
       <h1 className="shopify-hero__headline">
-        {lines.map(({ text, accent }) => (
-          <span
-            key={text}
-            className={
-              accent
-                ? "shopify-hero__headline-accent hero-headline-shimmer shopify-hero__headline-line"
-                : "shopify-hero__headline-line"
-            }
-          >
-            {text}
-          </span>
-        ))}
+        <span className="shopify-hero__headline-line">{lineOne}</span>
+        {lineTwo ? <span className="shopify-hero__headline-line">{lineTwo}</span> : null}
+        <span className="shopify-hero__typing-line hero-headline-shimmer shopify-hero__headline-line">
+          {typingPrefix ? <span>{typingPrefix}&nbsp;</span> : null}
+          <TypingPhrase phrases={typingPhrases} staticPhrase={staticPhrase} />
+        </span>
       </h1>
     );
   }
 
   return (
     <motion.h1 className="shopify-hero__headline" initial="hidden" animate="show">
-      {lines.map(({ text, accent }, index) => (
-        <motion.span
-          key={text}
-          className={
-            accent
-              ? "shopify-hero__headline-accent hero-headline-shimmer shopify-hero__headline-line block"
-              : "shopify-hero__headline-line block"
-          }
-          custom={index}
-          variants={line}
-        >
-          {text}
-        </motion.span>
-      ))}
+      <motion.span className="shopify-hero__headline-line block" custom={0} variants={line}>{lineOne}</motion.span>
+      {lineTwo ? <motion.span className="shopify-hero__headline-line block" custom={1} variants={line}>{lineTwo}</motion.span> : null}
+      <motion.span className="shopify-hero__typing-line hero-headline-shimmer block" custom={lineTwo ? 2 : 1} variants={line}>
+        {typingPrefix ? <span>{typingPrefix}&nbsp;</span> : null}
+        <TypingPhrase phrases={typingPhrases} staticPhrase={staticPhrase} />
+      </motion.span>
     </motion.h1>
   );
 }
