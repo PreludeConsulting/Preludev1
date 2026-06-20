@@ -330,7 +330,7 @@ export default function CollegesExplore() {
             </p>
           </div>
           <button type="button" className="dash-colleges-ai-card__cta" onClick={() => setAiModalOpen(true)}>
-            Match with Prelude AI →
+            Match with Prelude →
           </button>
         </div>
 
