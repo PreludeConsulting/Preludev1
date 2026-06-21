@@ -45,7 +45,7 @@ export function usePreludeChat({ enabled = true } = {}) {
       return;
     }
     setLoadingMessages(true);
-    const { messages: next, error: err } = await loadChatMessages(user, activeThread.id);
+    const { messages: next, error: err } = await loadChatMessages(user, activeThread);
     setMessages(next);
     if (err) setError(err);
     setLoadingMessages(false);
@@ -61,8 +61,26 @@ export function usePreludeChat({ enabled = true } = {}) {
 
   useEffect(() => {
     if (!enabled || !activeThread?.id) return undefined;
-    return subscribeChatMessages(activeThread.id, refreshMessages);
-  }, [enabled, activeThread?.id, refreshMessages]);
+    return subscribeChatMessages(activeThread, refreshMessages);
+  }, [enabled, activeThread, refreshMessages]);
+
+  useEffect(() => {
+    if (!enabled || !user?.id) return undefined;
+
+    function handleVisible() {
+      if (document.visibilityState === "visible") {
+        refreshThreads();
+        refreshMessages();
+      }
+    }
+
+    window.addEventListener("focus", refreshMessages);
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => {
+      window.removeEventListener("focus", refreshMessages);
+      document.removeEventListener("visibilitychange", handleVisible);
+    };
+  }, [enabled, user?.id, refreshThreads, refreshMessages]);
 
   const sendMessage = useCallback(
     async ({ body, file }) => {
@@ -78,7 +96,7 @@ export function usePreludeChat({ enabled = true } = {}) {
           setError(validation);
           return { ok: false, error: validation };
         }
-        const uploaded = await uploadChatAttachment(user.id, activeThread.id, file);
+        const uploaded = await uploadChatAttachment(user, activeThread.id, file);
         if (uploaded.error) {
           setSending(false);
           setError(uploaded.error);

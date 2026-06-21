@@ -112,7 +112,8 @@ function ChatPanel({
   sendMessage,
   editingId,
   setEditingId,
-  saveEdit
+  saveEdit,
+  setError
 }) {
   const [draft, setDraft] = useState("");
   const [pendingFile, setPendingFile] = useState(null);
@@ -243,14 +244,25 @@ function ChatPanel({
         <input
           ref={fileRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          className="sr-only"
-          id="dash-msg-fab-file"
-          onChange={(e) => setPendingFile(e.target.files?.[0] || null)}
+          accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
+          className="dash-msg-fab__file-input"
+          onChange={(e) => {
+            const file = e.target.files?.[0] || null;
+            if (!file) return;
+            setPendingFile(file);
+            setError?.(null);
+            e.target.value = "";
+          }}
         />
-        <label htmlFor="dash-msg-fab-file" className="dash-msg-fab__attach" aria-label="Attach photo">
+        <button
+          type="button"
+          className="dash-msg-fab__attach"
+          onClick={() => fileRef.current?.click()}
+          aria-label="Attach photo"
+          disabled={!activeThread || sending}
+        >
           <ImagePlus size={18} />
-        </label>
+        </button>
         <input
           type="text"
           className="dash-msg-fab__input"
@@ -318,6 +330,7 @@ export default function PreludeFloatingChat() {
         editingId={chat.editingId}
         setEditingId={chat.setEditingId}
         saveEdit={chat.saveEdit}
+        setError={chat.setError}
         />
       </div>
     </div>

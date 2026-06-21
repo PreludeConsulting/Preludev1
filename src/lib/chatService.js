@@ -12,7 +12,17 @@ import {
   isDemoEmail
 } from "../data/demoAccounts.js";
 import { shouldUseDemoFixtures } from "./devAuthBypass.js";
-import { loadLocalChatMessages, loadLocalChatThreads, saveLocalChatMessages, saveLocalChatThreads } from "./localChatStore.js";
+import {
+  appendLocalChatMessage,
+  loadLocalChatMessages,
+  loadLocalChatThreads,
+  mergeChatMessages,
+  saveLocalChatMessages,
+  saveLocalChatThreads,
+  subscribeLocalChatMessages,
+  threadStorageKey,
+  updateLocalChatMessage
+} from "./localChatStore.js";
 
 export const CHAT_TYPE = {
   MENTOR_STUDENT: "mentor_student",
@@ -60,6 +70,13 @@ export function mapChatMessage(row, viewerId) {
   };
 }
 
+function withStorageKey(thread) {
+  return {
+    ...thread,
+    storageKey: thread.storageKey || threadStorageKey(thread)
+  };
+}
+
 function demoDisplayName(account) {
   return `${account.firstName} ${account.lastName}`;
 }
@@ -69,7 +86,7 @@ function buildDemoThreadsForUser(user) {
   const threads = [];
 
   if (role === "student") {
-    threads.push({
+    threads.push(withStorageKey({
       id: "demo-thread-ms-jordan",
       chatType: CHAT_TYPE.MENTOR_STUDENT,
       mentorId: DEMO_IDS.mentor,
@@ -78,12 +95,12 @@ function buildDemoThreadsForUser(user) {
       label: demoDisplayName(DEMO_MENTOR),
       sublabel: "Your mentor",
       participantRole: "Mentor"
-    });
+    }));
     return threads;
   }
 
   if (role === "parent") {
-    threads.push({
+    threads.push(withStorageKey({
       id: "demo-thread-mp-sam",
       chatType: CHAT_TYPE.MENTOR_PARENT,
       mentorId: DEMO_IDS.mentor,
@@ -92,12 +109,12 @@ function buildDemoThreadsForUser(user) {
       label: demoDisplayName(DEMO_MENTOR),
       sublabel: `${DEMO_STUDENT.firstName}'s mentor`,
       participantRole: "Mentor"
-    });
+    }));
     return threads;
   }
 
   if (role === "mentor") {
-    threads.push({
+    threads.push(withStorageKey({
       id: "demo-thread-ms-jordan",
       chatType: CHAT_TYPE.MENTOR_STUDENT,
       mentorId: DEMO_IDS.mentor,
@@ -106,8 +123,8 @@ function buildDemoThreadsForUser(user) {
       label: demoDisplayName(DEMO_STUDENT),
       sublabel: "Student",
       participantRole: "Student"
-    });
-    threads.push({
+    }));
+    threads.push(withStorageKey({
       id: "demo-thread-ms-alex",
       chatType: CHAT_TYPE.MENTOR_STUDENT,
       mentorId: DEMO_IDS.mentor,
@@ -116,8 +133,8 @@ function buildDemoThreadsForUser(user) {
       label: demoDisplayName(DEMO_STUDENT_2),
       sublabel: "Student",
       participantRole: "Student"
-    });
-    threads.push({
+    }));
+    threads.push(withStorageKey({
       id: "demo-thread-mp-sam",
       chatType: CHAT_TYPE.MENTOR_PARENT,
       mentorId: DEMO_IDS.mentor,
@@ -126,7 +143,7 @@ function buildDemoThreadsForUser(user) {
       label: `${demoDisplayName(DEMO_PARENT)} (Jordan's parent)`,
       sublabel: "Parent",
       participantRole: "Parent"
-    });
+    }));
     return threads;
   }
 
@@ -266,13 +283,13 @@ async function ensureThread({ chatType, mentorId, studentId, parentId }) {
 
   const { data: existing } = await query.maybeSingle();
   if (existing) {
-    return {
+    return withStorageKey({
       id: existing.id,
       chatType: existing.chat_type,
       mentorId: existing.mentor_id,
       studentId: existing.student_id,
       parentId: existing.parent_id
-    };
+    });
   }
 
   const insertPayload = {
@@ -285,13 +302,13 @@ async function ensureThread({ chatType, mentorId, studentId, parentId }) {
   const { data, error } = await supabase.from("chat_threads").insert(insertPayload).select("*").single();
   if (error) throw new Error(error.message);
 
-  return {
+  return withStorageKey({
     id: data.id,
     chatType: data.chat_type,
     mentorId: data.mentor_id,
     studentId: data.student_id,
     parentId: data.parent_id
-  };
+  });
 }
 
 function otherParticipantId(thread, viewerId) {
@@ -307,7 +324,7 @@ export async function listChatThreadsForUser(user) {
   if (useLocalChat(user)) {
     const stored = loadLocalChatThreads(user.id);
     const demo = buildDemoThreadsForUser(user);
-    const merged = stored.length ? stored : demo;
+    const merged = stored.length ? stored.map(withStorageKey) : demo;
     if (!stored.length) saveLocalChatThreads(user.id, demo);
     return { threads: merged, error: null };
   }
@@ -318,27 +335,62 @@ export async function listChatThreadsForUser(user) {
     if (role === "student") threads = await resolveStudentThreads(user.id);
     else if (role === "parent") threads = await resolveParentThreads(user.id);
     else if (role === "mentor") threads = await resolveMentorThreads(user.id);
-    return { threads, error: null };
+    const normalized = threads.map(withStorageKey);
+    if (normalized.length) saveLocalChatThreads(user.id, normalized);
+    return { threads: normalized, error: null };
   } catch (err) {
+    const cached = loadLocalChatThreads(user.id).map(withStorageKey);
+    if (cached.length) return { threads: cached, error: null };
     return { threads: [], error: err.message || "Could not load conversations." };
   }
 }
 
-export async function loadChatMessages(user, threadId) {
-  if (!user?.id || !threadId) return { messages: [], error: null };
+export async function loadChatMessages(user, threadMeta) {
+  const thread = typeof threadMeta === "string" ? { id: threadMeta } : threadMeta;
+  if (!user?.id || !thread?.id) return { messages: [], error: null };
+
+  const localRows = loadLocalChatMessages(thread).map((m) => mapChatMessage(m, user.id));
 
   if (useLocalChat(user)) {
-    return { messages: loadLocalChatMessages(threadId).map((m) => mapChatMessage(m, user.id)), error: null };
+    return { messages: localRows, error: null };
   }
 
-  const { data, error } = await db()
-    .from("messages")
-    .select("*")
-    .eq("chat_thread_id", threadId)
-    .order("created_at", { ascending: true });
+  try {
+    const { data, error } = await db()
+      .from("messages")
+      .select("*")
+      .eq("chat_thread_id", thread.id)
+      .order("created_at", { ascending: true });
 
-  if (error) return { messages: [], error: error.message };
-  return { messages: (data || []).map((row) => mapChatMessage(row, user.id)), error: null };
+    if (error) {
+      return { messages: localRows, error: localRows.length ? null : error.message };
+    }
+
+    const remoteRows = (data || []).map((row) => mapChatMessage(row, user.id));
+    const merged = mergeChatMessages(remoteRows, localRows).map((m) => mapChatMessage(m, user.id));
+    saveLocalChatMessages(thread, merged.map((message) => ({
+      id: message.id,
+      chat_thread_id: thread.id,
+      chat_type: message.chatType,
+      sender_id: message.senderId,
+      receiver_id: message.receiverId,
+      sender_name: message.senderName,
+      sender_role: message.senderRole,
+      body: message.body,
+      read: message.read,
+      created_at: message.createdAt,
+      edited_at: message.editedAt,
+      attachment_url: message.attachmentUrl,
+      attachment_mime: message.attachmentMime,
+      attachment_name: message.attachmentName
+    })));
+    return { messages: merged, error: null };
+  } catch (err) {
+    return {
+      messages: localRows,
+      error: localRows.length ? null : err.message || "Could not load messages."
+    };
+  }
 }
 
 export async function sendChatMessage(user, threadMeta, { body = "", attachment = null }) {
@@ -376,31 +428,57 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
   };
 
   if (useLocalChat(user)) {
-    const existing = loadLocalChatMessages(threadMeta.id);
-    saveLocalChatMessages(threadMeta.id, [...existing, payload]);
+    appendLocalChatMessage(threadMeta, payload);
     return { message: mapChatMessage(payload, user.id), error: null };
   }
 
-  const { data, error } = await db()
-    .from("messages")
-    .insert({
+  appendLocalChatMessage(threadMeta, payload);
+
+  try {
+    const { data, error } = await db()
+      .from("messages")
+      .insert({
+        chat_thread_id: threadMeta.id,
+        chat_type: threadMeta.chatType,
+        sender_id: user.id,
+        receiver_id: receiverId,
+        sender_name: user.name,
+        sender_role: (user.role || "student").toLowerCase(),
+        body: trimmed || null,
+        read: false,
+        attachment_url: attachment?.url || null,
+        attachment_mime: attachment?.mime || null,
+        attachment_name: attachment?.name || null
+      })
+      .select("*")
+      .single();
+
+    if (error) {
+      return { message: mapChatMessage(payload, user.id), error: null };
+    }
+
+    const saved = mapChatMessage(data, user.id);
+    const localRows = loadLocalChatMessages(threadMeta).filter((m) => m.id !== payload.id);
+    saveLocalChatMessages(threadMeta, [...localRows, {
+      id: data.id,
       chat_thread_id: threadMeta.id,
       chat_type: threadMeta.chatType,
-      sender_id: user.id,
-      receiver_id: receiverId,
-      sender_name: user.name,
-      sender_role: (user.role || "student").toLowerCase(),
-      body: trimmed || null,
-      read: false,
-      attachment_url: attachment?.url || null,
-      attachment_mime: attachment?.mime || null,
-      attachment_name: attachment?.name || null
-    })
-    .select("*")
-    .single();
-
-  if (error) return { message: null, error: error.message };
-  return { message: mapChatMessage(data, user.id), error: null };
+      sender_id: data.sender_id,
+      receiver_id: data.receiver_id,
+      sender_name: data.sender_name,
+      sender_role: data.sender_role,
+      body: data.body,
+      read: data.read,
+      created_at: data.created_at,
+      edited_at: data.edited_at,
+      attachment_url: data.attachment_url,
+      attachment_mime: data.attachment_mime,
+      attachment_name: data.attachment_name
+    }]);
+    return { message: saved, error: null };
+  } catch {
+    return { message: mapChatMessage(payload, user.id), error: null };
+  }
 }
 
 export async function editChatMessage(user, messageId, body) {
@@ -412,10 +490,10 @@ export async function editChatMessage(user, messageId, body) {
     const threadIds = (loadLocalChatThreads(user.id).length
       ? loadLocalChatThreads(user.id)
       : buildDemoThreadsForUser(user)
-    ).map((t) => t.id);
+    ).map((t) => withStorageKey(t));
 
-    for (const threadId of threadIds) {
-      const rows = loadLocalChatMessages(threadId);
+    for (const thread of threadIds) {
+      const rows = loadLocalChatMessages(thread);
       const idx = rows.findIndex((m) => m.id === messageId && (m.sender_id || m.senderId) === user.id);
       if (idx === -1) continue;
       const updated = {
@@ -424,42 +502,81 @@ export async function editChatMessage(user, messageId, body) {
         edited_at: new Date().toISOString(),
         editedAt: new Date().toISOString()
       };
-      const next = [...rows];
-      next[idx] = updated;
-      saveLocalChatMessages(threadId, next);
+      updateLocalChatMessage(thread, messageId, updated);
       return { message: mapChatMessage(updated, user.id), error: null };
     }
     return { message: null, error: "Message not found." };
   }
 
-  const { data, error } = await db()
-    .from("messages")
-    .update({ body: trimmed, edited_at: new Date().toISOString() })
-    .eq("id", messageId)
-    .eq("sender_id", user.id)
-    .select("*")
-    .maybeSingle();
+  const cachedThreads = loadLocalChatThreads(user.id).map(withStorageKey);
+  for (const thread of cachedThreads) {
+    const rows = loadLocalChatMessages(thread);
+    if (!rows.some((m) => m.id === messageId)) continue;
+    updateLocalChatMessage(thread, messageId, (row) => ({
+      ...row,
+      body: trimmed,
+      edited_at: new Date().toISOString(),
+      editedAt: new Date().toISOString()
+    }));
+  }
 
-  if (error) return { message: null, error: error.message };
-  if (!data) return { message: null, error: "Message not found or not editable." };
-  return { message: mapChatMessage(data, user.id), error: null };
+  try {
+    const { data, error } = await db()
+      .from("messages")
+      .update({ body: trimmed, edited_at: new Date().toISOString() })
+      .eq("id", messageId)
+      .eq("sender_id", user.id)
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      const localOnly = cachedThreads
+        .flatMap((thread) => loadLocalChatMessages(thread))
+        .find((m) => m.id === messageId && (m.sender_id || m.senderId) === user.id);
+      if (localOnly) return { message: mapChatMessage(localOnly, user.id), error: null };
+      return { message: null, error: error.message };
+    }
+    if (!data) {
+      const localOnly = cachedThreads
+        .flatMap((thread) => loadLocalChatMessages(thread))
+        .find((m) => m.id === messageId && (m.sender_id || m.senderId) === user.id);
+      if (localOnly) return { message: mapChatMessage({ ...localOnly, body: trimmed }, user.id), error: null };
+      return { message: null, error: "Message not found or not editable." };
+    }
+    return { message: mapChatMessage(data, user.id), error: null };
+  } catch (err) {
+    const localOnly = cachedThreads
+      .flatMap((thread) => loadLocalChatMessages(thread))
+      .find((m) => m.id === messageId && (m.sender_id || m.senderId) === user.id);
+    if (localOnly) return { message: mapChatMessage({ ...localOnly, body: trimmed }, user.id), error: null };
+    return { message: null, error: err.message || "Could not edit message." };
+  }
 }
 
-export function subscribeChatMessages(threadId, onChange) {
-  if (!threadId || !isSupabaseConfigured()) return () => {};
-  const supabase = getSupabase();
-  if (!supabase) return () => {};
+export function subscribeChatMessages(threadMeta, onChange) {
+  const thread = typeof threadMeta === "string" ? { id: threadMeta } : threadMeta;
+  if (!thread?.id) return () => {};
 
-  const channel = supabase
-    .channel(`chat-${threadId}`)
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "messages", filter: `chat_thread_id=eq.${threadId}` },
-      () => onChange?.()
-    )
-    .subscribe();
+  const cleanups = [subscribeLocalChatMessages(thread, onChange)];
+
+  if (isSupabaseConfigured()) {
+    const supabase = getSupabase();
+    if (supabase) {
+      const channel = supabase
+        .channel(`chat-${thread.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "messages", filter: `chat_thread_id=eq.${thread.id}` },
+          () => onChange?.()
+        )
+        .subscribe();
+      cleanups.push(() => {
+        supabase.removeChannel(channel);
+      });
+    }
+  }
 
   return () => {
-    supabase.removeChannel(channel);
+    cleanups.forEach((cleanup) => cleanup());
   };
 }

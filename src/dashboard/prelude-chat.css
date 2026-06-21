@@ -444,7 +444,22 @@
   z-index: 1;
 }
 
+.dash-msg-fab__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .dash-msg-fab__composer {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -458,15 +473,23 @@
   place-items: center;
   width: var(--control-height);
   height: var(--control-height);
+  padding: 0;
+  border: none;
   border-radius: var(--radius-control);
+  background: transparent;
   color: hsl(var(--muted-foreground));
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.dash-msg-fab__attach:hover {
+.dash-msg-fab__attach:hover:not(:disabled) {
   background: #f3f1fa;
   color: #5b4fd6;
+}
+
+.dash-msg-fab__attach:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .dash-msg-fab__input {
