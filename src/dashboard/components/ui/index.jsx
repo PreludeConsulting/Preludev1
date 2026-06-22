@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { useId } from "react";
 import { createPortal } from "react-dom";
+import { MotionDialog } from "../../../components/motion/MotionPrimitives.jsx";
 import { Link } from "react-router-dom";
 import { cn } from "../../../lib/utils.js";
 
@@ -138,7 +139,7 @@ export function Modal({ open, onClose, title, children, footer, className, scrol
   if (!open) return null;
   const modalNode = (
     <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
-      <div
+      <MotionDialog
         className={cn("dash-modal", scrollable && "dash-modal--scrollable", className)}
         role="dialog"
         aria-modal="true"
@@ -153,7 +154,7 @@ export function Modal({ open, onClose, title, children, footer, className, scrol
         </div>
         <div className="dash-modal__body">{children}</div>
         {footer ? <div className="dash-modal__footer">{footer}</div> : null}
-      </div>
+      </MotionDialog>
     </div>
   );
   return typeof document !== "undefined" ? createPortal(modalNode, document.body) : modalNode;

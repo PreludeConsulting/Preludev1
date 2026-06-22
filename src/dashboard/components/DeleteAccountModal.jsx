@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { DELETE_ACCOUNT_PHRASE } from "../../lib/accountDeletion.js";
 import { shouldUseDemoFixtures } from "../../lib/devAuthBypass.js";
-import { Modal, PrimaryButton, SecondaryButton } from "./ui/index.jsx";
+import { Modal, SecondaryButton } from "./ui/index.jsx";
+import TurnstileWidget from "../../components/auth/TurnstileWidget.jsx";
+import { isSupabaseConfigured } from "../../lib/supabaseConfig.js";
+import { isTurnstileRequired } from "../../lib/turnstile.js";
 
 const STEPS = {
   PASSWORD: "password",
@@ -10,15 +13,18 @@ const STEPS = {
   SUCCESS: "success"
 };
 
-export default function DeleteAccountModal({ open, onClose, user, onVerifyPassword, onDeleteAccount, onComplete }) {
+export default function DeleteAccountModal({ open, onClose, user, onDeleteAccount, onComplete }) {
   const [step, setStep] = useState(STEPS.PASSWORD);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [confirmationPhrase, setConfirmationPhrase] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef(null);
 
   const isDemo = shouldUseDemoFixtures(user);
+  const supabaseAuth = isSupabaseConfigured();
 
   function resetState() {
     setStep(STEPS.PASSWORD);
@@ -27,6 +33,7 @@ export default function DeleteAccountModal({ open, onClose, user, onVerifyPasswo
     setConfirmationPhrase("");
     setError("");
     setLoading(false);
+    setCaptchaToken("");
   }
 
   function handleClose() {
@@ -47,15 +54,7 @@ export default function DeleteAccountModal({ open, onClose, user, onVerifyPasswo
       return;
     }
 
-    setLoading(true);
-    try {
-      await onVerifyPassword(password);
-      setStep(STEPS.PHRASE);
-    } catch (err) {
-      setError(err.message || "Password is incorrect.");
-    } finally {
-      setLoading(false);
-    }
+    setStep(STEPS.PHRASE);
   }
 
   async function handleDelete(event) {
@@ -68,7 +67,7 @@ export default function DeleteAccountModal({ open, onClose, user, onVerifyPasswo
 
     setLoading(true);
     try {
-      await onDeleteAccount({ password, confirmPassword, confirmationPhrase });
+      await onDeleteAccount({ password, confirmPassword, confirmationPhrase, captchaToken });
       setStep(STEPS.SUCCESS);
       window.setTimeout(() => {
         resetState();
@@ -77,6 +76,7 @@ export default function DeleteAccountModal({ open, onClose, user, onVerifyPasswo
       }, 2800);
     } catch (err) {
       setError(err.message || "Could not delete your account.");
+      turnstileRef.current?.reset();
     } finally {
       setLoading(false);
     }
@@ -114,7 +114,7 @@ export default function DeleteAccountModal({ open, onClose, user, onVerifyPasswo
                 type="submit"
                 form="delete-account-phrase-form"
                 className="dash-btn dash-btn--danger"
-                disabled={loading || confirmationPhrase !== DELETE_ACCOUNT_PHRASE}
+                disabled={loading || confirmationPhrase !== DELETE_ACCOUNT_PHRASE || (supabaseAuth && isTurnstileRequired() && !captchaToken)}
               >
                 {loading ? "Deleting…" : "Delete my account permanently"}
               </button>
@@ -158,6 +158,7 @@ export default function DeleteAccountModal({ open, onClose, user, onVerifyPasswo
               required
             />
           </label>
+          {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
           {error ? <p className="dash-delete-account__error">{error}</p> : null}
         </form>
       ) : null}

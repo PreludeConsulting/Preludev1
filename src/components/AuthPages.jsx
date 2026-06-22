@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
 import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
@@ -10,6 +10,8 @@ import { ALL_DEMO_ACCOUNTS, DEMO_MENTOR, DEMO_PARENT, DEMO_STUDENT } from "../da
 import { useAuth } from "../context/AuthContext.jsx";
 import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 import AppLink from "./AppLink.jsx";
+import TurnstileWidget from "./auth/TurnstileWidget.jsx";
+import { isTurnstileRequired } from "../lib/turnstile.js";
 
 function Shell({ title, subtitle, children }) {
   return (
@@ -46,6 +48,8 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef(null);
 
   useEffect(() => {
     if (!ready) return;
@@ -80,10 +84,11 @@ export function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const user = await signIn(demoEmail, demoPassword);
+      const user = await signIn(demoEmail, demoPassword, { captchaToken });
       navigate(postAuthDestination(user), { replace: true });
     } catch (err) {
       setError(err.message);
+      turnstileRef.current?.reset();
     } finally {
       setLoading(false);
     }
@@ -118,7 +123,8 @@ export function LoginPage() {
         {error ? <Alert tone="error">{error}</Alert> : null}
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        <button disabled={loading} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Logging in…" : "Log in"}</button>
+        {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
+        <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Logging in…" : "Log in"}</button>
         <p className="text-sm text-muted-foreground">
           <AppLink className="underline" href="/forgot-password">Forgot password?</AppLink> ·{" "}
           <AppLink className="underline" href="/register">Create an account</AppLink>
@@ -206,6 +212,8 @@ export function RegisterPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef(null);
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
 
   async function onSubmit(event) {
@@ -214,7 +222,7 @@ export function RegisterPage() {
     setError("");
     setMessage("");
     try {
-      const payload = { ...form, parentInviteToken: parentInviteToken || form.parentInviteToken };
+      const payload = { ...form, parentInviteToken: parentInviteToken || form.parentInviteToken, captchaToken };
       const result = await signUp(payload);
       if (result?.needsEmailConfirmation) {
         setMessage("Account created! Check your email and confirm your address, then log in.");
@@ -227,6 +235,7 @@ export function RegisterPage() {
       setMessage(result?.message || "Account created.");
     } catch (err) {
       setError(err.message);
+      turnstileRef.current?.reset();
     } finally {
       setLoading(false);
     }
@@ -272,7 +281,8 @@ export function RegisterPage() {
           </select>
         </label>
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
-        <button disabled={loading} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>
+        {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
+        <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>
         <p className="text-sm text-muted-foreground">
           Already have an account? <AppLink className="underline" href="/login">Log in</AppLink>
         </p>
@@ -287,6 +297,8 @@ export function ForgotPasswordPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef(null);
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -296,7 +308,7 @@ export function ForgotPasswordPage() {
     try {
       if (supabaseAuth) {
         const { resetPassword: supabaseReset } = await import("../lib/supabaseAuth.js");
-        const { error: resetError } = await supabaseReset(email.trim());
+        const { error: resetError } = await supabaseReset(email.trim(), captchaToken);
         if (resetError) throw new Error(resetError);
         setMessage("If an account exists for that email, a password reset link is on its way.");
         return;
@@ -305,6 +317,7 @@ export function ForgotPasswordPage() {
       setMessage(result.message);
     } catch (err) {
       setError(err.message);
+      turnstileRef.current?.reset();
     } finally {
       setLoading(false);
     }
@@ -316,7 +329,8 @@ export function ForgotPasswordPage() {
         {error ? <Alert tone="error">{error}</Alert> : null}
         {message ? <Alert>{message}</Alert> : null}
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <button disabled={loading} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
+        {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
+        <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
           {loading ? "Sending…" : "Send reset link"}
         </button>
         <p className="text-sm text-muted-foreground">

@@ -8,6 +8,7 @@ import { getSupabase } from "./supabase.js";
 import { appPath } from "./appPaths.js";
 import { getPublicAppOrigin, isSupabaseConfigured } from "./supabaseConfig.js";
 import { mapSupabaseUser } from "./supabaseSession.js";
+import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
 
@@ -38,26 +39,31 @@ function friendlyError(error) {
   if (message.includes("for security purposes") || message.includes("rate limit")) {
     return "Too many attempts. Please wait a moment and try again.";
   }
+  if (message.includes("captcha") || message.includes("security check")) {
+    return "The security check could not be verified. Please complete it again.";
+  }
   if (message.includes("failed to fetch")) {
     return "Couldn't reach Supabase. Check your connection and VITE_SUPABASE_URL.";
   }
   return error.message || "Something went wrong. Please try again.";
 }
 
-export async function signUp({ email, password, fullName, role = "student" }) {
+export async function signUp({ email, password, fullName, role = "student", captchaToken }) {
   if (!isSupabaseConfigured()) {
     return { user: null, error: "Supabase is not configured for this deployment.", needsEmailConfirmation: false };
   }
   const safeRole = SELECTABLE_ROLES.includes(role) ? role : "student";
   const supabase = getSupabase();
   if (!supabase) return { user: null, error: "Supabase client unavailable.", needsEmailConfirmation: false };
+  requireTurnstileToken(captchaToken);
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { full_name: fullName, role: safeRole },
-      emailRedirectTo: fullUrl("/login")
+      emailRedirectTo: fullUrl("/login"),
+      ...captchaOptions(captchaToken)
     }
   });
 
@@ -73,11 +79,16 @@ export async function signUp({ email, password, fullName, role = "student" }) {
   return { user, error: null, needsEmailConfirmation };
 }
 
-export async function logIn({ email, password }) {
+export async function logIn({ email, password, captchaToken }) {
   if (!isSupabaseConfigured()) return { user: null, error: "Supabase is not configured for this deployment." };
   const supabase = getSupabase();
   if (!supabase) return { user: null, error: "Supabase client unavailable." };
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  requireTurnstileToken(captchaToken);
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+    options: captchaOptions(captchaToken)
+  });
   if (error) return { user: null, error: friendlyError(error) };
   const { profile } = await getProfile(data.user.id);
   return { user: mapSupabaseUser(data.session, profile), error: null };
@@ -97,9 +108,11 @@ export async function getCurrentSession() {
   return { session: data.session, error: null };
 }
 
-export async function resetPassword(email) {
+export async function resetPassword(email, captchaToken) {
+  requireTurnstileToken(captchaToken);
   const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo: fullUrl("/reset-password")
+    redirectTo: fullUrl("/reset-password"),
+    ...captchaOptions(captchaToken)
   });
   if (error) return { error: friendlyError(error) };
   return { error: null };
@@ -132,11 +145,16 @@ function createEphemeralSupabaseClient() {
   });
 }
 
-export async function verifySupabasePassword({ email, password }) {
+export async function verifySupabasePassword({ email, password, captchaToken }) {
   const tempClient = createEphemeralSupabaseClient();
   if (!tempClient) throw new Error("Supabase client unavailable.");
+  requireTurnstileToken(captchaToken);
 
-  const { data, error } = await tempClient.auth.signInWithPassword({ email, password });
+  const { data, error } = await tempClient.auth.signInWithPassword({
+    email,
+    password,
+    options: captchaOptions(captchaToken)
+  });
   if (error || !data?.session) {
     throw new Error(friendlyError(error) || "That email or password doesn't match our records.");
   }
@@ -145,7 +163,7 @@ export async function verifySupabasePassword({ email, password }) {
   return data;
 }
 
-export async function deleteSupabaseAccount({ email, password, confirmPassword, confirmationPhrase }) {
+export async function deleteSupabaseAccount({ email, password, confirmPassword, confirmationPhrase, captchaToken }) {
   const { DELETE_ACCOUNT_PHRASE } = await import("./accountDeletion.js");
   if (password !== confirmPassword) {
     throw new Error("Passwords do not match.");
@@ -154,7 +172,7 @@ export async function deleteSupabaseAccount({ email, password, confirmPassword, 
     throw new Error(`Type exactly: ${DELETE_ACCOUNT_PHRASE}`);
   }
 
-  await verifySupabasePassword({ email, password });
+  await verifySupabasePassword({ email, password, captchaToken });
 
   const supabase = getSupabase();
   if (!supabase) throw new Error("Supabase client unavailable.");

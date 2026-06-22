@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 :root {
+  --motion-duration-fast: 160ms;
+  --motion-duration-base: 200ms;
+  --motion-duration-slow: 240ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --background: 203 100% 97%;
   --foreground: 238 64% 18%;
 
@@ -61,6 +65,30 @@
   --paper-bg: rgba(244, 251, 255, 0.78);
   --paper-border: rgba(34, 36, 118, 0.14);
   --paper-shadow: 0 24px 80px rgba(34, 36, 118, 0.08);
+}
+
+.auth-turnstile {
+  min-height: 65px;
+  width: 100%;
+  transition: opacity var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.auth-turnstile--disabled {
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+.auth-turnstile__error {
+  margin-top: 0.5rem;
+  color: hsl(var(--destructive));
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-turnstile {
+    transition: none;
+  }
 }
 
 * {

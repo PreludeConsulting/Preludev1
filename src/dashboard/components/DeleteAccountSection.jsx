@@ -6,7 +6,7 @@ import { SectionCard, SecondaryButton } from "./ui/index.jsx";
 import DeleteAccountModal from "./DeleteAccountModal.jsx";
 
 export function DeleteAccountSection({ user }) {
-  const { deleteAccount, finishAccountDeletion, verifyAccountPassword } = useAuth();
+  const { deleteAccount, finishAccountDeletion } = useAuth();
   const [open, setOpen] = useState(false);
   const isDemo = shouldUseDemoFixtures(user);
 
@@ -37,7 +37,6 @@ export function DeleteAccountSection({ user }) {
         open={open}
         onClose={() => setOpen(false)}
         user={user}
-        onVerifyPassword={(password) => verifyAccountPassword(password)}
         onDeleteAccount={deleteAccount}
         onComplete={finishAccountDeletion}
       />

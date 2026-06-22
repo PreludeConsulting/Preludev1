@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "../../lib/utils.js";
+import { MotionPanel } from "../motion/MotionPrimitives.jsx";
 
 /**
  * Reusable dropdown menu — click-outside, Escape, focus-friendly items.
@@ -40,7 +41,7 @@ export default function DropdownMenu({
     <div className={cn("dropdown-menu", className)} ref={rootRef}>
       {typeof trigger === "function" ? trigger({ open, setOpen }) : trigger}
       {open ? (
-        <div
+        <MotionPanel
           className={cn(
             "dropdown-menu__panel",
             align === "left" && "dropdown-menu__panel--left",
@@ -49,7 +50,7 @@ export default function DropdownMenu({
           role="menu"
         >
           {typeof children === "function" ? children({ close: () => setOpen(false) }) : children}
-        </div>
+        </MotionPanel>
       ) : null}
     </div>
   );

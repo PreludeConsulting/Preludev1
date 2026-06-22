@@ -13,6 +13,7 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { LegalModalProvider } from "./context/LegalModalContext.jsx";
 import LegalModal from "./components/LegalModal.jsx";
+import { PreludeMotionProvider } from "./context/MotionContext.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import {
   ForgotPasswordPage,
@@ -34,6 +35,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <BrowserRouter basename={ROUTER_BASENAME || undefined}>
       <ScrollToTop />
       <LanguageProvider>
+        <PreludeMotionProvider>
         <AuthProvider>
           <LegalModalProvider>
           <Routes>
@@ -68,6 +70,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <LegalModal />
           </LegalModalProvider>
         </AuthProvider>
+        </PreludeMotionProvider>
       </LanguageProvider>
     </BrowserRouter>
   </React.StrictMode>

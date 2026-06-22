@@ -111,12 +111,12 @@ export function AuthProvider({ children }) {
     setAuthError(null);
   }, []);
 
-  const signIn = useCallback(async (email, password) => {
+  const signIn = useCallback(async (email, password, options = {}) => {
     setAuthError(null);
     try {
       if (useSupabase) {
         const { logIn } = await loadSupabaseAuth();
-        const { user: next, error } = await logIn({ email, password });
+        const { user: next, error } = await logIn({ email, password, captchaToken: options.captchaToken });
         if (error) throw new Error(error);
         if (next?.role === "parent") {
           await acceptPendingParentInvite(next.id);
@@ -150,7 +150,8 @@ export function AuthProvider({ children }) {
           email: payload.email,
           password: payload.password,
           fullName: fullName || (role === "parent" ? "Parent User" : "Student User"),
-          role
+          role,
+          captchaToken: payload.captchaToken
         });
         if (error) throw new Error(error);
         if (next?.role === "parent") {
