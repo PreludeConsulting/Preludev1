@@ -84,7 +84,7 @@ declare
 begin
   requested_role := coalesce(new.raw_user_meta_data ->> 'role', 'student');
 
-  if requested_role in ('student', 'mentor') then
+  if requested_role in ('student', 'mentor', 'parent') then
     safe_role := requested_role;
   else
     safe_role := 'student';

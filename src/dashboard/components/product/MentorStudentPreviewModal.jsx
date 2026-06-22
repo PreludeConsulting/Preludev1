@@ -48,7 +48,6 @@ export default function MentorStudentPreviewModal({ student, open, onClose }) {
           <div className="dash-mentor-student-preview__cards">
             <PrepDashboardCards
               academicProgress={bundle.academicProgress}
-              opportunities={bundle.opportunities}
               profile={bundle.profile}
               studentProfileStats={bundle.studentProfileStats}
             />

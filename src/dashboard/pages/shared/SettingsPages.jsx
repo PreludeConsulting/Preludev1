@@ -15,7 +15,9 @@ import {
 } from "lucide-react";
 import ParentGuardianSettingsPanel from "../../components/settings/ParentGuardianSettingsPanel.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
-import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { getDemoLinkedChildren, listLinkedChildren } from "../../../lib/parentLinks.js";
+import { shouldUseDemoFixtures } from "../../../lib/devAuthBypass.js";
 import IntegrationConnect from "../../components/IntegrationConnect.jsx";
 import SettingsPageShell from "../../components/settings/SettingsPageShell.jsx";
 import SecuritySettingsPanel from "../../components/settings/SecuritySettingsPanel.jsx";
@@ -37,6 +39,16 @@ const STUDENT_SETTINGS_TABS = [
 
 const MENTOR_SETTINGS_TABS = [
   { id: "profile", label: "Profile", icon: User, description: "Mentor profile details" },
+  { id: "integrations", label: "Connected accounts", icon: Link2, description: "Google and Zoom" },
+  { id: "security", label: "Security", icon: Shield, description: "Password and deletion" },
+  { id: "support", label: "Support", icon: HelpCircle, description: "Help and contact" }
+];
+
+const PARENT_SETTINGS_TABS = [
+  { id: "profile", label: "Profile", icon: User, description: "Your account details" },
+  { id: "notifications", label: "Notifications", icon: Bell, description: "Email and alerts" },
+  { id: "calendar", label: "Calendar", icon: Calendar, description: "Meetings and reminders" },
+  { id: "display", label: "Display", icon: Monitor, description: "Layout and accessibility" },
   { id: "integrations", label: "Connected accounts", icon: Link2, description: "Google and Zoom" },
   { id: "security", label: "Security", icon: Shield, description: "Password and deletion" },
   { id: "support", label: "Support", icon: HelpCircle, description: "Help and contact" }
@@ -318,6 +330,279 @@ export function MentorSettingsPage() {
             </span>
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </a>
+        </SectionCard>
+      ) : null}
+    </SettingsPageShell>
+  );
+}
+
+export function ParentSettingsPage() {
+  const { user, planDetails, openAccount } = useAuth();
+  const {
+    integrations,
+    connectGoogle,
+    disconnectGoogle,
+    connectZoomAccount,
+    disconnectZoomAccount,
+    savePreferences: savePrefsToBackend,
+    useSupabaseData,
+    preferences: loadedPreferences
+  } = useDashboardData();
+  const [tab, setTab] = useState("profile");
+  const [prefs, setPrefs] = useState(() => loadPreferences());
+  const [saveState, setSaveState] = useState(null);
+  const [linkedChildren, setLinkedChildren] = useState([]);
+  const [childrenLoading, setChildrenLoading] = useState(true);
+
+  useEffect(() => {
+    const hash = (window.location.hash || "").replace(/^#/, "");
+    if (hash && PARENT_SETTINGS_TABS.some((item) => item.id === hash)) {
+      setTab(hash);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loadedPreferences) {
+      setPrefs((current) => ({ ...current, ...loadedPreferences }));
+    }
+  }, [loadedPreferences]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadChildren() {
+      if (!user?.id) {
+        setLinkedChildren([]);
+        setChildrenLoading(false);
+        return;
+      }
+      setChildrenLoading(true);
+      try {
+        if (shouldUseDemoFixtures(user)) {
+          if (!cancelled) setLinkedChildren(getDemoLinkedChildren());
+          return;
+        }
+        const rows = await listLinkedChildren(user.id);
+        if (!cancelled) setLinkedChildren(rows);
+      } finally {
+        if (!cancelled) setChildrenLoading(false);
+      }
+    }
+    loadChildren();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const roleLabel = "Parent";
+  const planName = planDetails?.name || user?.planName || "Basic";
+
+  function setPref(key, value) {
+    setPrefs((current) => ({ ...current, [key]: value }));
+  }
+
+  async function saveSection(section) {
+    setSaveState({ section, status: "saving", message: "" });
+    savePreferences(prefs);
+    try {
+      if (useSupabaseData) {
+        await savePrefsToBackend(prefs);
+      }
+      setSaveState({ section, status: "saved", message: "" });
+      window.setTimeout(() => setSaveState((current) => current?.section === section ? null : current), 2600);
+    } catch (error) {
+      setSaveState({
+        section,
+        status: "error",
+        message: error?.message ? `Saved locally, but sync failed: ${error.message}` : "Saved locally, but sync failed. Try again."
+      });
+    }
+  }
+
+  return (
+    <SettingsPageShell
+      user={user}
+      roleLabel={roleLabel}
+      planName={planName}
+      tabs={PARENT_SETTINGS_TABS}
+      activeTab={tab}
+      onTabChange={setTab}
+      onOpenAccount={openAccount}
+    >
+      {tab === "profile" ? (
+        <>
+          <SectionCard title="Profile information" className="dash-panel">
+            <dl className="dash-kv">
+              <div><dt>Name</dt><dd>{user?.name || "—"}</dd></div>
+              <div><dt>Email</dt><dd>{user?.email || "—"}</dd></div>
+              <div><dt>Role</dt><dd>{roleLabel}</dd></div>
+              <div><dt>Plan</dt><dd>{planName}</dd></div>
+            </dl>
+            <p className="dash-muted">
+              Your parent account lets you follow your children&apos;s college journey, view calendars, and message their mentors.
+            </p>
+          </SectionCard>
+
+          <SectionCard
+            title="Linked children"
+            className="dash-panel"
+            action={
+              <Link to={`${PARENT_DASHBOARD_BASE}/overview`} className="dash-btn dash-btn--secondary dash-btn--sm">
+                <Users className="h-4 w-4" aria-hidden="true" /> View children
+              </Link>
+            }
+          >
+            {childrenLoading ? (
+              <p className="dash-muted" role="status" aria-live="polite">Loading linked children…</p>
+            ) : null}
+            {!childrenLoading && !linkedChildren.length ? (
+              <p className="dash-muted">
+                No children linked yet. Ask your student to add your email during sign-up or invite you from Prelude Settings → Family.
+              </p>
+            ) : null}
+            {!childrenLoading && linkedChildren.length ? (
+              <ul className="dash-parent-invite-list">
+                {linkedChildren.map((child) => (
+                  <li key={child.id} className="dash-parent-invite-list__item">
+                    <span>{child.name}</span>
+                    <span className="dash-muted">{child.grade || "Student"}</span>
+                    <Link
+                      to={`${PARENT_DASHBOARD_BASE}/children/${child.id}/overview`}
+                      className="dash-btn dash-btn--secondary dash-btn--sm"
+                    >
+                      Open dashboard
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </SectionCard>
+        </>
+      ) : null}
+
+      {tab === "notifications" ? (
+        <SectionCard title="Email &amp; notifications" className="dash-panel">
+          <p className="dash-muted">Choose what Prelude notifies you about as a parent.</p>
+          <SettingToggle id="emailUpdates" label="Product &amp; account emails" description="Important updates about your account." checked={prefs.emailUpdates} onChange={(v) => setPref("emailUpdates", v)} />
+          <SettingToggle id="meetingReminders" label="Children's meeting reminders" description="Reminders before your children's mentor sessions." checked={prefs.meetingReminders} onChange={(v) => setPref("meetingReminders", v)} />
+          <SettingToggle id="mentorMessages" label="Mentor message alerts" description="Notify me when a mentor messages me about my children." checked={prefs.mentorMessages} onChange={(v) => setPref("mentorMessages", v)} />
+          <SettingToggle id="weeklyDigest" label="Weekly progress digest" description="A summary of deadlines and progress for your linked children." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />
+          <SettingToggle id="productTips" label="Tips for parents" description="Occasional admissions tips and family resources from Prelude." checked={prefs.productTips} onChange={(v) => setPref("productTips", v)} />
+          <SaveRow section="notifications" saveState={saveState} onSave={saveSection} />
+        </SectionCard>
+      ) : null}
+
+      {tab === "calendar" ? (
+        <SectionCard title="Calendar &amp; meeting preferences" className="dash-panel">
+          <SettingSelect
+            id="defaultCalendarView"
+            label="Default calendar view"
+            description="The view your calendar opens in when viewing a child."
+            value={prefs.defaultCalendarView}
+            onChange={(v) => setPref("defaultCalendarView", v)}
+            options={[
+              { value: "month", label: "Month" },
+              { value: "week", label: "Week" },
+              { value: "day", label: "Day" },
+              { value: "agenda", label: "Agenda" }
+            ]}
+          />
+          <SettingSelect
+            id="reminderLeadTime"
+            label="Meeting reminder"
+            description="How far ahead to remind you about your children's sessions."
+            value={prefs.reminderLeadTime}
+            onChange={(v) => setPref("reminderLeadTime", v)}
+            options={[
+              { value: "10", label: "10 minutes before" },
+              { value: "30", label: "30 minutes before" },
+              { value: "60", label: "1 hour before" },
+              { value: "1440", label: "1 day before" }
+            ]}
+          />
+          <SettingSelect
+            id="weekStart"
+            label="Week starts on"
+            value={prefs.weekStart}
+            onChange={(v) => setPref("weekStart", v)}
+            options={[
+              { value: "sunday", label: "Sunday" },
+              { value: "monday", label: "Monday" }
+            ]}
+          />
+          <SaveRow section="calendar" saveState={saveState} onSave={saveSection} />
+        </SectionCard>
+      ) : null}
+
+      {tab === "display" ? (
+        <SectionCard title="Display &amp; accessibility" className="dash-panel">
+          <SettingSelect
+            id="density"
+            label="Layout density"
+            description="Comfortable adds more spacing; compact fits more on screen."
+            value={prefs.density}
+            onChange={(v) => setPref("density", v)}
+            options={[
+              { value: "comfortable", label: "Comfortable" },
+              { value: "compact", label: "Compact" }
+            ]}
+          />
+          <SettingToggle
+            id="reduceMotion"
+            label="Reduce motion"
+            description="Minimize animations across the dashboard."
+            checked={prefs.reduceMotion}
+            onChange={(v) => setPref("reduceMotion", v)}
+          />
+          <SaveRow section="display" saveState={saveState} onSave={saveSection} />
+        </SectionCard>
+      ) : null}
+
+      {tab === "integrations" ? (
+        <SectionCard title="Connected accounts" className="dash-panel">
+          <IntegrationConnect
+            label="Google Calendar"
+            connectLabel="Connect Google Calendar"
+            connected={integrations.googleCalendar?.connected}
+            onConnect={connectGoogle}
+            onDisconnect={disconnectGoogle}
+            description="Sync your children's Prelude meetings and deadlines to your Google Calendar."
+          />
+          <IntegrationConnect
+            label="Zoom"
+            connectLabel="Connect Zoom Account"
+            connected={integrations.zoom?.connected}
+            onConnect={connectZoomAccount}
+            onDisconnect={disconnectZoomAccount}
+            description="Join virtual mentor meetings with your children when mentors share Zoom links."
+          />
+        </SectionCard>
+      ) : null}
+
+      {tab === "security" ? <SecuritySettingsPanel user={user} onOpenAccount={openAccount} /> : null}
+
+      {tab === "support" ? (
+        <SectionCard title="Support" className="dash-panel">
+          <a className="dash-setting-link" href="mailto:hello@preludeconsulting.com">
+            <span>
+              <span className="dash-setting-link__label"><Mail className="h-4 w-4" aria-hidden="true" /> Contact support</span>
+              <span className="dash-setting-link__desc">hello@preludeconsulting.com</span>
+            </span>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </a>
+          <Link className="dash-setting-link" to={`${PARENT_DASHBOARD_BASE}/help`}>
+            <span>
+              <span className="dash-setting-link__label">Help center</span>
+              <span className="dash-setting-link__desc">Common questions for parent accounts.</span>
+            </span>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+          <button type="button" className="dash-setting-link" onClick={openAccount}>
+            <span>
+              <span className="dash-setting-link__label">Account &amp; plan</span>
+              <span className="dash-setting-link__desc">View or change your subscription.</span>
+            </span>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
         </SectionCard>
       ) : null}
     </SettingsPageShell>

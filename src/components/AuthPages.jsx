@@ -183,6 +183,7 @@ export function RegisterPage() {
     email: "",
     password: "",
     role: invitedAsParent ? "PARENT" : "STUDENT",
+    parentEmail: "",
     termsAccepted: false,
     parentInviteToken
   });
@@ -280,6 +281,20 @@ export function RegisterPage() {
             {invitedAsParent ? <option value="PARENT">Parent / Guardian</option> : null}
           </select>
         </label>
+        {form.role === "STUDENT" && !invitedAsParent ? (
+          <>
+            <Field
+              label="Parent or guardian email (optional)"
+              type="email"
+              value={form.parentEmail}
+              onChange={update("parentEmail")}
+              placeholder="parent@email.com"
+            />
+            <p className="text-xs text-muted-foreground">
+              Siblings can use the same parent email. We&apos;ll connect your account when your parent joins Prelude.
+            </p>
+          </>
+        ) : null}
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
         <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>

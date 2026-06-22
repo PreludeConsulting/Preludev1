@@ -7,8 +7,7 @@ const READ_ONLY_CONTROLS = [
   ".dash-btn",
   "button:not(.dash-tabs button):not(.dash-product-nav__tab)",
   "a.dash-btn",
-  ".dash-link-btn",
-  ".dash-opp-mini__btn"
+  ".dash-link-btn"
 ].join(",");
 
 export default function MentorStudentReadOnlyPage({ children }) {

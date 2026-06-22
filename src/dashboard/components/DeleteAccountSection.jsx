@@ -2,13 +2,15 @@ import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { shouldUseDemoFixtures } from "../../lib/devAuthBypass.js";
+import { readPendingOAuthAccountDeletion } from "../../lib/accountDeletionFlow.js";
 import { SectionCard, SecondaryButton } from "./ui/index.jsx";
 import DeleteAccountModal from "./DeleteAccountModal.jsx";
 
 export function DeleteAccountSection({ user }) {
-  const { deleteAccount, finishAccountDeletion } = useAuth();
+  const { deleteAccount, finishAccountDeletion, startOAuthAccountDeletionVerification, authError } = useAuth();
   const [open, setOpen] = useState(false);
   const isDemo = shouldUseDemoFixtures(user);
+  const pendingOAuthDeletion = Boolean(readPendingOAuthAccountDeletion());
 
   return (
     <>
@@ -23,14 +25,15 @@ export function DeleteAccountSection({ user }) {
         <SecondaryButton
           type="button"
           className="dash-btn--danger"
-          disabled={isDemo}
+          disabled={isDemo || pendingOAuthDeletion}
           onClick={() => setOpen(true)}
         >
-          Delete my account
+          {pendingOAuthDeletion ? "Verifying with Google…" : "Delete my account"}
         </SecondaryButton>
         {isDemo ? (
           <p className="dash-muted dash-delete-account__demo-note">Demo accounts cannot be deleted.</p>
         ) : null}
+        {authError ? <p className="dash-delete-account__error">{authError}</p> : null}
       </SectionCard>
 
       <DeleteAccountModal
@@ -38,6 +41,7 @@ export function DeleteAccountSection({ user }) {
         onClose={() => setOpen(false)}
         user={user}
         onDeleteAccount={deleteAccount}
+        onStartOAuthVerification={startOAuthAccountDeletionVerification}
         onComplete={finishAccountDeletion}
       />
     </>

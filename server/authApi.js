@@ -69,10 +69,7 @@ const DELETE_ACCOUNT_PHRASE = "I agree to delete my account.";
 const deleteAccountSchema = z
   .object({
     password: z.string().min(1, "Password is required."),
-    confirmPassword: z.string().min(1, "Please confirm your password."),
-    confirmationPhrase: z.literal(DELETE_ACCOUNT_PHRASE, {
-      errorMap: () => ({ message: `Type exactly: ${DELETE_ACCOUNT_PHRASE}` })
-    })
+    confirmPassword: z.string().min(1, "Please confirm your password.")
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match.",

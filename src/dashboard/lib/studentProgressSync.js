@@ -1,5 +1,5 @@
 /**
- * Derive academic progress and opportunity center items from shared student data.
+ * Derive academic progress from shared student data.
  */
 
 export function deriveAcademicProgress(profile, applicationProgress = null) {
@@ -30,19 +30,4 @@ export function deriveAcademicProgress(profile, applicationProgress = null) {
       ? Math.min(100, leadershipCount * 28)
       : applicationProgress?.scholarships ?? 50
   };
-}
-
-export function deriveOpportunitiesFromDeadlines(deadlines = []) {
-  return deadlines
-    .filter((item) => !item.done)
-    .slice(0, 4)
-    .map((deadline, index) => ({
-      id: deadline.id || `opp-deadline-${index}`,
-      title: deadline.title,
-      category: deadline.category || "Deadline",
-      deadline: String(deadline.dueDate || "Soon").split(",")[0],
-      matchScore: Math.max(72, 94 - index * 4),
-      description: `Keep momentum on ${deadline.title}.`,
-      actionLabel: "View calendar"
-    }));
 }

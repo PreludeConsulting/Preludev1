@@ -21,6 +21,13 @@ export function roleFromUser(user) {
   return (user?.role || "student").toLowerCase();
 }
 
+export function dashboardRoleLabel(role) {
+  const normalized = (role || "student").toLowerCase();
+  if (normalized === "mentor") return "Mentor";
+  if (normalized === "parent") return "Parent";
+  return "Student";
+}
+
 export function canAccessDashboardRole(user, requiredRole) {
   return roleFromUser(user) === requiredRole;
 }

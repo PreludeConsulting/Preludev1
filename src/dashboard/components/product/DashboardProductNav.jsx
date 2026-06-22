@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import PreludeLogo from "../../../components/PreludeLogo.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { dashboardRoleLabel } from "../../../lib/dashboardRoutes.js";
 import { cn } from "../../../lib/utils.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { Avatar } from "../ui/index.jsx";
@@ -16,7 +17,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
   const notificationsRef = useRef(null);
   const profileRef = useRef(null);
   const tabsRef = useRef(null);
-  const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
+  const roleLabel = dashboardRoleLabel(user?.role);
   const unreadCount = useMemo(
     () => notifications.filter((item) => item.unread).length,
     [notifications]

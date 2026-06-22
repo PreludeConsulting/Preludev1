@@ -7,6 +7,7 @@ import { getPlan } from "./plans.js";
 import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
 import { mapOnboardingToUserFields } from "./preludeMatchService.js";
 import { readParentInviteStepComplete } from "./parentLinks.js";
+import { normalizeAuthProviders } from "./authSignInMethod.js";
 
 export function mapSupabaseUser(session, profile = null, onboarding = null, hasAssignedMentor = false) {
   if (!session?.user) return null;
@@ -21,6 +22,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
   const onboardingFields = mapOnboardingToUserFields(onboarding, hasAssignedMentor);
   const parentInviteStepComplete =
     onboardingFields.parentInviteStepComplete || readParentInviteStepComplete(u.id);
+  const authSignInMethods = normalizeAuthProviders(u.identities || [], u);
 
   let onboardingStatus = onboardingFields.onboardingStatus;
   if (role === "parent") {
@@ -42,6 +44,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     planSelected: Boolean(planId),
     emailVerified: Boolean(u.email_confirmed_at),
     authProvider: "supabase",
+    authSignInMethods,
     avatarUrl: profile?.avatar_url || null,
     ...onboardingFields,
     parentInviteStepComplete,

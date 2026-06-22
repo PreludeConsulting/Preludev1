@@ -26,7 +26,7 @@ import {
   MentorStudents
 } from "./pages/mentor/MentorPages.jsx";
 import MentorStudentDashboard from "./components/product/MentorStudentDashboard.jsx";
-import { MentorSettingsPage, StudentSettingsPage } from "./pages/shared/SettingsPages.jsx";
+import { MentorSettingsPage, ParentSettingsPage, StudentSettingsPage } from "./pages/shared/SettingsPages.jsx";
 import { ParentOverview, ParentChildRoutes } from "./pages/parent/ParentPages.jsx";
 import { PRODUCT_PARENT_NAV } from "./config/parentNav.js";
 import { PARENT_ROUTE_META } from "./config/parentRouteMeta.js";
@@ -35,6 +35,9 @@ import {
   MentorBilling,
   MentorHelp,
   MentorNotifications,
+  ParentBilling,
+  ParentHelp,
+  ParentNotifications,
   StudentBilling,
   StudentHelp,
   StudentNotifications,
@@ -117,6 +120,11 @@ function ParentRoutes() {
           <Route path="overview" element={<ParentOverview />} />
           <Route path="children" element={<ParentOverview />} />
           <Route path="children/:childId/*" element={<ParentChildRoutes />} />
+          <Route path="notifications" element={<ParentNotifications />} />
+          <Route path="settings" element={<ParentSettingsPage />} />
+          <Route path="profile" element={<Navigate to="settings" replace />} />
+          <Route path="billing" element={<ParentBilling />} />
+          <Route path="help" element={<ParentHelp />} />
           <Route index element={<Navigate to="overview" replace />} />
         </Route>
       </Routes>

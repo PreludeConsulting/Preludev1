@@ -160,7 +160,7 @@ function ChatPanel({
         <div className="dash-msg-fab__header-main">
           {activeThread ? (
             <>
-              <Avatar name={activeThread.label} size="sm" />
+              <Avatar name={activeThread.tabLabel || activeThread.label} size="sm" />
               <div className="dash-msg-fab__header-text">
                 <strong>{activeThread.label}</strong>
                 <span>{activeThread.sublabel || activeThread.participantRole}</span>
@@ -189,8 +189,8 @@ function ChatPanel({
               className={`dash-msg-fab__tab${thread.id === activeThreadId ? " dash-msg-fab__tab--active" : ""}`}
               onClick={() => setActiveThreadId(thread.id)}
             >
-              <span className="dash-msg-fab__tab-label">{thread.label}</span>
-              <span className="dash-msg-fab__tab-role">{thread.sublabel}</span>
+              <span className="dash-msg-fab__tab-label">{thread.tabLabel || thread.label}</span>
+              <span className="dash-msg-fab__tab-role">{thread.tabSublabel || thread.sublabel}</span>
             </button>
           ))}
         </div>

@@ -163,7 +163,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 0.05rem;
-  max-width: 9rem;
+  max-width: 11rem;
   min-height: var(--control-height);
   padding: 0.45rem 0.6rem;
   border: 1px solid transparent;

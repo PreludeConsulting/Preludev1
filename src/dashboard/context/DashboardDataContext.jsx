@@ -54,7 +54,7 @@ import {
 import { parseRequestedTime } from "../lib/mentorCalendarFeed.js";
 import { getStudentDemoBundleBySlug } from "../lib/studentDemoBundle.js";
 import { aggregateStudentCalendars } from "../lib/studentCalendarAggregate.js";
-import { deriveAcademicProgress, deriveOpportunitiesFromDeadlines } from "../lib/studentProgressSync.js";
+import { deriveAcademicProgress } from "../lib/studentProgressSync.js";
 import {
   matchesAssignedStudentSync,
   matchesStudentSyncTarget,
@@ -971,10 +971,6 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     const resolvedAcademicProgress = demo?.academicProgress
       ?? deriveAcademicProgress(resolvedProfile, resolvedApplicationProgress);
 
-    const resolvedOpportunities = demo?.opportunities?.length
-      ? demo.opportunities
-      : deriveOpportunitiesFromDeadlines(resolvedDeadlines);
-
     const resolvedStudentProfileStats = demo?.studentProfileStats ?? null;
     const resolvedTasks = demo?.tasks ?? (useSupabase ? supabaseTasks : localTasks) ?? [];
     const resolvedEssays = demo?.essays?.length
@@ -1066,7 +1062,6 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       applicationProgress: resolvedApplicationProgress,
       academicProgress: resolvedAcademicProgress,
       studentProfileStats: resolvedStudentProfileStats,
-      opportunities: resolvedOpportunities,
       collegeJourney: demo?.collegeJourney ?? [],
       essayTracker: demo?.essayTracker ?? [],
       financialAidTracker: demo?.financialAidTracker ?? [],

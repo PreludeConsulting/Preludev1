@@ -13,6 +13,13 @@ const DEMO_ACCOUNTS = [
     role: "STUDENT"
   },
   {
+    email: "student2@prelude-demo.com",
+    password: "Student123!",
+    firstName: "Alex",
+    lastName: "Kim",
+    role: "STUDENT"
+  },
+  {
     email: "mentor@prelude-demo.com",
     password: "Mentor123!",
     firstName: "Maya",
@@ -90,6 +97,9 @@ async function main() {
       const action = await upsertDemoAccount(prisma, account);
       console.log(`${action} ${account.role.toLowerCase()} demo account (${account.email})`);
     }
+    console.log("");
+    console.log("Parent demo (Sam Lee / parent@prelude-demo.com) uses Supabase fixtures.");
+    console.log("Sign in via the demo parent button, or run supabase/seed-demo-parent-links.sql after creating Supabase demo users.");
   } finally {
     await prisma.$disconnect();
   }

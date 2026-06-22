@@ -403,46 +403,6 @@ function studentBundle(email) {
     studentProfileStats: isJordan
       ? { gpa: "3.86", apHonors: 6, leadershipRoles: 2, volunteerHours: 84 }
       : null,
-    opportunities: isJordan
-      ? [
-          {
-            id: "opp-1",
-            title: "MITES Summer Program",
-            category: "Summer Program",
-            deadline: "Mar 15",
-            matchScore: 95,
-            description: "STEM enrichment program for high-achieving students.",
-            actionLabel: "Learn more"
-          },
-          {
-            id: "opp-2",
-            title: "Research Opportunity — GT Lab",
-            category: "Research",
-            deadline: "Apr 5",
-            matchScore: 92,
-            description: "Explore hands-on research experience with a university lab.",
-            actionLabel: "Apply"
-          },
-          {
-            id: "opp-3",
-            title: "FBLA State Competition",
-            category: "Competition",
-            deadline: "Apr 2",
-            matchScore: 88,
-            description: "Compete and build leadership through business events.",
-            actionLabel: "Register"
-          },
-          {
-            id: "opp-4",
-            title: "Coding Internship",
-            category: "Internship",
-            deadline: "May 1",
-            matchScore: 84,
-            description: "Gain real-world experience in software development.",
-            actionLabel: "View"
-          }
-        ]
-      : [],
     collegeJourney: isJordan
       ? [
           { id: "j1", label: "First extracurricular joined", done: true },

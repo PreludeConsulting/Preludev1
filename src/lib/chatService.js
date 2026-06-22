@@ -23,6 +23,9 @@ import {
   threadStorageKey,
   updateLocalChatMessage
 } from "./localChatStore.js";
+import { applyParentThreadLabels } from "./parentChatLabels.js";
+
+export { applyParentThreadLabels } from "./parentChatLabels.js";
 
 export const CHAT_TYPE = {
   MENTOR_STUDENT: "mentor_student",
@@ -81,6 +84,33 @@ function demoDisplayName(account) {
   return `${account.firstName} ${account.lastName}`;
 }
 
+function buildDemoParentThreads() {
+  const raw = [
+    {
+      id: "demo-thread-mp-jordan",
+      chatType: CHAT_TYPE.MENTOR_PARENT,
+      mentorId: DEMO_IDS.mentor,
+      studentId: DEMO_IDS.student,
+      parentId: DEMO_IDS.parent,
+      mentorName: demoDisplayName(DEMO_MENTOR),
+      studentName: demoDisplayName(DEMO_STUDENT),
+      participantRole: "Mentor"
+    },
+    {
+      id: "demo-thread-mp-alex",
+      chatType: CHAT_TYPE.MENTOR_PARENT,
+      mentorId: DEMO_IDS.mentor,
+      studentId: DEMO_IDS.student2,
+      parentId: DEMO_IDS.parent,
+      mentorName: demoDisplayName(DEMO_MENTOR),
+      studentName: demoDisplayName(DEMO_STUDENT_2),
+      participantRole: "Mentor"
+    }
+  ];
+
+  return applyParentThreadLabels(raw).map(withStorageKey);
+}
+
 function buildDemoThreadsForUser(user) {
   const role = (user.role || "student").toLowerCase();
   const threads = [];
@@ -100,17 +130,7 @@ function buildDemoThreadsForUser(user) {
   }
 
   if (role === "parent") {
-    threads.push(withStorageKey({
-      id: "demo-thread-mp-sam",
-      chatType: CHAT_TYPE.MENTOR_PARENT,
-      mentorId: DEMO_IDS.mentor,
-      studentId: DEMO_IDS.student,
-      parentId: DEMO_IDS.parent,
-      label: demoDisplayName(DEMO_MENTOR),
-      sublabel: `${DEMO_STUDENT.firstName}'s mentor`,
-      participantRole: "Mentor"
-    }));
-    return threads;
+    return buildDemoParentThreads();
   }
 
   if (role === "mentor") {
@@ -194,7 +214,7 @@ async function resolveParentThreads(parentId) {
     .eq("parent_id", parentId);
   if (!links?.length) return [];
 
-  const threads = [];
+  const rawThreads = [];
   for (const link of links) {
     const match = await resolveMentorForStudent(link.student_id);
     if (!match?.mentor_id) continue;
@@ -211,14 +231,15 @@ async function resolveParentThreads(parentId) {
       parentId
     });
 
-    threads.push({
+    rawThreads.push({
       ...thread,
-      label: mentorName || "Mentor",
-      sublabel: studentName ? `${studentName}'s mentor` : "Your child's mentor",
+      mentorName: mentorName || match.mentor_name || "Mentor",
+      studentName: studentName || "Student",
       participantRole: "Mentor"
     });
   }
-  return threads;
+
+  return applyParentThreadLabels(rawThreads);
 }
 
 async function resolveMentorThreads(mentorId) {
@@ -322,8 +343,13 @@ export async function listChatThreadsForUser(user) {
   if (!user?.id) return { threads: [], error: "Sign in to use chat." };
 
   if (useLocalChat(user)) {
-    const stored = loadLocalChatThreads(user.id);
+    const role = (user.role || "student").toLowerCase();
     const demo = buildDemoThreadsForUser(user);
+    if (role === "parent") {
+      saveLocalChatThreads(user.id, demo);
+      return { threads: demo, error: null };
+    }
+    const stored = loadLocalChatThreads(user.id);
     const merged = stored.length ? stored.map(withStorageKey) : demo;
     if (!stored.length) saveLocalChatThreads(user.id, demo);
     return { threads: merged, error: null };

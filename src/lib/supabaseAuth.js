@@ -9,6 +9,13 @@ import { appPath } from "./appPaths.js";
 import { getPublicAppOrigin, isSupabaseConfigured } from "./supabaseConfig.js";
 import { mapSupabaseUser } from "./supabaseSession.js";
 import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
+import {
+  clearLocalUserData,
+  clearPendingOAuthAccountDeletion,
+  readPendingOAuthAccountDeletion,
+  storePendingOAuthAccountDeletion
+} from "./accountDeletionFlow.js";
+import { primaryOAuthProvider } from "./authSignInMethod.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
 
@@ -76,7 +83,12 @@ export async function signUp({ email, password, fullName, role = "student", capt
     profile = result.profile;
   }
   const user = data?.session ? mapSupabaseUser(data.session, profile) : null;
-  return { user, error: null, needsEmailConfirmation };
+  return {
+    user,
+    userId: data?.user?.id || null,
+    error: null,
+    needsEmailConfirmation
+  };
 }
 
 export async function logIn({ email, password, captchaToken }) {
@@ -163,17 +175,7 @@ export async function verifySupabasePassword({ email, password, captchaToken }) 
   return data;
 }
 
-export async function deleteSupabaseAccount({ email, password, confirmPassword, confirmationPhrase, captchaToken }) {
-  const { DELETE_ACCOUNT_PHRASE } = await import("./accountDeletion.js");
-  if (password !== confirmPassword) {
-    throw new Error("Passwords do not match.");
-  }
-  if (confirmationPhrase !== DELETE_ACCOUNT_PHRASE) {
-    throw new Error(`Type exactly: ${DELETE_ACCOUNT_PHRASE}`);
-  }
-
-  await verifySupabasePassword({ email, password, captchaToken });
-
+async function assertActiveSupabaseSession(email) {
   const supabase = getSupabase();
   if (!supabase) throw new Error("Supabase client unavailable.");
 
@@ -184,7 +186,11 @@ export async function deleteSupabaseAccount({ email, password, confirmPassword, 
   if ((user.email || "").toLowerCase() !== (email || "").toLowerCase()) {
     throw new Error("Session mismatch. Please sign in again and retry.");
   }
+  return { supabase, user };
+}
 
+async function executeSupabaseAccountDeletion(email) {
+  const { supabase, user } = await assertActiveSupabaseSession(email);
   const firstName = (user.user_metadata?.full_name || "User").split(/\s+/)[0];
   const userEmail = user.email || email;
 
@@ -207,8 +213,78 @@ export async function deleteSupabaseAccount({ email, password, confirmPassword, 
     /* email is best-effort for Supabase path */
   }
 
+  clearLocalUserData(user.id);
+  clearPendingOAuthAccountDeletion();
   await supabase.auth.signOut();
   return { message: "Your account has been permanently deleted." };
+}
+
+export async function startOAuthAccountDeletionReauth({ user, returnPath }) {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Google verification requires Supabase authentication.");
+  }
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Supabase client unavailable.");
+  if (!user?.id || !user?.email) throw new Error("You must be signed in to delete your account.");
+
+  const provider = primaryOAuthProvider(user.authSignInMethods || []);
+  const origin = getPublicAppOrigin() || window.location.origin;
+  const redirectTo = `${origin}${appPath(returnPath || window.location.pathname)}`;
+
+  storePendingOAuthAccountDeletion({
+    userId: user.id,
+    email: user.email,
+    returnPath: returnPath || window.location.pathname,
+    provider
+  });
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+      queryParams: {
+        access_type: "offline",
+        prompt: "login"
+      }
+    }
+  });
+
+  if (error) throw new Error(friendlyError(error) || "Google verification could not be started.");
+  if (!data?.url) throw new Error("Google verification did not return a redirect URL.");
+
+  window.location.assign(data.url);
+  return { redirecting: true };
+}
+
+export async function completePendingOAuthAccountDeletion() {
+  const pending = readPendingOAuthAccountDeletion();
+  if (!pending) return { completed: false };
+
+  const { supabase, user } = await assertActiveSupabaseSession(pending.email);
+  if (user.id !== pending.userId) {
+    clearPendingOAuthAccountDeletion();
+    throw new Error("Google verification did not match your account. Account was not deleted.");
+  }
+
+  const result = await executeSupabaseAccountDeletion(pending.email);
+  return { completed: true, ...result };
+}
+
+export async function deleteSupabaseAccount({ email, password, confirmPassword, captchaToken }) {
+  if (password !== confirmPassword) {
+    throw new Error("Passwords do not match.");
+  }
+
+  await verifySupabasePassword({ email, password, captchaToken });
+  return executeSupabaseAccountDeletion(email);
+}
+
+export async function deleteSupabaseAccountAfterOAuth() {
+  const pending = readPendingOAuthAccountDeletion();
+  if (!pending) {
+    throw new Error("Google verification expired. Start account deletion again.");
+  }
+  return completePendingOAuthAccountDeletion();
 }
 
 export async function updatePassword(newPassword) {
@@ -291,7 +367,14 @@ export async function resolveSupabaseAppUser() {
   if (!supabase) return null;
   const { session } = await getCurrentSession();
   if (!session) return null;
-  const userId = session.user.id;
+
+  const {
+    data: { user: authUser },
+    error: userError
+  } = await supabase.auth.getUser();
+  if (userError || !authUser) return null;
+
+  const userId = authUser.id;
   const { profile } = await getProfile(userId);
 
   const [onboardingRes, mentorRes] = await Promise.all([
@@ -300,5 +383,6 @@ export async function resolveSupabaseAppUser() {
   ]);
 
   const hasAssignedMentor = (mentorRes.data || []).length > 0;
-  return mapSupabaseUser(session, profile, onboardingRes.data, hasAssignedMentor);
+  const hydratedSession = { ...session, user: authUser };
+  return mapSupabaseUser(hydratedSession, profile, onboardingRes.data, hasAssignedMentor);
 }

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { getPlan, getPricingPlans } from "../../../lib/plans.js";
-import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import {
   DashBadge,
@@ -485,6 +485,171 @@ export function MentorNotifications() {
       {notifications.some((n) => n.unread) ? (
         <SecondaryButton type="button" className="dash-btn--sm" onClick={markAllNotificationsRead}>Mark all read</SecondaryButton>
       ) : null}
+    </div>
+  );
+}
+
+export function ParentNotifications() {
+  const { notifications, loading, markAllNotificationsRead } = useDashboardData();
+  const unread = notifications.filter((n) => n.unread);
+
+  return (
+    <div className="dash-page dash-page--premium">
+      <DashboardPageHeader
+        title="Notifications"
+        subtitle="Updates about your children's meetings, mentors, and progress."
+        actions={
+          unread.length ? (
+            <SecondaryButton type="button" className="dash-btn--sm" onClick={markAllNotificationsRead}>
+              Mark all read
+            </SecondaryButton>
+          ) : null
+        }
+      />
+
+      {loading ? <p className="dash-muted" role="status" aria-live="polite">Loading notifications…</p> : null}
+
+      {!loading && notifications.length === 0 ? (
+        <EmptyState
+          icon={Bell}
+          title="You're all caught up"
+          description="New updates about your children's meetings, mentor messages, and deadlines will appear here."
+        />
+      ) : null}
+
+      {notifications.length > 0 ? (
+        <ul className="dash-notification-list">
+          {notifications.map((n) => (
+            <li key={n.id} className={`dash-notification-item ${n.unread ? "dash-notification-item--unread" : ""}`}>
+              <div>
+                <p className="dash-notification-item__title">{n.title}</p>
+                {n.body ? <p className="dash-notification-item__body">{n.body}</p> : null}
+                {n.createdAt ? (
+                  <p className="dash-muted dash-notification-item__time">
+                    {new Date(n.createdAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                  </p>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+export function ParentBilling() {
+  const { user, planDetails, openAccount } = useAuth();
+  const plans = getPricingPlans();
+  const current = planDetails || (user?.plan ? getPlan(user.plan) : null);
+
+  return (
+    <div className="dash-page dash-page--premium">
+      <DashboardPageHeader
+        title="Plans and Billing"
+        subtitle="Your parent account subscription and billing details."
+      />
+
+      <SectionCard title="Current plan" className="dash-panel dash-billing-current">
+        {current ? (
+          <>
+            <div className="dash-billing-current__head">
+              <CreditCard className="h-8 w-8 text-primary" aria-hidden="true" />
+              <div>
+                <h2 className="dash-billing-current__name">{current.name}</h2>
+                <p className="dash-billing-current__price">{current.price}<span>/mo</span></p>
+              </div>
+              <DashBadge variant="lavender">Active</DashBadge>
+            </div>
+            <p className="dash-muted">{current.tagline}</p>
+          </>
+        ) : (
+          <EmptyState
+            icon={CreditCard}
+            title="No plan selected"
+            description="Your parent account is active. Plan details will appear here when billing is connected."
+          />
+        )}
+      </SectionCard>
+
+      <SectionCard title="Compare plans" className="dash-panel">
+        <div className="dash-billing-plans">
+          {plans.map((plan) => (
+            <article key={plan.id} className={`dash-billing-plan ${plan.isRecommended ? "dash-billing-plan--featured" : ""}`}>
+              {plan.isRecommended ? <span className="dash-billing-plan__badge">Best value</span> : null}
+              <h3>{plan.name}</h3>
+              <p className="dash-billing-plan__price">{plan.price}/mo</p>
+              <p className="dash-muted">{plan.tagline}</p>
+              {user?.plan === plan.id ? (
+                <DashBadge variant="soft">Current plan</DashBadge>
+              ) : (
+                <Link to="/onboarding/plan" className="dash-btn dash-btn--secondary dash-btn--sm">Change plan</Link>
+              )}
+            </article>
+          ))}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Billing status" className="dash-panel">
+        <p className="dash-muted">
+          Payment processing is not connected yet. When Stripe billing is enabled, you will be able to manage payment methods and invoices here.
+        </p>
+        <SecondaryButton type="button" className="dash-btn--sm" onClick={openAccount}>
+          Open account drawer
+        </SecondaryButton>
+      </SectionCard>
+    </div>
+  );
+}
+
+export function ParentHelp() {
+  return (
+    <div className="dash-page dash-page--premium">
+      <DashboardPageHeader
+        title="Help and Support"
+        subtitle="Get answers and contact the Prelude team as a parent."
+      />
+
+      <div className="dash-help-grid">
+        <SectionCard title="Contact us" className="dash-panel">
+          <a href="mailto:hello@preludeconsulting.com" className="dash-help-card">
+            <Mail className="h-5 w-5" />
+            <div>
+              <strong>Email support</strong>
+              <p className="dash-muted">hello@preludeconsulting.com — we typically respond within one business day.</p>
+            </div>
+          </a>
+        </SectionCard>
+
+        <SectionCard title="Common questions" className="dash-panel">
+          <dl className="dash-faq">
+            <div>
+              <dt>How do I link my child&apos;s account?</dt>
+              <dd>Ask your student to enter your email when they sign up, or invite you from their Prelude Settings → Family tab.</dd>
+            </div>
+            <div>
+              <dt>Can I message my child&apos;s mentor?</dt>
+              <dd>Yes — use the Messages button in the dashboard to chat with each mentor connected to your children.</dd>
+            </div>
+            <div>
+              <dt>How do I switch between children?</dt>
+              <dd>From Home, open a child&apos;s dashboard. Use the child switcher at the top to move between linked students.</dd>
+            </div>
+            <div>
+              <dt>Can I edit my child&apos;s calendar?</dt>
+              <dd>Parents can add and edit calendar events for linked children, but cannot remove events created by the student or mentor.</dd>
+            </div>
+          </dl>
+        </SectionCard>
+
+        <SectionCard title="Quick links" className="dash-panel">
+          <div className="dash-help-links">
+            <Link to={`${PARENT_DASHBOARD_BASE}/settings`}><Users className="h-4 w-4" /> Profile &amp; settings</Link>
+            <Link to={`${PARENT_DASHBOARD_BASE}/billing`}><CreditCard className="h-4 w-4" /> Plans and billing</Link>
+            <Link to={`${PARENT_DASHBOARD_BASE}/overview`}><Users className="h-4 w-4" /> My children</Link>
+          </div>
+        </SectionCard>
+      </div>
     </div>
   );
 }

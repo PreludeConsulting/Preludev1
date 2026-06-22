@@ -1,23 +1,42 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { DELETE_ACCOUNT_PHRASE } from "../../lib/accountDeletion.js";
 import { shouldUseDemoFixtures } from "../../lib/devAuthBypass.js";
+import {
+  accountDeletionUsesOAuth,
+  accountDeletionUsesPassword,
+  primaryOAuthProvider,
+  resolveAuthSignInMethods
+} from "../../lib/authSignInMethod.js";
+import { getSupabase } from "../../lib/supabase.js";
 import { Modal, SecondaryButton } from "./ui/index.jsx";
+import GoogleSignInButton from "./GoogleSignInButton.jsx";
 import TurnstileWidget from "../../components/auth/TurnstileWidget.jsx";
 import { isSupabaseConfigured } from "../../lib/supabaseConfig.js";
 import { isTurnstileRequired } from "../../lib/turnstile.js";
 
 const STEPS = {
-  PASSWORD: "password",
-  PHRASE: "phrase",
+  CONFIRM: "confirm",
   SUCCESS: "success"
 };
 
-export default function DeleteAccountModal({ open, onClose, user, onDeleteAccount, onComplete }) {
-  const [step, setStep] = useState(STEPS.PASSWORD);
+function providerLabel(provider) {
+  if (provider === "google") return "Google";
+  if (provider === "apple") return "Apple";
+  if (provider === "github") return "GitHub";
+  return "your sign-in provider";
+}
+
+export default function DeleteAccountModal({
+  open,
+  onClose,
+  user,
+  onDeleteAccount,
+  onStartOAuthVerification,
+  onComplete
+}) {
+  const [step, setStep] = useState(STEPS.CONFIRM);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [confirmationPhrase, setConfirmationPhrase] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
@@ -25,12 +44,39 @@ export default function DeleteAccountModal({ open, onClose, user, onDeleteAccoun
 
   const isDemo = shouldUseDemoFixtures(user);
   const supabaseAuth = isSupabaseConfigured();
+  const [signInMethods, setSignInMethods] = useState(() => resolveAuthSignInMethods(user));
+  const usesPassword = accountDeletionUsesPassword(signInMethods);
+  const usesOAuth = accountDeletionUsesOAuth(signInMethods);
+  const oauthProvider = primaryOAuthProvider(signInMethods);
+
+  useEffect(() => {
+    if (!open || isDemo) return undefined;
+    let cancelled = false;
+
+    async function refreshSignInMethods() {
+      if (supabaseAuth) {
+        const supabase = getSupabase();
+        if (supabase) {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (!cancelled && authUser) {
+            setSignInMethods(resolveAuthSignInMethods(user, authUser));
+            return;
+          }
+        }
+      }
+      if (!cancelled) setSignInMethods(resolveAuthSignInMethods(user));
+    }
+
+    refreshSignInMethods();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isDemo, supabaseAuth, user]);
 
   function resetState() {
-    setStep(STEPS.PASSWORD);
+    setStep(STEPS.CONFIRM);
     setPassword("");
     setConfirmPassword("");
-    setConfirmationPhrase("");
     setError("");
     setLoading(false);
     setCaptchaToken("");
@@ -42,9 +88,10 @@ export default function DeleteAccountModal({ open, onClose, user, onDeleteAccoun
     onClose();
   }
 
-  async function handlePasswordContinue(event) {
+  async function handlePasswordDelete(event) {
     event.preventDefault();
     setError("");
+
     if (!password || !confirmPassword) {
       setError("Enter your password in both fields.");
       return;
@@ -53,21 +100,19 @@ export default function DeleteAccountModal({ open, onClose, user, onDeleteAccoun
       setError("Passwords do not match.");
       return;
     }
-
-    setStep(STEPS.PHRASE);
-  }
-
-  async function handleDelete(event) {
-    event.preventDefault();
-    setError("");
-    if (confirmationPhrase !== DELETE_ACCOUNT_PHRASE) {
-      setError(`Type exactly: ${DELETE_ACCOUNT_PHRASE}`);
+    if (supabaseAuth && isTurnstileRequired() && !captchaToken) {
+      setError("Complete the security check before deleting your account.");
       return;
     }
 
     setLoading(true);
     try {
-      await onDeleteAccount({ password, confirmPassword, confirmationPhrase, captchaToken });
+      await onDeleteAccount({
+        verificationMethod: "password",
+        password,
+        confirmPassword,
+        captchaToken
+      });
       setStep(STEPS.SUCCESS);
       window.setTimeout(() => {
         resetState();
@@ -77,17 +122,24 @@ export default function DeleteAccountModal({ open, onClose, user, onDeleteAccoun
     } catch (err) {
       setError(err.message || "Could not delete your account.");
       turnstileRef.current?.reset();
+      setCaptchaToken("");
     } finally {
       setLoading(false);
     }
   }
 
-  const title =
-    step === STEPS.PASSWORD
-      ? "Delete your account"
-      : step === STEPS.PHRASE
-        ? "Confirm account deletion"
-        : "Account deleted";
+  async function handleOAuthVerification() {
+    setError("");
+    setLoading(true);
+    try {
+      await onStartOAuthVerification();
+    } catch (err) {
+      setError(err.message || "Google verification could not be started.");
+      setLoading(false);
+    }
+  }
+
+  const title = step === STEPS.SUCCESS ? "Account deleted" : "Delete your account";
 
   return (
     <Modal
@@ -100,25 +152,16 @@ export default function DeleteAccountModal({ open, onClose, user, onDeleteAccoun
             <SecondaryButton type="button" onClick={handleClose} disabled={loading}>
               Cancel
             </SecondaryButton>
-            {step === STEPS.PASSWORD ? (
+            {usesPassword ? (
               <button
                 type="submit"
                 form="delete-account-password-form"
                 className="dash-btn dash-btn--danger"
-                disabled={loading}
-              >
-                {loading ? "Verifying…" : "Continue"}
-              </button>
-            ) : (
-              <button
-                type="submit"
-                form="delete-account-phrase-form"
-                className="dash-btn dash-btn--danger"
-                disabled={loading || confirmationPhrase !== DELETE_ACCOUNT_PHRASE || (supabaseAuth && isTurnstileRequired() && !captchaToken)}
+                disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)}
               >
                 {loading ? "Deleting…" : "Delete my account permanently"}
               </button>
-            )}
+            ) : null}
           </div>
         )
       }
@@ -129,15 +172,18 @@ export default function DeleteAccountModal({ open, onClose, user, onDeleteAccoun
         </p>
       ) : null}
 
-      {!isDemo && step === STEPS.PASSWORD ? (
-        <form id="delete-account-password-form" className="dash-delete-account" onSubmit={handlePasswordContinue}>
+      {!isDemo && step === STEPS.CONFIRM && usesPassword ? (
+        <form id="delete-account-password-form" className="dash-delete-account" onSubmit={handlePasswordDelete}>
           <div className="dash-delete-account__warning">
             <AlertTriangle className="h-5 w-5" aria-hidden="true" />
             <p>
-              This permanently removes your account, profile, and saved data from Prelude. You will need to create a
-              new account to sign in again.
+              This permanently removes your account, profile, parent/child links, mentor relationships, preferences,
+              and saved data from Prelude. This cannot be undone.
             </p>
           </div>
+          <p className="dash-muted">
+            Because you signed up with email and password, enter your password twice to verify it&apos;s really you.
+          </p>
           <label className="prelude-field">
             <span>Password</span>
             <input
@@ -163,35 +209,41 @@ export default function DeleteAccountModal({ open, onClose, user, onDeleteAccoun
         </form>
       ) : null}
 
-      {!isDemo && step === STEPS.PHRASE ? (
-        <form id="delete-account-phrase-form" className="dash-delete-account" onSubmit={handleDelete}>
+      {!isDemo && step === STEPS.CONFIRM && usesOAuth ? (
+        <div className="dash-delete-account">
+          <div className="dash-delete-account__warning">
+            <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+            <p>
+              This permanently removes your account, profile, parent/child links, mentor relationships, preferences,
+              and saved data from Prelude. This cannot be undone.
+            </p>
+          </div>
           <p className="dash-muted">
-            To permanently delete <strong>{user?.email}</strong>, type the sentence below exactly as shown.
+            You signed in with {providerLabel(oauthProvider)} and do not have a Prelude password. To delete{" "}
+            <strong>{user?.email}</strong>, verify your identity with {providerLabel(oauthProvider)} first.
           </p>
-          <p className="dash-delete-account__phrase-hint">
-            <code>{DELETE_ACCOUNT_PHRASE}</code>
-          </p>
-          <label className="prelude-field">
-            <span>Confirmation</span>
-            <input
-              type="text"
-              value={confirmationPhrase}
-              onChange={(e) => setConfirmationPhrase(e.target.value)}
-              placeholder={DELETE_ACCOUNT_PHRASE}
-              autoComplete="off"
-              spellCheck={false}
-              required
-            />
-          </label>
+          <GoogleSignInButton
+            label={`Continue with ${providerLabel(oauthProvider)} verification`}
+            onClick={handleOAuthVerification}
+            disabled={loading}
+            loading={loading}
+          />
           {error ? <p className="dash-delete-account__error">{error}</p> : null}
-        </form>
+        </div>
+      ) : null}
+
+      {!isDemo && step === STEPS.CONFIRM && !usesPassword && !usesOAuth ? (
+        <p className="dash-muted">
+          We couldn&apos;t determine how you signed in. Please sign out, sign back in, and try again. If the problem
+          continues, contact support.
+        </p>
       ) : null}
 
       {!isDemo && step === STEPS.SUCCESS ? (
         <div className="dash-delete-account__success">
           <CheckCircle2 className="h-10 w-10" aria-hidden="true" />
           <p>Your account has been permanently deleted.</p>
-          <p className="dash-muted">A confirmation email was sent to {user?.email}. Returning you to the Prelude homepage…</p>
+          <p className="dash-muted">Returning you to the Prelude homepage…</p>
         </div>
       ) : null}
     </Modal>

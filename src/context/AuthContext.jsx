@@ -1,7 +1,15 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getStoredSession, signIn as authSignIn, signOut as authSignOut, signUp as authSignUp, deleteAccount as authDeleteAccount, verifyAccountPassword as authVerifyAccountPassword } from "../lib/auth.js";
-import { acceptPendingParentInvite, storePendingParentInvite } from "../lib/parentLinks.js";
+import {
+  acceptPendingParentInvite,
+  connectPendingParentEmailForStudent,
+  connectStudentParentEmail,
+  storePendingParentEmailConnect,
+  storePendingParentInvite
+} from "../lib/parentLinks.js";
+import { readPendingOAuthAccountDeletion } from "../lib/accountDeletionFlow.js";
+import { resumePendingOAuthAccountDeletion } from "../lib/pendingAccountDeletion.js";
 import { getDevBypassUser, getDemoSessionUser, isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { getPlan } from "../lib/plans.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
@@ -21,6 +29,7 @@ export function AuthProvider({ children }) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [personalizedAiRequest, setPersonalizedAiRequest] = useState(0);
+  const oauthDeletionResumeRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +120,52 @@ export function AuthProvider({ children }) {
     setAuthError(null);
   }, []);
 
+  useEffect(() => {
+    if (!ready || !useSupabase || !user?.id) return;
+    if (!readPendingOAuthAccountDeletion()) return;
+    if (oauthDeletionResumeRef.current) return;
+
+    let cancelled = false;
+    oauthDeletionResumeRef.current = true;
+
+    (async () => {
+      try {
+        const result = await resumePendingOAuthAccountDeletion({
+          user,
+          search: window.location.search,
+          hash: window.location.hash,
+          deleteAccount: async () => {
+            const { deleteSupabaseAccountAfterOAuth } = await loadSupabaseAuth();
+            await deleteSupabaseAccountAfterOAuth();
+            setUser(null);
+          }
+        });
+
+        if (cancelled) return;
+
+        if (result.handled) {
+          if (window.location.hash || window.location.search.includes("error")) {
+            window.history.replaceState({}, "", window.location.pathname);
+          }
+          setSignInOpen(false);
+          setAccountOpen(false);
+          navigate("/", { replace: true });
+        } else {
+          oauthDeletionResumeRef.current = false;
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setAuthError(err.message || "Account deletion could not be completed.");
+          oauthDeletionResumeRef.current = false;
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, useSupabase, user?.id, navigate]);
+
   const signIn = useCallback(async (email, password, options = {}) => {
     setAuthError(null);
     try {
@@ -120,6 +175,11 @@ export function AuthProvider({ children }) {
         if (error) throw new Error(error);
         if (next?.role === "parent") {
           await acceptPendingParentInvite(next.id);
+        } else if (next?.role === "student") {
+          await connectPendingParentEmailForStudent({
+            studentId: next.id,
+            studentName: next.name || next.email
+          });
         }
         setUser(next);
         setSignInOpen(false);
@@ -146,7 +206,7 @@ export function AuthProvider({ children }) {
         if (role === "parent" && payload.parentInviteToken) {
           storePendingParentInvite(payload.parentInviteToken);
         }
-        const { user: next, error, needsEmailConfirmation } = await supabaseSignUp({
+        const { user: next, userId, error, needsEmailConfirmation } = await supabaseSignUp({
           email: payload.email,
           password: payload.password,
           fullName: fullName || (role === "parent" ? "Parent User" : "Student User"),
@@ -154,8 +214,26 @@ export function AuthProvider({ children }) {
           captchaToken: payload.captchaToken
         });
         if (error) throw new Error(error);
+        const parentEmail = (payload.parentEmail || "").trim();
+        if (role === "student" && parentEmail) {
+          if (next?.id) {
+            await connectStudentParentEmail({
+              studentId: next.id,
+              studentName: fullName || "Student",
+              parentEmail,
+              sendEmail: true
+            });
+          } else if (userId) {
+            storePendingParentEmailConnect(userId, parentEmail);
+          }
+        }
         if (next?.role === "parent") {
           await acceptPendingParentInvite(next.id);
+        } else if (next?.role === "student") {
+          await connectPendingParentEmailForStudent({
+            studentId: next.id,
+            studentName: fullName || next?.name || payload.email
+          });
         }
         if (next) {
           setUser(next);
@@ -163,6 +241,7 @@ export function AuthProvider({ children }) {
         }
         return {
           ...next,
+          id: next?.id || userId,
           emailVerified: Boolean(next?.emailVerified),
           needsEmailConfirmation
         };
@@ -234,11 +313,21 @@ export function AuthProvider({ children }) {
       setAuthError(null);
       try {
         if (useSupabase) {
-          const { deleteSupabaseAccount } = await loadSupabaseAuth();
-          await deleteSupabaseAccount({ ...payload, email: user.email });
+          const {
+            deleteSupabaseAccount,
+            deleteSupabaseAccountAfterOAuth,
+            startOAuthAccountDeletionReauth
+          } = await loadSupabaseAuth();
+
+          if (payload?.verificationMethod === "oauth") {
+            await deleteSupabaseAccountAfterOAuth();
+          } else {
+            await deleteSupabaseAccount({ ...payload, email: user.email });
+          }
         } else {
           await authDeleteAccount(payload);
         }
+        setUser(null);
         return { success: true };
       } catch (error) {
         setAuthError(error.message);
@@ -247,6 +336,18 @@ export function AuthProvider({ children }) {
     },
     [useSupabase, user]
   );
+
+  const startOAuthAccountDeletionVerification = useCallback(async () => {
+    if (!user?.email) throw new Error("You must be signed in to delete your account.");
+    if (!useSupabase) {
+      throw new Error("Google verification is only available for Supabase accounts.");
+    }
+    const { startOAuthAccountDeletionReauth } = await loadSupabaseAuth();
+    return startOAuthAccountDeletionReauth({
+      user,
+      returnPath: window.location.pathname
+    });
+  }, [useSupabase, user]);
 
   const finishAccountDeletion = useCallback(() => {
     setUser(null);
@@ -315,6 +416,7 @@ export function AuthProvider({ children }) {
       signOut,
       verifyAccountPassword,
       deleteAccount,
+      startOAuthAccountDeletionVerification,
       finishAccountDeletion,
       saveUserPlan,
       setAuthError,
@@ -340,6 +442,7 @@ export function AuthProvider({ children }) {
       signOut,
       verifyAccountPassword,
       deleteAccount,
+      startOAuthAccountDeletionVerification,
       finishAccountDeletion,
       saveUserPlan,
       personalizedAiRequest,
