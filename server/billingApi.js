@@ -6,11 +6,15 @@ import {
   getAppBaseUrl,
   getBillingConfig,
   getPlanPriceId,
+  isGuestCheckoutAllowed,
   PAID_PLAN_IDS,
   STRIPE_API_VERSION
 } from "./billingConfig.js";
 
-const checkoutSchema = z.object({ planId: z.enum(["basic", "plus", "pro"]) });
+const checkoutSchema = z.object({
+  planId: z.enum(["basic", "plus", "pro"]),
+  guestCheckout: z.boolean().optional()
+});
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 
 function getStripeClient(config = getBillingConfig()) {
@@ -58,25 +62,26 @@ async function handleCheckout(req, res) {
   const config = getBillingConfig();
   if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
 
-  const auth = await requireAuth(req);
-  requireCsrf(req);
   const payload = checkoutSchema.parse(await readJsonBody(req));
+  const guestCheckout = Boolean(payload.guestCheckout) && isGuestCheckoutAllowed(req);
+  const auth = guestCheckout ? null : await requireAuth(req);
+  if (!guestCheckout) requireCsrf(req);
   const priceId = getPlanPriceId(payload.planId, config);
   if (!priceId) return sendJson(res, 400, { error: "invalid_plan", message: "That paid plan is not available." });
 
   const stripe = getStripeClient(config);
-  const customerId = await ensureStripeCustomer(auth.user, config);
+  const customerId = auth ? await ensureStripeCustomer(auth.user, config) : null;
   const appBaseUrl = getAppBaseUrl(req);
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
-    customer: customerId,
-    client_reference_id: auth.user.id,
+    ...(customerId ? { customer: customerId } : {}),
+    ...(auth ? { client_reference_id: auth.user.id } : {}),
     success_url: `${appBaseUrl}/checkout/success?plan=${payload.planId}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appBaseUrl}/checkout/cancel?plan=${payload.planId}`,
     line_items: [{ price: priceId, quantity: 1 }],
-    metadata: { userId: auth.user.id, planId: payload.planId },
+    metadata: auth ? { userId: auth.user.id, planId: payload.planId } : { planId: payload.planId, checkoutMode: "guest_test" },
     subscription_data: {
-      metadata: { userId: auth.user.id, planId: payload.planId }
+      metadata: auth ? { userId: auth.user.id, planId: payload.planId } : { planId: payload.planId, checkoutMode: "guest_test" }
     }
   });
 

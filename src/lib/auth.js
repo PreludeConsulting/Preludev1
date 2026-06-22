@@ -204,8 +204,8 @@ export async function getBillingConfig() {
   return api("/api/billing/config");
 }
 
-export async function startBillingCheckout(planId) {
-  return api("/api/billing/checkout", { method: "POST", body: JSON.stringify({ planId }) });
+export async function startBillingCheckout(planId, options = {}) {
+  return api("/api/billing/checkout", { method: "POST", body: JSON.stringify({ planId, ...options }) });
 }
 
 export async function openBillingPortal() {

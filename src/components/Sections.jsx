@@ -167,6 +167,7 @@ export function LowerPlans() {
   const { t } = useLanguage();
   const [billingNotice, setBillingNotice] = useState("");
   const [loadingPlan, setLoadingPlan] = useState(null);
+  const allowGuestCheckout = import.meta.env.DEV || import.meta.env.VITE_ALLOW_GUEST_CHECKOUT === "true";
   const translatedPlanCards = t("sections.plans.cards");
   const plans = getPricingPlans().map((plan) => {
     const translatedPlan = translatedPlanCards.find(({ id }) => id === plan.id);
@@ -193,7 +194,7 @@ export function LowerPlans() {
       return;
     }
 
-    if (!isAuthenticated || requiresRealAccount) {
+    if ((!isAuthenticated || requiresRealAccount) && !allowGuestCheckout) {
       setBillingNotice(t("sections.plans.notices.signInFirst"));
       openRegister();
       return;
@@ -201,7 +202,7 @@ export function LowerPlans() {
 
     setLoadingPlan(plan.id);
     try {
-      const result = await startBillingCheckout(plan.id);
+      const result = await startBillingCheckout(plan.id, { guestCheckout: !isAuthenticated || requiresRealAccount });
       if (result.url) window.location.href = result.url;
     } catch (error) {
       if (error.payload?.error === "billing_not_configured") {
