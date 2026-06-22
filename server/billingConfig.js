@@ -59,6 +59,13 @@ export function getAppBaseUrl(req) {
   return (process.env.PUBLIC_APP_URL || getRequestOrigin(req)).replace(/\/$/, "");
 }
 
+export function isGuestCheckoutAllowed(req, env = process.env) {
+  if (env.STRIPE_ALLOW_GUEST_CHECKOUT === "true") return true;
+  if (env.NODE_ENV === "production") return false;
+  const host = req.headers.host || "";
+  return host.startsWith("localhost:") || host.startsWith("127.0.0.1:");
+}
+
 export function billingNotConfiguredPayload(config = getBillingConfig()) {
   return {
     error: "billing_not_configured",

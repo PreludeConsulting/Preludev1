@@ -37,6 +37,7 @@ export const translations = {
         mentoringClarity: "Mentoring & Clarity",
         mentors: "Mentors",
         pricing: "Pricing",
+        satPrepTutoring: "SAT Prep & Tutoring",
         clarity: "Clarity",
         dashboard: "Dashboard"
       }
@@ -194,6 +195,46 @@ export const translations = {
       benefits: {
         headline: "Built for Parents",
         imageAlt: "Parent view of a student dashboard showing progress, savings, mentor match, and upcoming milestones."
+      },
+      academicPrograms: {
+        headline: "SAT Prep & Tutoring",
+        subheadline: "Personalized support for academics and test preparation.",
+        cards: [
+          {
+            id: "sat-act-prep",
+            title: "SAT & ACT Prep",
+            price: "$124.99/month",
+            featuredCallout: "Weekly 1-on-1 Zoom Sessions",
+            description: "Build a personalized testing strategy with guidance from high-achieving mentors.",
+            features: [
+              "Personalized mentor match",
+              "Matched with a mentor from a top university",
+              "Personalized study roadmap",
+              "Practice test review",
+              "Accountability check-ins",
+              "Testing strategy guidance"
+            ],
+            cta: "Find My SAT Mentor",
+            ctaHref: "/register?service=sat-mentor-match&ref=academic-programs"
+          },
+          {
+            id: "academic-tutoring",
+            title: "Academic Tutoring",
+            price: "$159.99/month",
+            featuredCallout: "Weekly 1-on-1 Zoom Tutoring",
+            description: "Get support in challenging classes and stay on track throughout the school year.",
+            features: [
+              "Personalized mentor match",
+              "Matched based on academic goals and coursework",
+              "Math, Science, English & AP support",
+              "Homework assistance",
+              "Test review",
+              "Flexible scheduling"
+            ],
+            cta: "Find My Academic Mentor",
+            ctaHref: "/register?service=academic-mentor-match&ref=academic-programs"
+          }
+        ]
       },
       plans: {
         eyebrow: "Plans",

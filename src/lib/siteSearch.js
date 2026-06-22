@@ -6,7 +6,7 @@ export const SCROLL_STORAGE_KEY = "preludeSearchScroll";
 /** Searchable destinations — pages, tabs, and sections. */
 export const SITE_SEARCH_ITEMS = [
   ...NAV_LINKS.map((link) => ({
-    id: link.href.slice(1),
+    id: link.href.startsWith("#") ? link.href.slice(1) : link.href.replace(/^\//, ""),
     labelKey: link.labelKey,
     href: link.href,
     keywords: []
