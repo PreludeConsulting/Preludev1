@@ -1,0 +1,1434 @@
+/* ——— Progress Rewards — premium loyalty platform ——— */
+
+.dash-rewards-loyalty {
+  --rw-purple: #5b4fd6;
+  --rw-purple-deep: #4a3fc9;
+  --rw-navy: #232730;
+  --rw-gold: #e8b923;
+  --rw-gold-light: #f5d76e;
+  --rw-teal: #14b8a6;
+  --rw-teal-deep: #0d9488;
+  --rw-card-shadow: 0 8px 28px rgb(35 39 48 / 0.07), 0 2px 8px rgb(120 106 255 / 0.06);
+  --rw-card-shadow-hover: 0 16px 40px rgb(120 106 255 / 0.14), 0 4px 12px rgb(35 39 48 / 0.06);
+  max-width: 80rem;
+  margin-inline: auto;
+  padding: 0.5rem 0.5rem 2rem;
+  background: #f3f5f9;
+  border-radius: 1.25rem;
+}
+
+.dash-rewards-loyalty__shell {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 1100px) {
+  .dash-rewards-loyalty__shell {
+    grid-template-columns: minmax(0, 70fr) minmax(17rem, 30fr);
+    gap: 1rem;
+    align-items: start;
+  }
+}
+
+.dash-rewards-loyalty__main {
+  min-width: 0;
+}
+
+/* Piggy + effects */
+
+.dash-piggy {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-piggy__img {
+  position: relative;
+  z-index: 2;
+  width: 4.5rem;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 16px 32px rgb(120 106 255 / 0.28));
+}
+
+.dash-piggy--sm .dash-piggy__img { width: 4rem; }
+.dash-piggy--md .dash-piggy__img { width: 5.5rem; }
+.dash-piggy--hero .dash-piggy__img { width: clamp(7rem, 14vw, 9.5rem); }
+.dash-piggy--xl .dash-piggy__img { width: clamp(8rem, 16vw, 11rem); }
+.dash-piggy--xxl .dash-piggy__img { width: clamp(9.5rem, 20vw, 14rem); }
+
+.dash-piggy__glow {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgb(120 106 255 / 0.32) 0%, transparent 68%);
+  animation: dash-piggy-glow 3s ease-in-out infinite;
+}
+
+.dash-piggy__shadow {
+  position: absolute;
+  bottom: -8%;
+  left: 12%;
+  right: 12%;
+  height: 1.25rem;
+  z-index: 0;
+  border-radius: 999px;
+  background: radial-gradient(ellipse, rgb(120 106 255 / 0.2) 0%, transparent 72%);
+  filter: blur(4px);
+}
+
+.dash-piggy--float {
+  animation: dash-piggy-float 4.5s ease-in-out infinite;
+}
+
+.dash-floating-coins {
+  position: absolute;
+  inset: -8%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.dash-floating-coins__coin {
+  position: absolute;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--rw-gold-light), var(--rw-gold));
+  border: 2.5px solid #f0c94a;
+  box-shadow: 0 6px 14px rgb(232 185 35 / 0.4);
+  animation: dash-coin-float 3.4s ease-in-out infinite;
+}
+
+.dash-floating-coins__coin::after {
+  content: "P";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #9a7209;
+}
+
+.dash-piggy-sparkles {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.dash-piggy-sparkles__dot {
+  position: absolute;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 8px rgb(120 106 255 / 0.8);
+  animation: dash-sparkle 2.2s ease-in-out infinite;
+}
+
+@keyframes dash-piggy-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes dash-piggy-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+@keyframes dash-coin-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(10deg); }
+}
+
+@keyframes dash-sparkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.dash-coin-balance {
+  font-family: var(--dash-font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  color: var(--rw-navy);
+}
+
+.dash-coin-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--rw-gold-light), var(--rw-gold));
+  border: 2px solid #f0c94a;
+  box-shadow: 0 3px 8px rgb(232 185 35 / 0.35);
+}
+
+.dash-coin-icon--sm { width: 1.15rem; height: 1.15rem; }
+.dash-coin-icon--lg { width: 2rem; height: 2rem; }
+
+.dash-coin-icon__mark {
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: #9a7209;
+  line-height: 1;
+}
+
+.dash-coin-icon--lg .dash-coin-icon__mark { font-size: 0.7rem; }
+
+/* Hero */
+
+.dash-rewards-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 1rem 1.5rem;
+  align-items: center;
+  padding: 1.65rem 1.75rem 1.5rem;
+  border-radius: 1.5rem;
+  background: linear-gradient(135deg, #f3f0ff 0%, #ffffff 55%, #faf8ff 100%);
+  border: 1px solid rgb(120 106 255 / 0.14);
+  box-shadow: var(--rw-card-shadow);
+}
+
+.dash-rewards-hero__pig {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 12rem;
+}
+
+.dash-rewards-hero__center {
+  text-align: left;
+}
+
+.dash-rewards-hero__status-label {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rw-purple);
+}
+
+.dash-rewards-hero__balance-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+
+.dash-rewards-hero__balance {
+  font-size: clamp(3.25rem, 7vw, 4.5rem);
+  line-height: 0.95;
+}
+
+.dash-rewards-hero__balance-label {
+  margin: 0.2rem 0 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-hero__tier-badge {
+  display: inline-flex;
+  margin-top: 0.7rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--rw-purple);
+  background: #fff;
+  border: 1.5px solid rgb(120 106 255 / 0.25);
+  box-shadow: 0 2px 8px rgb(120 106 255 / 0.08);
+}
+
+.dash-rewards-hero__goal {
+  margin-top: 0.85rem;
+  max-width: 20rem;
+}
+
+.dash-rewards-hero__goal-hint {
+  margin: 0 0 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--rw-purple);
+}
+
+/* Progress */
+
+.dash-rewards-progress {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: rgb(120 106 255 / 0.12);
+  overflow: hidden;
+}
+
+.dash-rewards-progress--hero { height: 0.55rem; }
+.dash-rewards-progress--compact { height: 0.38rem; margin-top: 0.5rem; }
+.dash-rewards-progress--mini { height: 0.35rem; margin-top: 0.5rem; }
+
+.dash-rewards-progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7c6ef0, var(--rw-purple));
+  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Tabs */
+
+.dash-rewards-tabs {
+  display: flex;
+  gap: 0;
+  margin: 0.85rem 0 0.75rem;
+  border-bottom: 2px solid rgb(35 39 48 / 0.06);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dash-rewards-tabs::-webkit-scrollbar { display: none; }
+
+.dash-rewards-tabs__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  padding: 0.85rem 1.15rem;
+  border: none;
+  background: transparent;
+  font-family: var(--dash-font-sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.dash-rewards-tabs__tab:hover { color: var(--rw-navy); }
+
+.dash-rewards-tabs__tab--active {
+  color: var(--rw-navy);
+  font-weight: 700;
+}
+
+.dash-rewards-tabs__tab--active::after {
+  content: "";
+  position: absolute;
+  left: 0.85rem;
+  right: 0.85rem;
+  bottom: -2px;
+  height: 3px;
+  border-radius: 999px 999px 0 0;
+  background: var(--rw-purple);
+}
+
+/* Closest rewards */
+
+.dash-rewards-closest {
+  margin-bottom: 1rem;
+  padding: 1.15rem 1.25rem;
+  border-radius: 1.15rem;
+  background: linear-gradient(135deg, #f8f6ff, #fff);
+  border: 1px solid rgb(120 106 255 / 0.14);
+  box-shadow: var(--rw-card-shadow);
+}
+
+.dash-rewards-closest__title {
+  margin: 0 0 0.85rem;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-closest__track {
+  display: grid;
+  gap: 0.65rem;
+}
+
+@media (min-width: 720px) {
+  .dash-rewards-closest__track {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.dash-rewards-closest__item {
+  padding: 0.85rem;
+  border-radius: 0.95rem;
+  background: #fff;
+  border: 1px solid rgb(35 39 48 / 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dash-rewards-closest__item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgb(120 106 255 / 0.1);
+}
+
+.dash-rewards-closest__item--lead {
+  border-color: rgb(120 106 255 / 0.22);
+  background: linear-gradient(145deg, #fff, #f8f6ff);
+}
+
+.dash-rewards-closest__name {
+  margin: 0.55rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-closest__sub {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-closest__away {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--rw-purple);
+}
+
+.dash-rewards-closest__away--ready { color: #16a34a; }
+
+/* Featured */
+
+.dash-rewards-tab-panel { animation: dash-rewards-fade-in 0.3s ease; }
+
+.dash-rewards-featured {
+  position: relative;
+  padding: 1.5rem 1.6rem;
+  margin-bottom: 1rem;
+  border-radius: 1.35rem;
+  background: #fff;
+  border: 1px solid rgb(120 106 255 / 0.12);
+  box-shadow: var(--rw-card-shadow);
+  transition: box-shadow 0.25s ease;
+}
+
+.dash-rewards-featured:hover { box-shadow: var(--rw-card-shadow-hover); }
+
+.dash-rewards-featured__badge {
+  position: absolute;
+  top: 1.1rem;
+  right: 1.1rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rw-purple);
+  background: rgb(120 106 255 / 0.1);
+}
+
+.dash-rewards-featured__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+  gap: 1.35rem;
+  align-items: center;
+}
+
+.dash-rewards-featured__visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 11rem;
+  border-radius: 1.1rem;
+  background: linear-gradient(160deg, #f3f0ff 0%, #fff 70%);
+  border: 1px solid rgb(120 106 255 / 0.08);
+}
+
+.dash-rewards-featured__title {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-featured__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-top: 0.55rem;
+}
+
+.dash-rewards-featured__cost {
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: #c9a227;
+}
+
+.dash-rewards-featured__value {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-featured__desc {
+  margin: 0.65rem 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-featured__away {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--rw-purple);
+}
+
+.dash-rewards-featured__progress-wrap {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.dash-rewards-featured__cta {
+  margin-top: 1rem;
+  min-width: 10rem;
+  padding: 0.7rem 1.35rem;
+  border-radius: 999px;
+  font-size: 0.9375rem;
+}
+
+/* Store grid */
+
+.dash-rewards-section-label {
+  margin: 0 0 0.75rem;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-section-label--featured {
+  margin-top: 0.25rem;
+}
+
+.dash-rewards-store-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+@media (min-width: 900px) {
+  .dash-rewards-store-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (min-width: 720px) and (max-width: 899px) {
+  .dash-rewards-store-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.dash-rewards-store-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.05rem;
+  min-height: 10.5rem;
+  border-radius: 1rem;
+  background: #fff;
+  border: 1px solid rgb(35 39 48 / 0.07);
+  box-shadow: var(--rw-card-shadow);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  overflow: hidden;
+}
+
+.dash-rewards-store-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--rw-accent, var(--rw-purple));
+  opacity: 0.85;
+}
+
+.dash-rewards-store-card--purple { --rw-accent: #5b4fd6; }
+.dash-rewards-store-card--mint { --rw-accent: #0d9488; }
+.dash-rewards-store-card--sky { --rw-accent: #0284c7; }
+.dash-rewards-store-card--peach { --rw-accent: #ea580c; }
+.dash-rewards-store-card--blue { --rw-accent: #2563eb; }
+.dash-rewards-store-card--amber { --rw-accent: #d97706; }
+.dash-rewards-store-card--rose { --rw-accent: #e11d48; }
+.dash-rewards-store-card--indigo { --rw-accent: #4f46e5; }
+
+.dash-rewards-store-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--rw-card-shadow-hover);
+}
+
+.dash-rewards-store-card--ready {
+  border-color: rgb(120 106 255 / 0.2);
+  background: linear-gradient(145deg, #f8f6ff, #fff);
+}
+
+.dash-rewards-store-card--redeemed { opacity: 0.65; }
+
+.dash-rewards-store-card__category {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-store-card__head {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  margin-top: 0.25rem;
+}
+
+.dash-rewards-store-card__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-store-card__subtitle {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-store-card__desc {
+  margin: 0.3rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-store-card__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.dash-rewards-store-card__cost {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: #c9a227;
+}
+
+.dash-rewards-store-card__value {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-store-card__away {
+  margin: 0.7rem 0 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--rw-purple);
+}
+
+.dash-rewards-store-card__status {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--rw-purple);
+}
+
+.dash-rewards-store-card__btn {
+  margin-top: 0.75rem;
+  width: 100%;
+  border-radius: 999px;
+}
+
+.dash-rewards-store-footer {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.dash-rewards-store-footer__link {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--rw-purple);
+  text-decoration: none;
+}
+
+.dash-rewards-store-footer__link:hover { text-decoration: underline; }
+
+.dash-rewards-store-footer__note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-store-footer__gift {
+  width: 0.9rem;
+  height: 0.9rem;
+  color: var(--rw-purple);
+}
+
+/* Reward icons */
+
+.dash-rewards-reward-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.65rem;
+  height: 2.65rem;
+  border-radius: 0.8rem;
+}
+
+.dash-rewards-reward-icon--lg {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 0.95rem;
+}
+
+.dash-rewards-reward-icon--purple { color: #5b4fd6; background: rgb(120 106 255 / 0.12); }
+.dash-rewards-reward-icon--mint { color: #0d9488; background: rgb(13 148 136 / 0.12); }
+.dash-rewards-reward-icon--sky { color: #0284c7; background: rgb(2 132 199 / 0.12); }
+.dash-rewards-reward-icon--peach { color: #ea580c; background: rgb(234 88 12 / 0.12); }
+.dash-rewards-reward-icon--blue { color: #2563eb; background: rgb(37 99 235 / 0.12); }
+.dash-rewards-reward-icon--amber { color: #d97706; background: rgb(217 119 6 / 0.12); }
+.dash-rewards-reward-icon--rose { color: #e11d48; background: rgb(225 29 72 / 0.1); }
+.dash-rewards-reward-icon--indigo { color: #4f46e5; background: rgb(79 70 229 / 0.12); }
+
+/* Sidebar */
+
+.dash-rewards-sidebar {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dash-rewards-sidebar__card {
+  padding: 1.15rem 1.2rem;
+  border-radius: 1.1rem;
+  background: #fff;
+  border: 1px solid rgb(35 39 48 / 0.07);
+  box-shadow: var(--rw-card-shadow);
+}
+
+.dash-rewards-sidebar__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-sidebar__overview-list {
+  list-style: none;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.dash-rewards-sidebar__overview-list li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.dash-rewards-sidebar__overview-icon {
+  display: grid;
+  place-items: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.6rem;
+}
+
+.dash-rewards-sidebar__overview-icon--purple { color: #5b4fd6; background: rgb(120 106 255 / 0.1); }
+.dash-rewards-sidebar__overview-icon--orange { color: #ea580c; background: rgb(234 88 12 / 0.1); }
+.dash-rewards-sidebar__overview-icon--blue { color: #2563eb; background: rgb(37 99 235 / 0.1); }
+.dash-rewards-sidebar__overview-icon--mint { color: #0d9488; background: rgb(13 148 136 / 0.1); }
+
+.dash-rewards-sidebar__overview-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-sidebar__overview-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-sidebar__cta {
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+/* Daily Momentum Streak */
+
+.dash-rewards-streak__desc {
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-streak__week {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.2rem;
+}
+
+.dash-rewards-streak__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-rewards-streak__dot {
+  display: grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  border: 1.5px solid rgb(35 39 48 / 0.1);
+}
+
+.dash-rewards-streak__dot--done {
+  color: #fff;
+  background: linear-gradient(145deg, var(--rw-teal), var(--rw-teal-deep));
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgb(20 184 166 / 0.28);
+}
+
+.dash-rewards-streak__dot--pending {
+  background: #fff;
+}
+
+.dash-rewards-streak__label {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-streak__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgb(35 39 48 / 0.08);
+}
+
+.dash-rewards-streak__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-streak__count svg {
+  color: #ea580c;
+}
+
+.dash-rewards-streak__reward {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  color: var(--rw-purple);
+}
+
+/* Challenges / Tasks */
+
+.dash-rewards-challenges__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dash-rewards-challenges__view-all {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--rw-purple);
+  cursor: pointer;
+}
+
+.dash-rewards-challenges__list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.dash-rewards-challenge__item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.75rem 0.8rem;
+  border-radius: 0.85rem;
+  background: #fafbfc;
+  border: 1px solid rgb(35 39 48 / 0.06);
+}
+
+.dash-rewards-challenge__item--completed {
+  background: rgb(20 184 166 / 0.05);
+  border-color: rgb(20 184 166 / 0.12);
+}
+
+.dash-rewards-challenge__title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-challenge__hint {
+  margin: 0.3rem 0 0;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-challenge__aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.dash-rewards-challenge__coins {
+  font-size: 0.625rem;
+  font-weight: 800;
+  color: var(--rw-purple);
+  white-space: nowrap;
+}
+
+.dash-rewards-challenge__chevron {
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-challenge__circles,
+.dash-rewards-challenge__checks {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+
+.dash-rewards-challenge__circle,
+.dash-rewards-challenge__check {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  color: hsl(var(--muted-foreground));
+  background: #fff;
+  border: 1.5px solid rgb(35 39 48 / 0.1);
+}
+
+.dash-rewards-challenge__circle--done,
+.dash-rewards-challenge__check {
+  color: #fff;
+  background: linear-gradient(145deg, var(--rw-teal), var(--rw-teal-deep));
+  border-color: transparent;
+}
+
+/* How It Works */
+
+.dash-rewards-how__list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.dash-rewards-how__item {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.dash-rewards-how__step {
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 800;
+  color: var(--rw-purple);
+  background: rgb(120 106 255 / 0.1);
+}
+
+.dash-rewards-how__icon {
+  display: grid;
+  place-items: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 0.45rem;
+  color: var(--rw-purple);
+  background: rgb(120 106 255 / 0.08);
+}
+
+.dash-rewards-how__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-how__link {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.dash-rewards-how__link:hover {
+  text-decoration: underline;
+}
+
+.dash-rewards-circles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+
+.dash-rewards-circles__dot {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: hsl(var(--muted-foreground));
+  background: rgb(120 106 255 / 0.06);
+  border: 1.5px solid rgb(35 39 48 / 0.08);
+}
+
+.dash-rewards-circles__dot--done {
+  color: #fff;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border-color: transparent;
+}
+
+.dash-rewards-circles__dot--next {
+  color: var(--rw-purple);
+  background: #fff;
+  border-color: rgb(120 106 255 / 0.4);
+  box-shadow: 0 0 0 2px rgb(120 106 255 / 0.1);
+}
+
+.dash-rewards-sidebar__challenges {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.dash-rewards-challenge {
+  position: relative;
+  padding: 0.9rem 2rem 0.9rem 0.9rem;
+  border-radius: 0.9rem;
+  background: linear-gradient(145deg, #f8f6ff, #fff);
+  border: 1px solid rgb(120 106 255 / 0.1);
+  transition: transform 0.2s ease;
+}
+
+.dash-rewards-challenge:hover { transform: translateX(2px); }
+
+.dash-rewards-challenge--done { opacity: 0.8; }
+
+.dash-rewards-challenge__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.dash-rewards-challenge__title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-challenge__coins {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  color: var(--rw-purple);
+}
+
+.dash-rewards-challenge__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-challenge__chevron {
+  position: absolute;
+  right: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-sidebar__activity {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.dash-rewards-sidebar__activity-item {
+  display: grid;
+  gap: 0.08rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid rgb(35 39 48 / 0.06);
+}
+
+.dash-rewards-sidebar__activity-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.dash-rewards-sidebar__activity-coins {
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: var(--rw-purple);
+}
+
+.dash-rewards-sidebar__activity-label {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Status / earn / my rewards */
+
+.dash-rewards-status__current {
+  padding: 1.35rem;
+  margin-bottom: 1rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgb(120 106 255 / 0.12);
+  background: linear-gradient(135deg, #f8f6ff, #fff);
+  text-align: center;
+}
+
+.dash-rewards-status__label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-status__tier {
+  margin: 0.35rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-status__coins {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--rw-purple);
+}
+
+.dash-rewards-status__hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-status__tiers {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 720px) {
+  .dash-rewards-status__tiers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.dash-rewards-tier-card {
+  padding: 1rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgb(35 39 48 / 0.08);
+  background: #fff;
+}
+
+.dash-rewards-tier-card--current {
+  border-color: rgb(120 106 255 / 0.22);
+  background: linear-gradient(145deg, #f8f6ff, #fff);
+}
+
+.dash-rewards-tier-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dash-rewards-tier-card__name {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-tier-card__range {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-tier-card__benefits {
+  margin: 0.65rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  font-size: 0.9375rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-my-list { display: grid; gap: 0.65rem; }
+
+.dash-rewards-my-card {
+  padding: 1rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgb(35 39 48 / 0.08);
+  background: #fff;
+}
+
+.dash-rewards-my-card__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-my-card__status {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--rw-purple);
+}
+
+.dash-rewards-earn__intro {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-earn-group {
+  margin-bottom: 0.65rem;
+  border: 1px solid rgb(35 39 48 / 0.08);
+  border-radius: 0.95rem;
+  background: #fff;
+  overflow: hidden;
+}
+
+.dash-rewards-earn-group__summary {
+  padding: 0.85rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--rw-navy);
+  cursor: pointer;
+  list-style: none;
+}
+
+.dash-rewards-earn-group__summary::-webkit-details-marker { display: none; }
+
+.dash-rewards-earn-group__list { padding: 0 0.65rem 0.65rem; }
+
+.dash-rewards-earn-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.5rem;
+  border-radius: 0.65rem;
+}
+
+.dash-rewards-earn-row--completed { opacity: 0.8; }
+.dash-rewards-earn-row--locked { opacity: 0.55; }
+.dash-rewards-earn-row__icon { color: var(--rw-purple); flex-shrink: 0; }
+.dash-rewards-earn-row__main { flex: 1; min-width: 0; }
+.dash-rewards-earn-row__title { display: block; font-size: 0.875rem; font-weight: 600; color: var(--rw-navy); }
+.dash-rewards-earn-row__meta { display: block; margin-top: 0.15rem; font-size: 0.75rem; font-weight: 500; color: hsl(var(--muted-foreground)); }
+
+/* Dashboard preview */
+
+.dash-prelude-rewards-preview {
+  background: linear-gradient(145deg, #f8f6ff 0%, #ffffff 70%);
+  border-color: rgb(120 106 255 / 0.12);
+}
+
+.dash-prelude-rewards-preview__layout { display: flex; align-items: center; gap: 0.85rem; }
+.dash-prelude-rewards-preview__subtext { margin: 0.25rem 0 0; font-size: 0.8125rem; line-height: 1.45; color: hsl(var(--muted-foreground)); }
+.dash-prelude-rewards-preview__balance { margin-top: 1rem; text-align: center; }
+.dash-prelude-rewards-preview__coins { display: block; font-size: 1.75rem; line-height: 1.1; }
+.dash-prelude-rewards-preview__coins-label { display: block; margin-top: 0.15rem; font-size: 0.75rem; font-weight: 600; color: var(--rw-purple); }
+.dash-prelude-rewards-preview__progress-wrap { margin-top: 0.85rem; }
+.dash-prelude-rewards-preview__away { margin: 0; font-size: 0.8125rem; font-weight: 600; color: var(--rw-navy); }
+.dash-prelude-rewards-preview__track { height: 0.4rem; margin-top: 0.45rem; border-radius: 999px; background: rgb(120 106 255 / 0.12); overflow: hidden; }
+.dash-prelude-rewards-preview__fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6b5ce7, var(--rw-purple)); transition: width 0.6s ease; }
+.dash-prelude-rewards-preview__next { margin: 0.35rem 0 0; font-size: 0.75rem; font-weight: 600; color: var(--rw-purple); }
+.dash-prelude-rewards-preview__cta { margin-top: 1rem; width: 100%; border-radius: 999px; }
+
+/* Celebration */
+
+.dash-rewards-celebration {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgb(35 39 48 / 0.14);
+  animation: dash-rewards-fade-in 0.25s ease;
+}
+
+.dash-rewards-celebration__card {
+  padding: 1.5rem 1.75rem;
+  border-radius: 1.1rem;
+  background: #fff;
+  border: 1px solid rgb(120 106 255 / 0.2);
+  box-shadow: 0 20px 50px rgb(120 106 255 / 0.18);
+  text-align: center;
+  animation: dash-rewards-pop 0.35s ease;
+}
+
+.dash-rewards-celebration__coins {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: 6rem;
+  height: 4rem;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.dash-rewards-celebration__coin {
+  position: absolute;
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--rw-gold-light), var(--rw-gold));
+  animation: dash-coin-slide 1.2s ease forwards;
+}
+
+.dash-rewards-celebration__coin--one { left: 20%; animation-delay: 0.05s; }
+.dash-rewards-celebration__coin--two { left: 45%; animation-delay: 0.15s; }
+.dash-rewards-celebration__coin--three { left: 70%; animation-delay: 0.25s; }
+
+@keyframes dash-coin-slide {
+  0% { opacity: 0; transform: translateY(24px) scale(0.6); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-40px) scale(1); }
+}
+
+.dash-rewards-celebration__eyebrow {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rw-purple);
+}
+
+.dash-rewards-celebration__title { margin: 0.35rem 0 0; font-size: 1.125rem; font-weight: 700; color: var(--rw-navy); }
+.dash-rewards-celebration__coins-label { margin: 0.35rem 0 0; font-size: 0.9375rem; font-weight: 700; color: var(--rw-purple); }
+.dash-rewards-celebration__hint { margin: 0.25rem 0 0; font-size: 0.8125rem; color: hsl(var(--muted-foreground)); }
+
+@keyframes dash-rewards-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dash-rewards-pop {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@media (max-width: 900px) {
+  .dash-rewards-hero {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .dash-rewards-hero__center { text-align: center; }
+
+  .dash-rewards-hero__balance-wrap,
+  .dash-rewards-hero__goal-meta {
+    justify-content: center;
+  }
+
+  .dash-rewards-hero__goal { margin-inline: auto; }
+
+  .dash-rewards-featured__layout { grid-template-columns: 1fr; }
+
+  .dash-rewards-featured__visual { min-height: 8rem; }
+
+  .dash-rewards-featured__badge {
+    position: static;
+    display: inline-flex;
+    margin-bottom: 0.65rem;
+  }
+
+  .dash-rewards-closest__track { grid-template-columns: 1fr; }
+}

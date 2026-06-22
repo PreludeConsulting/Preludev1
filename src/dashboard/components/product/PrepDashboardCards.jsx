@@ -1,9 +1,7 @@
-import { useNavigate } from "react-router-dom";
-import { Bot, Code2, FlaskConical, Sun, Trophy } from "lucide-react";
-import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
-import { DashBadge } from "../ui/index.jsx";
-import { formatOrdinal } from "../ui/gamification.jsx";
+import { Bot } from "lucide-react";
 import PreludeAIWorkspace from "./PreludeAIWorkspace.jsx";
+import PreludeRewardsCard from "./PreludeRewardsCard.jsx";
+import { formatOrdinal } from "../ui/gamification.jsx";
 
 const PROFILE_STRENGTH_METRICS = [
   { key: "gpaStrength", label: "GPA Strength" },
@@ -11,13 +9,6 @@ const PROFILE_STRENGTH_METRICS = [
   { key: "activities", label: "Activities" },
   { key: "leadership", label: "Leadership" }
 ];
-
-const OPPORTUNITY_ICONS = {
-  "Summer Program": Sun,
-  Research: FlaskConical,
-  Competition: Trophy,
-  Internship: Code2
-};
 
 function ProfileStrengthBars({ progress }) {
   return (
@@ -40,64 +31,13 @@ function ProfileStrengthBars({ progress }) {
   );
 }
 
-function OpportunityMiniCard({ opportunity }) {
-  const navigate = useNavigate();
-  const Icon = OPPORTUNITY_ICONS[opportunity.category] || Sun;
-
-  function handleAction() {
-    if (opportunity.actionUrl) {
-      window.open(opportunity.actionUrl, "_blank", "noopener,noreferrer");
-      return;
-    }
-    navigate(`${STUDENT_DASHBOARD_BASE}/workspace`, { state: { workspaceTab: "scholarships" } });
-  }
-
-  return (
-    <article className="dash-opp-mini">
-      <div className="dash-opp-mini__top">
-        <span className="dash-opp-mini__icon" aria-hidden="true">
-          <Icon className="h-4 w-4" />
-        </span>
-        <span className="dash-opp-mini__match">{opportunity.matchScore ?? 90}% Match</span>
-      </div>
-      <h4 className="dash-opp-mini__title">{opportunity.title}</h4>
-      <div className="dash-opp-mini__meta">
-        <DashBadge variant="lavender">{opportunity.category}</DashBadge>
-        <span className="dash-opp-mini__due">Due {opportunity.deadline}</span>
-      </div>
-      <p className="dash-opp-mini__desc">{opportunity.description}</p>
-      <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm dash-opp-mini__btn" onClick={handleAction}>
-        {opportunity.actionLabel}
-      </button>
-    </article>
-  );
-}
-
-function OpportunityCenter({ opportunities }) {
-  return (
-    <article className="dash-product-card dash-product-card--wide dash-product-card--opportunity">
-      <header className="dash-product-card__head dash-product-card__head--opportunity">
-        <p className="dash-product-card__eyebrow">Opportunity Center</p>
-        <h3 className="dash-product-card__title">Recommended for You</h3>
-        <p className="dash-opportunity-center__subtext">Hand-picked opportunities to strengthen your profile.</p>
-      </header>
-      <div className="dash-opportunity-center__grid">
-        {opportunities.slice(0, 3).map((opp) => (
-          <OpportunityMiniCard key={opp.id} opportunity={opp} />
-        ))}
-      </div>
-    </article>
-  );
-}
-
 export default function PrepDashboardCards({
   academicProgress,
-  opportunities,
   profile,
-  studentProfileStats
+  studentProfileStats,
+  showRewardsPreview = true
 }) {
   const hasAcademicProgress = Boolean(academicProgress);
-  const opps = opportunities || [];
 
   return (
     <>
@@ -116,17 +56,7 @@ export default function PrepDashboardCards({
         )}
       </article>
 
-      {opps.length ? (
-        <OpportunityCenter opportunities={opps} />
-      ) : (
-        <article className="dash-product-card dash-product-card--wide dash-product-card--opportunity">
-          <header className="dash-product-card__head dash-product-card__head--opportunity">
-            <p className="dash-product-card__eyebrow">Opportunity Center</p>
-            <h3 className="dash-product-card__title">Recommended for You</h3>
-          </header>
-          <p className="dash-muted">No recommendations yet. As you build your profile, Prelude will surface opportunities here.</p>
-        </article>
-      )}
+      {showRewardsPreview ? <PreludeRewardsCard /> : null}
 
       <article className="dash-product-card dash-product-card--wide dash-product-card--ai">
         <header className="dash-product-card__head">

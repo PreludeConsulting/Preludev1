@@ -1049,6 +1049,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       messages: demo?.messages ?? messages,
       conversations: resolvedConversations,
       gamification: demo?.gamification ?? null,
+      progressRewards: demo?.progressRewards ?? null,
       studentActivityFeed: demo?.studentActivityFeed ?? [],
       essays: resolvedEssays,
       saveEssayDraft: isGuardianViewMode ? () => {} : saveEssayDraft,

@@ -6,6 +6,7 @@
 import { DEMO_MENTOR, DEMO_STUDENT, DEMO_STUDENT_2 } from "./demoAccounts.js";
 import { conversationsToInbox, getDemoConversations } from "../dashboard/data/demoConversations.js";
 import { buildDefaultGamification } from "../dashboard/data/gamification.js";
+import { buildDefaultProgressRewards } from "../dashboard/lib/progressRewards.js";
 
 /** Stable slugs used in events/meetings before DB IDs are known. */
 export const DEMO_SLUGS = {
@@ -308,6 +309,7 @@ function studentBundle(email) {
   const meetings = buildMeetings().filter((m) => m.studentId === slug);
   const conversations = getDemoConversations("student", isJordan ? "jordan" : "alex");
   const gamification = buildDefaultGamification(isJordan);
+  const progressRewards = buildDefaultProgressRewards(isJordan);
 
   return {
     profile,
@@ -328,6 +330,7 @@ function studentBundle(email) {
     ],
     conversations,
     gamification,
+    progressRewards,
     tasks: isJordan
       ? [
           { id: "t-j1", title: "Finalize reach school essay prompts", priority: "high", done: false },

@@ -63,6 +63,7 @@ import {
 import { useGamification } from "../../context/GamificationContext.jsx";
 import CollegesExplore from "../../components/product/CollegesExplore.jsx";
 import StudentOverviewProduct from "../../components/product/StudentOverviewProduct.jsx";
+import StudentProgressRewardsProduct from "../../components/product/StudentProgressRewardsProduct.jsx";
 
 /* ——— Shared presentational helpers for the redesigned pages ——— */
 
@@ -131,6 +132,10 @@ function UpcomingMeetingCard({ meeting, mentorName }) {
 
 export function StudentOverview() {
   return <StudentOverviewProduct />;
+}
+
+export function StudentProgressRewards() {
+  return <StudentProgressRewardsProduct />;
 }
 
 export function StudentCalendar() {

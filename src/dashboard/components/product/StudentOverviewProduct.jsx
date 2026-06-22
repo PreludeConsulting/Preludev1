@@ -25,7 +25,6 @@ export default function StudentOverviewProduct() {
     events,
     deadlines,
     academicProgress,
-    opportunities,
     studentProfileStats,
     isMentorStudentView,
     mentorViewStudent
@@ -83,9 +82,9 @@ export default function StudentOverviewProduct() {
         >
           <PrepDashboardCards
             academicProgress={academicProgress}
-            opportunities={opportunities}
             profile={profile}
             studentProfileStats={studentProfileStats}
+            showRewardsPreview={!isMentorStudentView}
           />
         </section>
       </div>

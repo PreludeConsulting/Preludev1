@@ -5,8 +5,12 @@ import { Button } from "./ui/button.jsx";
 export default function AcademicProgramCard({ card }) {
   return (
     <article className="academic-program-card">
-      <h3 className="academic-program-card__title">{card.title}</h3>
-      <p className="academic-program-card__price">{card.price}</p>
+      <header className="academic-program-card__header">
+        <div className="academic-program-card__title-block">
+          <h3 className="academic-program-card__title shopify-hero__headline">{card.title}</h3>
+          <p className="academic-program-card__price">{card.price}</p>
+        </div>
+      </header>
 
       <div className="academic-program-card__featured-callout">
         <Video className="academic-program-card__featured-icon" aria-hidden="true" />

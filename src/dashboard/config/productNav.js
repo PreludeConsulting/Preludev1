@@ -4,6 +4,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   MessageCircle,
+  Sparkles,
   TrendingUp
 } from "lucide-react";
 
@@ -14,5 +15,6 @@ export const PRODUCT_STUDENT_NAV = [
   { to: "/calendar", label: "Meetings", icon: Calendar },
   { to: "/mentor", label: "My Mentor", icon: GraduationCap },
   { to: "/messages", label: "Messages", icon: MessageCircle },
-  { to: "/profile-stats", label: "Progress", icon: TrendingUp }
+  { to: "/profile-stats", label: "Progress", icon: TrendingUp },
+  { to: "/progress-rewards", label: "Progress Rewards", icon: Sparkles }
 ];

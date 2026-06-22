@@ -15,6 +15,7 @@ import {
   StudentMessages,
   StudentOverview,
   StudentProfileStats,
+  StudentProgressRewards,
   StudentWorkspace
 } from "./pages/student/StudentPages.jsx";
 import {
@@ -72,6 +73,7 @@ function StudentRoutes() {
             <Route path="help" element={<StudentHelp />} />
             <Route path="settings" element={<StudentSettingsPage />} />
             <Route path="profile-stats" element={<StudentProfileStats />} />
+            <Route path="progress-rewards" element={<StudentProgressRewards />} />
             <Route path="profile" element={<LegacyStudentRedirect to="settings" />} />
             <Route path="mentor-matching" element={<LegacyStudentRedirect to="prelude-match" />} />
             <Route index element={<Navigate to="overview" replace />} />

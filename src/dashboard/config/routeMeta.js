@@ -10,7 +10,9 @@ export const STUDENT_ROUTE_META = {
   resources: { title: "Resources", subtitle: "Guides for planning, applications, and financial aid." },
   billing: { title: "Plans and Billing", subtitle: "Your subscription and plan details." },
   help: { title: "Help and Support", subtitle: "Contact Prelude and find answers." },
-  settings: { title: "Settings", subtitle: "Profile, account, notifications, and preferences." }
+  settings: { title: "Settings", subtitle: "Profile, account, notifications, and preferences." },
+  "profile-stats": { title: "Progress", subtitle: "Your profile completion and academic snapshot." },
+  "progress-rewards": { title: "Progress Rewards", subtitle: "Complete milestones and unlock free admissions support." }
 };
 
 export const MENTOR_ROUTE_META = {
