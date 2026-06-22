@@ -2798,6 +2798,70 @@
   font-family: var(--dash-font-sans);
 }
 
+.dash-chat-app__file-input {
+  display: none;
+}
+
+.dash-chat-app__preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid hsl(var(--foreground) / 0.08);
+  background: hsl(var(--foreground) / 0.02);
+}
+
+.dash-chat-app__preview img {
+  width: 3.5rem;
+  height: 3.5rem;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+
+.dash-chat-app__error {
+  margin: 0;
+  padding: 0.35rem 1rem;
+  font-size: 0.8125rem;
+  color: hsl(var(--destructive));
+}
+
+.dash-chat-app__status {
+  padding: 1rem;
+}
+
+.dash-chat-bubble__image {
+  display: block;
+  max-width: min(16rem, 100%);
+  border-radius: 0.65rem;
+  margin-bottom: 0.35rem;
+}
+
+.dash-chat-bubble__edit {
+  display: inline-flex;
+  margin-left: 0.35rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.65;
+  cursor: pointer;
+}
+
+.dash-chat-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.dash-chat-edit__input {
+  flex: 1;
+  min-width: 10rem;
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  border-radius: 0.65rem;
+  padding: 0.45rem 0.65rem;
+}
+
 @media (max-width: 899px) {
   .dash-chat-app--mobile-chat .dash-chat-app__list--hidden-mobile {
     display: none;

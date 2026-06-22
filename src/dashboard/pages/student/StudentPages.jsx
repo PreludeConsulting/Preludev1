@@ -31,7 +31,7 @@ import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import AdmissionsCalendarVisual from "../../components/product/AdmissionsCalendarVisual.jsx";
 import { CalendarAddEventModal } from "../../components/CalendarEventModals.jsx";
 import MentorLiveUpdatesSection from "../../components/product/MentorLiveUpdatesSection.jsx";
-import MessagesPanel from "../../components/MessagesPanel.jsx";
+import PreludeMessagesPage from "../../components/chat/PreludeMessagesPage.jsx";
 import PreludeChatPanel from "../../components/PreludeChatPanel.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import {
@@ -1490,15 +1490,11 @@ export function StudentMentor() {
 }
 
 export function StudentMessages() {
-  const { conversations, meetings, postMessage } = useDashboardData();
   return (
     <div className="dash-page dash-page--flush">
-      <MessagesPanel
-        conversations={conversations}
-        meetings={meetings}
+      <PreludeMessagesPage
         schedulePath={`${STUDENT_DASHBOARD_BASE}/mentor`}
         placeholder="Message your mentor…"
-        onSendMessage={(body, threadId) => postMessage(body, threadId)}
       />
     </div>
   );

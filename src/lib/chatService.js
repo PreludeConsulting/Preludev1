@@ -14,6 +14,7 @@ import {
 import { shouldUseDemoFixtures } from "./devAuthBypass.js";
 import {
   appendLocalChatMessage,
+  countUnreadChatMessages,
   loadLocalChatMessages,
   loadLocalChatThreads,
   mergeChatMessages,
@@ -576,6 +577,39 @@ export async function editChatMessage(user, messageId, body) {
       .find((m) => m.id === messageId && (m.sender_id || m.senderId) === user.id);
     if (localOnly) return { message: mapChatMessage({ ...localOnly, body: trimmed }, user.id), error: null };
     return { message: null, error: err.message || "Could not edit message." };
+  }
+}
+
+export { countUnreadChatMessages } from "./localChatStore.js";
+
+export async function markChatThreadRead(user, threadMeta) {
+  if (!user?.id || !threadMeta?.id) return { updated: 0, error: null };
+
+  const rows = loadLocalChatMessages(threadMeta);
+  const unread = rows.filter((message) => {
+    const senderId = message.sender_id || message.senderId;
+    return senderId !== user.id && !message.read;
+  });
+  if (!unread.length) return { updated: 0, error: null };
+
+  const unreadIds = new Set(unread.map((message) => message.id));
+  const nextRows = rows.map((message) => (unreadIds.has(message.id) ? { ...message, read: true } : message));
+  saveLocalChatMessages(threadMeta, nextRows);
+
+  if (useLocalChat(user)) {
+    return { updated: unread.length, error: null };
+  }
+
+  try {
+    const { error } = await db()
+      .from("messages")
+      .update({ read: true })
+      .eq("chat_thread_id", threadMeta.id)
+      .eq("receiver_id", user.id)
+      .eq("read", false);
+    return { updated: unread.length, error: error?.message || null };
+  } catch (err) {
+    return { updated: unread.length, error: err.message || "Could not mark messages read." };
   }
 }
 

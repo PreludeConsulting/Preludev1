@@ -1,6 +1,5 @@
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
-import MessagesPanel from "../../components/MessagesPanel.jsx";
-import { useDashboardData } from "../../context/DashboardDataContext.jsx";
+import PreludeMessagesPage from "../../components/chat/PreludeMessagesPage.jsx";
 import MentorAvailabilityProduct from "../../components/product/MentorAvailabilityProduct.jsx";
 import MentorMeetingsProduct from "../../components/product/MentorMeetingsProduct.jsx";
 import MentorOverviewProduct from "../../components/product/MentorOverviewProduct.jsx";
@@ -19,14 +18,11 @@ export function MentorStudents() {
 }
 
 export function MentorMessages() {
-  const { conversations, meetings } = useDashboardData();
   return (
     <div className="dash-page dash-page--flush">
-      <MessagesPanel
-        conversations={conversations}
-        meetings={meetings}
+      <PreludeMessagesPage
         schedulePath={`${MENTOR_DASHBOARD_BASE}/calendar`}
-        placeholder="Reply to student…"
+        placeholder="Reply to student or parent…"
       />
     </div>
   );

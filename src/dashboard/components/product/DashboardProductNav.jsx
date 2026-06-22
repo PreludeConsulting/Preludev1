@@ -6,11 +6,14 @@ import { useAuth } from "../../../context/AuthContext.jsx";
 import { dashboardRoleLabel } from "../../../lib/dashboardRoutes.js";
 import { cn } from "../../../lib/utils.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
+import { usePreludeChatContextOptional } from "../../context/PreludeChatContext.jsx";
+import UnreadCountBadge, { useUnreadBadgeDismiss } from "../chat/UnreadCountBadge.jsx";
 import { Avatar } from "../ui/index.jsx";
 
 export default function DashboardProductNav({ navItems, basePath }) {
   const { user, signOut, openAccount } = useAuth();
   const { notifications, markNotificationsRead } = useDashboardData();
+  const chat = usePreludeChatContextOptional();
   const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -22,6 +25,13 @@ export default function DashboardProductNav({ navItems, basePath }) {
     () => notifications.filter((item) => item.unread).length,
     [notifications]
   );
+  const messageUnreadCount = chat?.unreadTotal ?? 0;
+  const {
+    showBadge: showMessageBadge,
+    badgeCount: messageBadgeCount,
+    dismissing: messageBadgeDismissing,
+    dismissBadge: dismissMessageBadge
+  } = useUnreadBadgeDismiss(messageUnreadCount);
 
   useEffect(() => {
     if (!profileOpen && !notificationsOpen) return undefined;
@@ -100,12 +110,25 @@ export default function DashboardProductNav({ navItems, basePath }) {
             to={`${basePath}${to}`}
             end={end}
             state={workspaceTab ? { workspaceTab } : undefined}
+            onClick={() => {
+              if (to === "/messages" && messageUnreadCount > 0) {
+                dismissMessageBadge();
+              }
+            }}
             className={() =>
               cn("dash-product-nav__tab", isTabActive({ to, end, workspaceTab }) && "dash-product-nav__tab--active")
             }
           >
             {Icon ? <Icon className="h-4 w-4" aria-hidden="true" /> : null}
             {label}
+            {to === "/messages" && showMessageBadge ? (
+              <UnreadCountBadge
+                count={messageBadgeCount}
+                dismissing={messageBadgeDismissing}
+                className="dash-unread-badge--nav-tab"
+                aria-label={`${messageBadgeCount} unread messages`}
+              />
+            ) : null}
           </NavLink>
         ))}
       </nav>

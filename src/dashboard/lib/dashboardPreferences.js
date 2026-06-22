@@ -16,6 +16,7 @@ export const DEFAULT_PREFERENCES = {
   emailUpdates: true,
   meetingReminders: true,
   mentorMessages: true,
+  notificationSounds: true,
   weeklyDigest: false,
   productTips: false,
   // Calendar & meetings

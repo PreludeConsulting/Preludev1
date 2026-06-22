@@ -61,7 +61,7 @@ import {
   notifyStudentDashboardChanged,
   subscribeStudentDashboardChanged
 } from "../lib/studentDashboardSync.js";
-import { enrichMentorStudentCalendarItem } from "../lib/mentorStudentCalendar.js";
+import { playLiveNotificationSound } from "../lib/notificationSounds.js";
 
 const DashboardDataContext = createContext(null);
 
@@ -415,6 +415,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       },
       ...prev
     ]);
+    if (!notification.silent) {
+      playLiveNotificationSound();
+    }
   }, []);
 
   const markNotificationsRead = useCallback(async () => {

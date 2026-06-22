@@ -5,6 +5,18 @@
 const PREFIX = "prelude_chat_messages_";
 const THREADS_PREFIX = "prelude_chat_threads_";
 
+/** Same-tab listeners (storage events only fire across tabs). */
+const localMessageListeners = new Map();
+
+function notifyLocalChatChange(threadMeta) {
+  const keys = messageKeysForThread(threadMeta);
+  const listeners = new Set();
+  keys.forEach((key) => {
+    localMessageListeners.get(key)?.forEach((listener) => listeners.add(listener));
+  });
+  listeners.forEach((listener) => listener());
+}
+
 export function threadStorageKey(threadMeta) {
   if (!threadMeta) return "";
   if (threadMeta.storageKey) return threadMeta.storageKey;
@@ -61,6 +73,8 @@ export function saveLocalChatMessages(threadMeta, messages) {
       /* quota or private mode */
     }
   }
+
+  notifyLocalChatChange(threadMeta);
 }
 
 export function appendLocalChatMessage(threadMeta, message) {
@@ -83,6 +97,22 @@ export function updateLocalChatMessage(threadMeta, messageId, updater) {
   return next;
 }
 
+function isOptimisticMessageId(id) {
+  return String(id || "").startsWith("local-");
+}
+
+function messagesLikelyMatch(a, b) {
+  const aSender = a.sender_id || a.senderId;
+  const bSender = b.sender_id || b.senderId;
+  if (aSender !== bSender) return false;
+  const aBody = (a.body || "").trim();
+  const bBody = (b.body || "").trim();
+  if (aBody !== bBody) return false;
+  const aTime = new Date(a.created_at || a.createdAt || 0).getTime();
+  const bTime = new Date(b.created_at || b.createdAt || 0).getTime();
+  return Math.abs(aTime - bTime) < 15000;
+}
+
 export function mergeChatMessages(...lists) {
   const byId = new Map();
 
@@ -98,9 +128,25 @@ export function mergeChatMessages(...lists) {
     byId.set(message.id, nextTime >= existingTime ? message : existing);
   });
 
-  return [...byId.values()].sort(
+  const merged = [...byId.values()];
+  const withoutOptimisticDupes = merged.filter((message) => {
+    if (!isOptimisticMessageId(message.id)) return true;
+    return !merged.some(
+      (other) => other.id !== message.id && !isOptimisticMessageId(other.id) && messagesLikelyMatch(message, other)
+    );
+  });
+
+  return withoutOptimisticDupes.sort(
     (a, b) => new Date(a.created_at || a.createdAt) - new Date(b.created_at || b.createdAt)
   );
+}
+
+export function countUnreadChatMessages(threadMeta, viewerId) {
+  if (!threadMeta || !viewerId) return 0;
+  return loadLocalChatMessages(threadMeta).filter((message) => {
+    const senderId = message.sender_id || message.senderId;
+    return senderId !== viewerId && !message.read;
+  }).length;
 }
 
 export function loadLocalChatThreads(userId) {
@@ -125,13 +171,26 @@ export function saveLocalChatThreads(userId, threads) {
 export function subscribeLocalChatMessages(threadMeta, onChange) {
   if (!threadMeta || typeof window === "undefined") return () => {};
 
-  const keys = messageKeysForThread(threadMeta).map((key) => `${PREFIX}${key}`);
+  const storageKeys = messageKeysForThread(threadMeta).map((key) => `${PREFIX}${key}`);
+  const listenerKeys = messageKeysForThread(threadMeta);
 
-  function handleStorage(event) {
-    if (!event.key || !keys.includes(event.key)) return;
+  function handleChange() {
     onChange?.();
   }
 
+  function handleStorage(event) {
+    if (!event.key || !storageKeys.includes(event.key)) return;
+    handleChange();
+  }
+
+  listenerKeys.forEach((key) => {
+    if (!localMessageListeners.has(key)) localMessageListeners.set(key, new Set());
+    localMessageListeners.get(key).add(handleChange);
+  });
+
   window.addEventListener("storage", handleStorage);
-  return () => window.removeEventListener("storage", handleStorage);
+  return () => {
+    listenerKeys.forEach((key) => localMessageListeners.get(key)?.delete(handleChange));
+    window.removeEventListener("storage", handleStorage);
+  };
 }

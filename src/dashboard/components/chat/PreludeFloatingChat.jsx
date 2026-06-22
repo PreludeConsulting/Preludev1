@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ImagePlus, MessageCircle, Pencil, Send, X } from "lucide-react";
-import { useAuth } from "../../../context/AuthContext.jsx";
-import { roleFromUser } from "../../../lib/dashboardRoutes.js";
-import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { Avatar } from "../ui/index.jsx";
-import { usePreludeChat } from "../../hooks/usePreludeChat.js";
+import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
+import UnreadCountBadge, { useUnreadBadgeDismiss } from "./UnreadCountBadge.jsx";
 
 function formatTime(iso) {
   if (!iso) return "";
@@ -137,6 +135,7 @@ function ChatPanel({
   }, [pendingFile]);
 
   async function handleSend() {
+    if (sending) return;
     const trimmed = draft.trim();
     if (!trimmed && !pendingFile) return;
     const result = await sendMessage({ body: trimmed, file: pendingFile });
@@ -292,45 +291,78 @@ function ChatPanel({
 }
 
 export default function PreludeFloatingChat() {
-  const { user } = useAuth();
-  const { isGuardianViewMode } = useDashboardData();
-  const role = roleFromUser(user);
-  const chatEnabled = Boolean(user) && ["student", "mentor", "parent"].includes(role) && !isGuardianViewMode;
+  const {
+    enabled,
+    open,
+    setOpen,
+    threads,
+    activeThread,
+    activeThreadId,
+    setActiveThreadId,
+    messages,
+    loadingMessages,
+    sending,
+    error,
+    setError,
+    showThreadSwitcher,
+    sendMessage,
+    editingId,
+    setEditingId,
+    saveEdit,
+    markThreadRead,
+    unreadTotal
+  } = usePreludeChatContext();
+  const { showBadge, badgeCount, dismissing, dismissBadge } = useUnreadBadgeDismiss(unreadTotal);
 
-  const chat = usePreludeChat({ enabled: chatEnabled });
+  useEffect(() => {
+    if (open && activeThreadId) {
+      markThreadRead(activeThreadId);
+    }
+  }, [open, activeThreadId, messages.length, markThreadRead]);
 
-  if (!chatEnabled) return null;
+  if (!enabled) return null;
 
   const node = (
-    <div className={`dash-msg-fab${chat.open ? " dash-msg-fab--open" : ""}`}>
+    <div className={`dash-msg-fab${open ? " dash-msg-fab--open" : ""}`}>
       <div className="dash-msg-fab__anchor">
         <button
           type="button"
           className="dash-msg-fab__toggle"
-          onClick={() => chat.setOpen(true)}
-          aria-hidden={chat.open}
-          tabIndex={chat.open ? -1 : 0}
-          aria-label="Open messages"
+          onClick={() => {
+            if (unreadTotal > 0) dismissBadge();
+            setOpen(true);
+          }}
+          aria-hidden={open}
+          tabIndex={open ? -1 : 0}
+          aria-label={unreadTotal > 0 ? `Open messages, ${unreadTotal} unread` : "Open messages"}
         >
           <MessageCircle size={22} strokeWidth={1.75} />
+          {!open && showBadge ? (
+            <UnreadCountBadge
+              count={badgeCount}
+              dismissing={dismissing}
+              className="dash-unread-badge--fab"
+              aria-hidden="true"
+            />
+          ) : null}
         </button>
         <ChatPanel
-          open={chat.open}
-          onClose={() => chat.setOpen(false)}
-        threads={chat.threads}
-        activeThread={chat.activeThread}
-        activeThreadId={chat.activeThreadId}
-        setActiveThreadId={chat.setActiveThreadId}
-        messages={chat.messages}
-        loadingMessages={chat.loadingMessages}
-        sending={chat.sending}
-        error={chat.error}
-        showThreadSwitcher={chat.showThreadSwitcher}
-        sendMessage={chat.sendMessage}
-        editingId={chat.editingId}
-        setEditingId={chat.setEditingId}
-        saveEdit={chat.saveEdit}
-        setError={chat.setError}
+          open={open}
+          onClose={() => setOpen(false)}
+        threads={threads}
+        activeThread={activeThread}
+        activeThreadId={activeThreadId}
+        setActiveThreadId={setActiveThreadId}
+        messages={messages}
+        loadingMessages={loadingMessages}
+        sending={sending}
+        error={error}
+        showThreadSwitcher={showThreadSwitcher}
+        sendMessage={sendMessage}
+        editingId={editingId}
+        setEditingId={setEditingId}
+        saveEdit={saveEdit}
+        setError={setError}
         />
       </div>
     </div>

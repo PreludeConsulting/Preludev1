@@ -27,6 +27,7 @@ import "./index.css";
 import "./dashboard/dashboard.css";
 import "./dashboard/dashboard-premium.css";
 import "./dashboard/dashboard-product.css";
+import "./dashboard/unread-badge.css";
 import "./dashboard/progress-rewards.css";
 import "./dashboard/prelude-chat.css";
 import "./landing-ui.css";
