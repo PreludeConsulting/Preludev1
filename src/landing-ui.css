@@ -835,3 +835,144 @@
     margin-left: 1.875rem;
   }
 }
+
+/* ——— Academic programs (below pricing) ——— */
+
+.academic-programs-section {
+  padding-top: clamp(2.5rem, 5vw, 3.5rem);
+}
+
+.academic-programs-section__divider {
+  width: 100%;
+  height: 1px;
+  margin-bottom: clamp(2.5rem, 5vw, 3.5rem);
+  background: hsl(var(--foreground) / 0.08);
+}
+
+.academic-programs-section__headline {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1.35rem, 2.8vw, 1.75rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: hsl(var(--foreground));
+}
+
+.academic-programs-section__subheadline {
+  margin: 0.85rem 0 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(0.9375rem, 1.8vw, 1.0625rem);
+  font-weight: 400;
+  line-height: 1.65;
+  color: hsl(var(--muted-foreground));
+}
+
+.academic-programs-section__cards {
+  margin-top: clamp(2rem, 4vw, 2.75rem);
+}
+
+.academic-program-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: clamp(1.15rem, 2.5vw, 1.5rem);
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  background: linear-gradient(180deg, #fcfbff 0%, #ffffff 100%);
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.academic-program-card:hover {
+  border-color: hsl(var(--primary) / 0.2);
+  box-shadow: 0 6px 20px hsl(var(--primary) / 0.06);
+}
+
+.academic-program-card__title {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: hsl(var(--foreground));
+}
+
+.academic-program-card__price {
+  margin: 0.5rem 0 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1.125rem, 2vw, 1.3125rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: hsl(var(--foreground));
+}
+
+.academic-program-card__featured-callout {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.65rem;
+  border: 1px solid hsl(var(--primary) / 0.22);
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.12) 0%, hsl(var(--primary) / 0.06) 100%);
+  box-shadow: 0 1px 4px hsl(var(--primary) / 0.08);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: hsl(var(--primary));
+}
+
+.academic-program-card__featured-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.academic-program-card__desc {
+  margin: 0.75rem 0 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+}
+
+.academic-program-card__features {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.academic-program-card__features li {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: hsl(var(--foreground) / 0.82);
+}
+
+.academic-program-card__cta {
+  margin-top: 1.25rem;
+  width: 100%;
+  min-height: 2.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+}
+
+.academic-program-card__cta:hover {
+  opacity: 0.95;
+}

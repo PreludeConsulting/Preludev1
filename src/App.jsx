@@ -16,6 +16,7 @@ import { SCROLL_STORAGE_KEY } from "./lib/siteSearch.js";
 import {
   AdmissionsCostBanner,
   LowerBenefits,
+  LowerAcademicPrograms,
   LowerCta,
   LowerFooter,
   LowerPlans
@@ -85,6 +86,7 @@ function AppContent() {
         <NetworkSection />
         <LowerBenefits />
         <LowerPlans />
+        <LowerAcademicPrograms />
         <LowerCta />
         <LowerFooter />
       </div>

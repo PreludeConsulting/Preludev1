@@ -13,6 +13,7 @@ import PreludeLogo from "./PreludeLogo.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getPricingPlans } from "../lib/plans.js";
 import PricingCard from "./PricingCard.jsx";
+import AcademicProgramCard from "./AcademicProgramCard.jsx";
 import { startBillingCheckout } from "../lib/auth.js";
 import { FOOTER_LINK_COLUMNS } from "../data/footerLinks.js";
 import AppLink from "./AppLink.jsx";
@@ -252,6 +253,39 @@ export function LowerPlans() {
             </Reveal>
           ))}
           </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export function LowerAcademicPrograms() {
+  const { t } = useLanguage();
+
+  return (
+    <div className="lower-landing">
+      <section
+        className="lower-landing__section academic-programs-section scroll-mt-28"
+        id="academic-support"
+        aria-labelledby="academic-programs-heading"
+      >
+        <div className="academic-programs-section__divider" role="separator" aria-hidden="true" />
+
+        <Reveal className="mx-auto max-w-2xl text-center">
+          <h2 id="academic-programs-heading" className="academic-programs-section__headline">
+            {t("sections.academicPrograms.headline")}
+          </h2>
+          <p className="academic-programs-section__subheadline">
+            {t("sections.academicPrograms.subheadline")}
+          </p>
+        </Reveal>
+
+        <div className="academic-programs-section__cards mx-auto grid max-w-4xl gap-5 md:grid-cols-2 md:gap-6">
+          {t("sections.academicPrograms.cards").map((card, index) => (
+            <Reveal delay={index * 0.06} key={card.id}>
+              <AcademicProgramCard card={card} />
+            </Reveal>
+          ))}
         </div>
       </section>
     </div>
