@@ -338,21 +338,13 @@ function formatEventTime(event) {
   return event.date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-function isMentorStudentManageableEvent(event) {
-  const raw = event?.raw || {};
-  return Boolean(raw.mentorCreated || raw.createdByRole === "mentor");
-}
-
 function toDetailModalEvent(event, mentorName, students = [], { mentorStudentView = false } = {}) {
   const end = event.endDate || event.date;
   const category = resolveCategory(event);
   const studentName = event.studentName
     || event.raw?.studentName
     || students.find((student) => student.id === event.studentId)?.name;
-  const mentorManaged = isMentorStudentManageableEvent(event);
-  const manageable = mentorStudentView
-    ? event.source === "local" && mentorManaged
-    : event.source === "local";
+  const manageable = event.source === "local";
 
   return {
     id: event.id,
@@ -720,19 +712,19 @@ export default function AdmissionsCalendarVisual({
   const handleEditEvent = useCallback((modalEvent) => {
     const raw = findLocalEventRaw(modalEvent, userCalendarEvents);
     if (!raw) return;
-    if (isMentorStudentView && !isMentorStudentManageableEvent({ raw, source: "local" })) return;
     setDetailEvent(null);
     setEditDraft(raw);
-  }, [isMentorStudentView, userCalendarEvents]);
+  }, [userCalendarEvents]);
 
   const handleDeleteEvent = useCallback(async (modalEvent) => {
     const raw = findLocalEventRaw(modalEvent, userCalendarEvents);
     if (!raw) return;
-    if (isMentorStudentView && !isMentorStudentManageableEvent({ raw, source: "local" })) return;
+    const label = raw.formVariant === "task" ? "task" : "event";
+    if (!window.confirm(`Delete this ${label} from the calendar? This cannot be undone.`)) return;
     cancelEventReminder(raw.id);
     await deleteCalendarItem(raw.id);
     setDetailEvent(null);
-  }, [cancelEventReminder, deleteCalendarItem, isMentorStudentView, userCalendarEvents]);
+  }, [cancelEventReminder, deleteCalendarItem, userCalendarEvents]);
 
   const allEvents = useMemo(() => {
     const merged = mergeEvents({
@@ -965,7 +957,9 @@ export default function AdmissionsCalendarVisual({
 
       {detailEvent ? (
         <CalendarEventDetailModal
-          event={toDetailModalEvent(detailEvent, mentorName, calendarStudents, { mentorStudentView: isMentorStudentView })}
+          event={toDetailModalEvent(detailEvent, mentorName, calendarStudents, {
+            mentorStudentView: isMentorStudentView
+          })}
           role={calendarRole}
           mentorName={mentorName}
           studentName={detailEvent.studentName || calendarStudents.find((student) => student.id === detailEvent.studentId)?.name}

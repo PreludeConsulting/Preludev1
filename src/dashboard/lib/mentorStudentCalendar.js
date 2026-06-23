@@ -27,3 +27,25 @@ export function enrichMentorStudentCalendarItem(item, student) {
     mentorOnly: false
   };
 }
+
+export function enrichParentStudentCalendarItem(item, student) {
+  if (!student?.id) return item;
+
+  return {
+    ...item,
+    studentId: student.id,
+    studentName: student.name,
+    createdByRole: item.createdByRole || "parent",
+    shared: item.shared !== false,
+    sharedWithStudent: true
+  };
+}
+
+export function enrichStudentCalendarItem(item) {
+  return {
+    ...item,
+    createdByRole: item.createdByRole || "student",
+    shared: item.shared !== false,
+    sharedWithStudent: item.shared !== false
+  };
+}

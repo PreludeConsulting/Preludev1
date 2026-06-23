@@ -48,8 +48,8 @@ export function CalendarEventDetailModal({ event, role, mentorName, studentName,
   const zoomHost = meeting?.zoomHostUrl;
   const isPrivate = event.extendedProps?.mentorOnly || event.category === "mentor_private";
   const manageable = event.extendedProps?.manageable;
-  const canEdit = manageable ?? (role === "mentor" || !isPrivate);
-  const canDelete = manageable ?? (role === "mentor" || (event.category === "personal_task" && role === "student"));
+  const canEdit = Boolean(onEdit) && manageable !== false;
+  const canDelete = Boolean(onDelete) && manageable !== false;
   const showJoin = Boolean(joinUrl && meetingType !== "in_person");
 
   return (
@@ -70,7 +70,7 @@ export function CalendarEventDetailModal({ event, role, mentorName, studentName,
               <span>{joinMeetingLabel(meetingType)}</span>
             </a>
           ) : null}
-          {canEdit && onEdit ? <SecondaryButton type="button" onClick={() => onEdit(event)}>Edit</SecondaryButton> : null}
+          {canEdit && onEdit ? <SecondaryButton type="button" onClick={() => onEdit(event)}>Edit plan</SecondaryButton> : null}
           {canDelete && onDelete ? (
             <button type="button" className="dash-btn dash-btn--danger" onClick={() => onDelete(event)}>
               Delete

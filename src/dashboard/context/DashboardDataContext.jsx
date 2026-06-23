@@ -49,7 +49,9 @@ import {
 import {
   removeSharedEventFromStudent,
   resolveStudentUserId,
-  syncSharedEventToStudent
+  syncSharedEventToStudent,
+  findStudentCalendarEvent,
+  upsertStudentCalendarEvent
 } from "../lib/sharedCalendarEvents.js";
 import { parseRequestedTime } from "../lib/mentorCalendarFeed.js";
 import { getStudentDemoBundleBySlug } from "../lib/studentDemoBundle.js";
@@ -62,6 +64,11 @@ import {
   subscribeStudentDashboardChanged
 } from "../lib/studentDashboardSync.js";
 import { playLiveNotificationSound } from "../lib/notificationSounds.js";
+import {
+  enrichMentorStudentCalendarItem,
+  enrichParentStudentCalendarItem,
+  enrichStudentCalendarItem
+} from "../lib/mentorStudentCalendar.js";
 
 const DashboardDataContext = createContext(null);
 
@@ -640,12 +647,29 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       let workingItem = item;
       if (mentorViewStudent) {
         workingItem = enrichMentorStudentCalendarItem(item, mentorViewStudent);
+      } else if (parentViewStudent) {
+        workingItem = enrichParentStudentCalendarItem(item, parentViewStudent);
+      } else if (roleFromUser(user) === "student") {
+        workingItem = enrichStudentCalendarItem(item);
       }
+
+      const notifyCalendarSync = (studentSlug) => {
+        if (studentSlug) {
+          notifyStudentDashboardChanged(studentSlug);
+          const studentUserId = resolveStudentUserId(studentSlug);
+          if (studentUserId) notifyStudentDashboardChanged(studentUserId);
+        }
+        notifyStudentDashboardChanged(user.id);
+        if (mentorViewStudent?.id) notifyStudentDashboardChanged(mentorViewStudent.id);
+        if (parentViewStudent?.id) notifyStudentDashboardChanged(parentViewStudent.id);
+      };
 
       const maybeSyncToStudent = async (stored) => {
         const studentSlug = stored.studentId;
         const studentUserId = studentSlug ? resolveStudentUserId(studentSlug) : null;
-        if (studentSlug && stored.shared !== false && roleFromUser(user) === "mentor") {
+        const isMentorActor = roleFromUser(user) === "mentor" && !mentorViewStudent && !parentViewStudent;
+
+        if (studentSlug && stored.shared !== false && isMentorActor) {
           syncSharedEventToStudent(studentSlug, {
             ...stored,
             createdByRole: stored.createdByRole || "mentor",
@@ -660,12 +684,11 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
               await createCalendarEvent(studentUserId, payload);
             }
           }
-          notifyStudentDashboardChanged(studentSlug);
-          if (studentUserId) notifyStudentDashboardChanged(studentUserId);
+        } else if (studentSlug && isMentorActor && existingId) {
+          upsertStudentCalendarEvent(studentSlug, stored);
         }
-        notifyStudentDashboardChanged(user.id);
-        if (mentorViewStudent?.id) notifyStudentDashboardChanged(mentorViewStudent.id);
-        if (parentViewStudent?.id) notifyStudentDashboardChanged(parentViewStudent.id);
+
+        notifyCalendarSync(studentSlug);
         return stored;
       };
 
@@ -675,7 +698,10 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           const { event, error: err } = await updateCalendarEvent(user.id, existingId, payload);
           if (err) throw new Error(err);
           const stored = { ...workingItem, ...event, id: event.id, userCreated: true };
-          setUserCalendarEvents((prev) => prev.map((e) => (e.id === existingId ? stored : e)));
+          setUserCalendarEvents((prev) => {
+            const inOwnStore = prev.some((entry) => entry.id === existingId);
+            return inOwnStore ? prev.map((e) => (e.id === existingId ? stored : e)) : prev;
+          });
           return maybeSyncToStudent(stored);
         }
         const { event, error: err } = await createCalendarEvent(user.id, payload);
@@ -688,11 +714,20 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       const id = existingId || workingItem.id || `evt-${Date.now()}`;
       const stored = { ...workingItem, id, userCreated: true };
       setUserCalendarEvents((prev) => {
-        const next = existingId ? prev.map((e) => (e.id === existingId ? stored : e)) : [...prev, stored];
-        const store = loadLocalDashboardStore(user.id);
-        saveLocalDashboardStore(user.id, { ...store, calendarEvents: next });
+        const inOwnStore = !existingId || prev.some((entry) => entry.id === existingId);
+        const next = existingId
+          ? (inOwnStore ? prev.map((e) => (e.id === existingId ? stored : e)) : prev)
+          : [...prev, stored];
+        if (inOwnStore || !existingId) {
+          const store = loadLocalDashboardStore(user.id);
+          saveLocalDashboardStore(user.id, { ...store, calendarEvents: next });
+        }
         return next;
       });
+
+      if (stored.studentId && roleFromUser(user) === "student") {
+        upsertStudentCalendarEvent(stored.studentId, stored);
+      }
 
       return maybeSyncToStudent(stored);
     },
@@ -703,24 +738,38 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     async (eventId) => {
       if (!user || !eventId) return;
 
-      const existing = userCalendarEvents.find((item) => item.id === eventId);
+      let existing = userCalendarEvents.find((item) => item.id === eventId);
+      const assignedStudents = (localDemo || apiDemo)?.students ?? [];
 
-      if (useSupabase) {
+      if (!existing && roleFromUser(user) === "mentor" && !mentorViewStudent && !parentViewStudent) {
+        for (const student of assignedStudents) {
+          const found = findStudentCalendarEvent(student.id, eventId);
+          if (found) {
+            existing = found;
+            break;
+          }
+        }
+      }
+
+      const inOwnStore = userCalendarEvents.some((item) => item.id === eventId);
+
+      if (useSupabase && inOwnStore) {
         const { error: err } = await deleteCalendarEvent(user.id, eventId);
         if (err) throw new Error(err);
-      } else {
+      } else if (inOwnStore) {
         const store = loadLocalDashboardStore(user.id);
         const next = (store.calendarEvents || []).filter((e) => e.id !== eventId);
         saveLocalDashboardStore(user.id, { ...store, calendarEvents: next });
       }
 
-      if (existing?.studentId && roleFromUser(user) === "mentor") {
-        removeSharedEventFromStudent(existing.studentId, eventId);
-        const studentUserId = resolveStudentUserId(existing.studentId);
-        if (useSupabase && studentUserId && studentUserId !== user.id) {
+      const studentSlug = existing?.studentId;
+      if (studentSlug) {
+        removeSharedEventFromStudent(studentSlug, eventId);
+        const studentUserId = resolveStudentUserId(studentSlug);
+        if (useSupabase && studentUserId) {
           await deleteCalendarEvent(studentUserId, eventId);
         }
-        notifyStudentDashboardChanged(existing.studentId);
+        notifyStudentDashboardChanged(studentSlug);
         if (studentUserId) notifyStudentDashboardChanged(studentUserId);
       }
 
@@ -730,7 +779,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
       setUserCalendarEvents((prev) => prev.filter((e) => e.id !== eventId));
     },
-    [useSupabase, user, userCalendarEvents, mentorViewStudent, parentViewStudent]
+    [useSupabase, user, userCalendarEvents, mentorViewStudent, parentViewStudent, localDemo, apiDemo]
   );
 
   const declineMeetingRequest = useCallback((requestId) => {

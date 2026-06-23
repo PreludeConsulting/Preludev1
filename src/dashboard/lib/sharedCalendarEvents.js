@@ -41,3 +41,22 @@ export function removeSharedEventFromStudent(studentId, eventId) {
   const next = (store.calendarEvents || []).filter((item) => item.id !== eventId);
   saveLocalDashboardStore(userId, { ...store, calendarEvents: next });
 }
+
+export function findStudentCalendarEvent(studentId, eventId) {
+  const userId = resolveStudentUserId(studentId);
+  if (!userId || !eventId) return null;
+  const store = loadLocalDashboardStore(userId);
+  return (store.calendarEvents || []).find((item) => item.id === eventId) || null;
+}
+
+export function upsertStudentCalendarEvent(studentId, event) {
+  const userId = resolveStudentUserId(studentId);
+  if (!userId || !event?.id) return;
+
+  const store = loadLocalDashboardStore(userId);
+  const existing = store.calendarEvents || [];
+  const next = existing.some((item) => item.id === event.id)
+    ? existing.map((item) => (item.id === event.id ? { ...item, ...event } : item))
+    : [...existing, event];
+  saveLocalDashboardStore(userId, { ...store, calendarEvents: next });
+}
