@@ -143,7 +143,27 @@ function MentorsPageContent() {
                 </article>
               ))}
               {emptyMentorCards.map((cardId) => (
-                <article className="mentors-page__card mentors-page__card--empty" key={cardId} aria-label="Open mentor card slot" />
+                <article className="mentors-page__card mentors-page__card--empty" key={cardId} aria-label="Open mentor card slot" tabIndex={0}>
+                  <div className="mentors-page__photo-shell mentors-page__photo-shell--empty" aria-hidden="true">
+                    <span className="mentors-page__empty-photo-mark" />
+                  </div>
+                  <div className="mentors-page__card-body mentors-page__card-body--empty" aria-hidden="true">
+                    <div className="mentors-page__institution-row mentors-page__institution-row--empty">
+                      <span className="mentors-page__emblem-fallback mentors-page__empty-emblem" />
+                      <div className="mentors-page__empty-lines">
+                        <span />
+                        <span />
+                      </div>
+                    </div>
+                    <span className="mentors-page__empty-title" />
+                    <span className="mentors-page__empty-major" />
+                    <div className="mentors-page__empty-description">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                  </div>
+                </article>
               ))}
               <article className="mentors-page__card mentors-page__find-card">
                 <div className="mentors-page__find-card-inner">
