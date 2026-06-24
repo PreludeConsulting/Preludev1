@@ -5,6 +5,16 @@
   will-change: transform;
 }
 
+:root {
+  --press-scale-standard: 0.98;
+  --press-scale-primary: 0.97;
+  --press-scale-destructive: 0.975;
+  --press-scale-selection: 0.985;
+  --press-duration-down: 100ms;
+  --press-duration-release: 180ms;
+  --press-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .prelude-btn-motion--loading {
   pointer-events: none;
   opacity: 0.72;
@@ -23,25 +33,157 @@
   to { transform: rotate(360deg); }
 }
 
-/* Dashboard buttons */
-.dash-btn,
-.dash-icon-btn {
+/* Shared press contract */
+:where(
+  .prelude-btn-motion,
+  .dash-btn,
+  .dash-icon-btn,
+  .dash-btn-primary,
+  .dash-btn-secondary,
+  .dash-btn-ghost,
+  .pm-btn,
+  .hero-mm-btn,
+  .prelude-btn-primary,
+  .prelude-btn-secondary,
+  .auth-submit,
+  .shopify-hero__cta,
+  .membership-drawer__btn,
+  .dash-product-nav__profile-btn,
+  .dash-product-nav__menu-item,
+  .dash-cal-visual__create-btn,
+  .dash-cal-visual__create-item,
+  .dash-cal-visual__ctrl,
+  .dash-cal-visual__day-trigger,
+  .dash-cal-visual__mobile-day-trigger,
+  .dash-cal-visual__more,
+  .dash-cal-visual__pill,
+  .dash-cal-visual__agenda-item,
+  .dash-upcoming-events__row,
+  .dash-college-save-btn,
+  .dash-setting-link,
+  .dash-toggle,
+  .dash-tabs__item,
+  .dash-rewards-tabs__tab,
+  .dash-colleges-filters__chip,
+  .dash-msg-fab__send,
+  .dash-msg-fab__toggle
+) {
+  --press-scale: var(--press-scale-standard);
   transition:
-    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.16s ease,
-    background-color 0.16s ease,
-    border-color 0.16s ease;
+    transform var(--press-duration-release) var(--press-ease),
+    box-shadow var(--press-duration-release) ease,
+    background-color var(--press-duration-release) ease,
+    border-color var(--press-duration-release) ease;
   transform-origin: center;
 }
 
-.dash-btn:hover:not(:disabled),
-.dash-icon-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
+:where(
+  [data-press-variant="primary"],
+  .dash-btn--primary,
+  .dash-btn-primary,
+  .pm-btn--primary,
+  .hero-mm-btn--primary,
+  .prelude-btn-primary,
+  .auth-submit,
+  .shopify-hero__cta
+) {
+  --press-scale: var(--press-scale-primary);
 }
 
-.dash-btn:active:not(:disabled),
-.dash-icon-btn:active:not(:disabled) {
-  transform: translateY(1px) scale(0.97);
+:where(
+  [data-press-variant="destructive"],
+  .dash-btn--danger,
+  .user-menu__item--danger,
+  .dash-mentor-availability-card__delete
+) {
+  --press-scale: var(--press-scale-destructive);
+  --press-translate-y: 1px;
+}
+
+:where(
+  [data-press-variant="selection"],
+  .dash-toggle,
+  .dash-tabs__item,
+  .dash-rewards-tabs__tab,
+  .dash-colleges-filters__chip,
+  [aria-pressed="true"]
+) {
+  --press-scale: var(--press-scale-selection);
+}
+
+/* Keep the compact switch visual while providing a 44px touch target. */
+.dash-toggle {
+  width: var(--control-height);
+  height: var(--control-height);
+  background: transparent;
+}
+
+.dash-toggle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2.6rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: hsl(230 16% 82%);
+  transform: translate(-50%, -50%);
+}
+
+.dash-toggle--on {
+  background: transparent;
+}
+
+.dash-toggle--on::before {
+  background: hsl(var(--primary));
+}
+
+.dash-toggle__thumb {
+  top: 50%;
+  left: calc((var(--control-height) - 2.6rem) / 2 + 0.18rem);
+  transform: translateY(-50%);
+}
+
+.dash-toggle--on .dash-toggle__thumb {
+  transform: translateY(-50%) translateX(1.1rem);
+}
+
+:where(
+  .prelude-btn-motion,
+  .dash-btn,
+  .dash-icon-btn,
+  .dash-btn-primary,
+  .dash-btn-secondary,
+  .dash-btn-ghost,
+  .pm-btn,
+  .hero-mm-btn,
+  .prelude-btn-primary,
+  .prelude-btn-secondary,
+  .auth-submit,
+  .shopify-hero__cta,
+  .membership-drawer__btn,
+  .dash-product-nav__profile-btn,
+  .dash-product-nav__menu-item,
+  .dash-cal-visual__create-btn,
+  .dash-cal-visual__create-item,
+  .dash-cal-visual__ctrl,
+  .dash-cal-visual__day-trigger,
+  .dash-cal-visual__mobile-day-trigger,
+  .dash-cal-visual__more,
+  .dash-cal-visual__pill,
+  .dash-cal-visual__agenda-item,
+  .dash-upcoming-events__row,
+  .dash-college-save-btn,
+  .dash-setting-link,
+  .dash-toggle,
+  .dash-tabs__item,
+  .dash-rewards-tabs__tab,
+  .dash-colleges-filters__chip,
+  .dash-msg-fab__send,
+  .dash-msg-fab__toggle
+):active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translateY(var(--press-translate-y, 0)) scale(var(--press-scale));
+  transition-duration: var(--press-duration-down);
 }
 
 .dash-btn:focus-visible,
@@ -53,14 +195,12 @@
 /* Nav */
 .dash-sidebar__link,
 .dash-product-nav__link,
-.dash-tabs__item,
 .dash-convo-row {
   transition: transform 0.14s ease, background-color 0.14s ease, color 0.14s ease;
 }
 
 .dash-sidebar__link:active,
 .dash-product-nav__link:active,
-.dash-tabs__item:active,
 .dash-convo-row:active {
   transform: scale(0.98);
 }
@@ -106,7 +246,7 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.dash-chat-send--active {
+.dash-chat-send--active > svg {
   animation: prelude-send-pop 0.32s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
@@ -270,7 +410,42 @@
   .dash-btn:hover,
   .dash-icon-btn:hover,
   .dash-btn:active,
-  .dash-icon-btn:active {
-    transform: none;
+  .dash-icon-btn:active,
+  .prelude-btn-motion:active,
+  .dash-btn-primary:active,
+  .dash-btn-secondary:active,
+  .dash-btn-ghost:active,
+  .pm-btn:active,
+  .hero-mm-btn:active,
+  .prelude-btn-primary:active,
+  .prelude-btn-secondary:active,
+  .auth-submit:active,
+  .shopify-hero__cta:active,
+  .membership-drawer__btn:active,
+  .dash-product-nav__profile-btn:active,
+  .dash-product-nav__menu-item:active,
+  .dash-cal-visual__create-btn:active,
+  .dash-cal-visual__create-item:active,
+  .dash-cal-visual__ctrl:active,
+  .dash-cal-visual__day-trigger:active,
+  .dash-cal-visual__mobile-day-trigger:active,
+  .dash-cal-visual__more:active,
+  .dash-cal-visual__pill:active,
+  .dash-cal-visual__agenda-item:active,
+  .dash-upcoming-events__row:active,
+  .dash-college-save-btn:active,
+  .dash-setting-link:active,
+  .dash-toggle:active,
+  .dash-tabs__item:active,
+  .dash-rewards-tabs__tab:active,
+  .dash-colleges-filters__chip:active,
+  .dash-msg-fab__send:active,
+  .dash-msg-fab__toggle:active {
+    transform: none !important;
+    transition-duration: 0.01ms;
+  }
+
+  .dash-toggle__thumb {
+    transition-duration: 0.01ms;
   }
 }

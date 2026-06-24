@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { MotionDialog } from "../../../components/motion/MotionPrimitives.jsx";
 import InteractiveButton from "../../../components/interaction/InteractiveButton.jsx";
@@ -12,7 +12,7 @@ export function DashBadge({ children, variant = "default", className }) {
 
 export function PrimaryButton({ children, className, as: Tag = "button", loading, ...props }) {
   return (
-    <InteractiveButton as={Tag} className={cn("dash-btn dash-btn--primary", className)} loading={loading} {...props}>
+    <InteractiveButton as={Tag} className={cn("dash-btn dash-btn--primary", className)} loading={loading} pressVariant="primary" {...props}>
       {children}
     </InteractiveButton>
   );
@@ -137,14 +137,73 @@ export function SearchInput({ value, onChange, placeholder = "Search…" }) {
 
 export function Modal({ open, onClose, title, children, footer, className, scrollable }) {
   const titleId = useId();
+  const backdropRef = useRef(null);
+  const returnFocusRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const openedFromKeyboard = Boolean(previousFocus?.matches?.(":focus-visible"));
+    returnFocusRef.current = previousFocus;
+    const getDialog = () => backdropRef.current?.querySelector('[role="dialog"]');
+
+    const getFocusable = () => Array.from(getDialog()?.querySelectorAll(
+      'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+    ) || []).filter((element) => !element.hasAttribute("hidden") && element.getAttribute("aria-hidden") !== "true");
+
+    const frame = window.requestAnimationFrame(() => {
+      const focusTarget = openedFromKeyboard ? getFocusable()[0] : getDialog();
+      focusTarget?.focus({ preventScroll: true });
+    });
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (!focusable.length) {
+        event.preventDefault();
+        getDialog()?.focus({ preventScroll: true });
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === getDialog())) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", handleKeyDown);
+      const returnTarget = returnFocusRef.current;
+      if (returnTarget?.isConnected) returnTarget.focus({ preventScroll: true });
+      returnFocusRef.current = null;
+    };
+  }, [open]);
+
   if (!open) return null;
   const modalNode = (
-    <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
+    <div ref={backdropRef} className="dash-modal-backdrop" role="presentation" onClick={onClose}>
       <MotionDialog
         className={cn("dash-modal", scrollable && "dash-modal--scrollable", className)}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="dash-modal__head">
