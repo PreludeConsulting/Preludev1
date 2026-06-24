@@ -1031,7 +1031,6 @@ export default function AdmissionsCalendarVisual({
                 const overflow = dayEvents.length - visible.length;
                 const isToday =
                   year === now.getFullYear() && month === now.getMonth() && day === today;
-                const isSelected = year === viewYear && month === viewMonth && day === focusDay;
 
                 return (
                   <div
@@ -1039,8 +1038,7 @@ export default function AdmissionsCalendarVisual({
                     className={cn(
                       "dash-cal-visual__day",
                       !inCurrentMonth && "dash-cal-visual__day--muted",
-                      isToday && "dash-cal-visual__day--today",
-                      isSelected && "dash-cal-visual__day--selected"
+                      isToday && "dash-cal-visual__day--today"
                     )}
                   >
                     <button
@@ -1097,8 +1095,7 @@ export default function AdmissionsCalendarVisual({
                 const visible = dayEvents.slice(0, maxVisible);
                 const overflow = dayEvents.length - visible.length;
                 const isToday = isCurrentMonth && day === today;
-                const isSelected = selectedDay === day;
-                const cellTone = !isToday && !isSelected ? dayCellTone(dayEvents) : null;
+                const cellTone = !isToday ? dayCellTone(dayEvents) : null;
 
                 return (
                   <div
@@ -1106,7 +1103,6 @@ export default function AdmissionsCalendarVisual({
                     className={cn(
                       "dash-cal-visual__day",
                       isToday && "dash-cal-visual__day--today",
-                      isSelected && "dash-cal-visual__day--selected",
                       cellTone && `dash-cal-visual__day--${cellTone}`
                     )}
                   >

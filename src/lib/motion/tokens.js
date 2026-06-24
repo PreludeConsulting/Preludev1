@@ -1,6 +1,13 @@
 /** Shared motion tokens for Prelude interactions. */
 export const MOTION = {
-  press: { scale: 0.96, y: 1 },
+  press: {
+    standard: 0.98,
+    primary: 0.97,
+    destructive: 0.975,
+    selection: 0.985
+  },
+  pressMs: 100,
+  releaseMs: 180,
   hover: { y: -2, scale: 1.01 },
   spring: { type: "spring", stiffness: 520, damping: 28, mass: 0.55 },
   easeOut: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },

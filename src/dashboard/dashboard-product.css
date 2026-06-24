@@ -1101,10 +1101,6 @@
   pointer-events: none;
 }
 
-.dash-cal-visual__day--selected {
-  box-shadow: inset 0 0 0 2px rgb(120 106 255 / 0.45);
-}
-
 .dash-cal-visual__day--today {
   background: transparent;
   color: hsl(var(--foreground) / 0.75);
@@ -1129,10 +1125,7 @@
 
 .dash-cal-visual__day--today.dash-cal-visual__day--tasks,
 .dash-cal-visual__day--today.dash-cal-visual__day--events,
-.dash-cal-visual__day--today.dash-cal-visual__day--mixed,
-.dash-cal-visual__day--selected.dash-cal-visual__day--tasks,
-.dash-cal-visual__day--selected.dash-cal-visual__day--events,
-.dash-cal-visual__day--selected.dash-cal-visual__day--mixed {
+.dash-cal-visual__day--today.dash-cal-visual__day--mixed {
   background: transparent;
 }
 
