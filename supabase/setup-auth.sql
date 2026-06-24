@@ -12,6 +12,7 @@ create table if not exists public.profiles (
   id           uuid primary key references auth.users (id) on delete cascade,
   full_name    text,
   role         text not null default 'student' check (role in ('student', 'mentor', 'parent', 'admin')),
+  role_selection_complete boolean not null default false,
   school       text,
   grade_level  text,
   plan_id      text check (plan_id is null or plan_id in ('basic', 'plus', 'pro')),
@@ -22,6 +23,12 @@ comment on table public.profiles is 'Public profile data linked 1:1 to auth.user
 
 -- Add plan_id for existing deployments (safe to re-run).
 alter table public.profiles add column if not exists plan_id text check (plan_id is null or plan_id in ('basic', 'plus', 'pro'));
+alter table public.profiles add column if not exists role_selection_complete boolean;
+update public.profiles
+set role_selection_complete = true
+where role_selection_complete is null;
+alter table public.profiles alter column role_selection_complete set default false;
+alter table public.profiles alter column role_selection_complete set not null;
 
 -- Keep the role allow-list aligned with the application's supported account roles.
 alter table public.profiles drop constraint if exists profiles_role_check;
@@ -66,9 +73,34 @@ security definer
 set search_path = ''
 as $$
 begin
-  if auth.uid() is not null and auth.uid() = old.id and new.role is distinct from old.role then
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and new.role = 'admin'
+    and old.role <> 'admin' then
+    raise exception 'You are not allowed to assign the admin role.';
+  end if;
+
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and new.role is distinct from old.role
+    and old.role_selection_complete = true then
     raise exception 'You are not allowed to change your account role.';
   end if;
+
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and old.role_selection_complete = true
+    and new.role_selection_complete is distinct from old.role_selection_complete then
+    raise exception 'You are not allowed to change role selection status.';
+  end if;
+
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and old.role_selection_complete = false
+    and new.role_selection_complete = false then
+    raise exception 'Please complete account role selection.';
+  end if;
+
   return new;
 end;
 $$;
@@ -92,8 +124,10 @@ as $$
 declare
   requested_role text;
   safe_role text;
+  role_selected boolean;
 begin
   requested_role := coalesce(new.raw_user_meta_data ->> 'role', 'student');
+  role_selected := coalesce((new.raw_user_meta_data ->> 'role_selection_complete')::boolean, false);
 
   if requested_role in ('student', 'mentor', 'parent') then
     safe_role := requested_role;
@@ -101,11 +135,12 @@ begin
     safe_role := 'student';
   end if;
 
-  insert into public.profiles (id, full_name, role)
+  insert into public.profiles (id, full_name, role, role_selection_complete)
   values (
     new.id,
     new.raw_user_meta_data ->> 'full_name',
-    safe_role
+    safe_role,
+    role_selected
   )
   on conflict (id) do nothing;
 

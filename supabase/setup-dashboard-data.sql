@@ -17,7 +17,8 @@ create table if not exists public.profiles (
   full_name         text,
   email             text,
   avatar_url        text,
-  role              text not null default 'student' check (role in ('student', 'mentor', 'admin')),
+  role              text not null default 'student' check (role in ('student', 'mentor', 'parent', 'admin')),
+  role_selection_complete boolean not null default false,
   school            text,
   grade_level       text,
   plan_id           text check (plan_id is null or plan_id in ('basic', 'plus', 'pro')),
@@ -37,6 +38,7 @@ create table if not exists public.profiles (
 
 alter table public.profiles add column if not exists email text;
 alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists role_selection_complete boolean;
 alter table public.profiles add column if not exists bio text;
 alter table public.profiles add column if not exists academic_goals text;
 alter table public.profiles add column if not exists college_interests jsonb not null default '[]'::jsonb;
@@ -50,6 +52,16 @@ alter table public.profiles add column if not exists target_majors jsonb not nul
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
 alter table public.profiles add column if not exists plan_id text check (plan_id is null or plan_id in ('basic', 'plus', 'pro'));
 
+update public.profiles
+set role_selection_complete = true
+where role_selection_complete is null;
+alter table public.profiles alter column role_selection_complete set default false;
+alter table public.profiles alter column role_selection_complete set not null;
+
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check
+  check (role in ('student', 'mentor', 'parent', 'admin'));
+
 alter table public.profiles enable row level security;
 
 drop policy if exists "Profiles are viewable by their owner" on public.profiles;
@@ -62,6 +74,50 @@ create policy "Profiles are updatable by their owner"
   on public.profiles for update to authenticated
   using (auth.uid() = id)
   with check (auth.uid() = id);
+
+create or replace function public.enforce_profile_role_guard()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and new.role = 'admin'
+    and old.role <> 'admin' then
+    raise exception 'You are not allowed to assign the admin role.';
+  end if;
+
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and new.role is distinct from old.role
+    and old.role_selection_complete = true then
+    raise exception 'You are not allowed to change your account role.';
+  end if;
+
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and old.role_selection_complete = true
+    and new.role_selection_complete is distinct from old.role_selection_complete then
+    raise exception 'You are not allowed to change role selection status.';
+  end if;
+
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and old.role_selection_complete = false
+    and new.role_selection_complete = false then
+    raise exception 'Please complete account role selection.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_role_guard on public.profiles;
+create trigger profiles_role_guard
+  before update on public.profiles
+  for each row execute function public.enforce_profile_role_guard();
 
 -- -----------------------------------------------------------------------------
 -- 2) Role-specific profile extensions
@@ -126,6 +182,80 @@ drop policy if exists "Mentor profiles insertable by owner" on public.mentor_pro
 create policy "Mentor profiles insertable by owner"
   on public.mentor_profiles for insert to authenticated
   with check (auth.uid() = user_id);
+
+create table if not exists public.mentor_questionnaires (
+  user_id        uuid primary key references auth.users (id) on delete cascade,
+  answers        jsonb not null default '{}'::jsonb,
+  completed      boolean not null default false,
+  submitted_at   timestamptz,
+  updated_at     timestamptz not null default now()
+);
+
+alter table public.mentor_questionnaires enable row level security;
+
+drop policy if exists "Mentor questionnaires viewable by owner" on public.mentor_questionnaires;
+create policy "Mentor questionnaires viewable by owner"
+  on public.mentor_questionnaires for select to authenticated
+  using (auth.uid() = user_id);
+
+drop policy if exists "Mentor questionnaires insertable by owner" on public.mentor_questionnaires;
+create policy "Mentor questionnaires insertable by owner"
+  on public.mentor_questionnaires for insert to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Mentor questionnaires updatable by owner" on public.mentor_questionnaires;
+create policy "Mentor questionnaires updatable by owner"
+  on public.mentor_questionnaires for update to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create table if not exists public.mentor_matching_profiles (
+  mentor_user_id        uuid primary key references auth.users (id) on delete cascade,
+  display_name          text,
+  college               text,
+  major                 text,
+  bio                   text,
+  specialties           text[] not null default '{}',
+  target_majors         text[] not null default '{}',
+  target_schools        text[] not null default '{}',
+  support_styles        text[] not null default '{}',
+  application_strengths text[] not null default '{}',
+  availability          text,
+  completed             boolean not null default false,
+  updated_at            timestamptz not null default now()
+);
+
+create index if not exists mentor_matching_profiles_completed_idx
+  on public.mentor_matching_profiles (completed);
+create index if not exists mentor_matching_profiles_specialties_idx
+  on public.mentor_matching_profiles using gin (specialties);
+create index if not exists mentor_matching_profiles_target_majors_idx
+  on public.mentor_matching_profiles using gin (target_majors);
+create index if not exists mentor_matching_profiles_target_schools_idx
+  on public.mentor_matching_profiles using gin (target_schools);
+
+alter table public.mentor_matching_profiles enable row level security;
+
+drop policy if exists "Completed mentor matching profiles viewable by authenticated users" on public.mentor_matching_profiles;
+create policy "Completed mentor matching profiles viewable by authenticated users"
+  on public.mentor_matching_profiles for select to authenticated
+  using (completed = true or auth.uid() = mentor_user_id);
+
+drop policy if exists "Mentor matching profiles insertable by owner" on public.mentor_matching_profiles;
+create policy "Mentor matching profiles insertable by owner"
+  on public.mentor_matching_profiles for insert to authenticated
+  with check (auth.uid() = mentor_user_id);
+
+drop policy if exists "Mentor matching profiles updatable by owner" on public.mentor_matching_profiles;
+create policy "Mentor matching profiles updatable by owner"
+  on public.mentor_matching_profiles for update to authenticated
+  using (auth.uid() = mentor_user_id)
+  with check (auth.uid() = mentor_user_id);
+
+drop policy if exists "Mentor matching profiles deletable by owner" on public.mentor_matching_profiles;
+create policy "Mentor matching profiles deletable by owner"
+  on public.mentor_matching_profiles for delete to authenticated
+  using (auth.uid() = mentor_user_id);
 
 -- -----------------------------------------------------------------------------
 -- 3) User settings (preferences)
@@ -307,6 +437,35 @@ drop policy if exists "Mentor matches deletable by student" on public.mentor_mat
 create policy "Mentor matches deletable by student"
   on public.mentor_matches for delete to authenticated
   using (auth.uid() = student_id or auth.uid() = user_id);
+
+create table if not exists public.mentor_match_scores (
+  id               uuid primary key default gen_random_uuid(),
+  student_user_id  uuid not null references auth.users (id) on delete cascade,
+  mentor_user_id   uuid not null references auth.users (id) on delete cascade,
+  score            numeric not null,
+  reasons          jsonb not null default '[]'::jsonb,
+  created_at       timestamptz not null default now()
+);
+
+create index if not exists mentor_match_scores_student_idx
+  on public.mentor_match_scores (student_user_id, created_at desc);
+
+alter table public.mentor_match_scores enable row level security;
+
+drop policy if exists "Mentor match scores viewable by student" on public.mentor_match_scores;
+create policy "Mentor match scores viewable by student"
+  on public.mentor_match_scores for select to authenticated
+  using (auth.uid() = student_user_id);
+
+drop policy if exists "Mentor match scores insertable by student" on public.mentor_match_scores;
+create policy "Mentor match scores insertable by student"
+  on public.mentor_match_scores for insert to authenticated
+  with check (auth.uid() = student_user_id);
+
+drop policy if exists "Mentor match scores deletable by student" on public.mentor_match_scores;
+create policy "Mentor match scores deletable by student"
+  on public.mentor_match_scores for delete to authenticated
+  using (auth.uid() = student_user_id);
 
 -- -----------------------------------------------------------------------------
 -- 6) Calendar events
@@ -636,11 +795,34 @@ security definer
 set search_path = ''
 as $$
 begin
-  if auth.uid() is not null and auth.uid() = old.id then
-    if new.role = 'admin' and old.role <> 'admin' then
-      raise exception 'You are not allowed to assign the admin role.';
-    end if;
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and new.role = 'admin'
+    and old.role <> 'admin' then
+    raise exception 'You are not allowed to assign the admin role.';
   end if;
+
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and new.role is distinct from old.role
+    and old.role_selection_complete = true then
+    raise exception 'You are not allowed to change your account role.';
+  end if;
+
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and old.role_selection_complete = true
+    and new.role_selection_complete is distinct from old.role_selection_complete then
+    raise exception 'You are not allowed to change role selection status.';
+  end if;
+
+  if auth.uid() is not null
+    and auth.uid() = old.id
+    and old.role_selection_complete = false
+    and new.role_selection_complete = false then
+    raise exception 'Please complete account role selection.';
+  end if;
+
   return new;
 end;
 $$;
@@ -659,27 +841,31 @@ as $$
 declare
   requested_role text;
   safe_role text;
+  role_selected boolean;
 begin
   requested_role := coalesce(new.raw_user_meta_data ->> 'role', 'student');
+  role_selected := coalesce((new.raw_user_meta_data ->> 'role_selection_complete')::boolean, false);
 
-  if requested_role in ('student', 'mentor') then
+  if requested_role in ('student', 'mentor', 'parent') then
     safe_role := requested_role;
   else
     safe_role := 'student';
   end if;
 
-  insert into public.profiles (id, full_name, email, avatar_url, role)
+  insert into public.profiles (id, full_name, email, avatar_url, role, role_selection_complete)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name'),
     new.email,
     new.raw_user_meta_data ->> 'avatar_url',
-    safe_role
+    safe_role,
+    role_selected
   )
   on conflict (id) do update set
     email = excluded.email,
     avatar_url = coalesce(excluded.avatar_url, public.profiles.avatar_url),
-    full_name = coalesce(excluded.full_name, public.profiles.full_name);
+    full_name = coalesce(excluded.full_name, public.profiles.full_name),
+    role_selection_complete = public.profiles.role_selection_complete;
 
   insert into public.user_settings (user_id)
   values (new.id)

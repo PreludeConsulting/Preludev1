@@ -9,7 +9,7 @@ import { mapOnboardingToUserFields } from "./preludeMatchService.js";
 import { readParentInviteStepComplete } from "./parentLinks.js";
 import { normalizeAuthProviders } from "./authSignInMethod.js";
 
-export function mapSupabaseUser(session, profile = null, onboarding = null, hasAssignedMentor = false) {
+export function mapSupabaseUser(session, profile = null, onboarding = null, hasAssignedMentor = false, mentorQuestionnaire = null) {
   if (!session?.user) return null;
   const u = session.user;
   const meta = u.user_metadata || {};
@@ -46,8 +46,10 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     authProvider: "supabase",
     authSignInMethods,
     avatarUrl: profile?.avatar_url || null,
+    roleSelectionComplete: profile?.role_selection_complete !== false,
     ...onboardingFields,
     parentInviteStepComplete,
+    mentorOnboardingComplete: role === "mentor" ? Boolean(mentorQuestionnaire?.completed) : true,
     onboardingStatus
   };
 }

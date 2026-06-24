@@ -2,7 +2,9 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   MATCH_ONBOARDING_PATH,
+  MENTOR_ONBOARDING_PATH,
   PLAN_SELECTION_PATH,
+  userNeedsMentorOnboarding,
   userNeedsPlanSelection
 } from "../lib/onboardingRoutes.js";
 
@@ -25,6 +27,10 @@ export default function RequirePlanGuard({ children }) {
 
   if (userNeedsPlanSelection(user)) {
     return <Navigate to={PLAN_SELECTION_PATH} replace />;
+  }
+
+  if (userNeedsMentorOnboarding(user)) {
+    return <Navigate to={MENTOR_ONBOARDING_PATH} replace />;
   }
 
   return children;

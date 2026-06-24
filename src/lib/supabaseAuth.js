@@ -55,11 +55,11 @@ function friendlyError(error) {
   return error.message || "Something went wrong. Please try again.";
 }
 
-export async function signUp({ email, password, fullName, role = "student", captchaToken }) {
+export async function signUp({ email, password, fullName, role, captchaToken }) {
   if (!isSupabaseConfigured()) {
     return { user: null, error: "Supabase is not configured for this deployment.", needsEmailConfirmation: false };
   }
-  const safeRole = SELECTABLE_ROLES.includes(role) ? role : "student";
+  const safeRole = SELECTABLE_ROLES.includes(role) ? role : null;
   const supabase = getSupabase();
   if (!supabase) return { user: null, error: "Supabase client unavailable.", needsEmailConfirmation: false };
   requireTurnstileToken(captchaToken);
@@ -68,7 +68,10 @@ export async function signUp({ email, password, fullName, role = "student", capt
     email,
     password,
     options: {
-      data: { full_name: fullName, role: safeRole },
+      data: {
+        full_name: fullName,
+        ...(safeRole ? { role: safeRole, role_selection_complete: true } : {})
+      },
       emailRedirectTo: fullUrl("/login"),
       ...captchaOptions(captchaToken)
     }
@@ -104,6 +107,41 @@ export async function logIn({ email, password, captchaToken }) {
   if (error) return { user: null, error: friendlyError(error) };
   const { profile } = await getProfile(data.user.id);
   return { user: mapSupabaseUser(data.session, profile), error: null };
+}
+
+export async function saveUserRoleSelection(userId, role) {
+  const safeRole = SELECTABLE_ROLES.includes(role) ? role : null;
+  if (!safeRole) return { error: "Please choose Student, Mentor, or Parent." };
+  if (!userId) return { error: "You must be signed in to choose a role." };
+
+  const { error } = await getSupabase()
+    .from("profiles")
+    .update({
+      role: safeRole,
+      role_selection_complete: true
+    })
+    .eq("id", userId);
+
+  if (error) {
+    if (/role_selection_complete|column/i.test(error.message || "")) {
+      return {
+        error: "Role selection is not enabled in Supabase yet. Run the latest setup-dashboard-data.sql or migration."
+      };
+    }
+    return { error: friendlyError(error) };
+  }
+
+  const roleProfileTable = safeRole === "mentor" ? "mentor_profiles" : safeRole === "student" ? "student_profiles" : null;
+  if (roleProfileTable) {
+    const { error: profileError } = await getSupabase()
+      .from(roleProfileTable)
+      .upsert({ user_id: userId }, { onConflict: "user_id" });
+    if (profileError && !/relation|schema cache|does not exist/i.test(profileError.message || "")) {
+      return { error: friendlyError(profileError) };
+    }
+  }
+
+  return { error: null };
 }
 
 export async function logOut() {
@@ -377,12 +415,13 @@ export async function resolveSupabaseAppUser() {
   const userId = authUser.id;
   const { profile } = await getProfile(userId);
 
-  const [onboardingRes, mentorRes] = await Promise.all([
+  const [onboardingRes, mentorRes, mentorQuestionnaireRes] = await Promise.all([
     supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("mentor_matches").select("id").eq("user_id", userId).eq("status", "assigned").limit(1)
+    supabase.from("mentor_matches").select("id").eq("user_id", userId).eq("status", "assigned").limit(1),
+    supabase.from("mentor_questionnaires").select("completed").eq("user_id", userId).maybeSingle()
   ]);
 
   const hasAssignedMentor = (mentorRes.data || []).length > 0;
   const hydratedSession = { ...session, user: authUser };
-  return mapSupabaseUser(hydratedSession, profile, onboardingRes.data, hasAssignedMentor);
+  return mapSupabaseUser(hydratedSession, profile, onboardingRes.data, hasAssignedMentor, mentorQuestionnaireRes.data);
 }

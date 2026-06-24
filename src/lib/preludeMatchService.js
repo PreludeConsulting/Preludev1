@@ -5,6 +5,7 @@
 import { PRELUDE_MATCH_MENTORS } from "../data/preludeMatchMentors.js";
 import { getSupabase } from "./supabase.js";
 import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
+import { getMentorMatchingProfile, rankSupabaseMentorsForStudent } from "./mentorQuestionnaireService.js";
 
 const MENTOR_CATALOG = PRELUDE_MATCH_MENTORS.map((m) => ({
   ...m,
@@ -53,6 +54,13 @@ export function pickSuggestedMentor(answers) {
   return rankMentors(answers)[0] || MENTOR_CATALOG[0];
 }
 
+export async function getSuggestedMentor(id) {
+  const catalogMentor = getMentorById(id);
+  if (catalogMentor) return catalogMentor;
+  const { mentor } = await getMentorMatchingProfile(id);
+  return mentor;
+}
+
 export async function loadOnboardingProgress(userId) {
   const { data, error } = await getSupabase()
     .from("onboarding_progress")
@@ -64,7 +72,8 @@ export async function loadOnboardingProgress(userId) {
 }
 
 export async function saveMatchQuestionnaire(userId, answers) {
-  const suggested = pickSuggestedMentor(answers);
+  const { mentors: rankedMentors } = await rankSupabaseMentorsForStudent(userId, answers, 5);
+  const suggested = rankedMentors[0] || pickSuggestedMentor(answers);
   const payload = {
     user_id: userId,
     questionnaire_answers: answers,
@@ -106,12 +115,13 @@ export async function saveMatchDecision(userId, { decision, mentorId, declinedId
   if (error) return { error: error.message };
 
   if (decision === "accepted" && mentorId) {
-    const mentor = getMentorById(mentorId);
+    const mentor = await getSuggestedMentor(mentorId);
     if (mentor) {
       await getSupabase().from("mentor_matches").delete().eq("user_id", userId).eq("status", "assigned");
       await getSupabase().from("mentor_matches").insert({
         user_id: userId,
         student_id: userId,
+        mentor_id: mentor.source === "supabase" ? mentor.id : null,
         mentor_name: mentor.name,
         mentor_email: null,
         mentor_college: mentor.school || mentor.university,
@@ -128,13 +138,14 @@ export async function saveMatchDecision(userId, { decision, mentorId, declinedId
 }
 
 export async function requestMentorMatch(userId, mentorId) {
-  const mentor = getMentorById(mentorId);
+  const mentor = await getSuggestedMentor(mentorId);
   if (!mentor) return { error: "Mentor not found." };
 
   await getSupabase().from("mentor_matches").delete().eq("user_id", userId).eq("status", "saved");
   const { error } = await getSupabase().from("mentor_matches").insert({
     user_id: userId,
     student_id: userId,
+    mentor_id: mentor.source === "supabase" ? mentor.id : null,
     mentor_name: mentor.name,
     mentor_college: mentor.school || mentor.university,
     mentor_major: mentor.major,

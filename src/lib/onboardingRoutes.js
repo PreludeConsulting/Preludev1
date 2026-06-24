@@ -2,8 +2,10 @@ import { PLAN_IDS } from "./plans.js";
 import { dashboardHomeForRole, roleFromUser, STUDENT_DASHBOARD_BASE, MENTOR_DASHBOARD_BASE, PARENT_DASHBOARD_BASE } from "./dashboardRoutes.js";
 
 export const PLAN_SELECTION_PATH = "/onboarding/plan";
+export const ROLE_SELECTION_PATH = "/onboarding/role";
 export const MATCH_ONBOARDING_PATH = "/onboarding/match";
 export const PARENT_ONBOARDING_PATH = "/onboarding/parent";
+export const MENTOR_ONBOARDING_PATH = "/onboarding/mentor";
 
 export const ONBOARDING_STATUS = {
   NEEDS_PLAN: "needs_plan",
@@ -100,11 +102,19 @@ export function deriveOnboardingStatus(user, onboarding, hasAcceptedMentor = fal
 
 export function userNeedsPlanSelection(user) {
   if (!user) return false;
+  if (userNeedsRoleSelection(user)) return false;
   const role = roleFromUser(user);
   if (role === "mentor" || role === "parent") return false;
   if (user.onboardingStatus) return user.onboardingStatus === ONBOARDING_STATUS.NEEDS_PLAN;
   if (user.authProvider === "supabase") return !user.planSelected;
   return !user.plan;
+}
+
+export function userNeedsRoleSelection(user) {
+  if (!user) return false;
+  if (user.authProvider === "demo" || user.authProvider === "dev") return false;
+  if (user.authProvider !== "supabase") return false;
+  return user.roleSelectionComplete === false;
 }
 
 export function userNeedsMatchOnboarding(user) {
@@ -123,6 +133,13 @@ export function userNeedsMatchDecision(user) {
   return user.onboardingStatus === ONBOARDING_STATUS.MATCH_COMPLETED && !user.matchDecision;
 }
 
+export function userNeedsMentorOnboarding(user) {
+  if (!user || roleFromUser(user) !== "mentor") return false;
+  if (user.authProvider === "demo" || user.authProvider === "dev") return false;
+  if (user.authProvider !== "supabase") return false;
+  return !user.mentorOnboardingComplete;
+}
+
 export function userNeedsParentInviteStep(user) {
   if (!user || roleFromUser(user) !== "student") return false;
   if (user.authProvider === "demo" || user.authProvider === "dev") return false;
@@ -135,7 +152,9 @@ export function userNeedsParentInviteStep(user) {
 
 export function postAuthDestination(user) {
   if (!user) return "/login";
+  if (userNeedsRoleSelection(user)) return ROLE_SELECTION_PATH;
   if (userNeedsPlanSelection(user)) return PLAN_SELECTION_PATH;
+  if (userNeedsMentorOnboarding(user)) return MENTOR_ONBOARDING_PATH;
   if (userNeedsMatchOnboarding(user)) return MATCH_ONBOARDING_PATH;
   if (userNeedsMatchDecision(user)) return `${MATCH_ONBOARDING_PATH}?step=result`;
   if (userNeedsParentInviteStep(user)) return PARENT_ONBOARDING_PATH;
@@ -144,8 +163,11 @@ export function postAuthDestination(user) {
 
 export function canAccessDashboard(user) {
   if (!user) return false;
-  if (roleFromUser(user) === "mentor" || roleFromUser(user) === "parent") return true;
+  if (userNeedsRoleSelection(user)) return false;
+  if (roleFromUser(user) === "parent") return true;
   if (userNeedsPlanSelection(user)) return false;
+  if (userNeedsMentorOnboarding(user)) return false;
+  if (roleFromUser(user) === "mentor") return true;
   if (userNeedsMatchOnboarding(user)) return false;
   if (userNeedsMatchDecision(user)) return false;
   if (userNeedsParentInviteStep(user)) return false;

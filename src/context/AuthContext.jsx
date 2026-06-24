@@ -201,15 +201,15 @@ export function AuthProvider({ children }) {
       if (useSupabase) {
         const { signUp: supabaseSignUp } = await loadSupabaseAuth();
         const fullName = `${payload.firstName || ""} ${payload.lastName || ""}`.trim();
-        const roleRaw = (payload.role || "STUDENT").toLowerCase();
-        const role = roleRaw === "mentor" ? "mentor" : roleRaw === "parent" ? "parent" : "student";
+        const roleRaw = payload.role ? payload.role.toLowerCase() : "";
+        const role = roleRaw === "mentor" ? "mentor" : roleRaw === "parent" ? "parent" : roleRaw === "student" ? "student" : null;
         if (role === "parent" && payload.parentInviteToken) {
           storePendingParentInvite(payload.parentInviteToken);
         }
         const { user: next, userId, error, needsEmailConfirmation } = await supabaseSignUp({
           email: payload.email,
           password: payload.password,
-          fullName: fullName || (role === "parent" ? "Parent User" : "Student User"),
+          fullName: fullName || (role === "parent" ? "Parent User" : "Prelude User"),
           role,
           captchaToken: payload.captchaToken
         });

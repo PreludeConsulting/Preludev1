@@ -14,6 +14,7 @@ import {
 } from "../../lib/onboardingRoutes.js";
 import {
   getMentorById,
+  getSuggestedMentor,
   pickSuggestedMentor,
   saveMatchDecision,
   saveMatchQuestionnaire
@@ -64,9 +65,14 @@ export default function PreludeMatchOnboardingPage() {
 
   useEffect(() => {
     if (!user?.suggestedMentorId) return;
-    const mentor = getMentorById(user.suggestedMentorId);
-    if (mentor) setSuggestedMentor(mentor);
+    let cancelled = false;
+    getSuggestedMentor(user.suggestedMentorId).then((mentor) => {
+      if (!cancelled && mentor) setSuggestedMentor(mentor);
+    });
     if (forceResult || user.matchOnboardingComplete) setPhase("result");
+    return () => {
+      cancelled = true;
+    };
   }, [user, forceResult]);
 
   const bumpPig = useCallback(() => {
@@ -163,7 +169,7 @@ export default function PreludeMatchOnboardingPage() {
   }
 
   async function handleAccept() {
-    const mentor = suggestedMentor || getMentorById(user.suggestedMentorId);
+    const mentor = suggestedMentor || (await getSuggestedMentor(user.suggestedMentorId));
     if (!mentor) return;
     setSaving(true);
     try {
@@ -181,7 +187,7 @@ export default function PreludeMatchOnboardingPage() {
   }
 
   async function handleDecline() {
-    const mentor = suggestedMentor || getMentorById(user.suggestedMentorId);
+    const mentor = suggestedMentor || (await getSuggestedMentor(user.suggestedMentorId));
     setSaving(true);
     setError("");
     try {

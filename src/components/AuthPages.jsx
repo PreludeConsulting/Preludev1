@@ -183,7 +183,7 @@ export function RegisterPage() {
     lastName: "",
     email: prefilledEmail,
     password: "",
-    role: invitedAsParent ? "PARENT" : "STUDENT",
+    role: invitedAsParent ? "PARENT" : "",
     parentEmail: "",
     termsAccepted: false,
     parentInviteToken
@@ -249,7 +249,7 @@ export function RegisterPage() {
       subtitle={
         invitedAsParent
           ? "You've been invited to follow your student's college journey on Prelude."
-          : "Choose Student or Mentor to access the right Prelude dashboard after sign-up."
+          : "Create your account, then choose Student, Mentor, or Parent on your first login."
       }
     >
       <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} loading={loading} />
@@ -270,31 +270,8 @@ export function RegisterPage() {
         ) : (
           <p className="text-xs text-muted-foreground">At least 6 characters.</p>
         )}
-        <label className="block text-sm font-medium">I am a
-          <select
-            className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3"
-            value={form.role}
-            onChange={update("role")}
-            disabled={invitedAsParent}
-          >
-            <option value="STUDENT">Student</option>
-            <option value="MENTOR">Mentor</option>
-            {invitedAsParent ? <option value="PARENT">Parent / Guardian</option> : null}
-          </select>
-        </label>
-        {form.role === "STUDENT" && !invitedAsParent ? (
-          <>
-            <Field
-              label="Parent or guardian email (optional)"
-              type="email"
-              value={form.parentEmail}
-              onChange={update("parentEmail")}
-              placeholder="parent@email.com"
-            />
-            <p className="text-xs text-muted-foreground">
-              Siblings can use the same parent email. We&apos;ll connect your account when your parent joins Prelude.
-            </p>
-          </>
+        {invitedAsParent ? (
+          <Alert>You&apos;ll continue as a parent account for this invitation.</Alert>
         ) : null}
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
