@@ -141,16 +141,30 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   );
 
   const redeemReward = useCallback(
-    (rewardId) => {
+    (rewardId, options = {}) => {
       const reward = REWARD_CATALOG.find((r) => r.id === rewardId);
-      if (!reward || state.redeemed.includes(rewardId) || state.coins < reward.coins) return false;
+      if (!reward) return { success: false };
 
+      if (state.redeemed.includes(rewardId)) {
+        return { success: false, alreadyRedeemed: true };
+      }
+
+      if (state.coins < reward.coins) {
+        return { success: false, coinsNeeded: reward.coins - state.coins };
+      }
+
+      if (reward.requiresSelection && !options.testPrepOption) {
+        return { success: false, missingSelection: true };
+      }
+
+      const selectionLabel = options.testPrepOption ? ` (${options.testPrepOption})` : "";
       const historyEntry = {
         id: `redemption-${Date.now()}`,
         rewardId,
-        title: reward.headline,
+        title: `${reward.headline}${selectionLabel}`,
         status: "ready_to_schedule",
-        redeemedAt: new Date().toISOString()
+        redeemedAt: new Date().toISOString(),
+        selection: options.testPrepOption || null
       };
 
       setState((prev) => {
@@ -164,11 +178,13 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         return next;
       });
 
-      showToast(`${reward.headline} redeemed — we'll schedule this on your account shortly.`);
-      return true;
+      showToast("Reward redeemed! A mentor will follow up with next steps.", "success");
+      return { success: true };
     },
     [persist, showToast, state.redeemed, state.coins]
   );
+
+  const handleRedeemReward = redeemReward;
 
   const rewards = useMemo(
     () => REWARD_CATALOG.map((r) => ({
@@ -216,6 +232,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       celebration,
       completeMilestone,
       redeemReward,
+      handleRedeemReward,
       showToast
     }),
     [
@@ -242,6 +259,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       celebration,
       completeMilestone,
       redeemReward,
+      handleRedeemReward,
       showToast
     ]
   );
