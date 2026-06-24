@@ -2,7 +2,7 @@ import { cn } from "../../lib/utils.js";
 
 const registerPath = `${import.meta.env.BASE_URL}register`.replace(/\/+/g, "/");
 
-export default function PreludeMentorCard({ mentor }) {
+export default function PreludeMentorCard({ mentor, showAction = true }) {
   function handleChoose() {
     const params = new URLSearchParams({ mentor: mentor.id, ref: "preludematch" });
     window.location.href = `${registerPath}?${params.toString()}`;
@@ -37,9 +37,11 @@ export default function PreludeMentorCard({ mentor }) {
       <p className="pm-mentor-card__reason">{mentor.reason}</p>
       <p className="pm-mentor-card__availability">{mentor.availability}</p>
 
-      <button type="button" className="pm-btn pm-btn--primary pm-btn--block" onClick={handleChoose}>
-        {mentor.bestMatch ? "View and book" : "View mentor"}
-      </button>
+      {showAction ? (
+        <button type="button" className="pm-btn pm-btn--primary pm-btn--block" onClick={handleChoose}>
+          {mentor.bestMatch ? "View and book" : "View mentor"}
+        </button>
+      ) : null}
     </article>
   );
 }

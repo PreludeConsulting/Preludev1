@@ -8,6 +8,7 @@ import {
   dashboardPathForRole,
   MATCH_ONBOARDING_PATH,
   PARENT_ONBOARDING_PATH,
+  preludeMatchPathForRole,
   userNeedsMatchOnboarding,
   userNeedsPlanSelection
 } from "../../lib/onboardingRoutes.js";
@@ -182,6 +183,7 @@ export default function PreludeMatchOnboardingPage() {
   async function handleDecline() {
     const mentor = suggestedMentor || getMentorById(user.suggestedMentorId);
     setSaving(true);
+    setError("");
     try {
       if (user.authProvider === "supabase" && mentor) {
         const { error: err } = await saveMatchDecision(user.id, {
@@ -192,12 +194,16 @@ export default function PreludeMatchOnboardingPage() {
         if (err) throw new Error(err);
       }
       await refreshUser();
-      navigate(PARENT_ONBOARDING_PATH, { replace: true });
+      navigate(preludeMatchPathForRole(user.role), { replace: true });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not decline this recommendation.");
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleCompare() {
+    navigate(preludeMatchPathForRole(user.role));
   }
 
   const isLastQuestion =
@@ -278,6 +284,7 @@ export default function PreludeMatchOnboardingPage() {
                     mentor={displayMentor}
                     loading={saving}
                     onAccept={handleAccept}
+                    onCompare={handleCompare}
                     onDecline={handleDecline}
                   />
                 </motion.div>

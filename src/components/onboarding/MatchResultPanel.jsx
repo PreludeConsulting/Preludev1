@@ -1,6 +1,6 @@
 import PreludeMentorCard from "../hero/PreludeMentorCard.jsx";
 
-export default function MatchResultPanel({ mentor, loading, onAccept, onDecline }) {
+export default function MatchResultPanel({ mentor, loading, onAccept, onCompare, onDecline }) {
   return (
     <div className="pm-match-result">
       <header className="pm-match-result__head">
@@ -10,19 +10,27 @@ export default function MatchResultPanel({ mentor, loading, onAccept, onDecline 
         </p>
       </header>
 
-      <PreludeMentorCard mentor={{ ...mentor, bestMatch: true }} />
+      <PreludeMentorCard mentor={{ ...mentor, bestMatch: true }} showAction={false} />
 
       <p className="pm-match-result__disclaimer">
-        Your match is only a recommendation. If this mentor does not feel like the right fit, you can
-        decline the match and browse other mentors before making a decision.
+        This recommendation is a starting point. Compare other mentors without changing it, or decline it
+        if you know you want a different fit.
       </p>
 
       <div className="pm-match-result__actions">
         <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onAccept}>
-          {loading ? "Saving…" : "Accept Match"}
+          {loading ? "Saving…" : "Accept & Continue"}
         </button>
-        <button type="button" className="dash-btn dash-btn--secondary" disabled={loading} onClick={onDecline}>
-          Decline and View Other Mentors
+        <button type="button" className="dash-btn dash-btn--secondary" disabled={loading} onClick={onCompare}>
+          Compare Mentors
+        </button>
+        <button
+          type="button"
+          className="dash-btn dash-btn--secondary pm-match-result__decline"
+          disabled={loading}
+          onClick={onDecline}
+        >
+          Decline Recommendation
         </button>
       </div>
     </div>
