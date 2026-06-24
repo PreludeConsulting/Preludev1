@@ -1,0 +1,319 @@
+.prelude-constellation {
+  --constellation-ink: #202538;
+  --constellation-purple: #786aff;
+  --constellation-teal: #14b8a6;
+  --constellation-coral: #ff735c;
+  position: relative;
+  isolation: isolate;
+  height: clamp(10rem, 18vw, 13.5rem);
+  min-height: 10rem;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.97), rgb(245 243 255 / 0.94)),
+    #fff;
+}
+
+.prelude-constellation::before {
+  content: "";
+  position: absolute;
+  inset: auto -8% -45% 38%;
+  height: 85%;
+  z-index: -1;
+  transform: rotate(-8deg);
+  background: var(--constellation-purple);
+  opacity: 0.09;
+}
+
+.prelude-constellation::after {
+  content: "PRELUDE";
+  position: absolute;
+  right: -0.04em;
+  bottom: -0.3em;
+  z-index: -1;
+  font-family: var(--dash-font-sans);
+  font-size: clamp(3.3rem, 8vw, 6.5rem);
+  font-weight: 900;
+  line-height: 0.8;
+  letter-spacing: -0.08em;
+  color: rgb(32 37 56 / 0.045);
+  white-space: nowrap;
+}
+
+.prelude-constellation__type {
+  position: absolute;
+  top: 1rem;
+  left: 1.15rem;
+  z-index: 2;
+  max-width: 11rem;
+  font-family: var(--dash-font-sans);
+  pointer-events: none;
+}
+
+.prelude-constellation__type span {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--constellation-purple);
+}
+
+.prelude-constellation__type strong {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: clamp(1.05rem, 2.2vw, 1.55rem);
+  line-height: 0.94;
+  letter-spacing: -0.055em;
+  text-transform: uppercase;
+  color: var(--constellation-ink);
+}
+
+.prelude-constellation__svg {
+  display: block;
+  width: 100%;
+  min-width: 23rem;
+  height: 100%;
+  min-height: 10rem;
+  transform: translateX(8%);
+  overflow: visible;
+}
+
+.prelude-constellation__ghost-line,
+.prelude-constellation__line,
+.prelude-constellation__orbit {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.prelude-constellation__ghost-line {
+  stroke: rgb(32 37 56 / 0.12);
+  stroke-width: 1.5;
+}
+
+.prelude-constellation__line {
+  stroke-width: 3;
+  stroke-dasharray: 420;
+  stroke-dashoffset: 0;
+}
+
+.prelude-constellation__orbit {
+  stroke: rgb(32 37 56 / 0.12);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 8;
+}
+
+.prelude-constellation__node-halo {
+  fill: rgb(120 106 255 / 0.08);
+  stroke: rgb(120 106 255 / 0.18);
+}
+
+.prelude-constellation__node-core {
+  fill: #fff;
+  stroke: rgb(32 37 56 / 0.35);
+  stroke-width: 2;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.prelude-constellation__node--lit .prelude-constellation__node-halo {
+  fill: rgb(120 106 255 / 0.16);
+  stroke: rgb(120 106 255 / 0.34);
+}
+
+.prelude-constellation__node--lit .prelude-constellation__node-core {
+  fill: var(--constellation-purple);
+  stroke: #fff;
+}
+
+.prelude-constellation__node:nth-of-type(4n) .prelude-constellation__node-core { fill: var(--constellation-teal); }
+.prelude-constellation__node:nth-of-type(6n) .prelude-constellation__node-core { fill: var(--constellation-coral); }
+
+.prelude-constellation__token {
+  fill: var(--constellation-coral);
+  stroke: #fff;
+  stroke-width: 2;
+  opacity: 0;
+  transform-origin: 195px 127px;
+}
+
+.prelude-constellation__token path:last-child {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.prelude-constellation__signal {
+  fill: var(--constellation-teal);
+  opacity: 0;
+}
+
+.prelude-constellation--colleges {
+  background: linear-gradient(120deg, #fff 0 48%, #e9fff9 48% 72%, #fff1ec 72%);
+}
+
+.prelude-constellation--calendar {
+  background: linear-gradient(145deg, #fff 0 60%, #f0efff 60%);
+}
+
+.prelude-constellation--mentor {
+  background: linear-gradient(105deg, #fff0eb 0 24%, #fff 24% 67%, #edfffa 67%);
+}
+
+.prelude-constellation--messages {
+  background: linear-gradient(135deg, #f2f0ff 0 45%, #fff 45%);
+}
+
+.prelude-constellation--compact {
+  height: 7.5rem;
+  min-height: 6.5rem;
+  border-radius: 0.9rem;
+}
+
+.prelude-constellation--compact .prelude-constellation__svg {
+  height: 7.5rem;
+  min-height: 6.5rem;
+  transform: translate(15%, -8%) scale(0.92);
+}
+
+.prelude-constellation--compact .prelude-constellation__type {
+  top: 0.75rem;
+  left: 0.85rem;
+}
+
+/* Section integrations keep the existing layouts while adding one editorial anchor. */
+.dash-rewards-hero__pig {
+  position: relative;
+  min-width: 0;
+}
+
+.dash-rewards-hero__pig .prelude-constellation {
+  width: 100%;
+  min-height: 13.5rem;
+  border: 1px solid rgb(120 106 255 / 0.12);
+  box-shadow: 0 18px 42px rgb(32 37 56 / 0.08);
+}
+
+.dash-rewards-hero__mascot {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.4rem;
+  z-index: 3;
+  transform: rotate(4deg);
+}
+
+.dash-colleges-my-list .prelude-constellation {
+  margin-bottom: 0.85rem;
+  border: 1px solid rgb(20 184 166 / 0.14);
+}
+
+.dash-cal-visual__constellation {
+  margin: 0.9rem 0.9rem 0;
+  border: 1px solid rgb(120 106 255 / 0.12);
+}
+
+.pm-browse-constellation {
+  margin-bottom: 1rem;
+  border: 1px solid rgb(255 115 92 / 0.14);
+  box-shadow: 0 16px 38px rgb(32 37 56 / 0.07);
+}
+
+.dash-chat-app__constellation {
+  flex: 0 0 auto;
+  margin: 0.65rem 0.75rem 0;
+  border: 1px solid rgb(120 106 255 / 0.1);
+}
+
+.prelude-constellation--active.prelude-constellation--trace .prelude-constellation__line {
+  animation: constellation-trace 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.prelude-constellation--active.prelude-constellation--collect .prelude-constellation__token {
+  animation: constellation-collect 760ms cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+
+.prelude-constellation--active.prelude-constellation--stamp .prelude-constellation__node--current .prelude-constellation__node-core {
+  animation: constellation-stamp 520ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+.prelude-constellation--active.prelude-constellation--connect .prelude-constellation__node--lit .prelude-constellation__node-halo {
+  animation: constellation-connect 700ms ease-out both;
+  animation-delay: calc(var(--node-index) * 80ms);
+}
+
+.prelude-constellation--active.prelude-constellation--signal .prelude-constellation__signal {
+  animation: constellation-signal 680ms ease-out both;
+}
+
+@keyframes constellation-trace {
+  from { stroke-dashoffset: 420; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes constellation-collect {
+  0% { opacity: 0; transform: translateY(18px) scale(0.7) rotate(-8deg); }
+  60% { opacity: 1; transform: translateY(-3px) scale(1.08) rotate(2deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+
+@keyframes constellation-stamp {
+  0% { transform: scale(1.9); opacity: 0; }
+  70% { transform: scale(0.88); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes constellation-connect {
+  0% { opacity: 0; transform: scale(0.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes constellation-signal {
+  0% { opacity: 0; transform: translateX(-32px); }
+  45% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(54px); }
+}
+
+@media (max-width: 640px) {
+  .prelude-constellation {
+    height: 8.25rem;
+    min-height: 8.25rem;
+  }
+
+  .prelude-constellation__svg {
+    min-width: 20rem;
+    min-height: 8.25rem;
+    transform: translate(18%, 4%) scale(0.9);
+  }
+
+  .prelude-constellation__type {
+    max-width: 8rem;
+  }
+
+  .prelude-constellation__type strong {
+    font-size: 1rem;
+  }
+
+  .dash-rewards-hero__pig .prelude-constellation {
+    height: 10rem;
+    min-height: 10rem;
+  }
+
+  .dash-rewards-hero__mascot {
+    right: 0.25rem;
+    bottom: 0.1rem;
+    transform: scale(0.78) rotate(4deg);
+  }
+
+  .dash-cal-visual__constellation,
+  .dash-chat-app__constellation {
+    margin-inline: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prelude-constellation *,
+  .prelude-constellation *::before,
+  .prelude-constellation *::after {
+    animation: none !important;
+  }
+}

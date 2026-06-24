@@ -13,6 +13,7 @@ import {
   SectionCard
 } from "../../components/ui/index.jsx";
 import PreludeMentorCard from "../../../components/hero/PreludeMentorCard.jsx";
+import PreludeConstellation from "../../components/product/PreludeConstellation.jsx";
 
 const EXPERTISE_FILTERS = ["CS strategy", "Essays", "STEM", "College list", "Financial aid", "Accountability"];
 
@@ -88,6 +89,14 @@ export function PreludeMatchBrowsePage() {
             My Mentors
           </Link>
         }
+      />
+      <PreludeConstellation
+        variant="mentor"
+        value={loadingId ? 5 : message ? 6 : 3}
+        total={6}
+        active={Boolean(loadingId || message)}
+        className="pm-browse-constellation"
+        label={message || "Mentor preferences ready to connect"}
       />
 
       <SectionCard className="dash-panel">

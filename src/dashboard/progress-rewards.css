@@ -64,7 +64,7 @@
   z-index: 0;
   border-radius: 999px;
   background: radial-gradient(circle, rgb(120 106 255 / 0.32) 0%, transparent 68%);
-  animation: dash-piggy-glow 3s ease-in-out infinite;
+  opacity: 0.62;
 }
 
 .dash-piggy__shadow {
@@ -98,7 +98,7 @@
   background: linear-gradient(145deg, var(--rw-gold-light), var(--rw-gold));
   border: 2.5px solid #f0c94a;
   box-shadow: 0 6px 14px rgb(232 185 35 / 0.4);
-  animation: dash-coin-float 3.4s ease-in-out infinite;
+  animation: none;
 }
 
 .dash-floating-coins__coin::after {
@@ -126,7 +126,7 @@
   border-radius: 999px;
   background: #fff;
   box-shadow: 0 0 8px rgb(120 106 255 / 0.8);
-  animation: dash-sparkle 2.2s ease-in-out infinite;
+  opacity: 0.7;
 }
 
 @keyframes dash-piggy-float {

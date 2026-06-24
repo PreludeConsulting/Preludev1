@@ -13,6 +13,7 @@ import AnimatedIcon from "../../../components/interaction/AnimatedIcon.jsx";
 import { loadPreferences } from "../../lib/dashboardPreferences.js";
 import { EVENT_CATEGORY_LABELS } from "../../data/placeholders.js";
 import { EmptyState, Modal, SecondaryButton } from "../ui/index.jsx";
+import PreludeConstellation from "./PreludeConstellation.jsx";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -914,6 +915,15 @@ export default function AdmissionsCalendarVisual({
     <div className={cn("dash-cal-visual", showUpcomingInline && "dash-cal-visual--with-upcoming")}>
       <div className="dash-cal-visual__glow" aria-hidden="true" />
       <article className="dash-cal-visual__card">
+        <PreludeConstellation
+          variant="calendar"
+          value={allEvents.length}
+          total={Math.max(8, allEvents.length)}
+          active={plusActive}
+          compact
+          className="dash-cal-visual__constellation"
+          label={`${allEvents.length} calendar items plotted`}
+        />
         <header className="dash-cal-visual__head">
           <div className="dash-cal-visual__head-title">
             <p className="dash-cal-visual__eyebrow">

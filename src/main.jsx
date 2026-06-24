@@ -31,6 +31,7 @@ import "./dashboard/dashboard-premium.css";
 import "./dashboard/dashboard-product.css";
 import "./dashboard/unread-badge.css";
 import "./dashboard/progress-rewards.css";
+import "./dashboard/constellation.css";
 import "./dashboard/prelude-chat.css";
 import "./landing-ui.css";
 import "./components/interaction/interaction.css";

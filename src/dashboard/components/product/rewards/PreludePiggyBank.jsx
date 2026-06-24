@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const mediaBase = import.meta.env.BASE_URL;
 export const PIGGY_IMAGE = `${mediaBase}media/admissions-savings-piggy.png`;
@@ -53,7 +53,7 @@ export function Sparkles({ className = "" }) {
 export default function PreludePiggyBank({
   size = "lg",
   className = "",
-  animate = true,
+  animate = false,
   withCoins = false,
   withSparkles = false
 }) {
@@ -72,12 +72,19 @@ export default function PreludePiggyBank({
 }
 
 export function CoinBalance({ value, className = "" }) {
-  const [display, setDisplay] = useState(0);
+  const [display, setDisplay] = useState(value);
+  const previousValue = useRef(value);
 
   useEffect(() => {
+    const from = previousValue.current;
+    previousValue.current = value;
+    if (from === value) {
+      setDisplay(value);
+      return undefined;
+    }
+
     const duration = 1100;
     const start = performance.now();
-    const from = 0;
     const to = value;
 
     let frame;

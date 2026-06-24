@@ -25,6 +25,7 @@ import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { SearchInput } from "../ui/index.jsx";
 import CollegeAIMatchModal from "./CollegeAIMatchModal.jsx";
 import SaveCollegeButton from "./SaveCollegeButton.jsx";
+import PreludeConstellation from "./PreludeConstellation.jsx";
 
 function activeFilterCount(filters) {
   return Object.values(filters).reduce((sum, values) => sum + (values?.length || 0), 0);
@@ -39,6 +40,7 @@ export default function CollegesExplore() {
   const [searchQuery, setSearchQuery] = useState("");
   const [majorSearchQuery, setMajorSearchQuery] = useState("");
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [constellationActive, setConstellationActive] = useState(false);
   const filterBarRef = useRef(null);
   const exploreRef = useRef(null);
   const listRef = useRef(null);
@@ -141,6 +143,10 @@ export default function CollegesExplore() {
     setSavedColleges(next);
     try {
       await updateSavedColleges(next);
+      if (!currentlySaved) {
+        setConstellationActive(true);
+        window.setTimeout(() => setConstellationActive(false), 700);
+      }
     } catch (error) {
       setSavedColleges(prev);
       throw error;
@@ -179,6 +185,14 @@ export default function CollegesExplore() {
             View Full List →
           </button>
         </div>
+        <PreludeConstellation
+          variant="colleges"
+          value={savedColleges.length}
+          total={Math.max(6, savedColleges.length)}
+          active={constellationActive}
+          compact
+          label={`${savedColleges.length} colleges saved to your college atlas`}
+        />
         <div className="dash-colleges-my-list__grid">
           {savedEntries.length ? (
             savedEntries.map(({ collegeId, school }) => (
