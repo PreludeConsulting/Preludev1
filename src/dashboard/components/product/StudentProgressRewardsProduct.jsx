@@ -4,24 +4,16 @@ import InteractiveButton from "../../../components/interaction/InteractiveButton
 import {
   CheckCircle2,
   Circle,
-  Clock,
-  Compass,
-  FileText,
   Gift,
-  GraduationCap,
   Lock,
-  MapPin,
-  MessageCircle,
-  Sparkles,
   Star,
-  Sun,
-  Target,
   Ticket,
   Zap
 } from "lucide-react";
-import { EARN_CATEGORY_ORDER, GRID_REWARD_IDS, MILESTONE_CATEGORY_LABELS, STATUS_TIERS } from "../../lib/progressRewards.js";
+import { EARN_CATEGORY_ORDER, MILESTONE_CATEGORY_LABELS, STATUS_TIERS } from "../../lib/progressRewards.js";
 import { useProgressRewards } from "../../context/ProgressRewardsContext.jsx";
 import PreludePiggyBank, { CoinBalance, CoinIcon } from "./rewards/PreludePiggyBank.jsx";
+import { ProgressBar, RedeemTab } from "./rewards/RedeemTab.jsx";
 import RewardsSidebar from "./rewards/RewardsSidebar.jsx";
 import PreludeConstellation from "./PreludeConstellation.jsx";
 
@@ -32,50 +24,18 @@ const TABS = [
   { id: "earn", label: "Earn Coins", icon: Zap }
 ];
 
-const REWARD_ICONS = {
-  "bonus-mentor-session": GraduationCap,
-  "essay-review": FileText,
-  "sat-strategy-call": Target,
-  "priority-office-hours": Clock,
-  "mentor-network-qa": MessageCircle,
-  "college-list-deep-dive": MapPin,
-  "summer-program-strategy": Sun,
-  "application-brainstorm": MessageCircle,
-  "major-career-exploration": Compass
-};
-
-function RewardIcon({ reward, large = false }) {
-  const Icon = REWARD_ICONS[reward.id] || Sparkles;
-  const tone = reward.iconTone || "purple";
-  return (
-    <span className={`dash-rewards-reward-icon dash-rewards-reward-icon--${tone}${large ? " dash-rewards-reward-icon--lg" : ""}`} aria-hidden="true">
-      <Icon className={large ? "h-8 w-8" : "h-5 w-5"} />
-    </span>
-  );
-}
-
-function ProgressBar({ pct, className = "", animate = true }) {
-  return (
-    <div className={`dash-rewards-progress${animate ? " dash-rewards-progress--animate" : ""}${className ? ` ${className}` : ""}`} aria-hidden="true">
-      <span className="dash-rewards-progress__fill" style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
 function RewardsHero() {
   const {
     coins,
     studentFirstName,
     currentTier,
     featuredReward,
-    nextTier,
     completedCount,
     milestones,
     celebration
   } = useProgressRewards();
   const heroPct = featuredReward?.progressPct ?? 0;
   const coinsToGoal = featuredReward?.coinsAway ?? 0;
-  const tierLabel = nextTier?.name ?? "Scholar Saver";
 
   return (
     <header className="dash-rewards-hero">
@@ -99,7 +59,7 @@ function RewardsHero() {
         <span className="dash-rewards-hero__tier-badge">{currentTier.name}</span>
         <div className="dash-rewards-hero__goal">
           <p className="dash-rewards-hero__goal-hint">
-            {coinsToGoal > 0 ? `${coinsToGoal} coins to ${tierLabel}` : `You&apos;ve reached ${tierLabel}`}
+            {coinsToGoal > 0 ? `${coinsToGoal} coins to ${featuredReward?.headline ?? "your next reward"}` : "Ready for your next reward"}
           </p>
           <ProgressBar pct={heroPct} className="dash-rewards-progress--hero" />
         </div>
@@ -127,122 +87,6 @@ function RewardsTabs({ active, onChange }) {
         );
       })}
     </nav>
-  );
-}
-
-function FeaturedRewardCard({ reward, onRedeem }) {
-  const [confirming, setConfirming] = useState(false);
-
-  function handleClick() {
-    if (!reward.canRedeem) return;
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
-    onRedeem(reward.id);
-    setConfirming(false);
-  }
-
-  return (
-    <article className="dash-rewards-featured">
-      <span className="dash-rewards-featured__badge">Most Popular</span>
-      <div className="dash-rewards-featured__layout">
-        <div className="dash-rewards-featured__visual">
-          <PreludePiggyBank size="md" withCoins withSparkles />
-        </div>
-        <div className="dash-rewards-featured__body">
-          <h3 className="dash-rewards-featured__title">{reward.headline}</h3>
-          <div className="dash-rewards-featured__meta">
-            <span className="dash-rewards-featured__cost">{reward.coins} Coins</span>
-            <span className="dash-rewards-featured__value">${reward.estimatedValue} Value</span>
-          </div>
-          <p className="dash-rewards-featured__desc">{reward.description}</p>
-          {reward.redeemed ? (
-            <p className="dash-rewards-featured__away">Redeemed</p>
-          ) : reward.canRedeem ? (
-            <button type="button" className="dash-btn dash-btn--primary dash-rewards-featured__cta" onClick={handleClick}>
-              {confirming ? "Confirm redeem" : "Redeem Now"}
-            </button>
-          ) : (
-            <div className="dash-rewards-featured__progress-wrap">
-              <p className="dash-rewards-featured__away">{reward.coinsAway} coins away</p>
-              <ProgressBar pct={reward.progressPct} />
-            </div>
-          )}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function RewardGridCard({ reward, onRedeem }) {
-  const [confirming, setConfirming] = useState(false);
-
-  function handleClick() {
-    if (!reward.canRedeem) return;
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
-    onRedeem(reward.id);
-    setConfirming(false);
-  }
-
-  return (
-    <article className={`dash-rewards-store-card dash-rewards-store-card--${reward.iconTone}${reward.redeemed ? " dash-rewards-store-card--redeemed" : ""}${reward.canRedeem ? " dash-rewards-store-card--ready" : ""}`}>
-      <div className="dash-rewards-store-card__head">
-        <RewardIcon reward={reward} large />
-        <div className="dash-rewards-store-card__copy">
-          <h4 className="dash-rewards-store-card__title">
-            {reward.headline}
-            {reward.subtitle ? <span className="dash-rewards-store-card__subtitle">{reward.subtitle}</span> : null}
-          </h4>
-        </div>
-      </div>
-      <div className="dash-rewards-store-card__meta">
-        <span className="dash-rewards-store-card__cost">{reward.coins} Coins</span>
-        <span className="dash-rewards-store-card__value">${reward.estimatedValue} Value</span>
-      </div>
-      {reward.redeemed ? (
-        <span className="dash-rewards-store-card__status">Redeemed</span>
-      ) : reward.canRedeem ? (
-        <button type="button" className="dash-btn dash-btn--primary dash-btn--sm dash-rewards-store-card__btn" onClick={handleClick}>
-          {confirming ? "Confirm" : "Redeem Now"}
-        </button>
-      ) : (
-        <>
-          <p className="dash-rewards-store-card__away">{reward.coinsAway} coins away</p>
-          <ProgressBar pct={reward.progressPct} className="dash-rewards-progress--compact" />
-        </>
-      )}
-    </article>
-  );
-}
-
-function RedeemTab() {
-  const { rewards, featuredReward, redeemReward } = useProgressRewards();
-  const gridRewards = GRID_REWARD_IDS
-    .map((id) => rewards.find((r) => r.id === id))
-    .filter(Boolean);
-
-  return (
-    <div className="dash-rewards-tab-panel">
-      <h2 className="dash-rewards-section-label dash-rewards-section-label--featured">Featured Reward</h2>
-      <FeaturedRewardCard reward={featuredReward} onRedeem={redeemReward} />
-      <h3 className="dash-rewards-section-label" id="all-rewards">All Rewards</h3>
-      <div className="dash-rewards-store-grid">
-        {gridRewards.map((r) => (
-          <RewardGridCard key={r.id} reward={r} onRedeem={redeemReward} />
-        ))}
-      </div>
-      <footer className="dash-rewards-store-footer">
-        <a href="#all-rewards" className="dash-rewards-store-footer__link">View all rewards →</a>
-        <p className="dash-rewards-store-footer__note">
-          <Gift className="dash-rewards-store-footer__gift" aria-hidden="true" />
-          New rewards added regularly!
-        </p>
-      </footer>
-    </div>
   );
 }
 
@@ -288,24 +132,13 @@ function StatusTab() {
 }
 
 function MyRewardsTab() {
-  const { redemptionHistory, rewards } = useProgressRewards();
+  const { redemptionHistory } = useProgressRewards();
 
-  const lockedPreview = rewards
-    .filter((r) => r.id === "bonus-mentor-session" && !r.redeemed && !r.canRedeem)
-    .map((r) => ({
-      id: `locked-${r.id}`,
-      title: r.headline,
-      status: `Locked until ${r.coins} Coins`
-    }));
-
-  const items = [
-    ...redemptionHistory.map((h) => ({
-      id: h.id,
-      title: h.title,
-      status: h.status === "ready_to_schedule" ? "Ready to schedule" : "Redeemed"
-    })),
-    ...lockedPreview
-  ];
+  const items = redemptionHistory.map((h) => ({
+    id: h.id,
+    title: h.title,
+    status: h.status === "ready_to_schedule" ? "Ready to schedule" : "Redeemed"
+  }));
 
   if (!items.length) {
     return (

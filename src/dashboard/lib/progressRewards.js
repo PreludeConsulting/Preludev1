@@ -1,105 +1,104 @@
 /** Prelude Coins — milestone-based rewards stored in the student's Piggy Bank. */
 
+export const TEST_PREP_OPTIONS = [
+  "SAT Math",
+  "SAT Reading/Writing",
+  "ACT Math",
+  "ACT English",
+  "ACT Reading",
+  "ACT Science"
+];
+
 export const REWARD_CATALOG = [
   {
-    id: "bonus-mentor-session",
-    title: "Bonus Mentor Session",
-    headline: "FREE Mentor Session",
-    subtitle: null,
-    category: "Mentorship",
-    coins: 300,
-    estimatedValue: 49,
-    description: "Schedule a private session with your mentor.",
-    featured: true,
-    iconTone: "purple"
-  },
-  {
-    id: "essay-review",
-    title: "Essay Review",
-    headline: "FREE Essay Review",
-    subtitle: "(2 Mentor Review)",
+    id: "essay-review-session",
+    title: "Essay Review Session",
+    headline: "FREE Essay Review Session",
+    subtitle: "2 Mentor Review",
     category: "Essays",
-    coins: 250,
+    coins: 300,
     estimatedValue: 75,
-    description: "Receive detailed feedback from two mentors.",
+    description: "Two mentors review the student's essay and leave detailed feedback.",
+    featured: true,
     iconTone: "mint"
   },
   {
-    id: "sat-strategy-call",
-    title: "SAT Strategy Call",
-    headline: "FREE SAT Strategy Call",
-    subtitle: null,
+    id: "test-prep-help",
+    title: "Test Prep Help Session",
+    headline: "FREE Test Prep Help Session",
+    subtitle: "SAT / ACT Help",
     category: "Test Prep",
-    coins: 220,
+    coins: 250,
     estimatedValue: 50,
-    description: "Refine your testing plan, timeline, and score goals.",
-    iconTone: "sky"
+    description: "Choose SAT Math, SAT Reading/Writing, ACT Math, ACT English, ACT Reading, or ACT Science after redeeming.",
+    iconTone: "sky",
+    requiresSelection: true
   },
   {
-    id: "college-list-deep-dive",
-    title: "College List Deep Dive",
-    headline: "College List Deep Dive",
-    subtitle: null,
+    id: "college-list-review",
+    title: "College List Review",
+    headline: "FREE College List Review",
+    subtitle: "Reach / Target / Safety Review",
     category: "Admissions",
-    coins: 180,
-    estimatedValue: 35,
-    description: "Refine fit, reach, and strategy across your college list.",
+    coins: 220,
+    estimatedValue: 45,
+    description: "A mentor reviews the student's college list and helps organize reach, target, and safety schools.",
     iconTone: "blue"
   },
   {
-    id: "summer-program-strategy",
-    title: "Summer Program Strategy Session",
-    headline: "Summer Program Strategy Session",
-    subtitle: null,
+    id: "activities-list-review",
+    title: "Activities List Review",
+    headline: "FREE Activities List Review",
+    subtitle: "Extracurricular Feedback",
     category: "Admissions",
-    coins: 180,
-    estimatedValue: 35,
-    description: "Plan summer programs that strengthen your profile.",
+    coins: 200,
+    estimatedValue: 40,
+    description: "A mentor reviews the student's activity descriptions and gives improvement suggestions.",
     iconTone: "amber"
   },
   {
-    id: "priority-office-hours",
-    title: "Priority Office Hours",
-    headline: "Priority Office Hours",
-    subtitle: null,
-    category: "Mentorship",
-    coins: 150,
-    estimatedValue: 25,
-    description: "Skip the queue for mentor office hours this month.",
-    iconTone: "peach"
-  },
-  {
-    id: "mentor-network-qa",
-    title: "Mentor Network Q&A Pass",
-    headline: "Mentor Network Q&A Pass",
-    subtitle: null,
-    category: "Mentorship",
-    coins: 120,
-    estimatedValue: 20,
-    description: "Access a live Q&A session with mentors across the Prelude network.",
-    iconTone: "purple"
-  },
-  {
-    id: "application-brainstorm",
-    title: "Application Brainstorm Session",
-    headline: "Application Brainstorm Session",
-    subtitle: null,
-    category: "Essays",
+    id: "application-strategy-call",
+    title: "Application Strategy Call",
+    headline: "FREE Application Strategy Call",
+    subtitle: "Planning Session",
+    category: "Admissions",
     coins: 200,
     estimatedValue: 40,
-    description: "Brainstorm compelling angles for your applications with your mentor.",
+    description: "A mentor helps plan deadlines, essays, school priorities, and next steps.",
     iconTone: "rose"
   },
   {
-    id: "major-career-exploration",
-    title: "Major & Career Exploration Session",
-    headline: "Major & Career Exploration Session",
-    subtitle: null,
+    id: "major-career-fit",
+    title: "Major / Career Fit Session",
+    headline: "FREE Major / Career Fit Session",
+    subtitle: "Major Exploration",
     category: "Planning",
-    coins: 200,
-    estimatedValue: 40,
-    description: "Explore majors and career paths aligned with your strengths.",
+    coins: 180,
+    estimatedValue: 35,
+    description: "A mentor helps the student explore possible majors, career paths, and college fit.",
     iconTone: "indigo"
+  },
+  {
+    id: "mock-interview",
+    title: "Mock Interview Session",
+    headline: "FREE Mock Interview Session",
+    subtitle: "Interview Practice",
+    category: "Admissions",
+    coins: 180,
+    estimatedValue: 35,
+    description: "A mentor runs a college-style mock interview and gives feedback.",
+    iconTone: "purple"
+  },
+  {
+    id: "scholarship-search",
+    title: "Scholarship Search Session",
+    headline: "FREE Scholarship Search Session",
+    subtitle: "Scholarship Planning",
+    category: "Planning",
+    coins: 150,
+    estimatedValue: 30,
+    description: "A mentor helps the student find scholarships and create a quick application plan.",
+    iconTone: "peach"
   }
 ];
 
@@ -175,7 +174,7 @@ export const MILESTONE_CATALOG = [
   { id: "academic-improvement", title: "Academic Improvement Logged", category: "academic_tutoring", coins: 30, grades: ALL_GRADES, priority: ALL_GRADES, requiresService: "academicTutoring" }
 ];
 
-export const FEATURED_REWARD_ID = "bonus-mentor-session";
+export const FEATURED_REWARD_ID = "essay-review-session";
 
 export function parseGradeLevel(gradeLabel = "") {
   const match = String(gradeLabel).match(/(\d+)/);
@@ -264,6 +263,17 @@ export function getRewardProgressPct(coins, rewardCoins) {
   return Math.min(100, Math.round((coins / rewardCoins) * 100));
 }
 
+export function enrichReward(reward, coins, redeemed = []) {
+  const isRedeemed = redeemed.includes(reward.id);
+  return {
+    ...reward,
+    redeemed: isRedeemed,
+    canRedeem: coins >= reward.coins && !isRedeemed,
+    coinsAway: Math.max(0, reward.coins - coins),
+    progressPct: getRewardProgressPct(coins, reward.coins)
+  };
+}
+
 /** Locked rewards nearest to unlock, sorted by coins away. */
 export function getClosestRewards(coins, redeemed = [], catalog = REWARD_CATALOG, limit = 3) {
   const saving = catalog
@@ -338,22 +348,7 @@ export function buildDefaultProgressRewards(isJordan) {
       "study-roadmap-created": 55
     },
     redeemed: [],
-    redemptionHistory: [
-      {
-        id: "demo-essay-review",
-        rewardId: "essay-review",
-        title: "FREE Essay Review",
-        status: "ready_to_schedule",
-        redeemedAt: "2026-05-12T14:00:00.000Z"
-      },
-      {
-        id: "demo-sat-strategy",
-        rewardId: "sat-strategy-call",
-        title: "FREE SAT Strategy Call",
-        status: "redeemed",
-        redeemedAt: "2026-04-28T16:30:00.000Z"
-      }
-    ]
+    redemptionHistory: []
   };
 }
 
@@ -400,9 +395,9 @@ export const MENTOR_MOMENTUM_MODULES = {
     hint: "1 check-in away"
   },
   nextReward: {
-    headline: "FREE SAT Strategy Call",
-    coinsAway: 20,
-    progressPct: 91
+    headline: "FREE Essay Review Session",
+    coinsAway: 60,
+    progressPct: 80
   }
 };
 
@@ -431,12 +426,12 @@ export const MENTOR_MOMENTUM = [
 export const ENGAGEMENT_STREAKS = MENTOR_MOMENTUM;
 
 export const GRID_REWARD_IDS = [
-  "essay-review",
-  "sat-strategy-call",
-  "college-list-deep-dive",
-  "summer-program-strategy",
-  "priority-office-hours",
-  "mentor-network-qa"
+  "test-prep-help",
+  "college-list-review",
+  "activities-list-review",
+  "application-strategy-call",
+  "major-career-fit",
+  "mock-interview"
 ];
 
 export const DAILY_MOMENTUM_STREAK = {

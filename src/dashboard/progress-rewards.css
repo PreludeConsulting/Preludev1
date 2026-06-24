@@ -518,15 +518,24 @@
 
 .dash-rewards-store-grid {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.75rem;
 }
 
-@media (min-width: 900px) {
-  .dash-rewards-store-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dash-rewards-store-grid--six {
+  grid-template-columns: 1fr;
+  align-items: stretch;
 }
 
-@media (min-width: 720px) and (max-width: 899px) {
-  .dash-rewards-store-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 720px) {
+  .dash-rewards-store-grid--six {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .dash-rewards-store-grid--six {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .dash-rewards-store-card {
@@ -573,7 +582,132 @@
   background: linear-gradient(145deg, #f8f6ff, #fff);
 }
 
-.dash-rewards-store-card--redeemed { opacity: 0.65; }
+.dash-rewards-store-card--compact {
+  min-height: 0;
+  height: 100%;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1.25rem;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__copy {
+  min-width: 0;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__title {
+  font-size: 0.9375rem;
+  line-height: 1.3;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__subtitle {
+  margin-top: 0.15rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__meta {
+  margin: 0 0 0.875rem;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__value {
+  color: var(--rw-purple);
+  font-weight: 700;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__progress-slot {
+  min-height: 1.375rem;
+  margin: 0 0 1.125rem;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__progress {
+  margin-top: 0.5rem;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__progress .dash-rewards-store-card__away {
+  margin: 0 0 0.3rem;
+  font-size: 0.75rem;
+}
+
+.dash-rewards-store-card__progress-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__progress-inline .dash-rewards-store-card__away {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--rw-purple);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dash-rewards-progress--inline {
+  width: 110px;
+  max-width: 120px;
+  min-width: 72px;
+  height: 6px;
+  flex-shrink: 1;
+  margin-top: 0;
+  border-radius: 999px;
+  background: rgb(120 106 255 / 0.1);
+  overflow: hidden;
+}
+
+.dash-rewards-progress--inline .dash-rewards-progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7c6ef0, var(--rw-purple));
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__btn,
+.dash-rewards-store-card--compact .dash-rewards-redeem-btn.dash-rewards-store-card__btn {
+  margin-top: auto;
+  width: 100%;
+}
+
+.dash-rewards-store-card--compact .dash-rewards-store-card__status {
+  margin-top: auto;
+}
+
+.dash-rewards-featured--compact .dash-rewards-featured__layout {
+  gap: 1rem;
+}
+
+.dash-rewards-featured--compact .dash-rewards-featured__visual {
+  min-height: 8.5rem;
+}
+
+.dash-rewards-featured--compact .dash-rewards-featured__desc {
+  display: none;
+}
+
+.dash-rewards-store-card--redeemed {
+  opacity: 0.65;
+}
 
 .dash-rewards-store-card__category {
   position: absolute;
@@ -654,6 +788,248 @@
   margin-top: 0.75rem;
   width: 100%;
   border-radius: 999px;
+}
+
+.dash-rewards-store-card__inner,
+.dash-rewards-store-card__content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  flex: 1;
+}
+
+.dash-rewards-store-card__progress {
+  margin-top: 0.65rem;
+}
+
+.dash-rewards-redeem-btn {
+  margin-top: auto;
+  width: 100%;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.dash-rewards-redeem-btn--insufficient {
+  color: var(--rw-purple);
+  background: rgb(120 106 255 / 0.08);
+  border: 1px solid rgb(120 106 255 / 0.22);
+}
+
+.dash-rewards-redeem-btn--insufficient:hover {
+  background: rgb(120 106 255 / 0.14);
+}
+
+.dash-rewards-featured .dash-rewards-redeem-btn {
+  margin-top: 1rem;
+  min-width: 10rem;
+  align-self: flex-start;
+}
+
+/* Test prep redeem modal */
+
+.dash-rewards-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(35 39 48 / 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.dash-rewards-modal__panel {
+  position: relative;
+  width: min(100%, 24rem);
+  padding: 1.25rem 1.25rem 1.1rem;
+  border-radius: 1.1rem;
+  background: #fff;
+  border: 1px solid rgb(35 39 48 / 0.08);
+  box-shadow: 0 20px 48px rgb(35 39 48 / 0.18);
+}
+
+.dash-rewards-modal__close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 999px;
+  background: rgb(35 39 48 / 0.06);
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.dash-rewards-modal__title {
+  margin: 0;
+  padding-right: 2rem;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-modal__desc {
+  margin: 0.45rem 0 0.85rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-modal__options {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.dash-rewards-modal__option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgb(35 39 48 / 0.1);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--rw-navy);
+  cursor: pointer;
+}
+
+.dash-rewards-modal__option--active {
+  border-color: rgb(120 106 255 / 0.35);
+  background: rgb(120 106 255 / 0.08);
+}
+
+.dash-rewards-modal__option input {
+  accent-color: var(--rw-purple);
+}
+
+.dash-rewards-modal__confirm {
+  margin-top: 0.9rem;
+  width: 100%;
+  border-radius: 999px;
+}
+
+.dash-rewards-modal__panel--redeem {
+  width: min(100%, 26rem);
+}
+
+.dash-rewards-modal__reward-head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding-right: 1.75rem;
+}
+
+.dash-rewards-modal__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-modal__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.85rem 0 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.65rem;
+  background: rgb(120 106 255 / 0.06);
+}
+
+.dash-rewards-modal__stats div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.dash-rewards-modal__stats dt {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-modal__stats dd {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-modal__warning {
+  margin: 0.75rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.55rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #b42318;
+  background: rgb(180 35 24 / 0.08);
+  border: 1px solid rgb(180 35 24 / 0.15);
+}
+
+.dash-rewards-modal__field {
+  margin-top: 0.75rem;
+}
+
+.dash-rewards-modal__field-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-modal__select {
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgb(35 39 48 / 0.12);
+  font-family: var(--dash-font-sans);
+  font-size: 0.8125rem;
+  color: var(--rw-navy);
+  background: #fff;
+}
+
+.dash-rewards-modal__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.dash-rewards-modal__actions .dash-btn {
+  flex: 1;
+  border-radius: 999px;
+}
+
+.dash-rewards-modal__success {
+  text-align: center;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.dash-rewards-modal__success-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--rw-navy);
+}
+
+.dash-rewards-modal__success-desc {
+  margin: 0.35rem 0 1rem;
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-toast--error {
+  background: linear-gradient(135deg, #b42318, #d92d20);
+}
+
+.dash-toast--info {
+  background: hsl(230 25% 28%);
 }
 
 .dash-rewards-store-footer {
