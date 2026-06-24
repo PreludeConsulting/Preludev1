@@ -11,8 +11,6 @@ import { LanguageProvider, useLanguage } from "../context/LanguageContext.jsx";
 import { EXAMPLE_MENTORS } from "../data/mentors.js";
 import { appPath } from "../lib/appPaths.js";
 
-const mentorCardsImage = `${(import.meta.env?.BASE_URL ?? "/")}media/mentor-team-cards.png`;
-
 function MentorEmblem({ mentor }) {
   if (mentor.fallbackEmblem) {
     return <span className="mentors-page__emblem-fallback">{mentor.fallbackEmblem}</span>;
@@ -78,11 +76,15 @@ function MentorsPageContent() {
               {EXAMPLE_MENTORS.map((mentor) => (
                 <article className="mentors-page__card" key={mentor.name} tabIndex={0}>
                   <div className="mentors-page__photo-shell">
-                    <div
-                      className={`mentors-page__photo ${mentor.photoClass}`}
-                      style={{ backgroundImage: `url(${mentorCardsImage})` }}
-                      role="img"
-                      aria-label={`${mentor.name}, ${mentor.university}`}
+                    <img
+                      className="mentors-page__photo"
+                      src={mentor.photo}
+                      alt={`${mentor.name}, ${mentor.university}`}
+                      style={{ objectPosition: mentor.objectPosition }}
+                      width={420}
+                      height={360}
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
                   <div className="mentors-page__card-body">

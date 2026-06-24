@@ -8,7 +8,8 @@ export const EXAMPLE_MENTORS = [
     major: "Engineering",
     description: "Mechanical engineering mentor who helps students turn technical interests into clear project stories.",
     emblem: `${mediaBase}media/universities/brown.svg`,
-    photoClass: "mentors-page__photo--declan"
+    photo: `${mediaBase}media/mentors/declan-brooks.png`,
+    objectPosition: "50% 34%"
   },
   {
     name: "Ryan Morales",
@@ -17,7 +18,8 @@ export const EXAMPLE_MENTORS = [
     major: "Computer Science",
     description: "Computer science student focused on application strategy, campus fit, and building a balanced school list.",
     emblem: `${mediaBase}media/universities/upenn.svg`,
-    photoClass: "mentors-page__photo--ryan"
+    photo: `${mediaBase}media/mentors/ryan-morales.png`,
+    objectPosition: "50% 32%"
   },
   {
     name: "Asim Patel",
@@ -26,7 +28,8 @@ export const EXAMPLE_MENTORS = [
     major: "Computer Science",
     description: "CS mentor who guides students through research interests, technical activities, and essay positioning.",
     emblem: `${mediaBase}media/universities/georgia-tech.svg`,
-    photoClass: "mentors-page__photo--asim"
+    photo: `${mediaBase}media/mentors/asim-patel.png`,
+    objectPosition: "50% 30%"
   },
   {
     name: "Harrison Kim",
@@ -35,7 +38,8 @@ export const EXAMPLE_MENTORS = [
     major: "Business",
     description: "Business mentor who helps students connect leadership, entrepreneurship, and community impact.",
     emblem: `${mediaBase}media/universities/georgia.svg`,
-    photoClass: "mentors-page__photo--harrison"
+    photo: `${mediaBase}media/mentors/harrison-kim.png`,
+    objectPosition: "50% 32%"
   },
   {
     name: "Jess Lin",
@@ -44,6 +48,7 @@ export const EXAMPLE_MENTORS = [
     major: "English",
     description: "English mentor who specializes in personal statements, voice, and shaping memorable application narratives.",
     emblem: `${mediaBase}media/universities/brown.svg`,
-    photoClass: "mentors-page__photo--jess"
+    photo: `${mediaBase}media/mentors/jess-lin.png`,
+    objectPosition: "50% 35%"
   }
 ];
