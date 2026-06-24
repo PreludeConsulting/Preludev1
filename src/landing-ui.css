@@ -831,6 +831,20 @@
   justify-content: center;
 }
 
+.pm-match-result__actions .pm-match-result__decline {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: hsl(var(--muted-foreground));
+}
+
+.pm-match-result__actions .pm-match-result__decline:hover,
+.pm-match-result__actions .pm-match-result__decline:focus-visible {
+  border-color: hsl(var(--foreground) / 0.1);
+  background: hsl(var(--foreground) / 0.04);
+  color: hsl(var(--foreground));
+}
+
 /* Parent invite on light onboarding cards */
 .pm-onboarding-page .dash-parent-invite-card {
   display: flex;
