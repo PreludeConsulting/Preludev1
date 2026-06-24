@@ -10,6 +10,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { LanguageProvider, useLanguage } from "../context/LanguageContext.jsx";
 import { EXAMPLE_MENTORS } from "../data/mentors.js";
 import { appPath } from "../lib/appPaths.js";
+import { dashboardPathForRole, messagesPathForRole } from "../lib/onboardingRoutes.js";
 
 function MentorEmblem({ mentor }) {
   if (mentor.fallbackEmblem) {
@@ -31,8 +32,9 @@ function MentorEmblem({ mentor }) {
 }
 
 function MentorsPageContent() {
-  const { requestPersonalizedAi } = useAuth();
+  const { requestPersonalizedAi, user } = useAuth();
   const { t } = useLanguage();
+  const findMorePath = user ? (user.role === "parent" ? dashboardPathForRole(user.role) : messagesPathForRole(user.role)) : "/login";
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -101,6 +103,17 @@ function MentorsPageContent() {
                   </div>
                 </article>
               ))}
+              <article className="mentors-page__card mentors-page__find-card">
+                <div className="mentors-page__find-card-inner">
+                  <Sparkles className="h-7 w-7" aria-hidden="true" />
+                  <h3>Find more mentors</h3>
+                  <p>Browse more Prelude mentors and start the right conversation for your goals.</p>
+                  <Link to={findMorePath} className="mentors-page__find-action">
+                    Find more mentors
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
             </div>
           </section>
         </main>
