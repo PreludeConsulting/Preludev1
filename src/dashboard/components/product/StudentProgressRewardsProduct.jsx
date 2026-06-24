@@ -23,6 +23,7 @@ import { EARN_CATEGORY_ORDER, GRID_REWARD_IDS, MILESTONE_CATEGORY_LABELS, STATUS
 import { useProgressRewards } from "../../context/ProgressRewardsContext.jsx";
 import PreludePiggyBank, { CoinBalance, CoinIcon } from "./rewards/PreludePiggyBank.jsx";
 import RewardsSidebar from "./rewards/RewardsSidebar.jsx";
+import PreludeConstellation from "./PreludeConstellation.jsx";
 
 const TABS = [
   { id: "redeem", label: "Redeem", icon: Gift },
@@ -62,7 +63,16 @@ function ProgressBar({ pct, className = "", animate = true }) {
 }
 
 function RewardsHero() {
-  const { coins, studentFirstName, currentTier, featuredReward, nextTier } = useProgressRewards();
+  const {
+    coins,
+    studentFirstName,
+    currentTier,
+    featuredReward,
+    nextTier,
+    completedCount,
+    milestones,
+    celebration
+  } = useProgressRewards();
   const heroPct = featuredReward?.progressPct ?? 0;
   const coinsToGoal = featuredReward?.coinsAway ?? 0;
   const tierLabel = nextTier?.name ?? "Scholar Saver";
@@ -70,7 +80,14 @@ function RewardsHero() {
   return (
     <header className="dash-rewards-hero">
       <div className="dash-rewards-hero__pig">
-        <PreludePiggyBank size="xxl" withCoins withSparkles animate />
+        <PreludeConstellation
+          variant="rewards"
+          value={completedCount}
+          total={milestones.length}
+          active={Boolean(celebration)}
+          label={`${completedCount} of ${milestones.length} reward milestones completed`}
+        />
+        <PreludePiggyBank size="sm" animate={false} className="dash-rewards-hero__mascot" />
       </div>
       <div className="dash-rewards-hero__center">
         <p className="dash-rewards-hero__status-label">{studentFirstName}&apos;s Piggy Bank</p>
