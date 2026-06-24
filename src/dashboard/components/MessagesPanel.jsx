@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Calendar, MessageCircle, Paperclip, Send, Smile, Video } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import AnimatedIcon from "../../components/interaction/AnimatedIcon.jsx";
+import { useInteractionFeedback } from "../../components/interaction/InteractionFeedback.jsx";
+import { useInterfaceSound } from "../../lib/sound/SoundProvider.jsx";
 import { normalizeMessage, createOutgoingMessage, advanceMessageStatus } from "../lib/messageUtils.js";
+import { cn } from "../../lib/utils.js";
 import MessageReceipt from "./MessageReceipt.jsx";
 import { Avatar, EmptyState, IconButton, PrimaryButton, SearchInput } from "./ui/index.jsx";
 
@@ -70,11 +74,16 @@ export default function MessagesPanel({
   onSendMessage
 }) {
   const { user } = useAuth();
+  const { showToast } = useInteractionFeedback();
+  const { play, SOUND_EVENTS } = useInterfaceSound();
   const [q, setQ] = useState("");
   const [activeId, setActiveId] = useState(conversations[0]?.id);
   const [threads, setThreads] = useState(() => conversations.map(normalizeConversation));
   const [mobileShowChat, setMobileShowChat] = useState(false);
   const [draft, setDraft] = useState("");
+  const [sendAnimating, setSendAnimating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [freshMessageIds, setFreshMessageIds] = useState(() => new Set());
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -124,22 +133,37 @@ export default function MessagesPanel({
   }
 
   async function persistOutgoingMessage(conversationId, messageId, text) {
+    setSending(true);
     try {
       await onSendMessage?.(text, conversationId);
       updateMessageInThread(conversationId, messageId, (message) =>
         advanceMessageStatus(message, "sent")
       );
+      setFreshMessageIds((prev) => new Set(prev).add(messageId));
+      window.setTimeout(() => {
+        setFreshMessageIds((prev) => {
+          const next = new Set(prev);
+          next.delete(messageId);
+          return next;
+        });
+      }, 600);
+      play(SOUND_EVENTS.MESSAGE_SENT);
+      showToast("Message sent");
     } catch {
       updateMessageInThread(conversationId, messageId, (message) => ({
         ...message,
         status: "failed"
       }));
+    } finally {
+      setSending(false);
+      setSendAnimating(false);
     }
   }
 
   function sendMessage() {
     const text = draft.trim();
-    if (!text || !active) return;
+    if (!text || !active || sending) return;
+    setSendAnimating(true);
     const msg = createOutgoingMessage(active.id, text);
     setThreads((prev) =>
       prev.map((c) =>
@@ -227,7 +251,13 @@ export default function MessagesPanel({
                     {g.side === "them" ? <Avatar name={active.participant.name} size="sm" /> : null}
                     <div className="dash-chat-group__bubbles">
                       {g.items.map((msg) => (
-                        <div key={msg.id} className={`dash-chat-bubble dash-chat-bubble--${g.side}`}>
+                        <div
+                          key={msg.id}
+                          className={cn(
+                            `dash-chat-bubble dash-chat-bubble--${g.side}`,
+                            freshMessageIds.has(msg.id) && "dash-chat-bubble--enter"
+                          )}
+                        >
                           {msg.body || msg.text}
                         </div>
                       ))}
@@ -270,8 +300,10 @@ export default function MessagesPanel({
               <IconButton label="Emoji picker (not available yet)" type="button" disabled title="Emoji picker is not available yet">
                 <Smile className="h-4 w-4" />
               </IconButton>
-              <PrimaryButton type="submit" className="dash-btn--icon" aria-label="Send">
-                <Send className="h-4 w-4" />
+              <PrimaryButton type="submit" className={cn("dash-btn--icon", sendAnimating && "dash-chat-send--active")} aria-label="Send" loading={sending} disabled={sending || !draft.trim()}>
+                <AnimatedIcon variant="send" active={sendAnimating}>
+                  <Send className="h-4 w-4" />
+                </AnimatedIcon>
               </PrimaryButton>
             </form>
           </>

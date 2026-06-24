@@ -99,7 +99,7 @@ export default function ParentInviteOnboardingPage() {
                     />
                   </div>
                 </label>
-                {error ? <p className="dash-delete-account__error">{error}</p> : null}
+                {error ? <p className="dash-delete-account__error" role="alert">{error}</p> : null}
                 <div className="dash-parent-invite-form__actions">
                   <button type="submit" className="pm-btn pm-btn--primary" disabled={loading}>
                     {loading ? "Sending…" : "Send invitation"}

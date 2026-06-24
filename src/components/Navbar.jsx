@@ -102,6 +102,7 @@ export default function Navbar() {
               onClick={toggleMobile}
               aria-label={mobileOpen ? t("nav.menuCloseLabel") : t("nav.menuOpenLabel")}
               aria-expanded={mobileOpen}
+              aria-controls="nav-mobile-menu"
             >
               {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -111,6 +112,7 @@ export default function Navbar() {
         <AnimatePresence>
           {mobileOpen ? (
             <motion.nav
+              id="nav-mobile-menu"
               className="nav-bar__mobile-menu paper-card sm:hidden"
               aria-label={t("nav.primaryLabel")}
               initial={{ opacity: 0, y: -8 }}
@@ -128,6 +130,26 @@ export default function Navbar() {
                   {t(labelKey)}
                 </AppLink>
               ))}
+              {!isAuthenticated ? (
+                <div className="nav-bar__mobile-auth">
+                  <AppLink href="/login" className="nav-bar__mobile-link ivy-nav-link" onClick={closeMobile}>
+                    {t("nav.signIn")}
+                  </AppLink>
+                  <Button as={Link} to="/register" className="nav-bar__mobile-cta w-full" onClick={closeMobile}>
+                    {t("nav.getStarted")}
+                  </Button>
+                </div>
+              ) : (
+                <div className="nav-bar__mobile-auth">
+                  <AccountMenuButton
+                    onClick={() => {
+                      closeMobile();
+                      openAccount();
+                    }}
+                    className="w-full"
+                  />
+                </div>
+              )}
             </motion.nav>
           ) : null}
         </AnimatePresence>

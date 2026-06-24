@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
-  Check,
   ChevronDown,
-  Heart,
   MapPin,
   Sparkles,
   X
@@ -26,6 +24,7 @@ import {
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { SearchInput } from "../ui/index.jsx";
 import CollegeAIMatchModal from "./CollegeAIMatchModal.jsx";
+import SaveCollegeButton from "./SaveCollegeButton.jsx";
 
 function activeFilterCount(filters) {
   return Object.values(filters).reduce((sum, values) => sum + (values?.length || 0), 0);
@@ -134,29 +133,22 @@ export default function CollegesExplore() {
     setOpenFilter(null);
   }
 
-  useEffect(() => {
-    setSavedColleges(persistedColleges ?? []);
-  }, [persistedColleges]);
-
-  function persistColleges(updater) {
-    setSavedColleges((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      updateSavedColleges(next);
-      return next;
-    });
+  async function toggleSave(collegeId, currentlySaved) {
+    const prev = savedColleges;
+    const next = currentlySaved
+      ? prev.filter((entry) => entry.collegeId !== collegeId)
+      : [...prev, { collegeId }];
+    setSavedColleges(next);
+    try {
+      await updateSavedColleges(next);
+    } catch (error) {
+      setSavedColleges(prev);
+      throw error;
+    }
   }
 
-  function toggleSave(collegeId) {
-    persistColleges((prev) => {
-      if (prev.some((entry) => entry.collegeId === collegeId)) {
-        return prev.filter((entry) => entry.collegeId !== collegeId);
-      }
-      return [...prev, { collegeId }];
-    });
-  }
-
-  function removeFromList(collegeId) {
-    persistColleges((prev) => prev.filter((entry) => entry.collegeId !== collegeId));
+  async function removeFromList(collegeId) {
+    await toggleSave(collegeId, true);
   }
 
   function openFilterGroup(groupId) {
@@ -373,21 +365,11 @@ export default function CollegesExplore() {
                       img.src = fallback;
                     }}
                   />
-                  <button
-                    type="button"
-                    className={cn("dash-college-save-btn", saved && "dash-college-save-btn--saved")}
-                    onClick={() => toggleSave(school.id)}
-                  >
-                    {saved ? (
-                      <>
-                        <Check className="h-4 w-4" /> Saved
-                      </>
-                    ) : (
-                      <>
-                        <Heart className="h-4 w-4" /> Save College
-                      </>
-                    )}
-                  </button>
+                  <SaveCollegeButton
+                    collegeId={school.id}
+                    saved={saved}
+                    onToggle={toggleSave}
+                  />
                 </div>
               </article>
             );
@@ -402,7 +384,7 @@ export default function CollegesExplore() {
       <CollegeAIMatchModal
         open={aiModalOpen}
         onClose={() => setAiModalOpen(false)}
-        onSaveCollege={toggleSave}
+        onSaveCollege={(collegeId) => toggleSave(collegeId, savedSet.has(collegeId))}
         savedIds={savedIds}
       />
     </div>

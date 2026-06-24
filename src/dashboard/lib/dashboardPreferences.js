@@ -17,6 +17,7 @@ export const DEFAULT_PREFERENCES = {
   meetingReminders: true,
   mentorMessages: true,
   notificationSounds: true,
+  interfaceSounds: true,
   weeklyDigest: false,
   productTips: false,
   // Calendar & meetings
@@ -47,6 +48,9 @@ export function savePreferences(prefs) {
     /* storage unavailable — preferences simply won't persist */
   }
   applyPreferences(next);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("prelude-preferences-changed", { detail: next }));
+  }
   return next;
 }
 

@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import { useId } from "react";
 import { createPortal } from "react-dom";
 import { MotionDialog } from "../../../components/motion/MotionPrimitives.jsx";
+import InteractiveButton from "../../../components/interaction/InteractiveButton.jsx";
 import { Link } from "react-router-dom";
 import { cn } from "../../../lib/utils.js";
 
@@ -9,27 +10,27 @@ export function DashBadge({ children, variant = "default", className }) {
   return <span className={cn("dash-badge", `dash-badge--${variant}`, className)}>{children}</span>;
 }
 
-export function PrimaryButton({ children, className, as: Tag = "button", ...props }) {
+export function PrimaryButton({ children, className, as: Tag = "button", loading, ...props }) {
   return (
-    <Tag className={cn("dash-btn dash-btn--primary", className)} {...props}>
+    <InteractiveButton as={Tag} className={cn("dash-btn dash-btn--primary", className)} loading={loading} {...props}>
       {children}
-    </Tag>
+    </InteractiveButton>
   );
 }
 
-export function SecondaryButton({ children, className, as: Tag = "button", ...props }) {
+export function SecondaryButton({ children, className, as: Tag = "button", loading, ...props }) {
   return (
-    <Tag className={cn("dash-btn dash-btn--secondary", className)} {...props}>
+    <InteractiveButton as={Tag} className={cn("dash-btn dash-btn--secondary", className)} loading={loading} {...props}>
       {children}
-    </Tag>
+    </InteractiveButton>
   );
 }
 
-export function IconButton({ children, className, label, ...props }) {
+export function IconButton({ children, className, label, loading, ...props }) {
   return (
-    <button type="button" className={cn("dash-icon-btn", className)} aria-label={label} {...props}>
+    <InteractiveButton type="button" className={cn("dash-icon-btn", className)} aria-label={label} loading={loading} {...props}>
       {children}
-    </button>
+    </InteractiveButton>
   );
 }
 
@@ -77,10 +78,10 @@ export function SectionCard({ title, action, children, className, padding = true
   );
 }
 
-export function ProgressBar({ label, value, max = 100 }) {
+export function ProgressBar({ label, value, max = 100, celebrate = false }) {
   const pct = Math.min(100, Math.round((value / max) * 100));
   return (
-    <div className="dash-progress-row">
+    <div className={cn("dash-progress-row", celebrate && "dash-progress-row--celebrate")}>
       <div className="dash-progress-row__meta">
         <span>{label}</span>
         <span>{pct}%</span>

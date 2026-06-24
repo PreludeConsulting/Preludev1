@@ -4,7 +4,13 @@ import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { PRELUDE_MATCH_QUESTIONS } from "../../data/preludeMatchQuestions.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { roleFromUser } from "../../lib/dashboardRoutes.js";
-import { PARENT_ONBOARDING_PATH, userNeedsMatchOnboarding, userNeedsPlanSelection } from "../../lib/onboardingRoutes.js";
+import {
+  dashboardPathForRole,
+  MATCH_ONBOARDING_PATH,
+  PARENT_ONBOARDING_PATH,
+  userNeedsMatchOnboarding,
+  userNeedsPlanSelection
+} from "../../lib/onboardingRoutes.js";
 import {
   getMentorById,
   pickSuggestedMentor,
@@ -213,7 +219,7 @@ export default function PreludeMatchOnboardingPage() {
           </p>
         </header>
 
-        {error ? <div className="plan-select-page__error">{error}</div> : null}
+        {error ? <div className="plan-select-page__error" role="alert">{error}</div> : null}
 
         <motion.div
           className="pm-card-wrap"

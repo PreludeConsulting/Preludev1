@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Video, X } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 import {
-  DEFAULT_REMINDER_MINUTES,
+  getDefaultReminderMinutes,
   getNotificationPermission,
   REMINDER_OPTIONS
 } from "../lib/calendarReminders.js";
@@ -123,7 +123,7 @@ const DEFAULT_FORM = {
   shared: true,
   zoom: true,
   calendarColor: "",
-  reminderMinutes: DEFAULT_REMINDER_MINUTES
+  reminderMinutes: getDefaultReminderMinutes()
 };
 
 function toDateInputValue(date) {
@@ -162,7 +162,7 @@ function buildFormFromEvent(initialEvent, initialCategory) {
     meetingType: initialEvent.meetingType || "zoom",
     studentId: initialEvent.studentId || initialEvent.raw?.studentId || "",
     calendarColor: initialEvent.pillColor || "",
-    reminderMinutes: initialEvent.reminderMinutes || DEFAULT_REMINDER_MINUTES
+    reminderMinutes: initialEvent.reminderMinutes || getDefaultReminderMinutes()
   };
 }
 
@@ -204,7 +204,7 @@ export function CalendarAddEventModal({
       setForm({
         ...DEFAULT_FORM,
         category: initialCategory,
-        reminderMinutes: DEFAULT_REMINDER_MINUTES,
+        reminderMinutes: getDefaultReminderMinutes(),
         studentId: defaultStudentId || ""
       });
     }
@@ -367,7 +367,7 @@ export function CalendarAddEventModal({
   }
 
   function resetFormState() {
-    setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: DEFAULT_REMINDER_MINUTES });
+    setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: getDefaultReminderMinutes() });
     setErrors({});
     setRequestSent(false);
     setPermissionWarning("");

@@ -1024,12 +1024,10 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       ?? deriveAcademicProgress(resolvedProfile, resolvedApplicationProgress);
 
     const resolvedStudentProfileStats = demo?.studentProfileStats ?? null;
-    const resolvedTasks = demo?.tasks ?? (useSupabase ? supabaseTasks : localTasks) ?? [];
-    const resolvedEssays = demo?.essays?.length
-      ? demo.essays
-      : useSupabase
-        ? supabaseEssays
-        : (localEssays?.length ? localEssays : []);
+    const userTasks = (useSupabase ? supabaseTasks : localTasks) ?? [];
+    const resolvedTasks = userTasks.length ? userTasks : (demo?.tasks ?? []);
+    const userEssays = (useSupabase ? supabaseEssays : localEssays) ?? [];
+    const resolvedEssays = userEssays.length ? userEssays : (demo?.essays ?? []);
     const resolvedSavedColleges = demo?.savedColleges ?? supabaseSavedColleges ?? savedColleges ?? [];
     const resolvedConversations = (() => {
       if (demo?.conversations?.length) return demo.conversations;

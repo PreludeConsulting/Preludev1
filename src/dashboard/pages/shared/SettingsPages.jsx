@@ -145,6 +145,7 @@ export function StudentSettingsPage() {
           <p className="dash-muted">Choose what Prelude notifies you about. Preferences are saved to this browser.</p>
           <SettingToggle id="emailUpdates" label="Product &amp; account emails" description="Important updates about your account." checked={prefs.emailUpdates} onChange={(v) => setPref("emailUpdates", v)} />
           <SettingToggle id="meetingReminders" label="Meeting reminders" description="Reminders before mentor sessions." checked={prefs.meetingReminders} onChange={(v) => setPref("meetingReminders", v)} />
+          <SettingToggle id="interfaceSounds" label="Interface sounds" description="Play subtle sounds for clicks, messages, calendar actions, and rewards." checked={prefs.interfaceSounds} onChange={(v) => setPref("interfaceSounds", v)} />
           <SettingToggle id="notificationSounds" label="In-app notification sounds" description="Play a short sound for live alerts and messages." checked={prefs.notificationSounds} onChange={(v) => setPref("notificationSounds", v)} />
           <SettingToggle id="mentorMessages" label="Mentor message alerts" description="Notify me when my mentor sends a message." checked={prefs.mentorMessages} onChange={(v) => setPref("mentorMessages", v)} />
           <SettingToggle id="weeklyDigest" label="Weekly progress digest" description="A summary of deadlines and progress each week." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />
@@ -485,6 +486,7 @@ export function ParentSettingsPage() {
           <p className="dash-muted">Choose what Prelude notifies you about as a parent.</p>
           <SettingToggle id="emailUpdates" label="Product &amp; account emails" description="Important updates about your account." checked={prefs.emailUpdates} onChange={(v) => setPref("emailUpdates", v)} />
           <SettingToggle id="meetingReminders" label="Children's meeting reminders" description="Reminders before your children's mentor sessions." checked={prefs.meetingReminders} onChange={(v) => setPref("meetingReminders", v)} />
+          <SettingToggle id="interfaceSounds" label="Interface sounds" description="Play subtle sounds for clicks, messages, calendar actions, and rewards." checked={prefs.interfaceSounds} onChange={(v) => setPref("interfaceSounds", v)} />
           <SettingToggle id="notificationSounds" label="In-app notification sounds" description="Play a short sound for live alerts and messages." checked={prefs.notificationSounds} onChange={(v) => setPref("notificationSounds", v)} />
           <SettingToggle id="mentorMessages" label="Mentor message alerts" description="Notify me when a mentor messages me about my children." checked={prefs.mentorMessages} onChange={(v) => setPref("mentorMessages", v)} />
           <SettingToggle id="weeklyDigest" label="Weekly progress digest" description="A summary of deadlines and progress for your linked children." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />

@@ -19,6 +19,8 @@ import {
   parseGradeLevel
 } from "../lib/progressRewards.js";
 import PreludePiggyBank from "../components/product/rewards/PreludePiggyBank.jsx";
+import { useInteractionFeedback } from "../../components/interaction/InteractionFeedback.jsx";
+import { useInterfaceSound } from "../../lib/sound/SoundProvider.jsx";
 
 const ProgressRewardsContext = createContext(null);
 
@@ -31,6 +33,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const [state, setState] = useState(normalizedInitial);
   const [toasts, setToasts] = useState([]);
   const [celebration, setCelebration] = useState(null);
+  const { triggerCoinBurst } = useInteractionFeedback();
+  const { play, SOUND_EVENTS } = useInterfaceSound();
 
   useEffect(() => {
     if (!initial) return;
@@ -124,6 +128,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       });
 
       setCelebration({ milestoneId, title: def.title, coins: def.coins });
+      triggerCoinBurst(def.coins);
+      play(SOUND_EVENTS.REWARD_EARNED);
       setTimeout(() => setCelebration(null), 3200);
 
       const rewardAfter = getNextAffordableReward(state.coins + def.coins, state.redeemed);
@@ -131,7 +137,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         `Milestone complete · +${def.coins} Coins · You're one step closer to a ${rewardAfter.headline}.`
       );
     },
-    [persist, showToast, state.completed, state.redeemed, state.coins]
+    [persist, showToast, state.completed, state.redeemed, state.coins, triggerCoinBurst, play, SOUND_EVENTS]
   );
 
   const redeemReward = useCallback(

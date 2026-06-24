@@ -1297,6 +1297,37 @@
   gap: 0.5rem;
 }
 
+.dash-cal-visual__readonly-note {
+  margin: 0;
+  font-family: var(--dash-font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-cal-visual__day-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+}
+
+.dash-cal-visual__day-view-title {
+  margin: 0;
+  font-family: var(--dash-font-sans);
+  font-size: 1rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.dash-cal-visual__grid--week {
+  grid-template-rows: 1fr;
+}
+
+.dash-cal-visual__day--muted .dash-cal-visual__day-num {
+  opacity: 0.55;
+}
+
 .dash-cal-visual__mobile-day {
   display: flex;
   flex-direction: column;
@@ -2664,36 +2695,192 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.6rem 0.85rem;
-  border: none;
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  padding: 0.6rem 0.95rem;
+  border: 1px solid #d8dce8;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 8px 24px rgb(35 39 48 / 0.15);
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgb(35 39 48 / 0.12);
   font-family: var(--dash-font-sans);
   font-size: 0.875rem;
   font-weight: 700;
-  color: hsl(var(--foreground));
+  color: #232730;
   cursor: pointer;
+  opacity: 1;
+  filter: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  isolation: isolate;
+  transition:
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
-.dash-college-save-btn:hover,
+.dash-college-save-btn:hover:not([aria-disabled="true"]) {
+  background: #ffffff;
+  border-color: #c9ceda;
+  box-shadow: 0 8px 22px rgb(35 39 48 / 0.14);
+}
+
+.dash-college-save-btn:active:not([aria-disabled="true"]) {
+  transform: scale(0.97);
+  background: #f7f8fc;
+  border-color: #b8bfd0;
+  box-shadow: 0 4px 12px rgb(35 39 48 / 0.1);
+}
+
 .dash-college-save-btn:focus-visible {
+  outline: 2px solid #786aff;
+  outline-offset: 3px;
   background: #ffffff;
 }
 
 .dash-college-save-btn--saved {
-  background: #5b4fd6;
-  color: #ffffff;
+  background: #fff8f8;
+  border-color: #f0b4b6;
+  color: #232730;
+}
+
+.dash-college-save-btn--saved:hover:not([aria-disabled="true"]) {
+  background: #fff5f5;
+  border-color: #e5484d;
+}
+
+.dash-college-save-btn--saved:active:not([aria-disabled="true"]) {
+  background: #ffefef;
+  border-color: #e5484d;
+  transform: scale(0.97);
+}
+
+.dash-college-save-btn--pending {
+  cursor: wait;
+  opacity: 1;
+  background: #ffffff;
+  color: #232730;
+}
+
+.dash-college-save-btn[aria-disabled="true"] {
+  opacity: 1;
+  cursor: wait;
+  pointer-events: none;
+}
+
+.dash-college-save-btn__heart {
+  flex-shrink: 0;
+  color: #5c6370;
+  transition: color 0.18s ease, fill 0.18s ease, stroke 0.18s ease;
+}
+
+.dash-college-save-btn__heart--filled {
+  color: #e5484d;
+}
+
+.dash-college-save-btn__heart-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+
+/* Neutral heart → red on hover/focus (unsaved only) */
+.dash-college-save-btn__heart-wrap--hoverable {
+  transition: transform 0.18s ease;
+}
+
+.dash-college-save-btn:not(.dash-college-save-btn--saved):hover .dash-college-save-btn__heart-wrap--hoverable,
+.dash-college-save-btn:not(.dash-college-save-btn--saved):focus-visible .dash-college-save-btn__heart-wrap--hoverable {
+  animation: dash-college-heart-hover 0.28s ease-out;
+}
+
+.dash-college-save-btn:not(.dash-college-save-btn--saved):hover .dash-college-save-btn__heart,
+.dash-college-save-btn:not(.dash-college-save-btn--saved):focus-visible .dash-college-save-btn__heart {
+  color: #e5484d;
+  stroke: #e5484d;
+  fill: rgb(229 72 77 / 0.12);
+}
+
+/* Successful save pulse — one shot via class */
+.dash-college-save-btn__heart-wrap--save-pulse {
+  animation: dash-college-heart-save 0.45s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.dash-college-save-btn__heart-wrap--unsave-pulse {
+  animation: dash-college-heart-unsave 0.28s ease-out;
+}
+
+@keyframes dash-college-heart-hover {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes dash-college-heart-save {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); }
+  65% { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
+@keyframes dash-college-heart-unsave {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+.dash-college-save-btn__label {
+  line-height: 1.2;
+  min-width: 6.75rem;
+  text-align: center;
+  color: inherit;
+}
+
+.dash-college-save-btn__spinner {
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid #232730;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: prelude-spin 0.7s linear infinite;
+  flex-shrink: 0;
+  opacity: 1;
 }
 
 .dash-college-save-btn--sm {
   position: static;
-  padding: 0.45rem 0.7rem;
+  min-height: 2.125rem;
+  padding: 0.45rem 0.75rem;
   font-size: 0.8125rem;
-  box-shadow: none;
-  border: 1px solid rgb(35 39 48 / 0.1);
+  box-shadow: 0 2px 8px rgb(35 39 48 / 0.08);
+}
+
+.dash-college-save-btn--sm .dash-college-save-btn__label {
+  min-width: 4.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-college-save-btn,
+  .dash-college-save-btn:hover:not([aria-disabled="true"]),
+  .dash-college-save-btn:active:not([aria-disabled="true"]) {
+    transform: none;
+    transition: background-color 0.01ms, border-color 0.01ms;
+  }
+
+  .dash-college-save-btn__heart-wrap--hoverable,
+  .dash-college-save-btn__heart-wrap--save-pulse,
+  .dash-college-save-btn__heart-wrap--unsave-pulse,
+  .dash-college-save-btn:not(.dash-college-save-btn--saved):hover .dash-college-save-btn__heart-wrap--hoverable,
+  .dash-college-save-btn:not(.dash-college-save-btn--saved):focus-visible .dash-college-save-btn__heart-wrap--hoverable {
+    animation: none;
+  }
+
+  .dash-college-save-btn__spinner {
+    animation: none;
+    border-right-color: transparent;
+    opacity: 1;
+  }
 }
 
 .dash-colleges-empty-hint {

@@ -1,0 +1,276 @@
+/* ——— Prelude interaction & gamification layer ——— */
+
+.prelude-btn-motion {
+  transform-origin: center;
+  will-change: transform;
+}
+
+.prelude-btn-motion--loading {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.prelude-btn-motion__spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: prelude-spin 0.7s linear infinite;
+}
+
+@keyframes prelude-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Dashboard buttons */
+.dash-btn,
+.dash-icon-btn {
+  transition:
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.16s ease,
+    background-color 0.16s ease,
+    border-color 0.16s ease;
+  transform-origin: center;
+}
+
+.dash-btn:hover:not(:disabled),
+.dash-icon-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.dash-btn:active:not(:disabled),
+.dash-icon-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+}
+
+.dash-btn:focus-visible,
+.dash-icon-btn:focus-visible {
+  outline: 2px solid rgb(120 106 255 / 0.55);
+  outline-offset: 3px;
+}
+
+/* Nav */
+.dash-sidebar__link,
+.dash-product-nav__link,
+.dash-tabs__item,
+.dash-convo-row {
+  transition: transform 0.14s ease, background-color 0.14s ease, color 0.14s ease;
+}
+
+.dash-sidebar__link:active,
+.dash-product-nav__link:active,
+.dash-tabs__item:active,
+.dash-convo-row:active {
+  transform: scale(0.98);
+}
+
+.dash-tabs__item--active {
+  box-shadow: inset 0 -2px 0 var(--dash-primary, #786aff);
+}
+
+/* Clickable cards */
+.dash-stat-card--clickable,
+.dash-section-card--clickable {
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.dash-stat-card--clickable:hover,
+.dash-section-card--clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgb(35 39 48 / 0.08);
+}
+
+.dash-stat-card--clickable:active,
+.dash-section-card--clickable:active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* Progress bar fill animation */
+.dash-progress-row__track > span {
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dash-progress-row--celebrate .dash-progress-row__track > span {
+  box-shadow: 0 0 0 2px rgb(232 185 35 / 0.35);
+}
+
+/* Message bubbles */
+.dash-chat-bubble--enter {
+  animation: prelude-msg-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes prelude-msg-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.dash-chat-send--active {
+  animation: prelude-send-pop 0.32s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes prelude-send-pop {
+  0% { transform: translateX(0); }
+  40% { transform: translateX(4px) scale(0.94); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+/* Calendar event highlight */
+.dash-cal-event--flash {
+  animation: prelude-cal-flash 1.2s ease-out;
+  outline: 2px solid rgb(120 106 255 / 0.65);
+  outline-offset: 2px;
+}
+
+@keyframes prelude-cal-flash {
+  0%, 100% { box-shadow: none; }
+  30% { box-shadow: 0 0 0 6px rgb(120 106 255 / 0.22); }
+}
+
+.dash-cal-event--exit {
+  animation: prelude-cal-exit 0.28s ease-in forwards;
+}
+
+@keyframes prelude-cal-exit {
+  to { opacity: 0; transform: scale(0.94); }
+}
+
+/* Task row complete */
+.dash-task-row--complete {
+  animation: prelude-task-check 0.4s ease-out;
+}
+
+@keyframes prelude-task-check {
+  0% { background: transparent; }
+  40% { background: rgb(20 184 166 / 0.12); }
+  100% { background: transparent; }
+}
+
+.dash-task-row--complete input[type="checkbox"] {
+  animation: prelude-check-pop 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes prelude-check-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* Coin burst */
+.prelude-coin-burst {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.prelude-coin-burst__coin {
+  position: fixed;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #f5d76e, #e8b923 55%, #c9a012);
+  box-shadow: 0 2px 6px rgb(232 185 35 / 0.45);
+  animation: prelude-coin-fly 1.1s cubic-bezier(0.22, 1, 0.36, 1) var(--delay) forwards;
+  opacity: 0;
+}
+
+@keyframes prelude-coin-fly {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(0.5); }
+  12% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.85); }
+}
+
+.prelude-coin-burst__amount,
+.prelude-coin-burst__label {
+  position: fixed;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: #c9a012;
+  text-shadow: 0 2px 8px rgb(232 185 35 / 0.35);
+  animation: prelude-coin-amount 1s ease-out forwards;
+}
+
+@keyframes prelude-coin-amount {
+  0% { opacity: 0; transform: translate(-50%, -20%); }
+  20% { opacity: 1; transform: translate(-50%, -50%); }
+  100% { opacity: 0; transform: translate(-50%, -80%); }
+}
+
+.prelude-coin-burst--static .prelude-coin-burst__label {
+  animation: none;
+  opacity: 1;
+}
+
+/* Feedback toasts */
+.prelude-feedback-toasts {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 9998;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.prelude-feedback-toast {
+  padding: 0.65rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgb(35 39 48 / 0.14);
+  animation: prelude-toast-in 0.24s ease-out;
+}
+
+.prelude-feedback-toast--success {
+  background: #232730;
+  color: #fff;
+  border: 1px solid rgb(120 106 255 / 0.35);
+}
+
+.prelude-feedback-toast--error {
+  background: #fff5f5;
+  color: #b42318;
+  border: 1px solid #fecdca;
+}
+
+@keyframes prelude-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Sound mute chip in settings */
+.prelude-sound-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgb(120 106 255 / 0.1);
+  color: #4a3fc9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-chat-bubble--enter,
+  .dash-cal-event--flash,
+  .dash-cal-event--exit,
+  .dash-task-row--complete,
+  .prelude-coin-burst__coin {
+    animation: none !important;
+  }
+
+  .dash-btn:hover,
+  .dash-icon-btn:hover,
+  .dash-btn:active,
+  .dash-icon-btn:active {
+    transform: none;
+  }
+}

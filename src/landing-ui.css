@@ -753,6 +753,125 @@
   padding-bottom: 5.5rem;
 }
 
+.pm-onboarding-page__inner {
+  max-width: 42rem;
+  margin: 0 auto;
+}
+
+.pm-onboarding-page__back {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.pm-onboarding-page__back:hover,
+.pm-onboarding-page__back:focus-visible {
+  color: hsl(var(--primary));
+}
+
+.pm-onboarding-page__head {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.pm-onboarding-page__title {
+  margin: 0.35rem 0 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: hsl(var(--foreground));
+}
+
+.pm-onboarding-page__sub {
+  margin: 0.65rem auto 0;
+  max-width: 36rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Match result panel (onboarding) */
+.pm-match-result {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.25rem 0;
+}
+
+.pm-match-result__head {
+  text-align: center;
+}
+
+.pm-match-result__disclaimer {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.pm-match-result__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.pm-match-result__actions .dash-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Parent invite on light onboarding cards */
+.pm-onboarding-page .dash-parent-invite-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: center;
+  padding: 1.5rem;
+}
+
+.pm-onboarding-page .dash-parent-invite-card__icon {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.pm-onboarding-page .dash-parent-invite-form__input-wrap {
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  background: #ffffff;
+  color: hsl(var(--foreground));
+}
+
+.pm-onboarding-page .dash-parent-invite-form__input-wrap input {
+  color: hsl(var(--foreground));
+}
+
+.pm-onboarding-page .dash-parent-invite-form__input-wrap input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.pm-onboarding-page .dash-parent-invite-card__success {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.pm-onboarding-page .dash-delete-account__error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: hsl(var(--destructive));
+  text-align: left;
+}
+
 .email-verify-banner {
   position: fixed;
   left: 0;

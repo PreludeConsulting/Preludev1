@@ -26,6 +26,8 @@ import {
   X
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { useInteractionFeedback } from "../../../components/interaction/InteractionFeedback.jsx";
+import { useInterfaceSound } from "../../../lib/sound/SoundProvider.jsx";
 import { cn } from "../../../lib/utils.js";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import AdmissionsCalendarVisual from "../../components/product/AdmissionsCalendarVisual.jsx";
@@ -1171,9 +1173,13 @@ const WORKSPACE_TABS = [
 export function StudentWorkspace() {
   const location = useLocation();
   const { essays, tasks, extracurriculars, deadlines, applicationProgress: progress, addTask, toggleTask, saveEssayDraft } = useDashboardData();
+  const { showToast, triggerCoinBurst } = useInteractionFeedback();
+  const { play, SOUND_EVENTS } = useInterfaceSound();
   const [tab, setTab] = useState(location.state?.workspaceTab || "colleges");
   const [taskFilter, setTaskFilter] = useState("all");
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [completedTaskIds, setCompletedTaskIds] = useState(() => new Set());
+  const [justCompletedId, setJustCompletedId] = useState(null);
   const [essayTitle, setEssayTitle] = useState("");
   const [essayBody, setEssayBody] = useState("");
   const [essaySavedAt, setEssaySavedAt] = useState("");
@@ -1205,6 +1211,21 @@ export function StudentWorkspace() {
   const filteredTasks = tasks.filter(
     (t) => taskFilter === "all" || t.title.toLowerCase().includes(String(taskFilter).toLowerCase())
   );
+
+  function handleToggleTask(taskId, done) {
+    const wasDone = tasks.find((t) => t.id === taskId)?.done;
+    void toggleTask(taskId, done);
+    if (done && !wasDone && !completedTaskIds.has(taskId)) {
+      setCompletedTaskIds((prev) => new Set(prev).add(taskId));
+      setJustCompletedId(taskId);
+      play(SOUND_EVENTS.TASK_COMPLETE);
+      showToast("Task complete!");
+      window.setTimeout(() => setJustCompletedId(null), 700);
+      if (tasks.filter((t) => t.done).length + 1 >= 3) {
+        triggerCoinBurst(5);
+      }
+    }
+  }
 
   function handleAddTask() {
     const title = newTaskTitle.trim() || window.prompt("Task title");
@@ -1238,12 +1259,16 @@ export function StudentWorkspace() {
       {tab === "essays" ? (
         <div className="dash-split">
           <SectionCard title="Essay editor" className="dash-editor-card dash-panel">
+            <label htmlFor="workspace-essay-title" className="sr-only">Essay title</label>
             <input
+              id="workspace-essay-title"
               className="dash-editor__title"
               value={essayTitle}
               onChange={(e) => setEssayTitle(e.target.value)}
             />
+            <label htmlFor="workspace-essay-body" className="sr-only">Essay body</label>
             <textarea
+              id="workspace-essay-body"
               className="dash-editor__body"
               rows={12}
               value={essayBody}
@@ -1254,7 +1279,7 @@ export function StudentWorkspace() {
               {essaySavedAt ? ` · Autosaved ${essaySavedAt}` : ""}
             </p>
             <div className="dash-editor__actions">
-              <SecondaryButton type="button">Version history</SecondaryButton>
+              <p className="dash-muted dash-workspace-soon">Version history is coming soon.</p>
               <Link to={`${STUDENT_DASHBOARD_BASE}/ai`} className="dash-btn dash-btn--primary">
                 <Sparkles className="h-4 w-4" /> Ask Prelude AI for Feedback
               </Link>
@@ -1297,11 +1322,11 @@ export function StudentWorkspace() {
           <SectionCard>
             <ul className="dash-task-list">
               {filteredTasks.map((t) => (
-                <li key={t.id} className="dash-task-row">
+                <li key={t.id} className={cn("dash-task-row", justCompletedId === t.id && "dash-task-row--complete")}>
                   <input
                     type="checkbox"
                     checked={Boolean(t.done)}
-                    onChange={(e) => toggleTask(t.id, e.target.checked)}
+                    onChange={(e) => handleToggleTask(t.id, e.target.checked)}
                   />
                   <span>{t.title}</span>
                   <DashBadge variant={t.priority === "high" ? "urgent" : "soft"}>{t.priority}</DashBadge>
@@ -1323,8 +1348,10 @@ export function StudentWorkspace() {
 
       {tab === "scholarships" ? (
         <SectionCard title="Scholarships">
-          <p className="dash-muted">Track scholarship deadlines and essay requirements — synced with your calendar when saved.</p>
-          <PrimaryButton type="button" className="dash-btn--sm">Add scholarship</PrimaryButton>
+          <p className="dash-muted">
+            Scholarship tracking is coming soon. Add scholarship deadlines from your{" "}
+            <Link to={`${STUDENT_DASHBOARD_BASE}/overview`}>calendar</Link> for now.
+          </p>
         </SectionCard>
       ) : null}
     </div>

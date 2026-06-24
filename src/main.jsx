@@ -14,6 +14,8 @@ import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { LegalModalProvider } from "./context/LegalModalContext.jsx";
 import LegalModal from "./components/LegalModal.jsx";
 import { PreludeMotionProvider } from "./context/MotionContext.jsx";
+import { SoundProvider } from "./lib/sound/SoundProvider.jsx";
+import { InteractionFeedbackProvider } from "./components/interaction/InteractionFeedback.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import {
   ForgotPasswordPage,
@@ -31,6 +33,7 @@ import "./dashboard/unread-badge.css";
 import "./dashboard/progress-rewards.css";
 import "./dashboard/prelude-chat.css";
 import "./landing-ui.css";
+import "./components/interaction/interaction.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -38,6 +41,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <ScrollToTop />
       <LanguageProvider>
         <PreludeMotionProvider>
+        <SoundProvider>
+        <InteractionFeedbackProvider>
         <AuthProvider>
           <LegalModalProvider>
           <Routes>
@@ -72,6 +77,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <LegalModal />
           </LegalModalProvider>
         </AuthProvider>
+        </InteractionFeedbackProvider>
+        </SoundProvider>
         </PreludeMotionProvider>
       </LanguageProvider>
     </BrowserRouter>

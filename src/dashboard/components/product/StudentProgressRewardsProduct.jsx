@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import AnimatedIcon from "../../../components/interaction/AnimatedIcon.jsx";
+import InteractiveButton from "../../../components/interaction/InteractiveButton.jsx";
 import {
   CheckCircle2,
   Circle,
@@ -314,6 +316,7 @@ function MyRewardsTab() {
 function EarnMilestoneRow({ milestone, onComplete }) {
   const { status, title, coins, progress } = milestone;
   const statusLabel = status === "completed" ? "Completed" : status === "in_progress" ? "In Progress" : "Locked";
+  const [completing, setCompleting] = useState(false);
 
   return (
     <div className={`dash-rewards-earn-row dash-rewards-earn-row--${status}`}>
@@ -326,9 +329,20 @@ function EarnMilestoneRow({ milestone, onComplete }) {
         {status === "in_progress" ? <ProgressBar pct={progress} className="dash-rewards-progress--compact" /> : null}
       </div>
       {status === "in_progress" ? (
-        <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" onClick={() => onComplete(milestone.id)}>
-          Complete
-        </button>
+        <InteractiveButton
+          type="button"
+          className="dash-btn dash-btn--secondary dash-btn--sm"
+          loading={completing}
+          onClick={() => {
+            setCompleting(true);
+            onComplete(milestone.id);
+            window.setTimeout(() => setCompleting(false), 500);
+          }}
+        >
+          <AnimatedIcon variant="trophy" active={completing}>
+            Complete
+          </AnimatedIcon>
+        </InteractiveButton>
       ) : null}
     </div>
   );

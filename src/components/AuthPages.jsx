@@ -124,7 +124,7 @@ export function LoginPage() {
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
-        <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Logging in…" : "Log in"}</button>
+        <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} aria-busy={loading || undefined} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Logging in…" : "Log in"}</button>
         <p className="text-sm text-muted-foreground">
           <AppLink className="underline" href="/forgot-password">Forgot password?</AppLink> ·{" "}
           <AppLink className="underline" href="/register">Create an account</AppLink>
@@ -175,12 +175,13 @@ export function RegisterPage() {
   const [searchParams] = useSearchParams();
   const parentInviteToken = searchParams.get("parentInvite") || "";
   const invitedAsParent = searchParams.get("role") === "parent" || Boolean(parentInviteToken);
+  const prefilledEmail = searchParams.get("email")?.trim() || "";
   const { signUp } = useAuth();
   const supabaseAuth = isSupabaseConfigured();
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
-    email: "",
+    email: prefilledEmail,
     password: "",
     role: invitedAsParent ? "PARENT" : "STUDENT",
     parentEmail: "",
@@ -297,7 +298,7 @@ export function RegisterPage() {
         ) : null}
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
-        <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>
+        <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} aria-busy={loading || undefined} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>
         <p className="text-sm text-muted-foreground">
           Already have an account? <AppLink className="underline" href="/login">Log in</AppLink>
         </p>

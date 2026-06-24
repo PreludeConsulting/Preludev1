@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { levelFromXp } from "../data/gamification.js";
+import { useInterfaceSound } from "../../lib/sound/SoundProvider.jsx";
 
 const GamificationContext = createContext(null);
 
@@ -10,6 +11,7 @@ function storageKey(email) {
 export function GamificationProvider({ children, user, initial }) {
   const [state, setState] = useState(initial || { xp: 0, streak: 0, missions: [], badges: [], activityFeed: [] });
   const [toasts, setToasts] = useState([]);
+  const { play, SOUND_EVENTS } = useInterfaceSound();
 
   useEffect(() => {
     if (!initial) return;
@@ -76,10 +78,11 @@ export function GamificationProvider({ children, user, initial }) {
         };
         persist(next);
         showToast(`Mission complete · +${xpGain} XP`);
+        play(SOUND_EVENTS.TASK_COMPLETE);
         return next;
       });
     },
-    [persist, showToast]
+    [persist, showToast, play, SOUND_EVENTS]
   );
 
   const level = useMemo(() => levelFromXp(state.xp), [state.xp]);

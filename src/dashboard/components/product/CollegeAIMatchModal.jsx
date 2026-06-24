@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ExternalLink, Search, Sparkles } from "lucide-react";
+import { ExternalLink, Search, Sparkles } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
 import { getCollegeRecommendations } from "../../../lib/auth.js";
 import {
@@ -9,6 +9,7 @@ import {
   matchCollegesWithProfile
 } from "../../data/collegeExploreData.js";
 import { Modal, PrimaryButton, SecondaryButton } from "../ui/index.jsx";
+import SaveCollegeButton from "./SaveCollegeButton.jsx";
 
 const STEPS = [
   {
@@ -436,19 +437,14 @@ export default function CollegeAIMatchModal({ open, onClose, onSaveCollege, save
                         {school.location} · {formatAcceptance(school.acceptanceRate)} · {formatTuition(school.tuition)}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      className={cn("dash-college-save-btn dash-college-save-btn--sm", saved && "dash-college-save-btn--saved")}
-                      onClick={() => onSaveCollege(school.id)}
-                    >
-                      {saved ? (
-                        <>
-                          <Check className="h-3.5 w-3.5" /> Saved
-                        </>
-                      ) : (
-                        "Save"
-                      )}
-                    </button>
+                    <SaveCollegeButton
+                      collegeId={school.id}
+                      saved={saved}
+                      onToggle={async (id, currentlySaved) => onSaveCollege(id, currentlySaved)}
+                      size="sm"
+                      label="Save"
+                      savedLabel="Saved"
+                    />
                   </li>
                 );
               })}

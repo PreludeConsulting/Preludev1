@@ -5,17 +5,29 @@
  * so alerts fire when the app is closed or in the background.
  */
 
+import { loadPreferences } from "./dashboardPreferences.js";
 import { appPath } from "../../lib/appPaths.js";
 import { STUDENT_DASHBOARD_BASE } from "../../lib/dashboardRoutes.js";
 
 export const REMINDER_OPTIONS = [
   { value: "none", label: "None" },
   { value: "5", label: "5 minutes before" },
+  { value: "10", label: "10 minutes before" },
   { value: "15", label: "15 minutes before" },
-  { value: "30", label: "30 minutes before" }
+  { value: "30", label: "30 minutes before" },
+  { value: "60", label: "1 hour before" },
+  { value: "1440", label: "1 day before" }
 ];
 
+/** @deprecated Use getDefaultReminderMinutes() for user-aware defaults. */
 export const DEFAULT_REMINDER_MINUTES = "15";
+
+export function getDefaultReminderMinutes() {
+  const prefs = loadPreferences();
+  const value = String(prefs.reminderLeadTime || DEFAULT_REMINDER_MINUTES);
+  const allowed = REMINDER_OPTIONS.map((opt) => opt.value);
+  return allowed.includes(value) ? value : DEFAULT_REMINDER_MINUTES;
+}
 
 const STORAGE_KEY = "prelude-calendar-reminders";
 const scheduledTimeouts = new Map();

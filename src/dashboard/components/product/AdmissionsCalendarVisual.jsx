@@ -7,10 +7,30 @@ import { formatCalendarPillTitle } from "../../lib/calendarDisplay.js";
 import { isMentorUpcomingMeeting } from "../../lib/mentorCalendarFilters.js";
 import { CalendarAddEventModal, CalendarEventDetailModal } from "../CalendarEventModals.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
+import { useInteractionFeedback } from "../../../components/interaction/InteractionFeedback.jsx";
+import { useInterfaceSound } from "../../../lib/sound/SoundProvider.jsx";
+import AnimatedIcon from "../../../components/interaction/AnimatedIcon.jsx";
+import { loadPreferences } from "../../lib/dashboardPreferences.js";
 import { EVENT_CATEGORY_LABELS } from "../../data/placeholders.js";
 import { EmptyState, Modal, SecondaryButton } from "../ui/index.jsx";
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function getWeekdayLabels(weekStart = "sunday") {
+  if (weekStart === "monday") {
+    return [...WEEKDAY_LABELS.slice(1), WEEKDAY_LABELS[0]];
+  }
+  return WEEKDAY_LABELS;
+}
+
+function getWeekStartDate(date, weekStart = "sunday") {
+  const start = new Date(date);
+  const day = start.getDay();
+  const offset = weekStart === "monday" ? (day + 6) % 7 : day;
+  start.setDate(start.getDate() - offset);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
 
 const EXCLUDED_EVENT_PATTERN = /office\s*hours|update\s+(extracurricular\s+)?activities(\s+list)?/i;
 
@@ -55,9 +75,12 @@ const TYPE_TO_CATEGORY = {
   research: "personal_task"
 };
 
-function buildMonthGrid(year, month) {
+function buildMonthGrid(year, month, weekStart = "sunday") {
   const first = new Date(year, month, 1);
-  const startPad = first.getDay();
+  let startPad = first.getDay();
+  if (weekStart === "monday") {
+    startPad = (startPad + 6) % 7;
+  }
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells = [];
 
@@ -473,16 +496,23 @@ function UpcomingEventsPanel({
   );
 }
 
-function EventPill({ event, onSelect, mentorView = false, mentorStudentView = false }) {
+function EventPill({ event, onSelect, mentorView = false, mentorStudentView = false, flashId = null, exitId = null }) {
   const category = resolveCategory(event);
   const tone = resolvePillTone(event, { mentorStudentView });
   const label = EVENT_CATEGORY_LABELS[category] || category;
   const displayTitle = formatCalendarPillTitle(event, { mentorView });
+  const flash = flashId && event.id === flashId;
+  const exiting = exitId && event.id === exitId;
 
   return (
     <button
       type="button"
-      className={cn("dash-cal-visual__pill", `dash-cal-visual__pill--${tone}`)}
+      className={cn(
+        "dash-cal-visual__pill dash-cal-event",
+        `dash-cal-visual__pill--${tone}`,
+        flash && "dash-cal-event--flash",
+        exiting && "dash-cal-event--exit"
+      )}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(event);
@@ -512,7 +542,7 @@ function useClickOutside(ref, handler, active) {
   }, [ref, handler, active]);
 }
 
-function CalendarCreateMenu({ onSelect }) {
+function CalendarCreateMenu({ onSelect, plusActive = false }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
@@ -527,7 +557,9 @@ function CalendarCreateMenu({ onSelect }) {
         aria-haspopup="menu"
         onClick={() => setOpen((prev) => !prev)}
       >
-        <Plus className="h-4 w-4" aria-hidden="true" />
+        <AnimatedIcon variant="plus" active={plusActive}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+        </AnimatedIcon>
         <span>Create</span>
         <ChevronDown className={cn("dash-cal-visual__create-chevron", open && "dash-cal-visual__create-chevron--open")} aria-hidden="true" />
       </button>
@@ -623,7 +655,15 @@ export default function AdmissionsCalendarVisual({
   const [createDraft, setCreateDraft] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [colorCycleIndex, setColorCycleIndex] = useState(0);
+  const [plusActive, setPlusActive] = useState(false);
+  const [exitEventId, setExitEventId] = useState(null);
+  const [calendarPrefs, setCalendarPrefs] = useState(() => {
+    const prefs = loadPreferences();
+    return { weekStart: prefs.weekStart, defaultCalendarView: prefs.defaultCalendarView };
+  });
   const maxVisible = useMaxVisibleEvents();
+  const { showToast, flashEvent, highlightEventId } = useInteractionFeedback();
+  const { play, SOUND_EVENTS } = useInterfaceSound();
   const isMentorCalendar = role === "mentor" || mentorView;
   const {
     scheduleEventReminder,
@@ -643,7 +683,20 @@ export default function AdmissionsCalendarVisual({
   const calendarStudents = isGuardianStudentView && activeStudent ? [activeStudent] : students;
   const lockedStudentId = isGuardianStudentView ? activeStudent?.id : defaultStudentId;
 
+  useEffect(() => {
+    function syncCalendarPrefs() {
+      const prefs = loadPreferences();
+      setCalendarPrefs({
+        weekStart: prefs.weekStart,
+        defaultCalendarView: prefs.defaultCalendarView
+      });
+    }
+    window.addEventListener("prelude-preferences-changed", syncCalendarPrefs);
+    return () => window.removeEventListener("prelude-preferences-changed", syncCalendarPrefs);
+  }, []);
+
   const handleSaveLocalEvent = useCallback(async (saved) => {
+    if (isGuardianStudentView) return;
     const linkedStudent = calendarStudents.find((student) => student.id === saved.studentId);
     const enriched = (isMentorCalendar || isMentorStudentView) && saved.formVariant === "event"
       ? {
@@ -683,6 +736,9 @@ export default function AdmissionsCalendarVisual({
         formVariant: nextItem.formVariant
       });
       setEditDraft(null);
+      showToast("Event updated");
+      play(SOUND_EVENTS.SAVE_SUCCESS);
+      flashEvent(`ev-${editDraft.id}`);
       return;
     }
 
@@ -707,7 +763,12 @@ export default function AdmissionsCalendarVisual({
     });
     if (!enriched.pillColor) setColorCycleIndex((index) => index + 1);
     setCreateDraft(null);
-  }, [colorCycleIndex, createDraft, editDraft, isMentorCalendar, isMentorStudentView, lockedStudentId, activeStudent, persistCalendarItem, scheduleEventReminder, calendarStudents]);
+    showToast("Event added to calendar");
+    play(SOUND_EVENTS.CALENDAR_SUCCESS);
+    flashEvent(`ev-${stored.id}`);
+    setPlusActive(true);
+    window.setTimeout(() => setPlusActive(false), 450);
+  }, [colorCycleIndex, createDraft, editDraft, isGuardianStudentView, isMentorCalendar, isMentorStudentView, lockedStudentId, activeStudent, persistCalendarItem, scheduleEventReminder, calendarStudents, showToast, play, SOUND_EVENTS, flashEvent]);
 
   const handleEditEvent = useCallback((modalEvent) => {
     const raw = findLocalEventRaw(modalEvent, userCalendarEvents);
@@ -721,9 +782,14 @@ export default function AdmissionsCalendarVisual({
     if (!raw) return;
     const label = raw.formVariant === "task" ? "task" : "event";
     if (!window.confirm(`Delete this ${label} from the calendar? This cannot be undone.`)) return;
+    const flashKey = `ev-${raw.id}`;
+    setExitEventId(flashKey);
     cancelEventReminder(raw.id);
-    await deleteCalendarItem(raw.id);
-    setDetailEvent(null);
+    window.setTimeout(async () => {
+      await deleteCalendarItem(raw.id);
+      setExitEventId(null);
+      setDetailEvent(null);
+    }, 260);
   }, [cancelEventReminder, deleteCalendarItem, userCalendarEvents]);
 
   const allEvents = useMemo(() => {
@@ -760,10 +826,41 @@ export default function AdmissionsCalendarVisual({
     month: "long",
     year: "numeric"
   });
-  const cells = buildMonthGrid(viewYear, viewMonth);
+  const weekdayLabels = useMemo(
+    () => getWeekdayLabels(calendarPrefs.weekStart),
+    [calendarPrefs.weekStart]
+  );
+  const cells = useMemo(
+    () => buildMonthGrid(viewYear, viewMonth, calendarPrefs.weekStart),
+    [viewYear, viewMonth, calendarPrefs.weekStart]
+  );
   const today = now.getDate();
   const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
+  const preferredView = calendarPrefs.defaultCalendarView;
   const isMobileAgenda = maxVisible === 0;
+  const showAgendaLayout = isMobileAgenda || preferredView === "agenda";
+  const showWeekLayout = !isMobileAgenda && preferredView === "week";
+  const showDayLayout = !isMobileAgenda && preferredView === "day";
+  const focusDay = selectedDay ?? (isCurrentMonth ? today : 1);
+  const weekDays = useMemo(() => {
+    if (!showWeekLayout) return [];
+    const anchor = new Date(viewYear, viewMonth, focusDay);
+    const weekStartDate = getWeekStartDate(anchor, calendarPrefs.weekStart);
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(weekStartDate);
+      date.setDate(weekStartDate.getDate() + index);
+      return {
+        year: date.getFullYear(),
+        month: date.getMonth(),
+        day: date.getDate(),
+        inCurrentMonth: date.getMonth() === viewMonth && date.getFullYear() === viewYear
+      };
+    });
+  }, [showWeekLayout, viewYear, viewMonth, focusDay, calendarPrefs.weekStart]);
+  const dayLayoutEvents = useMemo(() => {
+    if (!showDayLayout) return [];
+    return eventsForDay(allEvents, viewYear, viewMonth, focusDay);
+  }, [showDayLayout, allEvents, viewYear, viewMonth, focusDay]);
 
   const shiftMonth = useCallback((delta) => {
     const next = new Date(viewYear, viewMonth + delta, 1);
@@ -789,7 +886,7 @@ export default function AdmissionsCalendarVisual({
   }, [agendaDate, allEvents]);
 
   const mobileAgendaDays = useMemo(() => {
-    if (!isMobileAgenda) return [];
+    if (!showAgendaLayout) return [];
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
     const rows = [];
 
@@ -798,7 +895,7 @@ export default function AdmissionsCalendarVisual({
       if (dayEvents.length) rows.push({ day, events: dayEvents });
     }
     return rows;
-  }, [isMobileAgenda, allEvents, viewYear, viewMonth]);
+  }, [showAgendaLayout, allEvents, viewYear, viewMonth]);
 
   const showUpcomingInline = showUpcomingEvents && upcomingEventsPlacement === "inline";
   const showUpcomingExternal = showUpcomingEvents && upcomingEventsPlacement === "external" && upcomingEventsMountEl;
@@ -824,7 +921,11 @@ export default function AdmissionsCalendarVisual({
             </p>
             <h2 className="dash-cal-visual__title">{monthLabel}</h2>
             <div className="dash-cal-visual__create-row">
-              <CalendarCreateMenu onSelect={setCreateDraft} />
+              {isGuardianStudentView ? (
+                <p className="dash-cal-visual__readonly-note">Read-only student calendar</p>
+              ) : (
+                <CalendarCreateMenu onSelect={setCreateDraft} plusActive={plusActive} />
+              )}
             </div>
           </div>
           <div className="dash-cal-visual__controls">
@@ -855,7 +956,7 @@ export default function AdmissionsCalendarVisual({
           </div>
         </header>
 
-        {isMobileAgenda ? (
+        {showAgendaLayout ? (
           <div className="dash-cal-visual__mobile-agenda">
             {mobileAgendaDays.length ? (
               mobileAgendaDays.map(({ day, events: dayEvents }) => (
@@ -873,7 +974,7 @@ export default function AdmissionsCalendarVisual({
                   </button>
                   <div className="dash-cal-visual__mobile-day-events">
                     {dayEvents.map((event) => (
-                      <EventPill key={event.id} event={event} onSelect={setDetailEvent} mentorView={isMentorCalendar} mentorStudentView={isMentorStudentView} />
+                      <EventPill key={event.id} event={event} onSelect={setDetailEvent} mentorView={isMentorCalendar} mentorStudentView={isMentorStudentView} flashId={highlightEventId} exitId={exitEventId} />
                     ))}
                   </div>
                 </div>
@@ -886,10 +987,92 @@ export default function AdmissionsCalendarVisual({
               />
             )}
           </div>
+        ) : showDayLayout ? (
+          <div className="dash-cal-visual__day-view">
+            <h3 className="dash-cal-visual__day-view-title">
+              {new Date(viewYear, viewMonth, focusDay).toLocaleDateString(undefined, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric"
+              })}
+            </h3>
+            {dayLayoutEvents.length ? (
+              <div className="dash-cal-visual__mobile-day-events">
+                {dayLayoutEvents.map((event) => (
+                  <EventPill key={event.id} event={event} onSelect={setDetailEvent} mentorView={isMentorCalendar} mentorStudentView={isMentorStudentView} flashId={highlightEventId} exitId={exitEventId} />
+                ))}
+              </div>
+            ) : (
+              <p className="dash-cal-visual__agenda-empty">No events scheduled for this day.</p>
+            )}
+          </div>
+        ) : showWeekLayout ? (
+          <>
+            <div className="dash-cal-visual__weekdays">
+              {weekdayLabels.map((day) => (
+                <span key={day}>{day}</span>
+              ))}
+            </div>
+            <div className="dash-cal-visual__grid dash-cal-visual__grid--week">
+              {weekDays.map(({ year, month, day, inCurrentMonth }) => {
+                const dayEvents = eventsForDay(allEvents, year, month, day);
+                const visible = dayEvents.slice(0, maxVisible);
+                const overflow = dayEvents.length - visible.length;
+                const isToday =
+                  year === now.getFullYear() && month === now.getMonth() && day === today;
+                const isSelected = year === viewYear && month === viewMonth && day === focusDay;
+
+                return (
+                  <div
+                    key={`${year}-${month}-${day}`}
+                    className={cn(
+                      "dash-cal-visual__day",
+                      !inCurrentMonth && "dash-cal-visual__day--muted",
+                      isToday && "dash-cal-visual__day--today",
+                      isSelected && "dash-cal-visual__day--selected"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="dash-cal-visual__day-trigger"
+                      onClick={() => {
+                        setViewYear(year);
+                        setViewMonth(month);
+                        setSelectedDay(day);
+                        openDayAgenda(year, month, day);
+                      }}
+                      aria-label={`${new Date(year, month, day).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${dayEvents.length ? `, ${dayEvents.length} events` : ""}`}
+                    >
+                      <span className="dash-cal-visual__day-num">{day}</span>
+                    </button>
+                    <div className="dash-cal-visual__day-events">
+                      {visible.map((event) => (
+                        <EventPill key={event.id} event={event} onSelect={setDetailEvent} mentorView={isMentorCalendar} mentorStudentView={isMentorStudentView} flashId={highlightEventId} exitId={exitEventId} />
+                      ))}
+                      {overflow > 0 ? (
+                        <button
+                          type="button"
+                          className="dash-cal-visual__more"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDayAgenda(year, month, day);
+                          }}
+                          aria-label={`Show ${overflow} more events`}
+                        >
+                          +{overflow} more
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         ) : (
           <>
             <div className="dash-cal-visual__weekdays">
-              {WEEKDAYS.map((day) => (
+              {weekdayLabels.map((day) => (
                 <span key={day}>{day}</span>
               ))}
             </div>
@@ -927,7 +1110,7 @@ export default function AdmissionsCalendarVisual({
                     </button>
                     <div className="dash-cal-visual__day-events">
                       {visible.map((event) => (
-                        <EventPill key={event.id} event={event} onSelect={setDetailEvent} mentorView={isMentorCalendar} mentorStudentView={isMentorStudentView} />
+                        <EventPill key={event.id} event={event} onSelect={setDetailEvent} mentorView={isMentorCalendar} mentorStudentView={isMentorStudentView} flashId={highlightEventId} exitId={exitEventId} />
                       ))}
                       {overflow > 0 ? (
                         <button
