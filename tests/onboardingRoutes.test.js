@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   MENTOR_ONBOARDING_PATH,
   PLAN_SELECTION_PATH,
+  ROLE_SELECTION_PATH,
   canAccessDashboard,
   postAuthDestination,
+  userNeedsRoleSelection,
   userNeedsMentorOnboarding,
   userNeedsPlanSelection
 } from "../src/lib/onboardingRoutes.js";
@@ -23,6 +25,19 @@ function supabaseUser(overrides = {}) {
 }
 
 describe("onboarding route decisions", () => {
+  it("sends first-login Supabase users to role selection before plan or dashboard", () => {
+    const user = supabaseUser({
+      role: "student",
+      roleSelectionComplete: false,
+      planSelected: false
+    });
+
+    expect(userNeedsRoleSelection(user)).toBe(true);
+    expect(userNeedsPlanSelection(user)).toBe(false);
+    expect(postAuthDestination(user)).toBe(ROLE_SELECTION_PATH);
+    expect(canAccessDashboard(user)).toBe(false);
+  });
+
   it("sends new Supabase mentors to mentor onboarding without requiring a student plan", () => {
     const user = supabaseUser({
       role: "mentor",

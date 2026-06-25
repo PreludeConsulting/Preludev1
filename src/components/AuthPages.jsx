@@ -181,7 +181,7 @@ export function RegisterPage() {
     lastName: "",
     email: prefilledEmail,
     password: "",
-    role: invitedAsParent ? "parent" : "student",
+    role: invitedAsParent ? "parent" : "STUDENT",
     parentEmail: "",
     termsAccepted: false,
     parentInviteToken
@@ -222,7 +222,12 @@ export function RegisterPage() {
     setError("");
     setMessage("");
     try {
-      const payload = { ...form, parentInviteToken: parentInviteToken || form.parentInviteToken, captchaToken };
+      const payload = {
+        ...form,
+        role: supabaseAuth && !invitedAsParent ? "" : form.role,
+        parentInviteToken: parentInviteToken || form.parentInviteToken,
+        captchaToken
+      };
       const result = await signUp(payload);
       if (result?.needsEmailConfirmation) {
         setMessage("Account created! Check your email and confirm your address, then log in.");
@@ -247,7 +252,9 @@ export function RegisterPage() {
       subtitle={
         invitedAsParent
           ? "You've been invited to follow your student's college journey on Prelude."
-          : "Choose the account type that matches how you'll use Prelude."
+          : supabaseAuth
+            ? "Create your account, then choose Student, Mentor, or Parent the first time you sign in."
+            : "Choose the account type that matches how you'll use Prelude."
       }
     >
       <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} loading={loading} />
@@ -270,7 +277,7 @@ export function RegisterPage() {
         )}
         {invitedAsParent ? (
           <Alert>You&apos;ll continue as a parent account for this invitation.</Alert>
-        ) : (
+        ) : !supabaseAuth ? (
           <label className="auth-field block text-sm font-medium text-foreground">
             I am a
             <select
@@ -279,11 +286,12 @@ export function RegisterPage() {
               onChange={update("role")}
               required
             >
-              <option value="student">Student</option>
-              <option value="mentor">Mentor</option>
-              {supabaseAuth ? <option value="parent">Parent</option> : null}
+              <option value="STUDENT">Student</option>
+              <option value="MENTOR">Mentor</option>
             </select>
           </label>
+        ) : (
+          <Alert>You&apos;ll choose Student, Mentor, or Parent after confirming your email and signing in.</Alert>
         )}
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
