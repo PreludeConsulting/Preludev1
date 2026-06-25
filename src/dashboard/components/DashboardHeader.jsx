@@ -1,5 +1,5 @@
 import { Bell, ChevronDown, Menu, Search } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { cn } from "../../lib/utils.js";
@@ -14,11 +14,31 @@ export default function DashboardHeader({ routeMeta, basePath, onMenuToggle }) {
   const { user, signOut, openAccount } = useAuth();
   const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
   const segment = segmentFromPath(location.pathname);
   const studentDetailMatch = location.pathname.match(/\/students\/([^/]+)/);
   const metaKey = studentDetailMatch ? studentDetailMatch[1] : segment;
   const meta = routeMeta[metaKey] || routeMeta.overview || { title: "Dashboard", subtitle: "" };
-  const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
+  const roleLabel = user?.role ? `${user.role[0].toUpperCase()}${user.role.slice(1)}` : "Account";
+
+  useEffect(() => {
+    if (!profileOpen) return undefined;
+
+    function handleDocumentClick(event) {
+      if (!profileRef.current?.contains(event.target)) setProfileOpen(false);
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setProfileOpen(false);
+    }
+
+    document.addEventListener("click", handleDocumentClick, true);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick, true);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profileOpen]);
 
   return (
     <header className={cn("dash-topbar", "dash-topbar--slim", !meta.subtitle && "dash-topbar--compact")}>
@@ -38,30 +58,52 @@ export default function DashboardHeader({ routeMeta, basePath, onMenuToggle }) {
           <Bell className="h-5 w-5" />
         </IconButton>
 
-        <div className="dash-topbar__user">
-          <Avatar name={user?.name} />
-          <div className="dash-topbar__user-text">
-            <p className="dash-topbar__name">{user?.name}</p>
-            <DashBadge variant="soft">{roleLabel}</DashBadge>
-          </div>
-          <div className="dash-topbar__profile-wrap">
-            <button type="button" className="dash-topbar__profile" onClick={() => setProfileOpen((o) => !o)} aria-expanded={profileOpen}>
+        <div className="dash-topbar__profile-wrap" ref={profileRef}>
+          <button
+            type="button"
+            className="dash-topbar__user"
+            onClick={() => setProfileOpen((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={profileOpen}
+          >
+            <Avatar name={user?.name} />
+            <span className="dash-topbar__user-text">
+              <span className="dash-topbar__name">{user?.name || "Account"}</span>
+              <DashBadge variant="soft">{roleLabel}</DashBadge>
+            </span>
+            <span className="dash-topbar__profile" aria-hidden="true">
               <ChevronDown className="h-4 w-4" />
-            </button>
-            {profileOpen ? (
-              <div className="dash-dropdown">
-                <NavLink to={`${basePath}/settings`} className="dash-dropdown__item" onClick={() => setProfileOpen(false)}>
-                  Profile & settings
-                </NavLink>
-                <button type="button" className="dash-dropdown__item" onClick={openAccount}>
-                  Account & plan
-                </button>
-                <button type="button" className="dash-dropdown__item" onClick={() => signOut()}>
-                  Sign out
-                </button>
-              </div>
-            ) : null}
-          </div>
+            </span>
+          </button>
+          {profileOpen ? (
+            <div className="dash-dropdown" role="menu">
+              <NavLink to={`${basePath}/settings`} className="dash-dropdown__item" role="menuitem" onClick={() => setProfileOpen(false)}>
+                Profile & settings
+              </NavLink>
+              <button
+                type="button"
+                className="dash-dropdown__item"
+                role="menuitem"
+                onClick={() => {
+                  setProfileOpen(false);
+                  openAccount();
+                }}
+              >
+                Account & plan
+              </button>
+              <button
+                type="button"
+                className="dash-dropdown__item"
+                role="menuitem"
+                onClick={() => {
+                  setProfileOpen(false);
+                  signOut();
+                }}
+              >
+                Sign out
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </header>
