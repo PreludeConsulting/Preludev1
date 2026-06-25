@@ -119,8 +119,16 @@ export const PLANS = {
 
 export const PRICING_PLAN_ORDER = ["basic", "plus", "pro"];
 
+export function normalizePlanId(planId) {
+  const raw = String(planId || "").trim().toLowerCase();
+  if (!raw) return null;
+  if (PLANS[raw]) return raw;
+  const match = PLAN_IDS.find((id) => PLANS[id].name.toLowerCase() === raw);
+  return match || null;
+}
+
 export function getPlan(planId) {
-  return PLANS[planId] ?? PLANS.basic;
+  return PLANS[normalizePlanId(planId)] ?? PLANS.basic;
 }
 
 export function getPricingPlans() {

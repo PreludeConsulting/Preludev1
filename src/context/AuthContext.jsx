@@ -11,7 +11,7 @@ import {
 import { readPendingOAuthAccountDeletion } from "../lib/accountDeletionFlow.js";
 import { resumePendingOAuthAccountDeletion } from "../lib/pendingAccountDeletion.js";
 import { getDevBypassUser, getDemoSessionUser, isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
-import { getPlan } from "../lib/plans.js";
+import { getPlan, normalizePlanId } from "../lib/plans.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 
 const AuthContext = createContext(null);
@@ -371,7 +371,8 @@ export function AuthProvider({ children }) {
     setPersonalizedAiRequest((n) => n + 1);
   }, []);
 
-  const planDetails = useMemo(() => (user?.plan ? getPlan(user.plan) : null), [user]);
+  const planId = useMemo(() => normalizePlanId(user?.plan), [user?.plan]);
+  const planDetails = useMemo(() => (planId ? getPlan(planId) : null), [planId]);
 
   const saveUserPlan = useCallback(async (planId) => {
     if (!user) throw new Error("You must be signed in to choose a plan.");

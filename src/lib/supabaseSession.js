@@ -3,7 +3,7 @@
  * and the dashboard (matches attachFrontendFields from auth.js).
  */
 
-import { getPlan } from "./plans.js";
+import { getPlan, normalizePlanId } from "./plans.js";
 import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
 import { mapOnboardingToUserFields } from "./preludeMatchService.js";
 import { readParentInviteStepComplete } from "./parentLinks.js";
@@ -17,7 +17,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
   const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
   const role = (profile?.role || meta.role || "student").toLowerCase();
   const cachedPlan = typeof window !== "undefined" ? window.localStorage.getItem(`prelude_plan_${u.id}`) : null;
-  const planId = profile?.plan_id || cachedPlan || null;
+  const planId = normalizePlanId(profile?.plan_id || cachedPlan);
   const plan = planId ? getPlan(planId) : null;
   const onboardingFields = mapOnboardingToUserFields(onboarding, hasAssignedMentor);
   const parentInviteStepComplete =
