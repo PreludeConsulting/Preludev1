@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { X } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
-import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
 import { signInWithGoogle } from "../lib/googleAuth.js";
+import { postAuthDestination } from "../lib/onboardingRoutes.js";
 import { cn } from "../lib/utils.js";
 import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 
@@ -39,7 +39,7 @@ export default function SignInModal({ onSuccess }) {
       }
       onSuccess?.(user);
       if (user) {
-        navigate(dashboardHomeForRole(user.role), { replace: true });
+        navigate(postAuthDestination(user), { replace: true });
       }
     } catch {
       /* authError set in context */

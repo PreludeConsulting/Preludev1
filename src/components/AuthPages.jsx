@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
-import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
-import { isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { postAuthDestination } from "../lib/onboardingRoutes.js";
 import { signInWithGoogle } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
@@ -53,7 +51,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (!ready) return;
-    if (isDevAuthBypassEnabled() && user) {
+    if (user) {
       navigate(postAuthDestination(user), { replace: true });
     }
   }, [ready, user, navigate]);
