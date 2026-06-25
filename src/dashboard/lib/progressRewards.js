@@ -60,7 +60,7 @@ export const REWARD_TIERS = {
 export const rewardTierConfig = REWARD_TIERS;
 
 export const STATUS_MILESTONES = [
-  { id: "starter", name: "Starter", coinsRequired: 0, multiplier: 1.0, icon: "seedling" },
+  { id: "starter", name: "Starter", coinsRequired: 0, multiplier: 1.0, icon: "trophy" },
   { id: "goal-setter", name: "Goal Setter", coinsRequired: 300, multiplier: 1.1, icon: "target" },
   { id: "momentum-builder", name: "Momentum Builder", coinsRequired: 700, multiplier: 1.2, icon: "zap" },
   { id: "application-pro", name: "Application Pro", coinsRequired: 1200, multiplier: 1.3, icon: "file" },

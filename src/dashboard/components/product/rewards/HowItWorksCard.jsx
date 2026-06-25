@@ -1,7 +1,5 @@
 import { Gift, Sparkles, Target } from "lucide-react";
-import { Link } from "react-router-dom";
 import { HOW_IT_WORKS_STEPS } from "../../../lib/progressRewards.js";
-import { STUDENT_DASHBOARD_BASE } from "../../../../lib/dashboardRoutes.js";
 import { CoinIcon } from "./PreludePiggyBank.jsx";
 
 const STEP_ICONS = {
@@ -28,9 +26,6 @@ export default function HowItWorksCard() {
           );
         })}
       </ol>
-      <Link to={`${STUDENT_DASHBOARD_BASE}/progress-rewards#earn`} className="dash-rewards-how__link">
-        Learn more about rewards →
-      </Link>
     </section>
   );
 }

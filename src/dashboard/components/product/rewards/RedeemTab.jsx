@@ -25,7 +25,7 @@ export function RedeemTab() {
   return (
     <div className="dash-rewards-tab-panel">
       <h2 className="dash-rewards-section-label dash-rewards-section-label--featured">Featured Reward</h2>
-      <FeaturedRewardCard reward={featuredReward} coins={coins} onRedeem={openRedeemModal} />
+      <FeaturedRewardCard reward={featuredReward} onRedeem={openRedeemModal} />
 
       <RewardShop
         shopRewards={stableShopRewards}

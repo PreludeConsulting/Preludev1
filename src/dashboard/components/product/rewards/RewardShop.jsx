@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { Clock } from "lucide-react";
 import { formatShopCountdown } from "../../../lib/rewardShop.js";
-import RewardCard from "./RewardCard.jsx";
+import ShopOfferCard from "./ShopOfferCard.jsx";
 
 export default function RewardShop({ shopRewards, refreshAt, onRedeem, coins }) {
   const [countdown, setCountdown] = useState(() => formatShopCountdown(refreshAt - Date.now()));
@@ -22,12 +23,15 @@ export default function RewardShop({ shopRewards, refreshAt, onRedeem, coins }) 
           <h3 id="reward-shop-title" className="dash-rewards-section-label">Reward Shop</h3>
           <p className="dash-reward-shop__subtitle">New rewards refresh every 24 hours.</p>
         </div>
-        <p className="dash-reward-shop__countdown" aria-live="polite">{countdown}</p>
+        <p className="dash-reward-shop__countdown" aria-live="polite">
+          <Clock className="dash-reward-shop__countdown-icon" aria-hidden="true" />
+          {countdown}
+        </p>
       </div>
 
       <div className="dash-reward-shop__grid">
         {shopRewards.map((reward) => (
-          <RewardCard key={reward.id} reward={reward} coins={coins} onRedeem={onRedeem} />
+          <ShopOfferCard key={reward.id} reward={reward} onRedeem={onRedeem} />
         ))}
       </div>
     </section>

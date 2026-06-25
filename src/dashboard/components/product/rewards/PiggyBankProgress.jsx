@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { usePreludeMotion } from "../../../../context/MotionContext.jsx";
 import { CoinBalance } from "./PreludePiggyBank.jsx";
-import { PIGGY_IMAGE } from "./PreludePiggyBank.jsx";
+
+const mediaBase = import.meta.env.BASE_URL;
+export const GLASS_PIGGY_IMAGE = `${mediaBase}media/glass-piggy-bank-coins.png`;
 
 const DROP_COINS = [0, 1, 2, 3];
 
@@ -15,7 +17,6 @@ export default function PiggyBankProgress({
   showBalance = false,
   goalLabel = ""
 }) {
-  const fillPct = goalCoins > 0 ? Math.min((coins / goalCoins) * 100, 100) : 0;
   const prevCoins = useRef(coins);
   const [isDropping, setIsDropping] = useState(false);
   const [isGlowing, setIsGlowing] = useState(false);
@@ -43,32 +44,25 @@ export default function PiggyBankProgress({
 
   return (
     <div
-      className={`dash-piggy-progress dash-piggy-progress--${size}${isDropping ? " dash-piggy-progress--dropping" : ""}${isGlowing ? " dash-piggy-progress--glow" : ""}${className ? ` ${className}` : ""}`.trim()}
+      className={`dash-piggy-progress dash-piggy-progress--${size}${isDropping ? " dash-piggy-progress--dropping" : ""}${isGlowing ? " dash-piggy-progress--glow" : ""}${piggyAnimate ? " dash-piggy-progress--bounce" : ""}${className ? ` ${className}` : ""}`.trim()}
     >
       <div className="dash-piggy-progress__frame">
         <div className="dash-piggy-progress__body">
-          <div className="dash-piggy-progress__belly" aria-hidden="true">
-            <div
-              className="dash-piggy-progress__fill"
-              style={{ height: `${fillPct}%` }}
-            />
-            <div className="dash-piggy-progress__fill-shine" />
+          <div className="dash-piggy-progress__pig">
+            <img src={GLASS_PIGGY_IMAGE} alt="" className="dash-piggy-progress__pig-img" />
+
+            {isDropping ? (
+              <div className="dash-piggy-progress__slot" aria-hidden="true">
+                {DROP_COINS.map((i) => (
+                  <span
+                    key={i}
+                    className="dash-piggy-progress__falling-coin"
+                    style={{ animationDelay: `${i * 0.12}s`, left: `${46 + i * 5}%` }}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
-
-          {isDropping ? (
-            <div className="dash-piggy-progress__slot" aria-hidden="true">
-              {DROP_COINS.map((i) => (
-                <span
-                  key={i}
-                  className="dash-piggy-progress__falling-coin"
-                  style={{ animationDelay: `${i * 0.12}s`, left: `${38 + i * 8}%` }}
-                />
-              ))}
-            </div>
-          ) : null}
-
-          <img src={PIGGY_IMAGE} alt="" className="dash-piggy-progress__pig-img" />
-          <span className="dash-piggy-progress__outline" aria-hidden="true" />
         </div>
 
         {showBalance ? (
@@ -78,9 +72,7 @@ export default function PiggyBankProgress({
           </div>
         ) : null}
 
-        {goalLabel ? (
-          <p className="dash-piggy-progress__goal">{goalLabel}</p>
-        ) : null}
+        {goalLabel ? <p className="dash-piggy-progress__goal">{goalLabel}</p> : null}
       </div>
     </div>
   );

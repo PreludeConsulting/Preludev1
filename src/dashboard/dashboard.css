@@ -1,7 +1,7 @@
 /* Prelude dashboard — matches landing lavender / navy / purple system */
 
 .dash-shell {
-  --dash-font-sans: "Barlow", sans-serif;
+  --dash-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   position: relative;
   display: grid;
   min-height: 100vh;
