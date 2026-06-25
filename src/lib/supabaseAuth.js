@@ -70,12 +70,12 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: safeRole,
-          role_selection_complete: true
-        },
+    options: {
+      data: {
+        full_name: fullName,
+        role: safeRole,
+        role_selection_complete: true
+      },
       emailRedirectTo: fullUrl("/login"),
       ...captchaOptions(captchaToken)
     }

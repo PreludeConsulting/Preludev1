@@ -12,6 +12,8 @@ import AppLink from "./AppLink.jsx";
 import TurnstileWidget from "./auth/TurnstileWidget.jsx";
 import { isTurnstileRequired } from "../lib/turnstile.js";
 
+const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
+
 const SIGNUP_ROLE_OPTIONS = [
   {
     value: "STUDENT",
@@ -248,7 +250,7 @@ export function RegisterPage() {
     lastName: "",
     email: prefilledEmail,
     password: "",
-    role: invitedAsParent ? "parent" : "STUDENT",
+    role: invitedAsParent ? "PARENT" : "",
     parentEmail: "",
     termsAccepted: false,
     parentInviteToken
@@ -290,7 +292,7 @@ export function RegisterPage() {
     setMessage("");
     try {
       const role = invitedAsParent ? "PARENT" : form.role;
-      if (!role) {
+      if (!SIGNUP_ROLE_VALUES.has(role)) {
         throw new Error("Please choose Student, Mentor, or Parent before creating your account.");
       }
       const passwordError = validateSignupPassword(form.password, supabaseAuth);

@@ -25,7 +25,7 @@ function supabaseUser(overrides = {}) {
 }
 
 describe("onboarding route decisions", () => {
-  it("sends first-login Supabase users to role selection before plan or dashboard", () => {
+  it("sends legacy Supabase users without a saved role to role selection", () => {
     const user = supabaseUser({
       role: "student",
       roleSelectionComplete: false,
