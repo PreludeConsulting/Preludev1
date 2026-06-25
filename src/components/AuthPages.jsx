@@ -181,7 +181,7 @@ export function RegisterPage() {
     lastName: "",
     email: prefilledEmail,
     password: "",
-    role: invitedAsParent ? "PARENT" : "",
+    role: invitedAsParent ? "parent" : "student",
     parentEmail: "",
     termsAccepted: false,
     parentInviteToken
@@ -247,7 +247,7 @@ export function RegisterPage() {
       subtitle={
         invitedAsParent
           ? "You've been invited to follow your student's college journey on Prelude."
-          : "Create your account, then choose Student, Mentor, or Parent on your first login."
+          : "Choose the account type that matches how you'll use Prelude."
       }
     >
       <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} loading={loading} />
@@ -270,7 +270,21 @@ export function RegisterPage() {
         )}
         {invitedAsParent ? (
           <Alert>You&apos;ll continue as a parent account for this invitation.</Alert>
-        ) : null}
+        ) : (
+          <label className="auth-field block text-sm font-medium text-foreground">
+            I am a
+            <select
+              className="auth-input mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-primary"
+              value={form.role}
+              onChange={update("role")}
+              required
+            >
+              <option value="student">Student</option>
+              <option value="mentor">Mentor</option>
+              {supabaseAuth ? <option value="parent">Parent</option> : null}
+            </select>
+          </label>
+        )}
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
         <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} aria-busy={loading || undefined} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>

@@ -132,6 +132,7 @@ export default function SignInModal({ onSuccess }) {
                   <select value={form.role} onChange={update("role")}>
                     <option value="student">Student</option>
                     <option value="mentor">Mentor</option>
+                    <option value="parent">Parent</option>
                   </select>
                 </label>
                 <label className="prelude-field">
