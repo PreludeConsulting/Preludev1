@@ -105,22 +105,30 @@ export async function signIn(email, password) {
   return attachFrontendFields(user);
 }
 
+const SIGNUP_ROLES = new Set(["STUDENT", "MENTOR", "PARENT"]);
+
 export async function signUp(payload) {
   const [firstName, ...rest] = (payload.name || "").trim().split(/\s+/);
+  const role = (payload.role || "").toUpperCase();
+  if (!SIGNUP_ROLES.has(role)) {
+    throw new Error("Please choose Student, Mentor, or Parent before creating your account.");
+  }
   const body = {
     firstName: payload.firstName || firstName || "Student",
     lastName: payload.lastName || rest.join(" ") || "User",
     email: payload.email,
     password: payload.password,
-    role: (payload.role || "student").toUpperCase(),
+    role,
     termsAccepted: Boolean(payload.termsAccepted ?? true)
   };
   const result = await api("/api/auth/register", { method: "POST", body: JSON.stringify(body) });
+  const user = attachFrontendFields(result.user);
   return {
-    ...attachFrontendFields(result.user),
+    ...user,
     message: result.message,
     verificationEmailSent: Boolean(result.verificationEmailSent),
-    emailVerified: Boolean(result.user?.emailVerified)
+    emailVerified: Boolean(result.user?.emailVerified),
+    needsEmailConfirmation: Boolean(result.verificationEmailSent && !result.user?.emailVerified)
   };
 }
 

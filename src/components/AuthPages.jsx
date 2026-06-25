@@ -1,3 +1,4 @@
+import { GraduationCap, HeartHandshake, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
@@ -10,6 +11,27 @@ import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 import AppLink from "./AppLink.jsx";
 import TurnstileWidget from "./auth/TurnstileWidget.jsx";
 import { isTurnstileRequired } from "../lib/turnstile.js";
+
+const SIGNUP_ROLE_OPTIONS = [
+  {
+    value: "STUDENT",
+    title: "Student",
+    description: "Build your college roadmap, match with mentors, and manage applications.",
+    Icon: GraduationCap
+  },
+  {
+    value: "MENTOR",
+    title: "Mentor",
+    description: "Support students with your college experience and mentor profile.",
+    Icon: HeartHandshake
+  },
+  {
+    value: "PARENT",
+    title: "Parent",
+    description: "Follow your student's progress, calendar, and mentor updates.",
+    Icon: Users
+  }
+];
 
 function Shell({ title, subtitle, children }) {
   return (
@@ -36,6 +58,51 @@ function Field({ label, ...props }) {
 function Alert({ children, tone = "info" }) {
   const cls = tone === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-primary/30 bg-primary/10 text-foreground";
   return <div className={`auth-alert rounded-2xl border px-4 py-3 text-sm ${cls}`} role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"}>{children}</div>;
+}
+
+function RoleSelector({ value, onChange, disabled = false, lockedRole = "" }) {
+  return (
+    <fieldset className="space-y-3">
+      <legend className="text-sm font-medium text-foreground">I am signing up as a…</legend>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {SIGNUP_ROLE_OPTIONS.map(({ value: roleValue, title, description, Icon }) => {
+          const selected = value === roleValue;
+          const locked = Boolean(lockedRole && lockedRole !== roleValue);
+          return (
+            <button
+              key={roleValue}
+              type="button"
+              disabled={disabled || locked}
+              aria-pressed={selected}
+              onClick={() => onChange(roleValue)}
+              className={`rounded-2xl border px-4 py-4 text-left transition ${
+                selected
+                  ? "border-primary bg-primary/10 shadow-sm"
+                  : "border-border bg-background/70 hover:border-primary/30"
+              } disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              <Icon className="mb-3 h-5 w-5 text-primary" aria-hidden="true" />
+              <p className="font-semibold text-foreground">{title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+function validateSignupPassword(password, supabaseAuth) {
+  if (supabaseAuth) {
+    if (password.length < 6) return "Password must be at least 6 characters.";
+    return "";
+  }
+  if (password.length < 12) return "Password must be at least 12 characters.";
+  if (!/[a-z]/.test(password)) return "Password must contain a lowercase letter.";
+  if (!/[A-Z]/.test(password)) return "Password must contain an uppercase letter.";
+  if (!/[0-9]/.test(password)) return "Password must contain a number.";
+  if (!/[^A-Za-z0-9]/.test(password)) return "Password must contain a symbol.";
+  return "";
 }
 
 export function LoginPage() {
@@ -222,15 +289,26 @@ export function RegisterPage() {
     setError("");
     setMessage("");
     try {
+      const role = invitedAsParent ? "PARENT" : form.role;
+      if (!role) {
+        throw new Error("Please choose Student, Mentor, or Parent before creating your account.");
+      }
+      const passwordError = validateSignupPassword(form.password, supabaseAuth);
+      if (passwordError) throw new Error(passwordError);
+      if (!form.termsAccepted) throw new Error("You must accept Prelude's terms to create an account.");
+
       const payload = {
         ...form,
-        role: supabaseAuth && !invitedAsParent ? "" : form.role,
+        role,
         parentInviteToken: parentInviteToken || form.parentInviteToken,
         captchaToken
       };
       const result = await signUp(payload);
-      if (result?.needsEmailConfirmation) {
-        setMessage("Account created! Check your email and confirm your address, then log in.");
+      if (result?.needsEmailConfirmation || result?.verificationEmailSent) {
+        setMessage(
+          result?.message ||
+            "Account created! We sent a verification link to your email. Please verify your address, then log in."
+        );
         return;
       }
       if (result?.id) {
@@ -252,16 +330,21 @@ export function RegisterPage() {
       subtitle={
         invitedAsParent
           ? "You've been invited to follow your student's college journey on Prelude."
-          : supabaseAuth
-            ? "Create your account, then choose Student, Mentor, or Parent the first time you sign in."
-            : "Choose the account type that matches how you'll use Prelude."
+          : "Choose your role, create your account, and verify your email to get started."
       }
     >
       <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} loading={loading} />
       <p className="dash-auth-divider">or sign up with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
-        {message ? <Alert>{message}</Alert> : null}
+        {message ? (
+          <>
+            <Alert>{message}</Alert>
+            <p className="text-sm text-muted-foreground">
+              <AppLink className="underline" href="/login">Go to login</AppLink>
+            </p>
+          </>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="First name" value={form.firstName} onChange={update("firstName")} required />
           <Field label="Last name" value={form.lastName} onChange={update("lastName")} required />
@@ -277,25 +360,27 @@ export function RegisterPage() {
         )}
         {invitedAsParent ? (
           <Alert>You&apos;ll continue as a parent account for this invitation.</Alert>
-        ) : !supabaseAuth ? (
-          <label className="auth-field block text-sm font-medium text-foreground">
-            I am a
-            <select
-              className="auth-input mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-primary"
-              value={form.role}
-              onChange={update("role")}
-              required
-            >
-              <option value="STUDENT">Student</option>
-              <option value="MENTOR">Mentor</option>
-            </select>
-          </label>
         ) : (
-          <Alert>You&apos;ll choose Student, Mentor, or Parent after confirming your email and signing in.</Alert>
+          <RoleSelector
+            value={form.role}
+            onChange={(role) => setForm((current) => ({ ...current, role }))}
+            disabled={loading}
+            lockedRole={invitedAsParent ? "PARENT" : ""}
+          />
         )}
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
-        <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} aria-busy={loading || undefined} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Creating…" : "Create account"}</button>
+        <button
+          disabled={
+            loading ||
+            (supabaseAuth && isTurnstileRequired() && !captchaToken) ||
+            (!invitedAsParent && !form.role)
+          }
+          aria-busy={loading || undefined}
+          className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          {loading ? "Creating…" : "Create account"}
+        </button>
         <p className="text-sm text-muted-foreground">
           Already have an account? <AppLink className="underline" href="/login">Log in</AppLink>
         </p>
@@ -323,7 +408,7 @@ export function ForgotPasswordPage() {
         const { resetPassword: supabaseReset } = await import("../lib/supabaseAuth.js");
         const { error: resetError } = await supabaseReset(email.trim(), captchaToken);
         if (resetError) throw new Error(resetError);
-        setMessage("If an account exists for that email, a password reset link is on its way.");
+        setMessage("If an account exists for this email, a reset link has been sent.");
         return;
       }
       const result = await requestPasswordReset(email);
@@ -355,10 +440,9 @@ export function ForgotPasswordPage() {
 }
 
 export function ResetPasswordPage() {
-  const navigate = useNavigate();
   const supabaseAuth = isSupabaseConfigured();
   const params = new URLSearchParams(window.location.search);
-  const [token, setToken] = useState(params.get("token") || "");
+  const [token] = useState(params.get("token") || "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -393,19 +477,26 @@ export function ResetPasswordPage() {
     setMessage("");
     setLoading(true);
     try {
+      if (password !== confirmPassword) {
+        throw new Error("Passwords don't match.");
+      }
+      const passwordError = validateSignupPassword(password, supabaseAuth);
+      if (passwordError) throw new Error(passwordError);
+
       if (supabaseAuth) {
-        if (password !== confirmPassword) {
-          throw new Error("Passwords don't match.");
-        }
         const { updatePassword: supabaseUpdate } = await import("../lib/supabaseAuth.js");
         const { error: updateError } = await supabaseUpdate(password);
         if (updateError) throw new Error(updateError);
-        setMessage("Your password has been updated. Redirecting to login…");
-        setTimeout(() => navigate("/login", { replace: true }), 1800);
+        setMessage("Your password has been updated. You can log in with your new password.");
         return;
       }
+
+      if (!token) {
+        throw new Error("This reset link is missing a token. Request a new link from the forgot password page.");
+      }
+
       const result = await resetPassword(token, password);
-      setMessage(result.message);
+      setMessage(result.message || "Password reset. Please log in again.");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -425,11 +516,16 @@ export function ResetPasswordPage() {
               <AppLink className="underline" href="/forgot-password">forgot password</AppLink> page.
             </Alert>
           ) : null}
-          <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
-          <Field label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} />
-          <button disabled={loading} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
+          <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
+          <Field label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
+          <button disabled={loading || (!hasRecoverySession && !message)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
             {loading ? "Updating…" : "Update password"}
           </button>
+          {message ? (
+            <p className="text-sm text-muted-foreground">
+              <AppLink className="underline" href="/login">Back to login</AppLink>
+            </p>
+          ) : null}
         </form>
       </Shell>
     );
@@ -437,12 +533,36 @@ export function ResetPasswordPage() {
 
   return (
     <Shell title="Choose a new password" subtitle="All existing sessions are revoked after reset.">
+      {!token && !message ? (
+        <Alert tone="error">
+          This reset link is invalid or incomplete. Request a new link on the{" "}
+          <AppLink className="underline" href="/forgot-password">forgot password</AppLink> page.
+        </Alert>
+      ) : null}
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
         {message ? <Alert>{message}</Alert> : null}
-        <Field label="Reset token" value={token} onChange={(e) => setToken(e.target.value)} required />
-        <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={12} />
-        <button disabled={loading} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">Reset password</button>
+        {token ? (
+          <>
+            <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={12} autoComplete="new-password" />
+            <Field label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={12} autoComplete="new-password" />
+            <p className="text-xs text-muted-foreground">
+              At least 12 characters with uppercase, lowercase, a number, and a symbol.
+            </p>
+            <button disabled={loading || Boolean(message)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
+              {loading ? "Updating…" : "Reset password"}
+            </button>
+          </>
+        ) : null}
+        {message ? (
+          <p className="text-sm text-muted-foreground">
+            <AppLink className="underline" href="/login">Back to login</AppLink>
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            <AppLink className="underline" href="/login">Back to login</AppLink>
+          </p>
+        )}
       </form>
     </Shell>
   );
@@ -451,17 +571,30 @@ export function ResetPasswordPage() {
 export function VerifyEmailPage() {
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
-  const [state, setState] = useState({ loading: true, message: "", error: "" });
+  const supabaseAuth = isSupabaseConfigured();
+  const [state, setState] = useState({ loading: true, message: "", error: "", alreadyVerified: false });
 
   useEffect(() => {
+    if (supabaseAuth) {
+      setState({
+        loading: false,
+        message:
+          "Check your inbox for the confirmation link from Prelude. After confirming, return here to log in.",
+        error: "",
+        alreadyVerified: false
+      });
+      return undefined;
+    }
+
     const token = new URLSearchParams(window.location.search).get("token") || "";
     if (!token) {
       setState({
         loading: false,
         message: "",
-        error: "This verification link is missing a token. Request a new link from your account settings or sign up again."
+        error: "This verification link is missing a token. Request a new link from your account settings or sign up again.",
+        alreadyVerified: false
       });
-      return;
+      return undefined;
     }
 
     let cancelled = false;
@@ -469,16 +602,23 @@ export function VerifyEmailPage() {
       .then(async (result) => {
         if (cancelled) return;
         await refreshUser();
-        setState({ loading: false, message: result.message || "Email verified.", error: "" });
+        setState({
+          loading: false,
+          message: result.message || "Email verified.",
+          error: "",
+          alreadyVerified: Boolean(result.alreadyVerified)
+        });
       })
       .catch((err) => {
-        if (!cancelled) setState({ loading: false, message: "", error: err.message });
+        if (!cancelled) {
+          setState({ loading: false, message: "", error: err.message, alreadyVerified: false });
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [refreshUser]);
+  }, [refreshUser, supabaseAuth]);
 
   const continuePath = user ? postAuthDestination(user) : "/login";
   const continueLabel = user ? "Continue to dashboard" : "Continue to login";
@@ -487,15 +627,22 @@ export function VerifyEmailPage() {
     <Shell title="Email verification" subtitle="Confirm your email address for Prelude account updates.">
       {state.loading ? <Alert>Verifying your email…</Alert> : null}
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      {!state.loading && !state.error && state.message ? <Alert>{state.message}</Alert> : null}
+      {!state.loading && !state.error && state.message ? (
+        <Alert>{state.alreadyVerified ? state.message : state.message}</Alert>
+      ) : null}
       {!state.loading && !state.error ? (
         <button
           type="button"
           className="mt-6 inline-block rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
           onClick={() => navigate(continuePath, { replace: true })}
         >
-          {continueLabel}
+          {supabaseAuth ? "Go to login" : continueLabel}
         </button>
+      ) : null}
+      {state.error ? (
+        <p className="mt-4 text-sm text-muted-foreground">
+          <AppLink className="underline" href="/login">Back to login</AppLink>
+        </p>
       ) : null}
     </Shell>
   );

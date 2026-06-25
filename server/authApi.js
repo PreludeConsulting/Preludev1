@@ -28,7 +28,6 @@ const RESET_MINUTES = 30;
 const LOCK_THRESHOLD = 5;
 const LOCK_MINUTES = 15;
 
-const roleSchema = z.enum(["STUDENT", "MENTOR", "COUNSELOR", "ADMIN"]);
 const passwordSchema = z
   .string()
   .min(12, "Password must be at least 12 characters.")
@@ -37,12 +36,16 @@ const passwordSchema = z
   .regex(/[0-9]/, "Password must contain a number.")
   .regex(/[^A-Za-z0-9]/, "Password must contain a symbol.");
 
+const signupRoleSchema = z.enum(["STUDENT", "MENTOR", "PARENT"], {
+  error: "Please choose Student, Mentor, or Parent."
+});
+
 const registerSchema = z.object({
   firstName: z.string().trim().min(1).max(80),
   lastName: z.string().trim().min(1).max(80),
   email: z.string().trim().email().max(255),
   password: passwordSchema,
-  role: roleSchema.default("STUDENT"),
+  role: signupRoleSchema,
   termsAccepted: z.literal(true),
   organizationId: z.string().uuid().optional()
 });
@@ -281,6 +284,7 @@ async function rateLimit(req, route, limit, windowSeconds) {
 async function createRoleProfile(tx, userId, role, organizationId) {
   if (role === "STUDENT") return tx.studentProfile.create({ data: { userId, organizationId: organizationId || null } });
   if (role === "MENTOR") return tx.mentorProfile.create({ data: { userId } });
+  if (role === "PARENT") return null;
   if (role === "COUNSELOR" && organizationId) return tx.counselorProfile.create({ data: { userId, organizationId } });
   return null;
 }
@@ -427,9 +431,22 @@ async function handleRegister(req, res) {
 
 async function handleVerifyEmail(req, res, url) {
   const token = url.searchParams.get("token") || "";
+  if (!token) {
+    return sendJson(res, 400, { error: "invalid_token", message: "Verification link is invalid or expired." });
+  }
   const tokenHash = sha256(token);
   const record = await db().emailVerificationToken.findUnique({ where: { tokenHash }, include: { user: true } });
-  if (!record || record.status !== "ACTIVE" || record.expiresAt <= new Date()) {
+  if (!record) {
+    return sendJson(res, 400, { error: "invalid_token", message: "Verification link is invalid or expired." });
+  }
+  if (record.user.emailVerified) {
+    return sendJson(res, 200, {
+      message: "Your email is already verified. You can log in anytime.",
+      emailVerified: true,
+      alreadyVerified: true
+    });
+  }
+  if (record.status !== "ACTIVE" || record.expiresAt <= new Date()) {
     return sendJson(res, 400, { error: "invalid_token", message: "Verification link is invalid or expired." });
   }
   await db().$transaction([
@@ -543,14 +560,23 @@ async function handleRequestReset(req, res) {
     const resetUrl = buildAuthUrl(req, `/reset-password?token=${token}`);
     await deliverAuthEmail({ kind: "password-reset", to: user.email, url: resetUrl, req });
   }
-  sendJson(res, 200, { message: "If that account exists, a reset link has been sent." });
+  sendJson(res, 200, { message: "If an account exists for this email, a reset link has been sent." });
 }
 
 async function handleResetPassword(req, res) {
   await rateLimit(req, "/api/auth/reset-password", 10, 60 * 60);
   const payload = resetPasswordSchema.parse(await readJsonBody(req));
   const record = await db().passwordResetToken.findUnique({ where: { tokenHash: sha256(payload.token) }, include: { user: true } });
-  if (!record || record.status !== "ACTIVE" || record.expiresAt <= new Date()) return sendJson(res, 400, { error: "invalid_token", message: "Reset link is invalid or expired." });
+  if (!record || record.status !== "ACTIVE" || record.expiresAt <= new Date()) {
+    return sendJson(res, 400, { error: "invalid_token", message: "Reset link is invalid or expired." });
+  }
+  const samePassword = await argon2.verify(record.user.passwordHash, payload.password);
+  if (samePassword) {
+    return sendJson(res, 400, {
+      error: "same_password",
+      message: "New password cannot be the same as your current password."
+    });
+  }
   const passwordHash = await argon2.hash(payload.password, { type: argon2.argon2id });
   await db().$transaction([
     db().user.update({ where: { id: record.userId }, data: { passwordHash, failedLoginCount: 0, lockedUntil: null } }),
@@ -666,6 +692,9 @@ async function handleDashboard(req, res) {
   if (user.role === "MENTOR") {
     const mentor = await db().mentorProfile.findUnique({ where: { userId: user.id }, include: { mentorAssignments: { where: { active: true }, include: { studentProfile: { include: { user: true } } } } } });
     return sendJson(res, 200, { role: user.role, mentor });
+  }
+  if (user.role === "PARENT") {
+    return sendJson(res, 200, { role: user.role, parent: { userId: user.id, firstName: user.firstName, lastName: user.lastName } });
   }
   if (user.role === "COUNSELOR") {
     const counselor = await db().counselorProfile.findUnique({ where: { userId: user.id }, include: { organization: { include: { studentProfiles: { include: { user: true } } } } } });
