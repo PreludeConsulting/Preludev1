@@ -2,14 +2,19 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import {
   MILESTONE_CATALOG,
   REWARD_CATALOG,
+  applyCoinMultiplier,
   buildJordanDemoServices,
   buildSidebarProgress,
   countMilestonesToReward,
   enrichMilestones,
+  enrichReward,
   filterMilestonesForStudent,
   getActiveServices,
   getClosestRewards,
+  getCoinMultiplier,
+  getCoinsToNextMultiplier,
   getCoinsToNextReward,
+  getCurrentStatusMilestone,
   getFeaturedReward,
   getNextAffordableReward,
   getNextStatusTier,
@@ -18,7 +23,8 @@ import {
   normalizeRewardsState,
   parseGradeLevel
 } from "../lib/progressRewards.js";
-import PreludePiggyBank from "../components/product/rewards/PreludePiggyBank.jsx";
+import { resolveShopRewardIds } from "../lib/rewardShop.js";
+import CoinCelebration from "../components/product/rewards/CoinCelebration.jsx";
 import { useInteractionFeedback } from "../../components/interaction/InteractionFeedback.jsx";
 import { useInterfaceSound } from "../../lib/sound/SoundProvider.jsx";
 
@@ -28,11 +34,17 @@ function storageKey(email) {
   return `prelude-progress-rewards-${(email || "guest").toLowerCase()}`;
 }
 
+function shopStorageKey(email) {
+  return `prelude-reward-shop-${(email || "guest").toLowerCase()}`;
+}
+
 export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const normalizedInitial = normalizeRewardsState(initial);
   const [state, setState] = useState(normalizedInitial);
   const [toasts, setToasts] = useState([]);
   const [celebration, setCelebration] = useState(null);
+  const [redemptionCelebration, setRedemptionCelebration] = useState(null);
+  const [shopState, setShopState] = useState(() => resolveShopRewardIds({ storageKey: shopStorageKey(user?.email) }));
   const { triggerCoinBurst } = useInteractionFeedback();
   const { play, SOUND_EVENTS } = useInterfaceSound();
 
@@ -53,6 +65,17 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       setState(normalizedInitial);
     }
   }, [initial, user?.email]);
+
+  useEffect(() => {
+    const key = shopStorageKey(user?.email);
+    const tick = () => {
+      const next = resolveShopRewardIds({ storageKey: key });
+      setShopState((prev) => (prev.periodKey !== next.periodKey ? next : prev));
+    };
+    tick();
+    const id = window.setInterval(tick, 60000);
+    return () => window.clearInterval(id);
+  }, [user?.email]);
 
   const persist = useCallback(
     (next) => {
@@ -92,16 +115,10 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
 
   const completedCount = state.completed.length;
   const featuredRewardBase = getFeaturedReward();
-  const featuredReward = useMemo(() => {
-    const r = featuredRewardBase;
-    return {
-      ...r,
-      redeemed: state.redeemed.includes(r.id),
-      canRedeem: state.coins >= r.coins && !state.redeemed.includes(r.id),
-      coinsAway: Math.max(0, r.coins - state.coins),
-      progressPct: Math.min(100, Math.round((state.coins / r.coins) * 100))
-    };
-  }, [featuredRewardBase, state.coins, state.redeemed]);
+  const featuredReward = useMemo(
+    () => enrichReward(featuredRewardBase, state.coins, state.redeemed),
+    [featuredRewardBase, state.coins, state.redeemed]
+  );
   const nextReward = useMemo(() => getNextAffordableReward(state.coins, state.redeemed), [state.coins, state.redeemed]);
   const coinsToNext = getCoinsToNextReward(state.coins, featuredReward);
   const coinsToNextReward = getCoinsToNextReward(state.coins, nextReward);
@@ -109,17 +126,27 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const currentTier = getStatusTier(state.coins);
   const nextTier = getNextStatusTier(state.coins);
   const tierProgress = getTierProgress(state.coins);
-  const coinsToNextTier = nextTier ? Math.max(0, nextTier.min - state.coins) : 0;
+  const coinMultiplier = getCoinMultiplier(state.coins);
+  const coinsToNextMultiplier = getCoinsToNextMultiplier(state.coins);
+  const statusGoalCoins = nextTier?.coinsRequired ?? getCurrentStatusMilestone(state.coins).coinsRequired;
+  const coinsToNextTier = getCoinsToNextMultiplier(state.coins);
 
   const completeMilestone = useCallback(
     (milestoneId) => {
       const def = MILESTONE_CATALOG.find((m) => m.id === milestoneId);
       if (!def || state.completed.includes(milestoneId)) return;
 
+      const multiplier = getCoinMultiplier(state.coins);
+      const earnedCoins = applyCoinMultiplier(def.coins, multiplier);
+      const previousMilestone = getCurrentStatusMilestone(state.coins);
+      const nextCoins = state.coins + earnedCoins;
+      const newMilestone = getCurrentStatusMilestone(nextCoins);
+      const unlockedMilestone = newMilestone.id !== previousMilestone.id ? newMilestone : null;
+
       setState((prev) => {
         const next = {
           ...prev,
-          coins: prev.coins + def.coins,
+          coins: prev.coins + earnedCoins,
           completed: [...prev.completed, milestoneId],
           inProgress: prev.inProgress.filter((id) => id !== milestoneId)
         };
@@ -127,15 +154,26 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         return next;
       });
 
-      setCelebration({ milestoneId, title: def.title, coins: def.coins });
-      triggerCoinBurst(def.coins);
+      setCelebration({
+        milestoneId,
+        title: def.title,
+        coins: earnedCoins,
+        variant: "milestone",
+        unlockedMilestone
+      });
+      triggerCoinBurst(earnedCoins);
+      play(SOUND_EVENTS.COIN_COLLECT);
       play(SOUND_EVENTS.REWARD_EARNED);
       setTimeout(() => setCelebration(null), 3200);
 
-      const rewardAfter = getNextAffordableReward(state.coins + def.coins, state.redeemed);
-      showToast(
-        `Milestone complete · +${def.coins} Coins · You're one step closer to a ${rewardAfter.headline}.`
-      );
+      if (unlockedMilestone) {
+        showToast(`Status unlocked · ${unlockedMilestone.name} · ${unlockedMilestone.multiplier.toFixed(1)}x coin multiplier`, "success");
+      } else {
+        const rewardAfter = getNextAffordableReward(nextCoins, state.redeemed);
+        showToast(
+          `Milestone complete · +${earnedCoins} Coins${multiplier > 1 ? ` (${multiplier.toFixed(1)}x)` : ""} · You're one step closer to a ${rewardAfter.headline}.`
+        );
+      }
     },
     [persist, showToast, state.completed, state.redeemed, state.coins, triggerCoinBurst, play, SOUND_EVENTS]
   );
@@ -178,23 +216,35 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         return next;
       });
 
+      const enriched = enrichReward(reward, state.coins - reward.coins, [...state.redeemed, rewardId]);
+      setRedemptionCelebration({
+        tier: enriched.tier,
+        title: reward.headline,
+        coinsBalance: state.coins - reward.coins,
+        goalCoins: featuredRewardBase.coins
+      });
+      play(SOUND_EVENTS.COIN_COLLECT);
+      play(SOUND_EVENTS.REWARD_REDEEMED);
+      setTimeout(() => setRedemptionCelebration(null), 3600);
+
       showToast("Reward redeemed! A mentor will follow up with next steps.", "success");
       return { success: true };
     },
-    [persist, showToast, state.redeemed, state.coins]
+    [persist, showToast, state.redeemed, state.coins, featuredRewardBase.coins, play, SOUND_EVENTS]
   );
 
   const handleRedeemReward = redeemReward;
 
   const rewards = useMemo(
-    () => REWARD_CATALOG.map((r) => ({
-      ...r,
-      redeemed: state.redeemed.includes(r.id),
-      canRedeem: state.coins >= r.coins && !state.redeemed.includes(r.id),
-      coinsAway: Math.max(0, r.coins - state.coins),
-      progressPct: Math.min(100, Math.round((state.coins / r.coins) * 100))
-    })),
+    () => REWARD_CATALOG.map((r) => enrichReward(r, state.coins, state.redeemed)),
     [state.coins, state.redeemed]
+  );
+
+  const shopRewards = useMemo(
+    () => shopState.rewardIds
+      .map((id) => rewards.find((r) => r.id === id))
+      .filter(Boolean),
+    [shopState.rewardIds, rewards]
   );
 
   const closestRewards = useMemo(
@@ -226,10 +276,16 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       nextTier,
       tierProgress,
       coinsToNextTier,
+      coinMultiplier,
+      coinsToNextMultiplier,
+      statusGoalCoins,
+      shopRewards,
+      shopRefreshAt: shopState.refreshAt,
       studentFirstName,
       grade,
       services,
       celebration,
+      redemptionCelebration,
       completeMilestone,
       redeemReward,
       handleRedeemReward,
@@ -253,10 +309,16 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       nextTier,
       tierProgress,
       coinsToNextTier,
+      coinMultiplier,
+      coinsToNextMultiplier,
+      statusGoalCoins,
+      shopRewards,
+      shopState.refreshAt,
       studentFirstName,
       grade,
       services,
       celebration,
+      redemptionCelebration,
       completeMilestone,
       redeemReward,
       handleRedeemReward,
@@ -268,20 +330,23 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     <ProgressRewardsContext.Provider value={value}>
       {children}
       {celebration ? (
-        <div className="dash-rewards-celebration" role="status" aria-live="polite">
-          <div className="dash-rewards-celebration__coins" aria-hidden="true">
-            <span className="dash-rewards-celebration__coin dash-rewards-celebration__coin--one" />
-            <span className="dash-rewards-celebration__coin dash-rewards-celebration__coin--two" />
-            <span className="dash-rewards-celebration__coin dash-rewards-celebration__coin--three" />
-          </div>
-          <div className="dash-rewards-celebration__card">
-            <PreludePiggyBank size="sm" animate />
-            <p className="dash-rewards-celebration__eyebrow">Milestone complete</p>
-            <p className="dash-rewards-celebration__title">{celebration.title}</p>
-            <p className="dash-rewards-celebration__coins-label">+{celebration.coins} Prelude Coins</p>
-            <p className="dash-rewards-celebration__hint">Coins added to your Piggy Bank</p>
-          </div>
-        </div>
+        <CoinCelebration
+          tier="uncommon"
+          title={celebration.title}
+          coins={celebration.coins}
+          coinsBalance={state.coins}
+          goalCoins={featuredReward.coins}
+          variant="milestone"
+        />
+      ) : null}
+      {redemptionCelebration ? (
+        <CoinCelebration
+          tier={redemptionCelebration.tier}
+          title={redemptionCelebration.title}
+          coinsBalance={redemptionCelebration.coinsBalance}
+          goalCoins={redemptionCelebration.goalCoins}
+          variant="redeem"
+        />
       ) : null}
       <div className="dash-toast-stack" aria-live="polite">
         {toasts.map((t) => (

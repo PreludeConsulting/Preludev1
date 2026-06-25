@@ -7,7 +7,8 @@ export const SOUND_EVENTS = {
   SAVE_SUCCESS: "saveSuccess",
   TASK_COMPLETE: "taskComplete",
   REWARD_EARNED: "rewardEarned",
-  COIN_COLLECT: "coinCollect"
+  COIN_COLLECT: "coinCollect",
+  REWARD_REDEEMED: "rewardRedeemed"
 };
 
 let audioContext = null;
@@ -92,6 +93,11 @@ const SOUND_SCRIPTS = {
   [SOUND_EVENTS.COIN_COLLECT]: (ctx) => {
     tone(ctx, { frequency: 880, duration: 0.06, gain: 0.04, type: "triangle" });
     tone(ctx, { frequency: 1100, duration: 0.08, gain: 0.032, delay: 0.05, type: "triangle" });
+  },
+  [SOUND_EVENTS.REWARD_REDEEMED]: (ctx) => {
+    tone(ctx, { frequency: 1046, duration: 0.05, gain: 0.035, type: "triangle" });
+    tone(ctx, { frequency: 1318, duration: 0.07, gain: 0.028, delay: 0.06, type: "triangle" });
+    tone(ctx, { frequency: 1568, duration: 0.08, gain: 0.022, delay: 0.12, type: "sine" });
   }
 };
 

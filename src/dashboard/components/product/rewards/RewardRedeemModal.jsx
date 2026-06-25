@@ -2,19 +2,22 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { TEST_PREP_OPTIONS } from "../../../lib/progressRewards.js";
 import RewardIcon from "./RewardIcon.jsx";
+import RewardTierBadge from "./RewardTierBadge.jsx";
 
 export default function RewardRedeemModal({ reward, coins, onClose, onConfirm }) {
-  const [testPrepOption, setTestPrepOption] = useState(TEST_PREP_OPTIONS[0]);
+  const [testPrepOption, setTestPrepOption] = useState("");
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     if (!reward) return;
-    setTestPrepOption(TEST_PREP_OPTIONS[0]);
+    setTestPrepOption("");
     setSuccess(false);
   }, [reward]);
 
   if (!reward) return null;
 
+  const tierId = reward.tier || "common";
+  const tierConfig = reward.tierConfig;
   const coinsNeeded = Math.max(0, reward.coins - coins);
   const canAfford = coins >= reward.coins && !reward.redeemed;
   const needsTestPrep = reward.requiresSelection;
@@ -31,11 +34,15 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
   return (
     <div className="dash-rewards-modal" role="presentation" onClick={onClose}>
       <div
-        className="dash-rewards-modal__panel dash-rewards-modal__panel--redeem"
+        className={`dash-rewards-modal__panel dash-rewards-modal__panel--redeem dash-rewards-modal__panel--tier-${tierId}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="reward-redeem-title"
         onClick={(e) => e.stopPropagation()}
+        style={{
+          "--tier-accent": tierConfig?.accentColor,
+          "--tier-bg": tierConfig?.backgroundColor
+        }}
       >
         <button type="button" className="dash-rewards-modal__close" onClick={onClose} aria-label="Close">
           <X className="h-4 w-4" />
@@ -52,11 +59,14 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
         ) : (
           <>
             <div className="dash-rewards-modal__reward-head">
-              <RewardIcon reward={reward} large />
+              <RewardIcon reward={reward} large tier={tierId} />
               <div>
-                <h3 id="reward-redeem-title" className="dash-rewards-modal__title">
-                  {reward.headline}
-                </h3>
+                <div className="dash-rewards-modal__title-row">
+                  <h3 id="reward-redeem-title" className="dash-rewards-modal__title">
+                    {reward.headline}
+                  </h3>
+                  <RewardTierBadge tier={tierId} className="dash-rewards-modal__tier-badge" />
+                </div>
                 {reward.subtitle ? (
                   <p className="dash-rewards-modal__subtitle">{reward.subtitle}</p>
                 ) : null}
@@ -97,6 +107,7 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
                   value={testPrepOption}
                   onChange={(e) => setTestPrepOption(e.target.value)}
                 >
+                  <option value="">Select an option…</option>
                   {TEST_PREP_OPTIONS.map((option) => (
                     <option key={option} value={option}>
                       {option}
@@ -112,7 +123,7 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
               </button>
               <button
                 type="button"
-                className="dash-btn dash-btn--primary"
+                className={`dash-btn dash-btn--primary dash-rewards-modal__confirm-btn dash-rewards-redeem-btn--tier-${tierId}`}
                 onClick={handleConfirm}
                 disabled={!canConfirm}
               >

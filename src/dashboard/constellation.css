@@ -182,26 +182,6 @@
 }
 
 /* Section integrations keep the existing layouts while adding one editorial anchor. */
-.dash-rewards-hero__pig {
-  position: relative;
-  min-width: 0;
-}
-
-.dash-rewards-hero__pig .prelude-constellation {
-  width: 100%;
-  min-height: 13.5rem;
-  border: 1px solid rgb(120 106 255 / 0.12);
-  box-shadow: 0 18px 42px rgb(32 37 56 / 0.08);
-}
-
-.dash-rewards-hero__mascot {
-  position: absolute;
-  right: 0.75rem;
-  bottom: 0.4rem;
-  z-index: 3;
-  transform: rotate(4deg);
-}
-
 .dash-colleges-my-list .prelude-constellation {
   margin-bottom: 0.85rem;
   border: 1px solid rgb(20 184 166 / 0.14);
@@ -291,17 +271,6 @@
 
   .prelude-constellation__type strong {
     font-size: 1rem;
-  }
-
-  .dash-rewards-hero__pig .prelude-constellation {
-    height: 10rem;
-    min-height: 10rem;
-  }
-
-  .dash-rewards-hero__mascot {
-    right: 0.25rem;
-    bottom: 0.1rem;
-    transform: scale(0.78) rotate(4deg);
   }
 
   .dash-cal-visual__constellation,
