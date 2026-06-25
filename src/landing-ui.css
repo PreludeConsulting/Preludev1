@@ -17,6 +17,11 @@
   color: hsl(var(--foreground));
   transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   overflow: hidden;
+  cursor: pointer;
+}
+
+.account-menu-btn > * {
+  pointer-events: none;
 }
 
 .account-menu-btn:hover {
@@ -475,10 +480,12 @@
 
 .user-menu {
   position: relative;
+  min-width: 0;
 }
 
 .user-menu__trigger {
   max-width: min(100%, 13rem);
+  width: 100%;
 }
 
 .user-menu__chevron--open {
@@ -489,7 +496,7 @@
   position: absolute;
   top: calc(100% + 0.5rem);
   right: 0;
-  z-index: 60;
+  z-index: 100;
   width: min(16rem, calc(100vw - 2rem));
   padding: 0.5rem;
   border-radius: 1rem;

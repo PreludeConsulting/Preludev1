@@ -1,5 +1,6 @@
 import { ArrowUpRight, Menu, Search, X } from "lucide-react";
 import AccountMenuButton from "./AccountMenuButton.jsx";
+import UserMenuDropdown from "./UserMenuDropdown.jsx";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -81,7 +82,7 @@ export default function Navbar() {
 
             {isAuthenticated ? (
               <div className="nav-bar__account hidden min-w-0 sm:block">
-                <AccountMenuButton onClick={openAccount} className="w-full" />
+                <UserMenuDropdown className="w-full" />
               </div>
             ) : (
             <AppLink href="/login" className="ivy-nav-link hidden shrink-0 sm:inline-flex">

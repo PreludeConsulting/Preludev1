@@ -14,11 +14,11 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { openBillingPortal } from "../lib/auth.js";
-import { dashboardHomeForRole } from "../lib/dashboardRoutes.js";
+import { dashboardHomeForRole, roleFromUser } from "../lib/dashboardRoutes.js";
 import { PRELUDE_AI_NAME } from "../lib/preludeAi.js";
 import { useState } from "react";
-import PlanBadge from "./PlanBadge.jsx";
 import MembershipPlanCard from "./MembershipPlanCard.jsx";
+import { getPlan } from "../lib/plans.js";
 
 function userInitial(name) {
   return ((name || "P").trim()[0] || "P").toUpperCase();
@@ -38,9 +38,11 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [accountOpen, closeModals]);
 
-  if (!user || !planDetails) return null;
+  if (!user) return null;
 
   const dashboardPath = dashboardHomeForRole(user.role);
+  const activePlan = planDetails || (user.plan ? getPlan(user.plan) : null);
+  const roleLabel = roleFromUser(user);
 
   async function handleManageBilling() {
     setBillingLoading(true);
@@ -86,7 +88,15 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
             </header>
 
             <div className="membership-drawer__body">
-              <MembershipPlanCard plan={planDetails} planId={user.plan} />
+              {activePlan ? (
+                <MembershipPlanCard plan={activePlan} planId={user.plan || activePlan.id} />
+              ) : (
+                <section className="membership-plan-card">
+                  <p className="membership-plan-card__eyebrow">Account role</p>
+                  <h3 className="membership-plan-card__name">{roleLabel[0].toUpperCase()}{roleLabel.slice(1)}</h3>
+                  <p className="membership-plan-card__desc">No paid plan is attached to this account yet.</p>
+                </section>
+              )}
 
               {user.subscriptionStatus ? (
                 <p className="membership-drawer__meta">Billing status: {user.subscriptionStatus}</p>
@@ -97,7 +107,7 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
                   <Bot className="h-4 w-4" /> {PRELUDE_AI_NAME} Tools
                 </h3>
                 <ul className="membership-drawer__list">
-                  {planDetails.aiFeatures.map((item) => (
+                  {(activePlan?.aiFeatures || []).map((item) => (
                     <li key={item}>
                       <Sparkles className="h-4 w-4 shrink-0 text-primary" />
                       {item}
@@ -109,7 +119,7 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
               <section className="membership-drawer__section">
                 <h3 className="membership-drawer__section-title">Software & Roadmap</h3>
                 <ul className="membership-drawer__list">
-                  {planDetails.softwareAccess.map((item) => (
+                  {(activePlan?.softwareAccess || []).map((item) => (
                     <li key={item}>
                       <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
                       {item}
@@ -123,13 +133,13 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
                 <ul className="membership-drawer__list">
                   <li>
                     <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
-                    {planDetails.mentorSessions}
+                    {activePlan?.mentorSessions || "Plan selection controls mentor access."}
                   </li>
                   <li>
                     <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
-                    {planDetails.messaging}
+                    {activePlan?.messaging || "Messaging access is based on your selected plan."}
                   </li>
-                  {planDetails.mentorExtras.map((item) => (
+                  {(activePlan?.mentorExtras || []).map((item) => (
                     <li key={item}>
                       <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
                       {item}
