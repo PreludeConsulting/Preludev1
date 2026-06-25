@@ -1,9 +1,10 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
-  MATCH_ONBOARDING_PATH,
   MENTOR_ONBOARDING_PATH,
   PLAN_SELECTION_PATH,
+  ROLE_SELECTION_PATH,
+  userNeedsRoleSelection,
   userNeedsMentorOnboarding,
   userNeedsPlanSelection
 } from "../lib/onboardingRoutes.js";
@@ -23,6 +24,10 @@ export default function RequirePlanGuard({ children }) {
 
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (userNeedsRoleSelection(user)) {
+    return <Navigate to={ROLE_SELECTION_PATH} replace />;
   }
 
   if (userNeedsPlanSelection(user)) {

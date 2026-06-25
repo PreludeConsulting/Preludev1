@@ -23,9 +23,12 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
   const parentInviteStepComplete =
     onboardingFields.parentInviteStepComplete || readParentInviteStepComplete(u.id);
   const authSignInMethods = normalizeAuthProviders(u.identities || [], u);
+  const roleSelectionComplete = profile?.role_selection_complete !== false;
 
   let onboardingStatus = onboardingFields.onboardingStatus;
-  if (role === "parent") {
+  if (!roleSelectionComplete) {
+    onboardingStatus = null;
+  } else if (role === "parent") {
     onboardingStatus = ONBOARDING_STATUS.ONBOARDING_COMPLETED;
   } else if (!planId) onboardingStatus = ONBOARDING_STATUS.NEEDS_PLAN;
   else if (planId && onboardingStatus === ONBOARDING_STATUS.NEEDS_PLAN) {
@@ -46,7 +49,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     authProvider: "supabase",
     authSignInMethods,
     avatarUrl: profile?.avatar_url || null,
-    roleSelectionComplete: profile?.role_selection_complete !== false,
+    roleSelectionComplete,
     ...onboardingFields,
     parentInviteStepComplete,
     mentorOnboardingComplete: role === "mentor" ? Boolean(mentorQuestionnaire?.completed) : true,
