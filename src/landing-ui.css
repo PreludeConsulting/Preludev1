@@ -478,7 +478,8 @@
 
 /* ——— User menu (logged-in homepage header) ——— */
 
-.user-menu {
+.user-menu,
+.dropdown-menu {
   position: relative;
   min-width: 0;
 }
@@ -492,7 +493,8 @@
   transform: rotate(180deg);
 }
 
-.user-menu__panel {
+.user-menu__panel,
+.dropdown-menu__panel {
   position: absolute;
   top: calc(100% + 0.5rem);
   right: 0;
@@ -505,13 +507,20 @@
   box-shadow: 0 16px 40px rgb(35 39 48 / 0.12);
 }
 
-.user-menu__identity {
+.dropdown-menu__panel--left {
+  right: auto;
+  left: 0;
+}
+
+.user-menu__identity,
+.dropdown-menu__header {
   padding: 0.65rem 0.75rem 0.5rem;
   border-bottom: 1px solid hsl(var(--foreground) / 0.06);
   margin-bottom: 0.35rem;
 }
 
-.user-menu__identity-name {
+.user-menu__identity-name,
+.dropdown-menu__header-name {
   margin: 0;
   font-family: "Barlow", sans-serif;
   font-size: 0.9375rem;
@@ -520,7 +529,9 @@
 }
 
 .user-menu__identity-email,
-.user-menu__identity-plan {
+.user-menu__identity-plan,
+.dropdown-menu__header-email,
+.dropdown-menu__header-meta {
   margin: 0.15rem 0 0;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
@@ -529,7 +540,8 @@
   white-space: nowrap;
 }
 
-.user-menu__item {
+.user-menu__item,
+.dropdown-menu__item {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -548,18 +560,29 @@
 }
 
 .user-menu__item:hover,
-.user-menu__item:focus-visible {
+.user-menu__item:focus-visible,
+.dropdown-menu__item:hover,
+.dropdown-menu__item:focus-visible {
   background: hsl(var(--primary) / 0.08);
   color: hsl(var(--foreground));
   outline: none;
 }
 
-.user-menu__item--danger {
+.dropdown-menu__divider {
+  margin: 0.35rem 0;
+  border: 0;
+  border-top: 1px solid hsl(var(--foreground) / 0.06);
+}
+
+.user-menu__item--danger,
+.dropdown-menu__item--danger {
   color: hsl(var(--destructive));
 }
 
 .user-menu__item--danger:hover,
-.user-menu__item--danger:focus-visible {
+.user-menu__item--danger:focus-visible,
+.dropdown-menu__item--danger:hover,
+.dropdown-menu__item--danger:focus-visible {
   background: hsl(var(--destructive) / 0.08);
   color: hsl(var(--destructive));
 }
