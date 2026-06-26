@@ -1,6 +1,7 @@
 /* ——— Progress Rewards — premium loyalty platform ——— */
 
 .dash-rewards-loyalty {
+  --dash-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --rw-purple: #5b4fd6;
   --rw-purple-deep: #4a3fc9;
   --rw-navy: #232730;
@@ -10,6 +11,9 @@
   --rw-teal-deep: #0d9488;
   --rw-card-shadow: 0 8px 28px rgb(35 39 48 / 0.07), 0 2px 8px rgb(120 106 255 / 0.06);
   --rw-card-shadow-hover: 0 16px 40px rgb(120 106 255 / 0.14), 0 4px 12px rgb(35 39 48 / 0.06);
+  font-family: var(--dash-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   max-width: 80rem;
   margin-inline: auto;
   padding: 0.5rem 0.5rem 2rem;
