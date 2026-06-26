@@ -186,6 +186,8 @@ export function CalendarAddEventModal({
   const [errors, setErrors] = useState({});
   const [requestSent, setRequestSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [scheduledMeeting, setScheduledMeeting] = useState(null);
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [permissionWarning, setPermissionWarning] = useState("");
   const [reminderSavedWarning, setReminderSavedWarning] = useState("");
@@ -211,6 +213,8 @@ export function CalendarAddEventModal({
     setErrors({});
     setRequestSent(false);
     setSubmitting(false);
+    setSubmitError("");
+    setScheduledMeeting(null);
     setPermissionWarning("");
     setReminderSavedWarning("");
   }, [open, inline, initialCategory, initialEvent, defaultStudentId]);
@@ -313,18 +317,13 @@ export function CalendarAddEventModal({
       : new Date(`${form.date}T${form.endTime}`);
 
     const meetingType = isTaskForm ? "zoom" : form.meetingType;
-    const zoomJoinUrl = form.meetingType === "zoom"
-      ? "https://zoom.us/j/placeholder-new"
-      : form.meetingType === "google_meet"
-        ? "https://meet.google.com/placeholder-new"
-        : initialEvent?.zoomJoinUrl;
-
     const sendToMentor = submitMode === "mentor";
 
     if (sendToMentor) {
       setSubmitting(true);
+      setSubmitError("");
       try {
-        await onRequestMeeting?.({
+        const meeting = await onRequestMeeting?.({
           title: form.title.trim(),
           meetingType,
           startTime: start.toISOString(),
@@ -332,8 +331,12 @@ export function CalendarAddEventModal({
           notes: form.description,
           status: "pending"
         });
-        resetFormState();
-        onClose();
+        setRequestSent(true);
+        if (meeting?.zoomJoinUrl) {
+          setScheduledMeeting(meeting);
+        }
+      } catch (error) {
+        setSubmitError(error?.message || "Could not send your meeting request. Please try again.");
       } finally {
         setSubmitting(false);
       }
@@ -355,7 +358,6 @@ export function CalendarAddEventModal({
       shared: role === "mentor" && isEventForm ? true : form.shared,
       mentorOnly: role === "mentor" && isEventForm ? false : (!form.shared && role === "mentor"),
       meetingType,
-      zoomJoinUrl,
       formVariant: isTaskForm ? "task" : isEventForm ? "event" : undefined,
       calendarItemType: isTaskForm ? "task" : isEventForm ? "event" : undefined,
       pillColor: form.calendarColor || undefined,
@@ -579,9 +581,20 @@ export function CalendarAddEventModal({
               )}
             </div>
             {meetingRequestMode && requestSent && !showStudentEventChoice ? (
-              <p className="dash-schedule-form__request-sent" role="status">
-                A request has been made to your mentor!
-              </p>
+              <div className="dash-schedule-form__request-sent" role="status">
+                <p>A request has been sent to your mentor for review.</p>
+                {scheduledMeeting?.zoomJoinUrl ? (
+                  <p>
+                    Join link:{" "}
+                    <a href={scheduledMeeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-link">
+                      {scheduledMeeting.zoomJoinUrl}
+                    </a>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {submitError ? (
+              <p className="dash-schedule-form__form-error" role="alert">{submitError}</p>
             ) : null}
           </div>
         </form>

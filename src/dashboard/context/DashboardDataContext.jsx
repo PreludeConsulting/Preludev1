@@ -7,7 +7,8 @@ import {
   disconnectZoom,
   getDashboardAppData,
   getMeetings,
-  createMeeting as apiCreateMeeting
+  createMeeting as apiCreateMeeting,
+  updateMeeting as apiUpdateMeeting
 } from "../../lib/dashboardApi.js";
 import { isSupabaseConfigured } from "../../lib/supabaseConfig.js";
 import {
@@ -71,6 +72,25 @@ import {
 } from "../lib/mentorStudentCalendar.js";
 
 const DashboardDataContext = createContext(null);
+
+function splitMeetingsByStatus(meetingList = []) {
+  const pending = [];
+  const scheduled = [];
+  for (const meeting of meetingList) {
+    if (meeting.status === "pending") pending.push(meeting);
+    else scheduled.push(meeting);
+  }
+  return { pending, scheduled };
+}
+
+function meetingScheduleErrorMessage(error) {
+  const code = error?.payload?.error;
+  if (code === "zoom_not_configured") {
+    return "Video meetings are temporarily unavailable. Your request was saved and your mentor can follow up.";
+  }
+  if (code === "validation_error") return error.message || "Please check the meeting details and try again.";
+  return error?.message || "Could not schedule the meeting. Please try again.";
+}
 
 function resolveStudentProfile(profile, profileOverrides, isStudent, demoProfile) {
   if (demoProfile) return normalizeProfileShape(demoProfile);
@@ -322,7 +342,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     try {
       const data = await getDashboardAppData();
       setIntegrations(data.integrations || integrations);
-      setMeetings(data.meetings || []);
+      const split = splitMeetingsByStatus(data.meetings || []);
+      setMeetings(split.scheduled);
+      setPendingMeetingRequests(split.pending);
       setNotifications(data.notifications || []);
       setApiDemo(data.demo || null);
     } catch {
@@ -458,48 +480,68 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
   const scheduleMeeting = useCallback(
     async (payload) => {
-      const isPending = payload.status === "pending";
+      const enrichedPayload = {
+        ...payload,
+        mentorId: payload.mentorId || mentor?.id,
+        mentorUserId: payload.mentorUserId || mentor?.userId || mentor?.mentorUserId
+      };
+      const isPending = enrichedPayload.status === "pending";
+      const clientRequestId =
+        enrichedPayload.clientRequestId ||
+        enrichedPayload.idempotencyKey ||
+        (enrichedPayload.startTime
+          ? `meeting-${user?.id}-${enrichedPayload.startTime}-${enrichedPayload.status || "pending"}`
+          : undefined);
 
       if (useSupabase && user) {
-        const start = payload.startTime || payload.start || new Date().toISOString();
+        const start = enrichedPayload.startTime || enrichedPayload.start || new Date().toISOString();
+        let meetingUrl = payload.zoomJoinUrl || null;
+
+        if (!isPending && enrichedPayload.meetingType === "zoom" && !meetingUrl) {
+          try {
+            const result = await apiCreateMeeting(
+              { ...enrichedPayload, clientRequestId },
+              { idempotencyKey: clientRequestId }
+            );
+            meetingUrl = result.meeting?.zoomJoinUrl || null;
+          } catch (error) {
+            throw new Error(meetingScheduleErrorMessage(error));
+          }
+        }
+
         const { event, error: err } = await createCalendarEvent(user.id, {
-          title: payload.title || "Mentor session",
-          description: payload.notes,
+          title: enrichedPayload.title || "Mentor session",
+          description: enrichedPayload.notes,
           startTime: start,
-          endTime: payload.endTime,
+          endTime: enrichedPayload.endTime,
           eventType: "meeting",
-          meetingUrl: payload.zoomJoinUrl,
-          status: payload.status || "pending"
+          meetingUrl,
+          status: enrichedPayload.status || "pending"
         });
         if (err) throw new Error(err);
 
+        const stored = { ...event, zoomJoinUrl: meetingUrl || event.meetingUrl || event.zoomJoinUrl };
         if (isPending) {
-          setPendingMeetingRequests((prev) => [...prev, event]);
+          setPendingMeetingRequests((prev) => [...prev, stored]);
         } else {
-          setMeetings((prev) => [...prev, event]);
+          setMeetings((prev) => [...prev, stored]);
         }
 
         const notif = await createNotification(user.id, {
           title: isPending ? "Meeting request sent" : "Session scheduled",
-          body: event.title,
+          body: stored.title,
           link: "/dashboard/student/calendar"
         });
         if (notif.notification) {
           setNotifications((prev) => [notif.notification, ...prev]);
         }
-        return event;
+        return stored;
       }
 
-      let meeting;
-      try {
-        ({ meeting } = await apiCreateMeeting(payload));
-      } catch {
-        meeting = {
-          id: `mt-${Date.now()}`,
-          ...payload,
-          status: payload.status || "pending"
-        };
-      }
+      const { meeting } = await apiCreateMeeting(
+        { ...enrichedPayload, clientRequestId },
+        { idempotencyKey: clientRequestId }
+      );
 
       if (isPending || meeting.status === "pending") {
         setPendingMeetingRequests((prev) => [...prev, meeting]);
@@ -521,7 +563,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       });
       return meeting;
     },
-    [addNotification, useSupabase, user]
+    [addNotification, mentor?.id, mentor?.userId, useSupabase, user]
   );
 
   const saveProfile = useCallback(
@@ -644,7 +686,39 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     async (item, existingId = null) => {
       if (!user) return item;
 
-      let workingItem = item;
+      let workingItem = { ...item };
+
+      const isZoomMentorMeeting =
+        workingItem.meetingType === "zoom"
+        && (workingItem.category === "mentor_meeting" || workingItem.formVariant === "event")
+        && (workingItem.status || "scheduled") === "scheduled";
+
+      if (!useSupabase && isZoomMentorMeeting && !workingItem.zoomJoinUrl && roleFromUser(user) === "MENTOR") {
+        const idempotencyKey = `calendar-${existingId || workingItem.id || `${workingItem.start}-${workingItem.title}`}`;
+        const created = await apiCreateMeeting(
+          {
+            title: workingItem.title,
+            meetingType: "zoom",
+            startTime: workingItem.start,
+            endTime: workingItem.end,
+            studentId: workingItem.studentId,
+            mentorUserId: user.id,
+            status: "scheduled",
+            notes: workingItem.description,
+            clientRequestId: idempotencyKey
+          },
+          { idempotencyKey }
+        );
+        workingItem = {
+          ...workingItem,
+          zoomJoinUrl: created.meeting?.zoomJoinUrl || workingItem.zoomJoinUrl,
+          meetingRecordId: created.meeting?.id
+        };
+        if (created.meeting) {
+          setMeetings((prev) => [...prev.filter((entry) => entry.id !== created.meeting.id), created.meeting]);
+        }
+      }
+
       if (mentorViewStudent) {
         workingItem = enrichMentorStudentCalendarItem(item, mentorViewStudent);
       } else if (parentViewStudent) {
@@ -801,18 +875,28 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       const endTime = request.endTime
         || new Date(new Date(startTime).getTime() + 45 * 60 * 1000).toISOString();
 
-      const meeting = {
-        id: `mt-${request.id}`,
-        title: request.type || request.title || "Zoom check-in",
-        studentId: request.studentId,
-        studentName: request.studentName,
-        startTime,
-        endTime,
-        meetingType: "zoom",
-        zoomJoinUrl: request.zoomJoinUrl || "https://zoom.us/j/placeholder-approved",
-        status: "scheduled",
-        notes: request.notes
-      };
+      const backendMeetingId = request.meetingId || request.id;
+      const canPatchBackend = !String(backendMeetingId).startsWith("demo-")
+        && !String(backendMeetingId).startsWith("req-");
+
+      let meeting;
+      if (canPatchBackend) {
+        const updated = await apiUpdateMeeting(backendMeetingId, { status: "scheduled" });
+        meeting = updated.meeting;
+      } else {
+        const created = await apiCreateMeeting({
+          title: request.type || request.title || "Zoom check-in",
+          meetingType: "zoom",
+          startTime,
+          endTime,
+          studentId: request.studentId,
+          studentUserId: request.studentUserId,
+          status: "scheduled",
+          notes: request.notes,
+          clientRequestId: `accept-${request.id}`
+        });
+        meeting = created.meeting;
+      }
 
       setPendingMeetingRequests((prev) => prev.filter((item) => item.id !== request.id));
       setResolvedPendingRequestIds((prev) => (prev.includes(request.id) ? prev : [...prev, request.id]));
@@ -824,8 +908,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         category: "mentor_meeting",
         start: startTime,
         end: endTime,
-        studentId: meeting.studentId,
-        studentName: meeting.studentName,
+        studentId: meeting.studentId || request.studentId,
+        studentName: request.studentName || meeting.studentName,
         shared: true,
         formVariant: "event",
         calendarItemType: "event",
@@ -1179,7 +1263,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           return;
         }
         const { meetings: next } = await getMeetings();
-        setMeetings(next);
+        const split = splitMeetingsByStatus(next);
+        setMeetings(split.scheduled);
+        setPendingMeetingRequests(split.pending);
       }
     };
   }, [
