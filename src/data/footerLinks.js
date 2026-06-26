@@ -5,25 +5,26 @@ export const FOOTER_LINK_COLUMNS = [
     ariaLabelKey: "sections.footer.discoverLabel",
     links: [
       { labelKey: "sections.footer.links.how", href: "#mentorship" },
-      { labelKey: "sections.footer.links.mentorship", href: "#mentorship" },
       { labelKey: "nav.links.mentors", href: "/mentors" },
       { labelKey: "sections.footer.links.pricing", href: "#pricing" }
     ]
   },
   {
-    headingKey: "sections.footer.about",
-    ariaLabelKey: "sections.footer.aboutLabel",
+    headingKey: "sections.footer.resources",
+    ariaLabelKey: "sections.footer.resourcesLabel",
     links: [
-      { labelKey: "nav.links.about", href: "#home" },
-      { labelKey: "nav.links.mentoringClarity", href: "#mentorship" }
+      { labelKey: "sections.footer.links.parentDashboard", href: "#how-it-works" },
+      { labelKey: "sections.footer.links.academicSupport", href: "#academic-support" },
+      { labelKey: "sections.footer.links.preludeMatch", href: "#preludematch" }
     ]
   },
   {
-    headingKey: "sections.footer.admissions",
-    ariaLabelKey: "sections.footer.admissionsLabel",
+    headingKey: "sections.footer.support",
+    ariaLabelKey: "sections.footer.supportLabel",
     links: [
-      { labelKey: "nav.links.admissions", href: "#admissions-counseling" },
-      { labelKey: "nav.links.dashboard", href: "/dashboard" }
+      { labelKey: "sections.footer.links.contact", href: "#contact" },
+      { labelKey: "sections.footer.links.bookCall", href: "mailto:prelude@preludeconsultingllc.com" },
+      { labelKey: "sections.footer.links.email", href: "mailto:prelude@preludeconsultingllc.com" }
     ]
   }
 ];

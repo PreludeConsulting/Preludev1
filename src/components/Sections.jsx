@@ -1,8 +1,10 @@
 import {
+  FileText,
   GraduationCap,
   MessageCircle,
   Target,
-  ArrowUpRight
+  ArrowUpRight,
+  ShieldCheck
 } from "lucide-react";
 import { useState } from "react";
 import { motion } from "motion/react";
@@ -327,10 +329,10 @@ export function LowerFooter() {
   const { t } = useLanguage();
   const { openLegal } = useLegalModal();
   const followLinks = [
-    { label: "Instagram", href: "https://instagram.com/" },
-    { label: "X", href: "https://x.com/" },
-    { label: "Youtube", href: "https://youtube.com/" },
-    { label: "Email", href: "mailto:hello@preludeconsulting.com" },
+    { label: "Instagram", href: "https://www.instagram.com/preludellc/" },
+    { label: "X", href: "https://x.com/PreludeLLC" },
+    { label: "Youtube", href: "https://www.youtube.com/@PreludeLLC" },
+    { label: "Email", href: "mailto:prelude@preludeconsultingllc.com" },
     { label: "LinkedIn", href: "https://linkedin.com/" }
   ];
 
@@ -390,16 +392,18 @@ export function LowerFooter() {
           <div className="lower-landing__footer-legal">
             <button
               type="button"
-              className="lower-landing__footer-legal-link"
+              className="lower-landing__footer-legal-link lower-landing__footer-legal-link--privacy"
               onClick={() => openLegal("privacy")}
             >
+              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
               {t("sections.footer.privacy")}
             </button>
             <button
               type="button"
-              className="lower-landing__footer-legal-link"
+              className="lower-landing__footer-legal-link lower-landing__footer-legal-link--terms"
               onClick={() => openLegal("terms")}
             >
+              <FileText className="h-4 w-4" aria-hidden="true" />
               {t("sections.footer.terms")}
             </button>
           </div>
