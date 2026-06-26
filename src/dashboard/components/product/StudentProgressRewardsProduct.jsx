@@ -12,11 +12,11 @@ import {
 } from "lucide-react";
 import { EARN_CATEGORY_ORDER, MILESTONE_CATEGORY_LABELS } from "../../lib/progressRewards.js";
 import { useProgressRewards } from "../../context/ProgressRewardsContext.jsx";
-import { CoinBalance, CoinIcon } from "./rewards/PreludePiggyBank.jsx";
+import { CoinBalance, CoinIcon, Sparkles } from "./rewards/PreludePiggyBank.jsx";
 import PiggyBankProgress from "./rewards/PiggyBankProgress.jsx";
 import MyStatusProgressBar from "./rewards/MyStatusProgressBar.jsx";
 import { ProgressBar, RedeemTab } from "./rewards/RedeemTab.jsx";
-import RewardsSidebar from "./rewards/RewardsSidebar.jsx";
+import { RewardsSidebarBottom, RewardsSidebarTop } from "./rewards/RewardsSidebar.jsx";
 
 const TABS = [
   { id: "redeem", label: "Redeem", icon: Gift },
@@ -28,43 +28,72 @@ const TABS = [
 function RewardsHero() {
   const {
     coins,
-    studentFirstName,
     currentTier,
-    nextTier,
-    statusGoalCoins,
-    coinsToNextMultiplier,
-    celebration
+    statusGoalCoins
   } = useProgressRewards();
 
   const goalCoins = statusGoalCoins > 0 ? statusGoalCoins : 300;
   const heroPct = goalCoins > 0 ? Math.min(100, Math.round((coins / goalCoins) * 100)) : 0;
-  const goalLabel = nextTier
-    ? `${coinsToNextMultiplier.toLocaleString()} coins until ${nextTier.name}`
-    : "All status milestones unlocked";
 
   return (
     <header className="dash-rewards-hero">
-      <div className="dash-rewards-hero__pig">
-        <PiggyBankProgress
-          coins={coins}
-          goalCoins={goalCoins}
-          size="hero"
-          piggyAnimate={Boolean(celebration)}
-          showBalance
-          goalLabel={goalLabel}
-        />
-      </div>
-      <div className="dash-rewards-hero__center">
-        <p className="dash-rewards-hero__status-label">{studentFirstName}&apos;s Piggy Bank</p>
-        <div className="dash-rewards-hero__balance-wrap">
-          <CoinBalance value={coins} className="dash-rewards-hero__balance" />
-          <CoinIcon size="lg" />
+      <div className="dash-rewards-hero__info">
+        <div className="dash-rewards-hero__eyebrow">
+          <span className="dash-rewards-hero__eyebrow-icon" aria-hidden="true">
+            <Star />
+          </span>
+          Prelude Rewards
         </div>
-        <p className="dash-rewards-hero__balance-label">Available Coins</p>
-        <span className="dash-rewards-hero__tier-badge">{currentTier.name}</span>
-        <div className="dash-rewards-hero__goal">
-          <p className="dash-rewards-hero__goal-hint">{goalLabel}</p>
+        <h1 className="dash-rewards-hero__title">
+          <span>Fill your</span>
+          <span>Piggy Bank</span>
+        </h1>
+        <p className="dash-rewards-hero__subtitle">Earn coins, hit goals, and unlock awesome rewards.</p>
+
+        <div className="dash-rewards-hero__stats">
+          <div className="dash-rewards-hero__stat">
+            <CoinIcon size="lg" />
+            <div className="dash-rewards-hero__stat-copy">
+              <CoinBalance value={coins} className="dash-rewards-hero__balance" />
+              <span className="dash-rewards-hero__balance-label">Available Coins</span>
+            </div>
+          </div>
+          <div className="dash-rewards-hero__stat-divider" aria-hidden="true" />
+          <div className="dash-rewards-hero__tier">
+            <Star className="dash-rewards-hero__tier-icon" aria-hidden="true" />
+            {currentTier.name}
+          </div>
+        </div>
+
+        <div className="dash-rewards-hero__progress">
+          <div className="dash-rewards-hero__range">
+            <span>0</span>
+            <span>{goalCoins.toLocaleString()}</span>
+          </div>
           <ProgressBar pct={heroPct} className="dash-rewards-progress--hero" />
+          <p className="dash-rewards-hero__progress-label">
+            {coins.toLocaleString()} / {goalCoins.toLocaleString()} coins until next reward
+          </p>
+        </div>
+      </div>
+
+      <div className="dash-rewards-hero__visual">
+        <div className="dash-rewards-hero__scene">
+          <div className="dash-rewards-hero__scene-fx" aria-hidden="true">
+            <span className="dash-rewards-hero__scene-glow" />
+            <Sparkles className="dash-rewards-hero__scene-sparkles" />
+            <span className="dash-rewards-hero__scene-bubble dash-rewards-hero__scene-bubble--1" />
+            <span className="dash-rewards-hero__scene-bubble dash-rewards-hero__scene-bubble--2" />
+            <span className="dash-rewards-hero__scene-float-coin" />
+          </div>
+          <PiggyBankProgress
+            coins={coins}
+            goalCoins={goalCoins}
+            size="hero"
+            withDropAnimation={false}
+            piggyAnimate={false}
+            className="dash-rewards-hero__piggy"
+          />
         </div>
       </div>
     </header>
@@ -211,8 +240,9 @@ export default function StudentProgressRewardsProduct() {
   return (
     <div className="dash-page dash-rewards-loyalty">
       <div className="dash-rewards-loyalty__shell">
+        <RewardsHero />
+        <RewardsSidebarTop />
         <div className="dash-rewards-loyalty__main">
-          <RewardsHero />
           <RewardsTabs active={activeTab} onChange={setActiveTab} />
 
           {activeTab === "redeem" ? <RedeemTab /> : null}
@@ -220,8 +250,7 @@ export default function StudentProgressRewardsProduct() {
           {activeTab === "my-rewards" ? <MyRewardsTab /> : null}
           {activeTab === "earn" ? <EarnTab /> : null}
         </div>
-
-        <RewardsSidebar />
+        <RewardsSidebarBottom />
       </div>
     </div>
   );
