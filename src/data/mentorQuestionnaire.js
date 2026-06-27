@@ -1,3 +1,54 @@
+export const MENTOR_COLLEGE_OPTIONS = [
+  "Georgia Tech",
+  "University of Georgia",
+  "Emory University",
+  "Stanford University",
+  "Harvard University",
+  "Massachusetts Institute of Technology",
+  "University of Pennsylvania",
+  "Princeton University",
+  "Yale University",
+  "Columbia University",
+  "Duke University",
+  "Northwestern University",
+  "Johns Hopkins University",
+  "Brown University",
+  "Cornell University",
+  "Dartmouth College",
+  "UCLA",
+  "UC Berkeley",
+  "University of Chicago",
+  "Vanderbilt University",
+  "Rice University",
+  "Georgetown University",
+  "Carnegie Mellon University",
+  "New York University",
+  "USC",
+  "University of Michigan",
+  "UNC Chapel Hill"
+];
+
+export const MENTOR_PROGRAM_OPTIONS = [
+  "Computer Science",
+  "Engineering",
+  "Business Administration",
+  "Economics",
+  "Pre-Medicine",
+  "Health Sciences",
+  "Biology",
+  "Data Science",
+  "Mathematics",
+  "Psychology",
+  "Political Science",
+  "International Relations",
+  "Finance",
+  "English",
+  "Public Policy",
+  "Architecture",
+  "Fine Arts",
+  "Undecided or exploring"
+];
+
 export const MENTOR_SPECIALTIES = [
   "Choosing colleges",
   "Application strategy",
@@ -58,5 +109,6 @@ export const MENTOR_QUESTIONNAIRE_DEFAULTS = {
   targetSchools: [],
   supportStyles: [],
   applicationStrengths: [],
+  additionalNotes: "",
   availability: ""
 };

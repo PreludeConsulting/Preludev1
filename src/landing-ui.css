@@ -1181,6 +1181,7 @@
 }
 
 .mentor-onboarding__field input,
+.mentor-onboarding__field select,
 .mentor-onboarding__field textarea {
   width: 100%;
   border: 1px solid hsl(var(--foreground) / 0.14);
@@ -1194,14 +1195,77 @@
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+.mentor-onboarding__field select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, hsl(var(--muted-foreground)) 50%), linear-gradient(135deg, hsl(var(--muted-foreground)) 50%, transparent 50%);
+  background-position: calc(100% - 1.1rem) 50%, calc(100% - 0.8rem) 50%;
+  background-size: 0.32rem 0.32rem, 0.32rem 0.32rem;
+  background-repeat: no-repeat;
+  padding-right: 2.4rem;
+}
+
 .mentor-onboarding__field textarea {
   resize: vertical;
 }
 
 .mentor-onboarding__field input:focus,
+.mentor-onboarding__field select:focus,
 .mentor-onboarding__field textarea:focus {
   border-color: hsl(var(--primary) / 0.65);
   box-shadow: var(--focus-outline);
+}
+
+.mentor-onboarding__select-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.mentor-onboarding__select-row select,
+.mentor-onboarding__select-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mentor-onboarding__add-button {
+  min-width: 5.25rem;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  padding: 0 1rem;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.mentor-onboarding__add-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.mentor-onboarding__selected-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.mentor-onboarding__selected-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid hsl(var(--primary) / 0.32);
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary-deep));
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.mentor-onboarding__selected-item span {
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .mentor-onboarding__group h2 {
@@ -1274,5 +1338,13 @@
     position: static;
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .mentor-onboarding__select-row {
+    flex-direction: column;
+  }
+
+  .mentor-onboarding__add-button {
+    min-height: 2.75rem;
   }
 }

@@ -3,7 +3,9 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {
   MENTOR_APPLICATION_STRENGTHS,
+  MENTOR_COLLEGE_OPTIONS,
   MENTOR_QUESTIONNAIRE_DEFAULTS,
+  MENTOR_PROGRAM_OPTIONS,
   MENTOR_SPECIALTIES,
   MENTOR_SUPPORT_STYLES,
   MENTOR_TARGET_MAJORS
@@ -13,12 +15,109 @@ import { dashboardPathForRole, MENTOR_ONBOARDING_PATH, userNeedsMentorOnboarding
 import { loadMentorQuestionnaire, saveMentorQuestionnaire } from "../../lib/mentorQuestionnaireService.js";
 import AppLink from "../AppLink.jsx";
 
+const OTHER_VALUE = "__other__";
+
 function Field({ label, children }) {
   return (
     <label className="mentor-onboarding__field">
       <span>{label}</span>
       {children}
     </label>
+  );
+}
+
+function isCompleteCustomValue(value) {
+  return Boolean(value?.trim()) && value !== OTHER_VALUE;
+}
+
+function DropdownWithOther({ label, value, options, onChange, placeholder, otherPlaceholder }) {
+  const selectedValue = options.includes(value) ? value : value ? OTHER_VALUE : "";
+  const showOther = selectedValue === OTHER_VALUE;
+
+  return (
+    <Field label={label}>
+      <select
+        value={selectedValue}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option value={option} key={option}>{option}</option>
+        ))}
+        <option value={OTHER_VALUE}>Other</option>
+      </select>
+      {showOther ? (
+        <input
+          value={value === OTHER_VALUE ? "" : value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={otherPlaceholder}
+        />
+      ) : null}
+    </Field>
+  );
+}
+
+function TargetSchoolsPicker({ value, onChange }) {
+  const selected = Array.isArray(value) ? value : [];
+  const [choice, setChoice] = useState("");
+  const [customSchool, setCustomSchool] = useState("");
+  const availableOptions = MENTOR_COLLEGE_OPTIONS.filter((school) => !selected.includes(school));
+  const canAddCustom = Boolean(customSchool.trim());
+
+  function addSchool(school) {
+    const trimmed = school.trim();
+    if (!trimmed || selected.includes(trimmed)) return;
+    onChange([...selected, trimmed]);
+    setChoice("");
+    setCustomSchool("");
+  }
+
+  function removeSchool(school) {
+    onChange(selected.filter((item) => item !== school));
+  }
+
+  return (
+    <section className="mentor-onboarding__field mentor-onboarding__target-schools">
+      <span>Target schools you know well</span>
+      <div className="mentor-onboarding__select-row">
+        <select
+          value={choice}
+          onChange={(event) => {
+            const nextChoice = event.target.value;
+            setChoice(nextChoice);
+            if (nextChoice && nextChoice !== OTHER_VALUE) addSchool(nextChoice);
+          }}
+        >
+          <option value="">Select a school to add</option>
+          {availableOptions.map((option) => (
+            <option value={option} key={option}>{option}</option>
+          ))}
+          <option value={OTHER_VALUE}>Other</option>
+        </select>
+      </div>
+      {choice === OTHER_VALUE ? (
+        <div className="mentor-onboarding__select-row">
+          <input
+            value={customSchool}
+            onChange={(event) => setCustomSchool(event.target.value)}
+            placeholder="Add another college or university"
+          />
+          <button type="button" className="mentor-onboarding__add-button" onClick={() => addSchool(customSchool)} disabled={!canAddCustom}>
+            Add
+          </button>
+        </div>
+      ) : null}
+      {selected.length ? (
+        <div className="mentor-onboarding__selected-list" aria-label="Selected target schools">
+          {selected.map((school) => (
+            <button type="button" className="mentor-onboarding__selected-item" onClick={() => removeSchool(school)} key={school}>
+              {school}
+              <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -44,17 +143,6 @@ function CheckboxGroup({ label, options, value, onChange }) {
   );
 }
 
-function commaList(value) {
-  return Array.isArray(value) ? value.join(", ") : "";
-}
-
-function parseCommaList(value) {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 export default function MentorQuestionnaireOnboardingPage() {
   const navigate = useNavigate();
   const { user, ready, refreshUser } = useAuth();
@@ -65,8 +153,8 @@ export default function MentorQuestionnaireOnboardingPage() {
 
   const missingRequired = useMemo(() => {
     const missing = [];
-    if (!answers.college?.trim()) missing.push("college");
-    if (!answers.major?.trim()) missing.push("major");
+    if (!isCompleteCustomValue(answers.college)) missing.push("college");
+    if (!isCompleteCustomValue(answers.major)) missing.push("major");
     if (!answers.bio?.trim()) missing.push("bio");
     if (!answers.specialties?.length) missing.push("specialties");
     if (!answers.targetMajors?.length) missing.push("academic areas");
@@ -97,6 +185,7 @@ export default function MentorQuestionnaireOnboardingPage() {
         targetSchools: savedAnswers.targetSchools ?? matchingProfile?.target_schools ?? [],
         supportStyles: savedAnswers.supportStyles ?? matchingProfile?.support_styles ?? [],
         applicationStrengths: savedAnswers.applicationStrengths ?? matchingProfile?.application_strengths ?? [],
+        additionalNotes: savedAnswers.additionalNotes ?? "",
         availability: savedAnswers.availability ?? matchingProfile?.availability ?? ""
       });
       setLoading(false);
@@ -164,12 +253,22 @@ export default function MentorQuestionnaireOnboardingPage() {
         <form className="mentor-onboarding__form" onSubmit={onSubmit}>
           <section className="mentor-onboarding__panel">
             <div className="mentor-onboarding__split">
-              <Field label="College or university">
-                <input value={answers.college} onChange={(event) => update("college", event.target.value)} placeholder="Georgia Tech" />
-              </Field>
-              <Field label="Major or program">
-                <input value={answers.major} onChange={(event) => update("major", event.target.value)} placeholder="Computer Science" />
-              </Field>
+              <DropdownWithOther
+                label="College or university"
+                value={answers.college}
+                options={MENTOR_COLLEGE_OPTIONS}
+                onChange={(value) => update("college", value)}
+                placeholder="Select your college"
+                otherPlaceholder="Type your college or university"
+              />
+              <DropdownWithOther
+                label="Major or program"
+                value={answers.major}
+                options={MENTOR_PROGRAM_OPTIONS}
+                onChange={(value) => update("major", value)}
+                placeholder="Select your major or program"
+                otherPlaceholder="Type your major or program"
+              />
             </div>
 
             <Field label="Mentor bio">
@@ -181,13 +280,7 @@ export default function MentorQuestionnaireOnboardingPage() {
               />
             </Field>
 
-            <Field label="Target schools you know well">
-              <input
-                value={commaList(answers.targetSchools)}
-                onChange={(event) => update("targetSchools", parseCommaList(event.target.value))}
-                placeholder="Georgia Tech, Brown, University of Georgia"
-              />
-            </Field>
+            <TargetSchoolsPicker value={answers.targetSchools} onChange={(value) => update("targetSchools", value)} />
           </section>
 
           <CheckboxGroup label="Where can you help students most?" options={MENTOR_SPECIALTIES} value={answers.specialties} onChange={(value) => update("specialties", value)} />
@@ -196,6 +289,15 @@ export default function MentorQuestionnaireOnboardingPage() {
           <CheckboxGroup label="Which application strengths should matching consider?" options={MENTOR_APPLICATION_STRENGTHS} value={answers.applicationStrengths} onChange={(value) => update("applicationStrengths", value)} />
 
           <section className="mentor-onboarding__panel">
+            <Field label="Other strengths or context">
+              <textarea
+                value={answers.additionalNotes}
+                onChange={(event) => update("additionalNotes", event.target.value)}
+                rows={3}
+                placeholder="Add other strengths, programs you know, student groups you support well, or anything else students should know."
+              />
+            </Field>
+
             <Field label="Availability notes">
               <textarea
                 value={answers.availability}
