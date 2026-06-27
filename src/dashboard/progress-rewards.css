@@ -1286,13 +1286,7 @@
   color: hsl(var(--muted-foreground));
 }
 
-.dash-toast--error {
-  background: linear-gradient(135deg, #b42318, #d92d20);
-}
-
-.dash-toast--info {
-  background: hsl(230 25% 28%);
-}
+/* Toast contrast variants live in dashboard-premium.css */
 
 .dash-rewards-store-footer {
   margin-top: 1rem;

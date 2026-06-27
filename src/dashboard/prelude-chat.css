@@ -555,8 +555,7 @@
 }
 
 @media (min-width: 900px) {
-  .dash-shell--verify-banner .dash-msg-fab,
-  .dash-shell--product:has(.dash-parent-reminder) .dash-msg-fab {
+  .dash-shell--verify-banner .dash-msg-fab {
     bottom: 4.5rem;
   }
 }

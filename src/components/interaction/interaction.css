@@ -350,34 +350,40 @@
 /* Feedback toasts */
 .prelude-feedback-toasts {
   position: fixed;
-  right: 1rem;
-  bottom: 1rem;
+  right: clamp(0.75rem, 2vw, 1.25rem);
+  bottom: max(1.25rem, env(safe-area-inset-bottom, 0px) + 1.25rem);
   z-index: 9998;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 0.5rem;
+  max-width: min(22rem, calc(100vw - 1.5rem));
   pointer-events: none;
 }
 
 .prelude-feedback-toast {
-  padding: 0.65rem 1rem;
-  border-radius: 0.75rem;
-  font-size: 0.875rem;
+  pointer-events: auto;
+  padding: 0.75rem 1rem;
+  border-radius: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  box-shadow: 0 8px 24px rgb(35 39 48 / 0.14);
+  line-height: 1.4;
+  box-shadow:
+    0 4px 8px rgb(35 39 48 / 0.06),
+    0 14px 32px rgb(91 79 214 / 0.12);
   animation: prelude-toast-in 0.24s ease-out;
 }
 
 .prelude-feedback-toast--success {
-  background: #232730;
-  color: #fff;
-  border: 1px solid rgb(120 106 255 / 0.35);
+  border: 1px solid rgb(91 79 214 / 0.32);
+  background: linear-gradient(180deg, #f8f6ff 0%, #ede9ff 100%);
+  color: #3f35b8;
 }
 
 .prelude-feedback-toast--error {
-  background: #fff5f5;
-  color: #b42318;
   border: 1px solid #fecdca;
+  background: linear-gradient(180deg, #fff 0%, #fff5f5 100%);
+  color: #912018;
 }
 
 @keyframes prelude-toast-in {

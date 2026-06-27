@@ -583,12 +583,15 @@
 
 .dash-toast-stack {
   position: fixed;
-  bottom: 1.25rem;
-  right: 1.25rem;
+  right: clamp(0.75rem, 2vw, 1.25rem);
+  bottom: max(1.25rem, env(safe-area-inset-bottom, 0px) + 1.25rem);
   z-index: 100;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: min(22rem, calc(100vw - 1.5rem));
+  pointer-events: none;
 }
 
 .dash-shell--verify-banner {
@@ -596,23 +599,42 @@
 }
 
 .dash-shell--verify-banner .dash-toast-stack {
-  bottom: 5.25rem;
+  bottom: max(5.25rem, env(safe-area-inset-bottom, 0px) + 5.25rem);
 }
 
 .dash-toast {
-  padding: 0.65rem 1rem;
-  border-radius: 0.65rem;
-  background: hsl(230 25% 18%);
-  color: #fff;
+  pointer-events: auto;
+  padding: 0.75rem 1rem;
+  border-radius: 0.875rem;
+  border: 1px solid rgb(91 79 214 / 0.2);
+  background: linear-gradient(180deg, #ffffff 0%, #f7f5ff 100%);
+  color: hsl(230 28% 16%);
   font-family: var(--dash-font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
-  box-shadow: 0 8px 24px rgb(35 39 48 / 0.2);
+  line-height: 1.4;
+  box-shadow:
+    0 4px 8px rgb(35 39 48 / 0.06),
+    0 14px 32px rgb(91 79 214 / 0.12);
   animation: dash-toast-in 0.25s ease;
 }
 
 .dash-toast--success {
-  background: linear-gradient(135deg, #5b4fd6, #7c6cff);
+  border-color: rgb(91 79 214 / 0.32);
+  background: linear-gradient(180deg, #f8f6ff 0%, #ede9ff 100%);
+  color: #3f35b8;
+}
+
+.dash-toast--error {
+  border-color: #fecdca;
+  background: linear-gradient(180deg, #fff 0%, #fff5f5 100%);
+  color: #912018;
+}
+
+.dash-toast--info {
+  border-color: rgb(91 79 214 / 0.24);
+  background: linear-gradient(180deg, #fff 0%, #f3f0ff 100%);
+  color: hsl(230 28% 18%);
 }
 
 @keyframes dash-toast-in {

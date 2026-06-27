@@ -4768,39 +4768,136 @@
 
 .dash-parent-reminder {
   position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  z-index: 60;
-  max-width: min(26rem, calc(100vw - 2rem));
+  top: clamp(4.5rem, 11vh, 5.75rem);
+  right: clamp(0.75rem, 2vw, 1.25rem);
+  left: auto;
+  bottom: auto;
+  z-index: 90;
+  width: min(22rem, calc(100vw - 1.5rem));
+  max-width: min(22rem, calc(100vw - 1.5rem));
 }
 
 .dash-parent-reminder__inner {
+  position: relative;
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas:
+    "icon content close"
+    "cta cta cta";
   gap: 0.65rem 0.75rem;
-  align-items: center;
-  padding: 0.9rem 1rem;
+  align-items: start;
+  padding: 1rem 1rem 0.9rem;
   border-radius: 1rem;
-  border: 1px solid rgba(167, 139, 250, 0.35);
-  background: rgba(24, 20, 36, 0.96);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgb(91 79 214 / 0.2);
+  background: linear-gradient(180deg, #ffffff 0%, #f7f5ff 100%);
+  box-shadow:
+    0 4px 8px rgb(35 39 48 / 0.05),
+    0 18px 40px rgb(91 79 214 / 0.14);
+  color: hsl(230 28% 16%);
 }
 
-.dash-parent-reminder__inner p {
+.dash-parent-reminder__icon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: rgb(91 79 214 / 0.12);
+  color: #5b4fd6;
+  flex-shrink: 0;
+}
+
+.dash-parent-reminder__content {
+  grid-area: content;
+  min-width: 0;
+  padding-right: 0.25rem;
+}
+
+.dash-parent-reminder__title {
   margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.4;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: hsl(230 28% 14%);
+}
+
+.dash-parent-reminder__body {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: hsl(230 14% 34%);
+}
+
+.dash-parent-reminder__cta {
+  grid-area: cta;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgb(91 79 214 / 0.28);
+  background: #fff;
+  color: #4a3fc9;
+  font-family: var(--dash-font-sans);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  text-align: center;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.dash-parent-reminder__cta:hover,
+.dash-parent-reminder__cta:focus-visible {
+  background: #f3f0ff;
+  border-color: rgb(91 79 214 / 0.45);
+  color: #3f35b8;
+  box-shadow: 0 0 0 3px rgb(91 79 214 / 0.16);
+  outline: none;
 }
 
 .dash-parent-reminder__close {
+  grid-area: close;
   display: grid;
   place-items: center;
-  padding: 0.25rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: -0.15rem -0.15rem 0 0;
+  padding: 0;
   border: none;
+  border-radius: 0.45rem;
   background: transparent;
-  color: inherit;
-  opacity: 0.7;
+  color: hsl(230 12% 42%);
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dash-parent-reminder__close:hover,
+.dash-parent-reminder__close:focus-visible {
+  background: rgb(91 79 214 / 0.1);
+  color: hsl(230 28% 20%);
+  outline: none;
+}
+
+@media (max-width: 480px) {
+  .dash-parent-reminder {
+    top: clamp(4rem, 10vh, 4.75rem);
+    right: 0.75rem;
+    left: 0.75rem;
+    bottom: auto;
+    width: auto;
+    max-width: none;
+  }
+
+  .dash-parent-reminder__inner {
+    padding: 0.9rem 0.9rem 0.85rem;
+  }
 }
 
 .dash-parent-invite-card__icon {
