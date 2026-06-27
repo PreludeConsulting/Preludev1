@@ -82,7 +82,7 @@ export function createDashboardApiMiddleware(getSession) {
           writeIntegrations(user.id, integrations);
           return sendJson(res, 200, {
             integrations,
-            message: "Zoom integration is managed by Prelude. Meetings are created automatically when scheduled."
+            message: "Meetings use mentor-provided Zoom links. Create a meeting in Zoom and paste the join link when scheduling."
           });
         }
         if (url.pathname === "/api/integrations/zoom/disconnect" && req.method === "POST") {

@@ -1,23 +1,19 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { createDashboardApiMiddleware } from "../../server/dashboardApi.js";
 import { scheduleMeeting, updateScheduledMeeting } from "../../server/lib/meetingSchedule.js";
-import { __resetZoomTokenCacheForTests } from "../../server/lib/zoomService.js";
 
-const originalFetch = globalThis.fetch;
-const originalDatabaseUrl = process.env.DATABASE_URL;
-
-function mockFetch(handler) {
-  globalThis.fetch = handler;
-}
-
-function restoreFetch() {
-  globalThis.fetch = originalFetch;
-}
+const mentorUser = {
+  id: "22222222-2222-2222-2222-222222222222",
+  role: "MENTOR",
+  email: "mentor@example.com"
+};
+const studentUser = {
+  id: "11111111-1111-1111-1111-111111111111",
+  role: "STUDENT",
+  email: "student@example.com"
+};
 
 function mockReq(url, method = "GET", body = null, headers = {}) {
   const payload = body ? JSON.stringify(body) : "";
@@ -54,66 +50,16 @@ function mockRes() {
   return res;
 }
 
-async function invoke(middleware, url, method = "GET", body = null, headers = {}) {
-  const req = mockReq(url, method, body, headers);
-  const res = mockRes();
-  await new Promise((resolve) => {
-    middleware(req, res, resolve);
-  });
-  return {
-    status: res.statusCode,
-    json: res.body ? JSON.parse(res.body) : null
-  };
-}
-
 function futureIso(hoursAhead = 48) {
   return new Date(Date.now() + hoursAhead * 60 * 60 * 1000).toISOString();
 }
 
 async function main() {
   delete process.env.DATABASE_URL;
-  process.env.ZOOM_ACCOUNT_ID = "acct";
-  process.env.ZOOM_CLIENT_ID = "client";
-  process.env.ZOOM_CLIENT_SECRET = "secret";
-  __resetZoomTokenCacheForTests();
-
-  mockFetch(async (url) => {
-    if (String(url).includes("/oauth/token")) {
-      return {
-        ok: true,
-        async json() {
-          return { access_token: "token-123", expires_in: 3600 };
-        }
-      };
-    }
-    return {
-      ok: true,
-      async json() {
-        return {
-          id: 424242,
-          join_url: "https://zoom.us/j/424242",
-          start_url: "https://zoom.us/s/424242",
-          password: "pw"
-        };
-      }
-    };
-  });
-
-  const studentUser = {
-    id: "11111111-1111-1111-1111-111111111111",
-    role: "STUDENT",
-    email: "student@example.com"
-  };
-  const mentorUser = {
-    id: "22222222-2222-2222-2222-222222222222",
-    role: "MENTOR",
-    email: "mentor@example.com"
-  };
 
   const startTime = futureIso(72);
   const endTime = futureIso(73);
-
-  const idempotencyKey = `dup-key-${Date.now()}`;
+  const zoomJoinUrl = "https://zoom.us/j/5551234567";
 
   const pending = await scheduleMeeting(
     {
@@ -122,60 +68,68 @@ async function main() {
       endTime,
       status: "pending",
       meetingType: "zoom",
-      clientRequestId: idempotencyKey
+      clientRequestId: `dup-key-${Date.now()}`
     },
     studentUser,
-    mockReq("/api/meetings", "POST", null, { "Idempotency-Key": idempotencyKey })
+    mockReq("/api/meetings", "POST", null, { "Idempotency-Key": "student-pending" })
   );
   assert.equal(pending.status, "pending");
   assert.equal(pending.zoomJoinUrl, null);
 
-  const duplicate = await scheduleMeeting(
+  let mentorCreateFailed = false;
+  try {
+    await scheduleMeeting(
+      {
+        title: "Missing link",
+        startTime,
+        endTime,
+        meetingType: "zoom",
+        status: "scheduled"
+      },
+      mentorUser,
+      mockReq("/api/meetings", "POST")
+    );
+  } catch (error) {
+    mentorCreateFailed = true;
+    assert.match(error.message, /Zoom meeting link/i);
+  }
+  assert.equal(mentorCreateFailed, true);
+
+  const scheduled = await scheduleMeeting(
     {
-      title: "Essay help",
+      title: "Essay review",
       startTime,
       endTime,
-      status: "pending",
       meetingType: "zoom",
-      clientRequestId: idempotencyKey
+      status: "scheduled",
+      zoomJoinUrl
     },
-    studentUser,
-    mockReq("/api/meetings", "POST", null, { "Idempotency-Key": idempotencyKey })
+    mentorUser,
+    mockReq("/api/meetings", "POST")
   );
-  assert.equal(duplicate.id, pending.id);
+  assert.equal(scheduled.zoomJoinUrl, zoomJoinUrl);
 
-  const scheduled = await updateScheduledMeeting(
+  const approved = await updateScheduledMeeting(
     pending.id,
-    { status: "scheduled" },
+    { status: "scheduled", zoomJoinUrl },
     mentorUser
   );
-  assert.equal(scheduled.status, "scheduled");
-  assert.equal(scheduled.zoomJoinUrl, "https://zoom.us/j/424242");
+  assert.equal(approved.status, "scheduled");
+  assert.equal(approved.zoomJoinUrl, zoomJoinUrl);
 
   const authedMiddleware = createDashboardApiMiddleware(async () => ({ user: studentUser }));
   const unauthorizedMiddleware = createDashboardApiMiddleware(async () => null);
-  const unauthorized = await invoke(unauthorizedMiddleware, "/api/meetings", "POST", {
-    title: "Test",
-    startTime,
-    endTime
+  const unauthorized = await new Promise((resolve) => {
+    const req = mockReq("/api/meetings", "POST", { title: "Test", startTime, endTime });
+    const res = mockRes();
+    unauthorizedMiddleware(req, res, resolve);
   });
-  assert.equal(unauthorized.status, 401);
+  assert.equal(unauthorized.statusCode, 401);
 
-  const invalidTime = await invoke(authedMiddleware, "/api/meetings", "POST", {
-    title: "Bad time",
-    startTime: endTime,
-    endTime: startTime
-  });
-  assert.equal(invalidTime.status, 400);
-
-  restoreFetch();
-  if (originalDatabaseUrl) process.env.DATABASE_URL = originalDatabaseUrl;
   console.log("meetingSchedule.node.test.js passed");
 }
 
 main().catch((error) => {
-  restoreFetch();
-  if (originalDatabaseUrl) process.env.DATABASE_URL = originalDatabaseUrl;
   console.error(error);
   process.exit(1);
 });

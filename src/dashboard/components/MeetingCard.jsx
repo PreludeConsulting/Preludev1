@@ -1,4 +1,5 @@
 import { Video } from "lucide-react";
+import { isValidZoomJoinUrl } from "../../lib/zoomMeetingLinks.js";
 
 function formatRange(start, end) {
   const s = new Date(start);
@@ -7,7 +8,7 @@ function formatRange(start, end) {
 }
 
 export default function MeetingCard({ meeting, mentorName, studentName, role, onSelect }) {
-  const showJoin = meeting.meetingType === "zoom" && meeting.zoomJoinUrl && meeting.status !== "canceled";
+  const showJoin = meeting.meetingType === "zoom" && isValidZoomJoinUrl(meeting.zoomJoinUrl) && meeting.status !== "canceled";
 
   return (
     <article className="dash-meeting-card paper-card">
@@ -26,7 +27,7 @@ export default function MeetingCard({ meeting, mentorName, studentName, role, on
         {showJoin ? (
           <a href={meeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-btn-primary dash-btn-primary--sm">
             <Video className="h-4 w-4" aria-hidden="true" />
-            Join Zoom Meeting
+            Join Meeting
           </a>
         ) : null}
         {role === "mentor" && meeting.zoomHostUrl ? (

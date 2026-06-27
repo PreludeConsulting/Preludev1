@@ -4,13 +4,13 @@ import {
   createMeetingRecord,
   findMeetingByIdempotencyKey,
   getMeetingById,
-  shouldAttachZoom,
   updateMeetingRecord
 } from "./meetingStore.js";
-import { createZoomMeeting, deleteZoomMeeting, isZoomConfigured } from "./zoomService.js";
 
 const meetingTypeSchema = z.enum(["zoom", "in_person", "phone"]);
 const meetingStatusSchema = z.enum(["scheduled", "pending", "approved", "declined", "canceled", "rescheduled"]);
+
+const zoomJoinUrlSchema = z.string().trim().url().max(2048).optional();
 
 const createMeetingSchema = z.object({
   title: z.string().trim().min(1).max(180),
@@ -25,7 +25,7 @@ const createMeetingSchema = z.object({
   studentUserId: z.string().uuid().optional(),
   mentorUserId: z.string().uuid().optional(),
   isPrivate: z.boolean().optional(),
-  explicitZoom: z.boolean().optional(),
+  zoomJoinUrl: zoomJoinUrlSchema,
   idempotencyKey: z.string().trim().min(8).max(128).optional(),
   clientRequestId: z.string().trim().min(8).max(128).optional()
 });
@@ -38,7 +38,8 @@ const updateMeetingSchema = z.object({
   timeZone: z.string().trim().min(1).max(64).optional(),
   notes: z.string().trim().max(4000).optional(),
   status: meetingStatusSchema.optional(),
-  isPrivate: z.boolean().optional()
+  isPrivate: z.boolean().optional(),
+  zoomJoinUrl: zoomJoinUrlSchema
 });
 
 function userFacingError(message, statusCode = 400, code = "validation_error") {
@@ -46,6 +47,18 @@ function userFacingError(message, statusCode = 400, code = "validation_error") {
   error.statusCode = statusCode;
   error.code = code;
   return error;
+}
+
+function isValidZoomJoinUrl(url) {
+  if (!url || typeof url !== "string") return false;
+  try {
+    const parsed = new URL(url.trim());
+    if (parsed.protocol !== "https:") return false;
+    const host = parsed.hostname.toLowerCase();
+    return host === "zoom.us" || host.endsWith(".zoom.us");
+  } catch {
+    return false;
+  }
 }
 
 function resolveIdempotencyKey(body, req) {
@@ -76,6 +89,19 @@ function validateTimes(startTime, endTime) {
   }
 }
 
+function assertZoomLinkWhenRequired({ role, meetingType, status, zoomJoinUrl }) {
+  if (meetingType !== "zoom") return;
+  if (status !== "scheduled" && status !== "approved") return;
+  if (role?.toUpperCase() === "STUDENT") return;
+  if (!isValidZoomJoinUrl(zoomJoinUrl)) {
+    throw userFacingError(
+      "Paste a valid Zoom meeting link (https://zoom.us/j/… or https://….zoom.us/j/…).",
+      400,
+      "validation_error"
+    );
+  }
+}
+
 async function assertMentorStudentAccess({ mentorUserId, studentUserId }) {
   if (!mentorUserId || !studentUserId) return;
   try {
@@ -92,7 +118,6 @@ async function assertMentorStudentAccess({ mentorUserId, studentUserId }) {
     }
   } catch (error) {
     if (error.statusCode) throw error;
-    // Demo/offline environments may not have assignments seeded.
   }
 }
 
@@ -107,53 +132,19 @@ function canUserAccessMeeting(user, meeting) {
   return false;
 }
 
-function shouldCreateZoomNow({ meetingType, status, isPrivate, explicitZoom, existingJoinUrl }) {
-  if (existingJoinUrl) return false;
-  if (!shouldAttachZoom(meetingType, isPrivate, explicitZoom)) return false;
-  return status === "scheduled" || status === "approved";
-}
-
-async function attachZoomToMeeting(meeting) {
-  if (!isZoomConfigured()) {
-    throw userFacingError(
-      "Video meetings are temporarily unavailable. Please try again later or contact support.",
-      503,
-      "zoom_not_configured"
-    );
-  }
-
-  const zoom = await createZoomMeeting({
-    topic: meeting.title,
-    startTime: meeting.startTime,
-    endTime: meeting.endTime,
-    timezone: meeting.timeZone,
-    agenda: meeting.notes || undefined
-  });
-
-  try {
-    return await updateMeetingRecord(meeting.id, {
-      zoomMeetingId: zoom.zoomMeetingId,
-      zoomJoinUrl: zoom.joinUrl,
-      zoomHostUrl: zoom.startUrl,
-      zoomPassword: zoom.password
-    });
-  } catch (error) {
-    await deleteZoomMeeting(zoom.zoomMeetingId);
-    throw error;
-  }
-}
-
 function normalizeCreatePayload(body, user) {
   const role = user.role?.toUpperCase();
   const payload = {
     ...body,
     studentUserId: body.studentUserId || (role === "STUDENT" ? user.id : undefined),
     mentorUserId: body.mentorUserId || (role === "MENTOR" ? user.id : undefined),
-    status: body.status || (role === "STUDENT" ? "pending" : "scheduled")
+    status: body.status || (role === "STUDENT" ? "pending" : "scheduled"),
+    zoomJoinUrl: body.zoomJoinUrl?.trim() || null
   };
 
   if (role === "STUDENT" && payload.status === "scheduled" && payload.meetingType === "zoom") {
     payload.status = "pending";
+    payload.zoomJoinUrl = null;
   }
 
   return payload;
@@ -170,21 +161,22 @@ export async function scheduleMeeting(body, user, req) {
   }
 
   const payload = normalizeCreatePayload(parsed, user);
+  assertZoomLinkWhenRequired({
+    role: user.role,
+    meetingType: payload.meetingType,
+    status: payload.status,
+    zoomJoinUrl: payload.zoomJoinUrl
+  });
+
   await assertMentorStudentAccess({
     mentorUserId: payload.mentorUserId,
     studentUserId: payload.studentUserId
   });
 
-  let meeting = await createMeetingRecord({
+  return createMeetingRecord({
     ...payload,
     idempotencyKey: idempotencyKey ? String(idempotencyKey) : null
   });
-
-  if (shouldCreateZoomNow(meeting)) {
-    meeting = await attachZoomToMeeting(meeting);
-  }
-
-  return meeting;
 }
 
 export async function updateScheduledMeeting(id, body, user) {
@@ -206,29 +198,28 @@ export async function updateScheduledMeeting(id, body, user) {
   const nextMeetingType = parsed.meetingType || existing.meetingType;
   const nextStart = parsed.startTime || existing.startTime;
   const nextEnd = parsed.endTime || existing.endTime;
-  validateTimes(nextStart, nextEnd);
+  const nextZoomJoinUrl = parsed.zoomJoinUrl !== undefined ? parsed.zoomJoinUrl?.trim() || null : existing.zoomJoinUrl;
 
-  let meeting = await updateMeetingRecord(id, {
-    ...parsed,
-    status: nextStatus
-  });
+  validateTimes(nextStart, nextEnd);
 
   const approving =
     (existing.status === "pending" || existing.status === "declined") &&
     (nextStatus === "scheduled" || nextStatus === "approved");
 
-  if (
-    shouldCreateZoomNow({
+  if (approving && nextMeetingType === "zoom") {
+    assertZoomLinkWhenRequired({
+      role: user.role,
       meetingType: nextMeetingType,
       status: nextStatus,
-      isPrivate: meeting.isPrivate,
-      explicitZoom: false,
-      existingJoinUrl: meeting.zoomJoinUrl
-    }) &&
-    (approving || !existing.zoomJoinUrl)
-  ) {
-    meeting = await attachZoomToMeeting(meeting);
+      zoomJoinUrl: nextZoomJoinUrl
+    });
   }
+
+  let meeting = await updateMeetingRecord(id, {
+    ...parsed,
+    status: nextStatus,
+    zoomJoinUrl: parsed.zoomJoinUrl !== undefined ? nextZoomJoinUrl : undefined
+  });
 
   if (nextMeetingType !== "zoom") {
     meeting = await updateMeetingRecord(id, {
@@ -242,4 +233,4 @@ export async function updateScheduledMeeting(id, body, user) {
   return meeting;
 }
 
-export { createMeetingSchema, updateMeetingSchema };
+export { createMeetingSchema, updateMeetingSchema, isValidZoomJoinUrl };

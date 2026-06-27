@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Calendar, ImagePlus, MessageCircle, Pencil, Send, Video, X } from "lucide-react";
+import { findNextJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import { loadLocalChatMessages } from "../../../lib/localChatStore.js";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
@@ -185,7 +186,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   }, [threads, q, threadRevision, messages.length]);
 
   const groups = activeThread ? groupMessages(messages) : [];
-  const nextMeeting = meetings.find((m) => m.zoomJoinUrl);
+  const nextMeeting = findNextJoinableMeeting(meetings);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -280,7 +281,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                   </Link>
                   {nextMeeting?.zoomJoinUrl ? (
                     <a href={nextMeeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-btn dash-btn--primary dash-btn--sm">
-                      <Video className="h-4 w-4" /> Join Zoom
+                      <Video className="h-4 w-4" /> Join Meeting
                     </a>
                   ) : null}
                 </div>

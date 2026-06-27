@@ -35,6 +35,7 @@ import {
 import { isDemoEmail } from "../../data/demoAccounts.js";
 import { getDemoDashboardForUser } from "../../data/demoDashboardData.js";
 import { shouldUseDemoFixtures } from "../../lib/devAuthBypass.js";
+import { isValidZoomJoinUrl, resolveMeetingsForDisplay } from "../../lib/zoomMeetingLinks.js";
 import { roleFromUser } from "../../lib/dashboardRoutes.js";
 import { EMPTY_STUDENT_PROFILE } from "../config/studentDashboardByGrade.js";
 import {
@@ -85,9 +86,6 @@ function splitMeetingsByStatus(meetingList = []) {
 
 function meetingScheduleErrorMessage(error) {
   const code = error?.payload?.error;
-  if (code === "zoom_not_configured") {
-    return "Video meetings are temporarily unavailable. Your request was saved and your mentor can follow up.";
-  }
   if (code === "validation_error") return error.message || "Please check the meeting details and try again.";
   return error?.message || "Could not schedule the meeting. Please try again.";
 }
@@ -495,19 +493,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
       if (useSupabase && user) {
         const start = enrichedPayload.startTime || enrichedPayload.start || new Date().toISOString();
-        let meetingUrl = payload.zoomJoinUrl || null;
-
-        if (!isPending && enrichedPayload.meetingType === "zoom" && !meetingUrl) {
-          try {
-            const result = await apiCreateMeeting(
-              { ...enrichedPayload, clientRequestId },
-              { idempotencyKey: clientRequestId }
-            );
-            meetingUrl = result.meeting?.zoomJoinUrl || null;
-          } catch (error) {
-            throw new Error(meetingScheduleErrorMessage(error));
-          }
-        }
+        const meetingUrl = enrichedPayload.zoomJoinUrl || null;
 
         const { event, error: err } = await createCalendarEvent(user.id, {
           title: enrichedPayload.title || "Mentor session",
@@ -693,7 +679,10 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         && (workingItem.category === "mentor_meeting" || workingItem.formVariant === "event")
         && (workingItem.status || "scheduled") === "scheduled";
 
-      if (!useSupabase && isZoomMentorMeeting && !workingItem.zoomJoinUrl && roleFromUser(user) === "MENTOR") {
+      if (isZoomMentorMeeting && roleFromUser(user) === "MENTOR" && !workingItem.meetingRecordId) {
+        if (!isValidZoomJoinUrl(workingItem.zoomJoinUrl)) {
+          throw new Error("Paste a valid Zoom meeting link before saving.");
+        }
         const idempotencyKey = `calendar-${existingId || workingItem.id || `${workingItem.start}-${workingItem.title}`}`;
         const created = await apiCreateMeeting(
           {
@@ -701,10 +690,12 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
             meetingType: "zoom",
             startTime: workingItem.start,
             endTime: workingItem.end,
+            timeZone: workingItem.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             studentId: workingItem.studentId,
             mentorUserId: user.id,
             status: "scheduled",
             notes: workingItem.description,
+            zoomJoinUrl: workingItem.zoomJoinUrl,
             clientRequestId: idempotencyKey
           },
           { idempotencyKey }
@@ -720,11 +711,11 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       }
 
       if (mentorViewStudent) {
-        workingItem = enrichMentorStudentCalendarItem(item, mentorViewStudent);
+        workingItem = enrichMentorStudentCalendarItem(workingItem, mentorViewStudent);
       } else if (parentViewStudent) {
-        workingItem = enrichParentStudentCalendarItem(item, parentViewStudent);
+        workingItem = enrichParentStudentCalendarItem(workingItem, parentViewStudent);
       } else if (roleFromUser(user) === "student") {
-        workingItem = enrichStudentCalendarItem(item);
+        workingItem = enrichStudentCalendarItem(workingItem);
       }
 
       const notifyCalendarSync = (studentSlug) => {
@@ -863,8 +854,11 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   }, []);
 
   const acceptMeetingRequest = useCallback(
-    async (request) => {
+    async (request, zoomJoinUrl) => {
       if (!request?.id) return null;
+      if (!isValidZoomJoinUrl(zoomJoinUrl)) {
+        throw new Error("Paste a valid Zoom meeting link (https://zoom.us/j/…).");
+      }
 
       const parsedStart = request.startTime
         ? new Date(request.startTime)
@@ -881,18 +875,23 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
       let meeting;
       if (canPatchBackend) {
-        const updated = await apiUpdateMeeting(backendMeetingId, { status: "scheduled" });
+        const updated = await apiUpdateMeeting(backendMeetingId, {
+          status: "scheduled",
+          zoomJoinUrl
+        });
         meeting = updated.meeting;
       } else {
         const created = await apiCreateMeeting({
-          title: request.type || request.title || "Zoom check-in",
+          title: request.title || request.type || "Zoom check-in",
           meetingType: "zoom",
           startTime,
           endTime,
           studentId: request.studentId,
           studentUserId: request.studentUserId,
+          mentorUserId: user.id,
           status: "scheduled",
           notes: request.notes,
+          zoomJoinUrl,
           clientRequestId: `accept-${request.id}`
         });
         meeting = created.meeting;
@@ -914,14 +913,15 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         formVariant: "event",
         calendarItemType: "event",
         meetingType: "zoom",
-        zoomJoinUrl: meeting.zoomJoinUrl,
+        zoomJoinUrl,
+        meetingRecordId: meeting.id,
         status: "scheduled",
         pillColor: "blue"
       });
 
       return meeting;
     },
-    [persistCalendarItem]
+    [persistCalendarItem, user?.id]
   );
 
   const addTask = useCallback(
@@ -1153,7 +1153,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       demo,
       useSupabaseData: useSupabase,
       integrations,
-      meetings: (demo?.meetings?.length ? demo.meetings : meetings).filter((m) => m.status !== "pending"),
+      meetings: resolveMeetingsForDisplay(meetings, demo?.meetings),
       pendingMeetingRequests,
       notifications,
       addNotification,
@@ -1201,19 +1201,24 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       financialAidTracker: demo?.financialAidTracker ?? [],
       pendingRequests: [
         ...pendingMeetingRequests.map((m) => ({
-        id: m.id,
-        studentName: m.studentName || "Student",
-        studentId: m.studentId,
-        requestedTime: new Date(m.startTime || m.start).toLocaleString(undefined, {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit"
-        }),
-        startTime: m.startTime || m.start,
-        endTime: m.endTime || m.end,
-        type: m.title || "Meeting request"
+          id: m.id,
+          meetingId: m.id,
+          studentName: m.studentName || "Student",
+          studentId: m.studentId,
+          studentUserId: m.studentUserId,
+          title: m.title,
+          notes: m.notes,
+          meetingType: m.meetingType || "zoom",
+          requestedTime: new Date(m.startTime || m.start).toLocaleString(undefined, {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+          }),
+          startTime: m.startTime || m.start,
+          endTime: m.endTime || m.end,
+          type: m.title || "Zoom check-in"
         })),
         ...(demo?.pendingRequests ?? []).map((request) => ({
           ...request,
