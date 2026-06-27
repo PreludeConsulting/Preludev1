@@ -15,6 +15,13 @@ alter table public.profiles add column if not exists sat text;
 alter table public.profiles add column if not exists act text;
 alter table public.profiles add column if not exists target_majors jsonb not null default '[]'::jsonb;
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
+alter table public.profiles add column if not exists role_selection_complete boolean;
+
+update public.profiles
+set role_selection_complete = true
+where role_selection_complete is null;
+alter table public.profiles alter column role_selection_complete set default false;
+alter table public.profiles alter column role_selection_complete set not null;
 
 -- User settings --------------------------------------------------------------
 create table if not exists public.user_settings (
@@ -270,20 +277,23 @@ as $$
 declare
   requested_role text;
   safe_role text;
+  role_selected boolean;
 begin
   requested_role := coalesce(new.raw_user_meta_data ->> 'role', 'student');
+  role_selected := coalesce((new.raw_user_meta_data ->> 'role_selection_complete')::boolean, false);
 
-  if requested_role in ('student', 'mentor') then
+  if requested_role in ('student', 'mentor', 'parent') then
     safe_role := requested_role;
   else
     safe_role := 'student';
   end if;
 
-  insert into public.profiles (id, full_name, role)
+  insert into public.profiles (id, full_name, role, role_selection_complete)
   values (
     new.id,
-    new.raw_user_meta_data ->> 'full_name',
-    safe_role
+    coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name'),
+    safe_role,
+    role_selected
   )
   on conflict (id) do nothing;
 
