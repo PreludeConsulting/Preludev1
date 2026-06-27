@@ -38,6 +38,7 @@ function MentorsPageContent() {
   const mentorScrollerRef = useRef(null);
   const findMorePath = user ? (user.role === "parent" ? dashboardPathForRole(user.role) : messagesPathForRole(user.role)) : "/login";
   const emptyMentorCards = ["empty-mentor-card-1", "empty-mentor-card-2"];
+  const mentorCardsPerScroll = 4;
 
   const scrollMentors = (direction) => {
     const scroller = mentorScrollerRef.current;
@@ -50,7 +51,7 @@ function MentorsPageContent() {
     const gap = Number.parseFloat(styles.columnGap || styles.gap || "0") || 0;
 
     scroller.scrollBy({
-      left: direction * (cardWidth + gap),
+      left: direction * mentorCardsPerScroll * (cardWidth + gap),
       behavior: "smooth"
     });
   };
