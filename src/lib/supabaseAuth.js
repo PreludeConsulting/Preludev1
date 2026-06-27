@@ -59,10 +59,8 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
   if (!isSupabaseConfigured()) {
     return { user: null, error: "Supabase is not configured for this deployment.", needsEmailConfirmation: false };
   }
-  const safeRole = SELECTABLE_ROLES.includes(role) ? role : null;
-  if (!safeRole) {
-    return { user: null, error: "Please choose Student, Mentor, or Parent.", needsEmailConfirmation: false };
-  }
+  const safeRole = SELECTABLE_ROLES.includes(role) ? role : "student";
+  const roleSelectionComplete = SELECTABLE_ROLES.includes(role);
   const supabase = getSupabase();
   if (!supabase) return { user: null, error: "Supabase client unavailable.", needsEmailConfirmation: false };
   requireTurnstileToken(captchaToken);
@@ -74,7 +72,7 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
       data: {
         full_name: fullName,
         role: safeRole,
-        role_selection_complete: true
+        role_selection_complete: roleSelectionComplete
       },
       emailRedirectTo: fullUrl("/login"),
       ...captchaOptions(captchaToken)

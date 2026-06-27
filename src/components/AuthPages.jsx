@@ -291,8 +291,8 @@ export function RegisterPage() {
     setError("");
     setMessage("");
     try {
-      const role = invitedAsParent ? "PARENT" : form.role;
-      if (!SIGNUP_ROLE_VALUES.has(role)) {
+      const role = invitedAsParent ? "PARENT" : supabaseAuth ? "" : form.role;
+      if (!supabaseAuth && !SIGNUP_ROLE_VALUES.has(role)) {
         throw new Error("Please choose Student, Mentor, or Parent before creating your account.");
       }
       const passwordError = validateSignupPassword(form.password, supabaseAuth);
@@ -362,6 +362,8 @@ export function RegisterPage() {
         )}
         {invitedAsParent ? (
           <Alert>You&apos;ll continue as a parent account for this invitation.</Alert>
+        ) : supabaseAuth ? (
+          <Alert>You&apos;ll choose Student, Mentor, or Parent the first time you log in.</Alert>
         ) : (
           <RoleSelector
             value={form.role}
@@ -376,7 +378,7 @@ export function RegisterPage() {
           disabled={
             loading ||
             (supabaseAuth && isTurnstileRequired() && !captchaToken) ||
-            (!invitedAsParent && !form.role)
+            (!supabaseAuth && !invitedAsParent && !form.role)
           }
           aria-busy={loading || undefined}
           className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60"
