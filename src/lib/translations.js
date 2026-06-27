@@ -318,19 +318,28 @@ export const translations = {
         label: "Footer",
         discoverLabel: "Discover footer links",
         discover: "Discover",
+        resourcesLabel: "Resource footer links",
+        resources: "Resources",
+        supportLabel: "Support footer links",
+        support: "Support",
         about: "About",
         aboutLabel: "About Prelude links",
         admissions: "Admissions",
         admissionsLabel: "Admissions footer links",
         follow: "Follow",
         copyright: "© 2026 Prelude. All rights reserved.",
-        privacy: "Privacy",
-        terms: "Terms",
+        privacy: "Privacy Policy",
+        terms: "Terms of Service",
         links: {
           how: "How it works",
           mentorship: "Mentorship",
           pricing: "Pricing",
-          contact: "Contact"
+          contact: "Contact",
+          parentDashboard: "Parent dashboard",
+          academicSupport: "Academic support",
+          preludeMatch: "PreludeMatch",
+          bookCall: "Book a call",
+          email: "Email us"
         }
       }
     }
@@ -604,6 +613,10 @@ export const translations = {
         label: "푸터",
         discoverLabel: "푸터 탐색 링크",
         discover: "둘러보기",
+        resourcesLabel: "푸터 리소스 링크",
+        resources: "리소스",
+        supportLabel: "푸터 지원 링크",
+        support: "지원",
         about: "소개",
         aboutLabel: "Prelude 소개 링크",
         admissions: "입시",
@@ -616,7 +629,12 @@ export const translations = {
           how: "작동 방식",
           mentorship: "멘토링",
           pricing: "가격",
-          contact: "문의"
+          contact: "문의",
+          parentDashboard: "학부모 대시보드",
+          academicSupport: "학업 지원",
+          preludeMatch: "PreludeMatch",
+          bookCall: "상담 예약",
+          email: "이메일 문의"
         }
       }
     }
@@ -890,6 +908,10 @@ export const translations = {
         label: "页脚",
         discoverLabel: "页脚探索链接",
         discover: "探索",
+        resourcesLabel: "页脚资源链接",
+        resources: "资源",
+        supportLabel: "页脚支持链接",
+        support: "支持",
         about: "关于",
         aboutLabel: "关于 Prelude 链接",
         admissions: "升学申请",
@@ -902,7 +924,12 @@ export const translations = {
           how: "运作方式",
           mentorship: "导师辅导",
           pricing: "价格",
-          contact: "联系"
+          contact: "联系",
+          parentDashboard: "家长控制面板",
+          academicSupport: "学术支持",
+          preludeMatch: "PreludeMatch",
+          bookCall: "预约通话",
+          email: "给我们发邮件"
         }
       }
     }
@@ -1176,6 +1203,10 @@ export const translations = {
         label: "Pie de página",
         discoverLabel: "Enlaces de descubrimiento del pie de página",
         discover: "Descubre",
+        resourcesLabel: "Enlaces de recursos del pie de página",
+        resources: "Recursos",
+        supportLabel: "Enlaces de soporte del pie de página",
+        support: "Soporte",
         about: "Acerca de",
         aboutLabel: "Enlaces sobre Prelude",
         admissions: "Admisiones",
@@ -1188,7 +1219,12 @@ export const translations = {
           how: "Cómo funciona",
           mentorship: "Mentoría",
           pricing: "Precios",
-          contact: "Contacto"
+          contact: "Contacto",
+          parentDashboard: "Panel para padres",
+          academicSupport: "Apoyo académico",
+          preludeMatch: "PreludeMatch",
+          bookCall: "Agenda una llamada",
+          email: "Escríbenos"
         }
       }
     }

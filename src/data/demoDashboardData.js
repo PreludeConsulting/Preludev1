@@ -47,8 +47,7 @@ function buildUpcomingDemoEvents(slug) {
       start: mentorToday.toISOString(),
       end: meetingEnd(mentorToday, 60).toISOString(),
       studentId: slug,
-      shared: true,
-      zoomJoinUrl: "https://zoom.us/j/1234567890"
+      shared: true
     },
     {
       id: "demo-upcoming-calc",
@@ -135,9 +134,6 @@ function buildMeetings() {
       startTime: jordanMeetingStart.toISOString(),
       endTime: meetingEnd(jordanMeetingStart, 45).toISOString(),
       timeZone: "America/New_York",
-      zoomMeetingId: "1234567890",
-      zoomJoinUrl: "https://zoom.us/j/1234567890",
-      zoomHostUrl: "https://zoom.us/s/demo-host-jordan",
       status: "scheduled",
       notes: "Review reach/target/likely balance and summer essay plan.",
       isPrivate: false
@@ -151,9 +147,6 @@ function buildMeetings() {
       startTime: alexMeetingStart.toISOString(),
       endTime: meetingEnd(alexMeetingStart, 45).toISOString(),
       timeZone: "America/New_York",
-      zoomMeetingId: "9876543210",
-      zoomJoinUrl: "https://zoom.us/j/9876543210",
-      zoomHostUrl: "https://zoom.us/s/demo-host-alex",
       status: "scheduled",
       notes: "Outline scholarship targets and personal statement themes.",
       isPrivate: false

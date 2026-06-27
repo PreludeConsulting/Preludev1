@@ -1,5 +1,131 @@
 /** Prelude Coins — milestone-based rewards stored in the student's Piggy Bank. */
 
+export const REWARD_TIER_IDS = {
+  COMMON: "common",
+  UNCOMMON: "uncommon",
+  RARE: "rare",
+  EPIC: "epic",
+  LEGENDARY: "legendary"
+};
+
+export const REWARD_TIERS = {
+  common: {
+    id: "common",
+    label: "COMMON",
+    accentColor: "#94A3B8",
+    backgroundColor: "#F8FAFC",
+    badgeClass: "dash-reward-tier--common",
+    animationClass: "dash-reward-celebrate--common",
+    celebrationType: "sparkle"
+  },
+  uncommon: {
+    id: "uncommon",
+    label: "UNCOMMON",
+    accentColor: "#14B8A6",
+    backgroundColor: "#ECFDF5",
+    badgeClass: "dash-reward-tier--uncommon",
+    animationClass: "dash-reward-celebrate--uncommon",
+    celebrationType: "glow-pulse"
+  },
+  rare: {
+    id: "rare",
+    label: "RARE",
+    accentColor: "#3B82F6",
+    backgroundColor: "#EFF6FF",
+    badgeClass: "dash-reward-tier--rare",
+    animationClass: "dash-reward-celebrate--rare",
+    celebrationType: "shimmer"
+  },
+  epic: {
+    id: "epic",
+    label: "EPIC",
+    accentColor: "#8B5CF6",
+    backgroundColor: "#F5F3FF",
+    badgeClass: "dash-reward-tier--epic",
+    animationClass: "dash-reward-celebrate--epic",
+    celebrationType: "glow-burst"
+  },
+  legendary: {
+    id: "legendary",
+    label: "LEGENDARY",
+    accentColor: "#F59E0B",
+    backgroundColor: "#FFFBEB",
+    badgeClass: "dash-reward-tier--legendary",
+    animationClass: "dash-reward-celebrate--legendary",
+    celebrationType: "coin-shower"
+  }
+};
+
+/** Alias for tier styling config used by reward cards and celebrations. */
+export const rewardTierConfig = REWARD_TIERS;
+
+export const STATUS_MILESTONES = [
+  { id: "starter", name: "Starter", coinsRequired: 0, multiplier: 1.0, icon: "trophy" },
+  { id: "goal-setter", name: "Goal Setter", coinsRequired: 300, multiplier: 1.1, icon: "target" },
+  { id: "momentum-builder", name: "Momentum Builder", coinsRequired: 700, multiplier: 1.2, icon: "zap" },
+  { id: "application-pro", name: "Application Pro", coinsRequired: 1200, multiplier: 1.3, icon: "file" },
+  { id: "ivy-climber", name: "Ivy Climber", coinsRequired: 2000, multiplier: 1.4, icon: "mountain" },
+  { id: "prelude-legend", name: "Prelude Legend", coinsRequired: 3000, multiplier: 1.5, icon: "crown" }
+];
+
+export function getCurrentStatusMilestone(coins = 0) {
+  let current = STATUS_MILESTONES[0];
+  for (const milestone of STATUS_MILESTONES) {
+    if (coins >= milestone.coinsRequired) current = milestone;
+    else break;
+  }
+  return current;
+}
+
+export function getNextStatusMilestone(coins = 0) {
+  return STATUS_MILESTONES.find((m) => coins < m.coinsRequired) || null;
+}
+
+export function getCoinMultiplier(coins = 0) {
+  return getCurrentStatusMilestone(coins).multiplier;
+}
+
+export function getCoinsToNextMultiplier(coins = 0) {
+  const next = getNextStatusMilestone(coins);
+  if (!next) return 0;
+  return Math.max(0, next.coinsRequired - coins);
+}
+
+export function getStatusBarProgressPct(coins = 0) {
+  const max = STATUS_MILESTONES[STATUS_MILESTONES.length - 1].coinsRequired;
+  if (!max) return 0;
+  return Math.min(100, Math.round((coins / max) * 100));
+}
+
+export function getMilestoneNodeStatus(coins, milestone) {
+  if (coins >= milestone.coinsRequired) return "completed";
+  const next = getNextStatusMilestone(coins);
+  if (next?.id === milestone.id) return "current";
+  return "locked";
+}
+
+export function applyCoinMultiplier(baseCoins, multiplier) {
+  return Math.round(baseCoins * multiplier);
+}
+
+/** Default tier for catalog items without an explicit tier (high-value mentor rewards). */
+export function inferTierFromCoins(coins) {
+  if (coins >= 280) return REWARD_TIER_IDS.LEGENDARY;
+  if (coins >= 200) return REWARD_TIER_IDS.EPIC;
+  if (coins >= 180) return REWARD_TIER_IDS.RARE;
+  if (coins >= 150) return REWARD_TIER_IDS.UNCOMMON;
+  return REWARD_TIER_IDS.COMMON;
+}
+
+export function getRewardTierConfig(tierId) {
+  return REWARD_TIERS[tierId] || REWARD_TIERS.common;
+}
+
+export function resolveRewardTier(reward) {
+  const tierId = reward?.tier || inferTierFromCoins(reward?.coins ?? 0);
+  return { tierId, tierConfig: getRewardTierConfig(tierId) };
+}
+
 export const TEST_PREP_OPTIONS = [
   "SAT Math",
   "SAT Reading/Writing",
@@ -20,7 +146,8 @@ export const REWARD_CATALOG = [
     estimatedValue: 75,
     description: "Two mentors review the student's essay and leave detailed feedback.",
     featured: true,
-    iconTone: "mint"
+    iconTone: "mint",
+    tier: "legendary"
   },
   {
     id: "test-prep-help",
@@ -32,7 +159,8 @@ export const REWARD_CATALOG = [
     estimatedValue: 50,
     description: "Choose SAT Math, SAT Reading/Writing, ACT Math, ACT English, ACT Reading, or ACT Science after redeeming.",
     iconTone: "sky",
-    requiresSelection: true
+    requiresSelection: true,
+    tier: "common"
   },
   {
     id: "college-list-review",
@@ -43,7 +171,8 @@ export const REWARD_CATALOG = [
     coins: 220,
     estimatedValue: 45,
     description: "A mentor reviews the student's college list and helps organize reach, target, and safety schools.",
-    iconTone: "blue"
+    iconTone: "blue",
+    tier: "common"
   },
   {
     id: "activities-list-review",
@@ -54,7 +183,8 @@ export const REWARD_CATALOG = [
     coins: 200,
     estimatedValue: 40,
     description: "A mentor reviews the student's activity descriptions and gives improvement suggestions.",
-    iconTone: "amber"
+    iconTone: "amber",
+    tier: "uncommon"
   },
   {
     id: "application-strategy-call",
@@ -65,7 +195,8 @@ export const REWARD_CATALOG = [
     coins: 200,
     estimatedValue: 40,
     description: "A mentor helps plan deadlines, essays, school priorities, and next steps.",
-    iconTone: "rose"
+    iconTone: "rose",
+    tier: "rare"
   },
   {
     id: "major-career-fit",
@@ -76,7 +207,8 @@ export const REWARD_CATALOG = [
     coins: 180,
     estimatedValue: 35,
     description: "A mentor helps the student explore possible majors, career paths, and college fit.",
-    iconTone: "indigo"
+    iconTone: "indigo",
+    tier: "rare"
   },
   {
     id: "mock-interview",
@@ -87,7 +219,8 @@ export const REWARD_CATALOG = [
     coins: 180,
     estimatedValue: 35,
     description: "A mentor runs a college-style mock interview and gives feedback.",
-    iconTone: "purple"
+    iconTone: "purple",
+    tier: "epic"
   },
   {
     id: "scholarship-search",
@@ -98,40 +231,46 @@ export const REWARD_CATALOG = [
     coins: 150,
     estimatedValue: 30,
     description: "A mentor helps the student find scholarships and create a quick application plan.",
-    iconTone: "peach"
+    iconTone: "peach",
+    tier: "uncommon"
+  },
+  {
+    id: "parent-strategy-call",
+    title: "Parent Strategy Call",
+    headline: "FREE Parent Strategy Call",
+    subtitle: "Family Planning Session",
+    category: "Planning",
+    coins: 190,
+    estimatedValue: 38,
+    description: "A mentor meets with the student and parent to align on admissions strategy and next steps.",
+    iconTone: "rose",
+    tier: "rare"
+  },
+  {
+    id: "priority-office-hours",
+    title: "Priority Office Hours Pass",
+    headline: "FREE Priority Office Hours Pass",
+    subtitle: "Skip-the-Line Access",
+    category: "Mentorship",
+    coins: 170,
+    estimatedValue: 35,
+    description: "Get priority access to mentor office hours for quick questions and feedback.",
+    iconTone: "purple",
+    tier: "epic"
   }
 ];
 
-export const STATUS_TIERS = [
-  {
-    id: "starter-saver",
-    name: "Starter Saver",
-    min: 0,
-    max: 199,
-    benefits: ["Earn coins on every milestone", "Access to the rewards store"]
-  },
-  {
-    id: "goal-setter",
-    name: "Goal Setter",
-    min: 200,
-    max: 499,
-    benefits: ["Bonus coin multipliers on momentum streaks", "Early access to new rewards"]
-  },
-  {
-    id: "scholar-saver",
-    name: "Scholar Saver",
-    min: 500,
-    max: 999,
-    benefits: ["Priority reward scheduling", "Exclusive essay review slots"]
-  },
-  {
-    id: "prelude-elite",
-    name: "Prelude Elite",
-    min: 1000,
-    max: Infinity,
-    benefits: ["Maximum coin earning potential", "VIP mentor office hours access"]
-  }
-];
+export const STATUS_TIERS = STATUS_MILESTONES.map((m, i) => {
+  const next = STATUS_MILESTONES[i + 1];
+  return {
+    id: m.id,
+    name: m.name,
+    min: m.coinsRequired,
+    max: next ? next.coinsRequired - 1 : Infinity,
+    multiplier: m.multiplier,
+    benefits: [`${m.multiplier.toFixed(1)}x coin multiplier on earned coins`]
+  };
+});
 
 export const EARN_CATEGORY_ORDER = ["momentum", "admissions", "sat_act", "academic_tutoring"];
 
@@ -228,20 +367,19 @@ export function enrichMilestones(milestones, state) {
 }
 
 export function getStatusTier(coins) {
-  return STATUS_TIERS.find((t) => coins >= t.min && coins <= t.max) || STATUS_TIERS[0];
+  return getCurrentStatusMilestone(coins);
 }
 
 export function getNextStatusTier(coins) {
-  const currentIndex = STATUS_TIERS.findIndex((t) => coins >= t.min && coins <= t.max);
-  return currentIndex < STATUS_TIERS.length - 1 ? STATUS_TIERS[currentIndex + 1] : null;
+  return getNextStatusMilestone(coins);
 }
 
 export function getTierProgress(coins) {
-  const tier = getStatusTier(coins);
-  const next = getNextStatusTier(coins);
+  const current = getCurrentStatusMilestone(coins);
+  const next = getNextStatusMilestone(coins);
   if (!next) return 100;
-  const span = next.min - tier.min;
-  const earned = coins - tier.min;
+  const span = next.coinsRequired - current.coinsRequired;
+  const earned = coins - current.coinsRequired;
   return Math.min(100, Math.round((earned / span) * 100));
 }
 
@@ -265,8 +403,11 @@ export function getRewardProgressPct(coins, rewardCoins) {
 
 export function enrichReward(reward, coins, redeemed = []) {
   const isRedeemed = redeemed.includes(reward.id);
+  const { tierId, tierConfig } = resolveRewardTier(reward);
   return {
     ...reward,
+    tier: tierId,
+    tierConfig,
     redeemed: isRedeemed,
     canRedeem: coins >= reward.coins && !isRedeemed,
     coinsAway: Math.max(0, reward.coins - coins),
@@ -433,6 +574,11 @@ export const GRID_REWARD_IDS = [
   "major-career-fit",
   "mock-interview"
 ];
+
+/** Full pool for the 24-hour Reward Shop (excludes featured reward). */
+export const REWARD_SHOP_POOL_IDS = REWARD_CATALOG
+  .filter((r) => !r.featured)
+  .map((r) => r.id);
 
 export const DAILY_MOMENTUM_STREAK = {
   title: "Daily Momentum Streak",

@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Calendar, ImagePlus, MessageCircle, Pencil, Send, Video, X } from "lucide-react";
+import { findNextJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import { loadLocalChatMessages } from "../../../lib/localChatStore.js";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { Avatar, EmptyState, SearchInput } from "../ui/index.jsx";
 import UnreadCountBadge, { useUnreadBadgeDismiss } from "./UnreadCountBadge.jsx";
-import PreludeConstellation from "../product/PreludeConstellation.jsx";
-
 function formatDateLabel(iso) {
   const d = new Date(iso);
   const today = new Date();
@@ -165,7 +164,6 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   const [draft, setDraft] = useState("");
   const [pendingFile, setPendingFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [signalActive, setSignalActive] = useState(false);
   const scrollRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -188,7 +186,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   }, [threads, q, threadRevision, messages.length]);
 
   const groups = activeThread ? groupMessages(messages) : [];
-  const nextMeeting = meetings.find((m) => m.zoomJoinUrl);
+  const nextMeeting = findNextJoinableMeeting(meetings);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -219,8 +217,6 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
     if (result.ok) {
       setDraft("");
       setPendingFile(null);
-      setSignalActive(true);
-      window.setTimeout(() => setSignalActive(false), 700);
       if (fileRef.current) fileRef.current.value = "";
     }
   }
@@ -285,21 +281,12 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                   </Link>
                   {nextMeeting?.zoomJoinUrl ? (
                     <a href={nextMeeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-btn dash-btn--primary dash-btn--sm">
-                      <Video className="h-4 w-4" /> Join Zoom
+                      <Video className="h-4 w-4" /> Join Meeting
                     </a>
                   ) : null}
                 </div>
               ) : null}
             </header>
-            <PreludeConstellation
-              variant="messages"
-              value={Math.min(messages.length, 6)}
-              total={6}
-              active={signalActive}
-              compact
-              className="dash-chat-app__constellation"
-              label={`${messages.length} messages in this conversation`}
-            />
 
             <div className="dash-chat-app__messages" ref={scrollRef}>
               {loadingMessages ? (

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { isValidZoomJoinUrl, preferCalendarItemWithZoom } from "../../../lib/zoomMeetingLinks.js";
 import { cn } from "../../../lib/utils.js";
 import { compactEventTitle } from "../CalendarEventPill.jsx";
 import { formatCalendarPillTitle } from "../../lib/calendarDisplay.js";
@@ -13,7 +14,6 @@ import AnimatedIcon from "../../../components/interaction/AnimatedIcon.jsx";
 import { loadPreferences } from "../../lib/dashboardPreferences.js";
 import { EVENT_CATEGORY_LABELS } from "../../data/placeholders.js";
 import { EmptyState, Modal, SecondaryButton } from "../ui/index.jsx";
-import PreludeConstellation from "./PreludeConstellation.jsx";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -240,6 +240,7 @@ function normalizeMeeting(meeting, { mentorView = false } = {}) {
     allDay: false,
     description: meeting.notes,
     zoomJoinUrl: meeting.zoomJoinUrl,
+    meetingType: meeting.meetingType || "zoom",
     meeting,
     studentId: meeting.studentId,
     studentName: meeting.studentName,
@@ -265,6 +266,7 @@ function normalizeCalendarEvent(event, { mentorView = false } = {}) {
   const endDate = parseDate(event.end || event.endTime);
   const isUserCreated = Boolean(event.userCreated) || Boolean(event.pillColor) || event.eventType === "personal" || event.eventType === "session" || String(event.id).startsWith("evt-");
   const category = event.category || TYPE_TO_CATEGORY[event.type] || "application_deadline";
+  const meetingType = event.meetingType || (category === "mentor_meeting" ? "zoom" : undefined);
 
   return withItemKind({
     id: `ev-${event.id}`,
@@ -275,6 +277,7 @@ function normalizeCalendarEvent(event, { mentorView = false } = {}) {
     allDay: !endDate || date.toDateString() === endDate.toDateString(),
     description: event.description || event.notes,
     zoomJoinUrl: event.zoomJoinUrl,
+    meetingType,
     meeting: event.meeting,
     studentId: event.studentId,
     studentName: event.studentName,
@@ -322,7 +325,12 @@ function mergeEvents({ deadlines = [], meetings = [], events = [], mentorView = 
   const byKey = new Map();
   merged.forEach((item) => {
     const key = `${item.date.toDateString()}::${item.title}`;
-    if (!byKey.has(key)) byKey.set(key, item);
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, item);
+      return;
+    }
+    byKey.set(key, preferCalendarItemWithZoom(existing, item));
   });
 
   return [...byKey.values()].filter((item) => !isExcludedCalendarEvent(item));
@@ -381,7 +389,7 @@ function toDetailModalEvent(event, mentorName, students = [], { mentorStudentVie
       description: event.description,
       zoomJoinUrl: event.zoomJoinUrl,
       meeting: event.meeting,
-      meetingType: event.raw?.meetingType,
+      meetingType: event.meetingType || event.raw?.meetingType || event.meeting?.meetingType || (category === "mentor_meeting" ? "zoom" : undefined),
       mentorName,
       studentId: event.studentId || event.raw?.studentId,
       studentName,
@@ -728,7 +736,7 @@ export default function AdmissionsCalendarVisual({
         calendarItemType: editDraft.calendarItemType ?? editDraft.formVariant,
         reminderMinutes: enriched.reminderMinutes ?? editDraft.reminderMinutes
       };
-      await persistCalendarItem(nextItem, editDraft.id);
+      const stored = await persistCalendarItem(nextItem, editDraft.id);
       scheduleEventReminder({
         id: nextItem.id,
         title: nextItem.title,
@@ -740,7 +748,11 @@ export default function AdmissionsCalendarVisual({
       showToast("Event updated");
       play(SOUND_EVENTS.SAVE_SUCCESS);
       flashEvent(`ev-${editDraft.id}`);
-      return;
+      if (isValidZoomJoinUrl(stored?.zoomJoinUrl)) {
+        const normalized = normalizeCalendarEvent({ ...stored, userCreated: true }, { mentorView: isMentorCalendar || isMentorStudentView });
+        if (normalized) setDetailEvent(normalized);
+      }
+      return stored;
     }
 
     const savedCategory = String(enriched.category || createDraft?.category || "").toLowerCase();
@@ -764,11 +776,16 @@ export default function AdmissionsCalendarVisual({
     });
     if (!enriched.pillColor) setColorCycleIndex((index) => index + 1);
     setCreateDraft(null);
-    showToast("Event added to calendar");
+    showToast(isValidZoomJoinUrl(stored?.zoomJoinUrl) ? "Zoom meeting scheduled" : "Event added to calendar");
     play(SOUND_EVENTS.CALENDAR_SUCCESS);
     flashEvent(`ev-${stored.id}`);
     setPlusActive(true);
     window.setTimeout(() => setPlusActive(false), 450);
+    if (isValidZoomJoinUrl(stored?.zoomJoinUrl)) {
+      const normalized = normalizeCalendarEvent({ ...stored, userCreated: true }, { mentorView: isMentorCalendar || isMentorStudentView });
+      if (normalized) setDetailEvent(normalized);
+    }
+    return stored;
   }, [colorCycleIndex, createDraft, editDraft, isGuardianStudentView, isMentorCalendar, isMentorStudentView, lockedStudentId, activeStudent, persistCalendarItem, scheduleEventReminder, calendarStudents, showToast, play, SOUND_EVENTS, flashEvent]);
 
   const handleEditEvent = useCallback((modalEvent) => {
@@ -915,15 +932,6 @@ export default function AdmissionsCalendarVisual({
     <div className={cn("dash-cal-visual", showUpcomingInline && "dash-cal-visual--with-upcoming")}>
       <div className="dash-cal-visual__glow" aria-hidden="true" />
       <article className="dash-cal-visual__card">
-        <PreludeConstellation
-          variant="calendar"
-          value={allEvents.length}
-          total={Math.max(8, allEvents.length)}
-          active={plusActive}
-          compact
-          className="dash-cal-visual__constellation"
-          label={`${allEvents.length} calendar items plotted`}
-        />
         <header className="dash-cal-visual__head">
           <div className="dash-cal-visual__head-title">
             <p className="dash-cal-visual__eyebrow">

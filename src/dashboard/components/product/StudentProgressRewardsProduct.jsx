@@ -10,12 +10,13 @@ import {
   Ticket,
   Zap
 } from "lucide-react";
-import { EARN_CATEGORY_ORDER, MILESTONE_CATEGORY_LABELS, STATUS_TIERS } from "../../lib/progressRewards.js";
+import { EARN_CATEGORY_ORDER, MILESTONE_CATEGORY_LABELS } from "../../lib/progressRewards.js";
 import { useProgressRewards } from "../../context/ProgressRewardsContext.jsx";
-import PreludePiggyBank, { CoinBalance, CoinIcon } from "./rewards/PreludePiggyBank.jsx";
+import { CoinBalance, CoinIcon, Sparkles } from "./rewards/PreludePiggyBank.jsx";
+import PiggyBankProgress from "./rewards/PiggyBankProgress.jsx";
+import MyStatusProgressBar from "./rewards/MyStatusProgressBar.jsx";
 import { ProgressBar, RedeemTab } from "./rewards/RedeemTab.jsx";
-import RewardsSidebar from "./rewards/RewardsSidebar.jsx";
-import PreludeConstellation from "./PreludeConstellation.jsx";
+import { RewardsSidebarBottom, RewardsSidebarTop } from "./rewards/RewardsSidebar.jsx";
 
 const TABS = [
   { id: "redeem", label: "Redeem", icon: Gift },
@@ -27,41 +28,72 @@ const TABS = [
 function RewardsHero() {
   const {
     coins,
-    studentFirstName,
     currentTier,
-    featuredReward,
-    completedCount,
-    milestones,
-    celebration
+    statusGoalCoins
   } = useProgressRewards();
-  const heroPct = featuredReward?.progressPct ?? 0;
-  const coinsToGoal = featuredReward?.coinsAway ?? 0;
+
+  const goalCoins = statusGoalCoins > 0 ? statusGoalCoins : 300;
+  const heroPct = goalCoins > 0 ? Math.min(100, Math.round((coins / goalCoins) * 100)) : 0;
 
   return (
     <header className="dash-rewards-hero">
-      <div className="dash-rewards-hero__pig">
-        <PreludeConstellation
-          variant="rewards"
-          value={completedCount}
-          total={milestones.length}
-          active={Boolean(celebration)}
-          label={`${completedCount} of ${milestones.length} reward milestones completed`}
-        />
-        <PreludePiggyBank size="sm" animate={false} className="dash-rewards-hero__mascot" />
-      </div>
-      <div className="dash-rewards-hero__center">
-        <p className="dash-rewards-hero__status-label">{studentFirstName}&apos;s Piggy Bank</p>
-        <div className="dash-rewards-hero__balance-wrap">
-          <CoinBalance value={coins} className="dash-rewards-hero__balance" />
-          <CoinIcon size="lg" />
+      <div className="dash-rewards-hero__info">
+        <div className="dash-rewards-hero__eyebrow">
+          <span className="dash-rewards-hero__eyebrow-icon" aria-hidden="true">
+            <Star />
+          </span>
+          Prelude Rewards
         </div>
-        <p className="dash-rewards-hero__balance-label">Available Coins</p>
-        <span className="dash-rewards-hero__tier-badge">{currentTier.name}</span>
-        <div className="dash-rewards-hero__goal">
-          <p className="dash-rewards-hero__goal-hint">
-            {coinsToGoal > 0 ? `${coinsToGoal} coins to ${featuredReward?.headline ?? "your next reward"}` : "Ready for your next reward"}
-          </p>
+        <h1 className="dash-rewards-hero__title">
+          <span>Fill your</span>
+          <span>Piggy Bank</span>
+        </h1>
+        <p className="dash-rewards-hero__subtitle">Earn coins, hit goals, and unlock awesome rewards.</p>
+
+        <div className="dash-rewards-hero__stats">
+          <div className="dash-rewards-hero__stat">
+            <CoinIcon size="lg" />
+            <div className="dash-rewards-hero__stat-copy">
+              <CoinBalance value={coins} className="dash-rewards-hero__balance" />
+              <span className="dash-rewards-hero__balance-label">Available Coins</span>
+            </div>
+          </div>
+          <div className="dash-rewards-hero__stat-divider" aria-hidden="true" />
+          <div className="dash-rewards-hero__tier">
+            <Star className="dash-rewards-hero__tier-icon" aria-hidden="true" />
+            {currentTier.name}
+          </div>
+        </div>
+
+        <div className="dash-rewards-hero__progress">
+          <div className="dash-rewards-hero__range">
+            <span>0</span>
+            <span>{goalCoins.toLocaleString()}</span>
+          </div>
           <ProgressBar pct={heroPct} className="dash-rewards-progress--hero" />
+          <p className="dash-rewards-hero__progress-label">
+            {coins.toLocaleString()} / {goalCoins.toLocaleString()} coins until next reward
+          </p>
+        </div>
+      </div>
+
+      <div className="dash-rewards-hero__visual">
+        <div className="dash-rewards-hero__scene">
+          <div className="dash-rewards-hero__scene-fx" aria-hidden="true">
+            <span className="dash-rewards-hero__scene-glow" />
+            <Sparkles className="dash-rewards-hero__scene-sparkles" />
+            <span className="dash-rewards-hero__scene-bubble dash-rewards-hero__scene-bubble--1" />
+            <span className="dash-rewards-hero__scene-bubble dash-rewards-hero__scene-bubble--2" />
+            <span className="dash-rewards-hero__scene-float-coin" />
+          </div>
+          <PiggyBankProgress
+            coins={coins}
+            goalCoins={goalCoins}
+            size="hero"
+            withDropAnimation={false}
+            piggyAnimate={false}
+            className="dash-rewards-hero__piggy"
+          />
         </div>
       </div>
     </header>
@@ -91,42 +123,11 @@ function RewardsTabs({ active, onChange }) {
 }
 
 function StatusTab() {
-  const { coins, currentTier, nextTier, tierProgress, coinsToNextTier } = useProgressRewards();
+  const { coins } = useProgressRewards();
 
   return (
     <div className="dash-rewards-tab-panel dash-rewards-status">
-      <article className="dash-rewards-status__current">
-        <p className="dash-rewards-status__label">Current status</p>
-        <h3 className="dash-rewards-status__tier">{currentTier.name}</h3>
-        <p className="dash-rewards-status__coins">{coins} Prelude Coins available</p>
-        {nextTier ? (
-          <>
-            <ProgressBar pct={tierProgress} />
-            <p className="dash-rewards-status__hint">{coinsToNextTier} coins to reach {nextTier.name}</p>
-          </>
-        ) : (
-          <p className="dash-rewards-status__hint">You&apos;ve reached the highest status tier.</p>
-        )}
-      </article>
-      <div className="dash-rewards-status__tiers">
-        {STATUS_TIERS.map((tier) => {
-          const isCurrent = tier.id === currentTier.id;
-          const rangeLabel = tier.max === Infinity ? `${tier.min}+ Coins` : `${tier.min} – ${tier.max} Coins`;
-          return (
-            <article key={tier.id} className={`dash-rewards-tier-card${isCurrent ? " dash-rewards-tier-card--current" : ""}`}>
-              <div className="dash-rewards-tier-card__head">
-                <h4 className="dash-rewards-tier-card__name">{tier.name}</h4>
-                <span className="dash-rewards-tier-card__range">{rangeLabel}</span>
-              </div>
-              <ul className="dash-rewards-tier-card__benefits">
-                {tier.benefits.map((b) => (
-                  <li key={b}>{b}</li>
-                ))}
-              </ul>
-            </article>
-          );
-        })}
-      </div>
+      <MyStatusProgressBar coins={coins} />
     </div>
   );
 }
@@ -143,7 +144,7 @@ function MyRewardsTab() {
   if (!items.length) {
     return (
       <div className="dash-rewards-tab-panel dash-rewards-empty">
-        <PreludePiggyBank size="sm" />
+        <PiggyBankProgress coins={0} goalCoins={300} size="sm" withDropAnimation={false} />
         <p>No rewards redeemed yet. Complete milestones to unlock free support.</p>
       </div>
     );
@@ -239,8 +240,9 @@ export default function StudentProgressRewardsProduct() {
   return (
     <div className="dash-page dash-rewards-loyalty">
       <div className="dash-rewards-loyalty__shell">
+        <RewardsHero />
+        <RewardsSidebarTop />
         <div className="dash-rewards-loyalty__main">
-          <RewardsHero />
           <RewardsTabs active={activeTab} onChange={setActiveTab} />
 
           {activeTab === "redeem" ? <RedeemTab /> : null}
@@ -248,8 +250,7 @@ export default function StudentProgressRewardsProduct() {
           {activeTab === "my-rewards" ? <MyRewardsTab /> : null}
           {activeTab === "earn" ? <EarnTab /> : null}
         </div>
-
-        <RewardsSidebar />
+        <RewardsSidebarBottom />
       </div>
     </div>
   );

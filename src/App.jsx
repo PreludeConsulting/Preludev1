@@ -4,7 +4,6 @@ import PreludeChat from "./components/PreludeChat.jsx";
 import SignInModal from "./components/SignInModal.jsx";
 import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
-import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Hero from "./components/Hero.jsx";
@@ -99,9 +98,5 @@ function AppContent() {
 }
 
 export default function App() {
-  return (
-    <LanguageProvider>
-      <AppContent />
-    </LanguageProvider>
-  );
+  return <AppContent />;
 }

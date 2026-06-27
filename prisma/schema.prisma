@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   STUDENT
   MENTOR
+  PARENT
   COUNSELOR
   ADMIN
 
@@ -485,4 +486,31 @@ model ActivityLog {
   @@index([entityType, entityId, createdAt], map: "idx_activity_logs_entity_created")
   @@index([action, createdAt], map: "idx_activity_logs_action_created")
   @@map("activity_logs")
+}
+
+model Meeting {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title          String   @db.VarChar(180)
+  studentUserId  String?  @map("student_user_id") @db.Uuid
+  mentorUserId   String?  @map("mentor_user_id") @db.Uuid
+  studentId      String?  @map("student_slug") @db.VarChar(80)
+  mentorId       String?  @map("mentor_slug") @db.VarChar(80)
+  meetingType    String   @default("zoom") @map("meeting_type") @db.VarChar(20)
+  startTime      DateTime @map("start_time") @db.Timestamptz(6)
+  endTime        DateTime @map("end_time") @db.Timestamptz(6)
+  timeZone       String   @default("America/New_York") @map("time_zone") @db.VarChar(64)
+  zoomMeetingId  String?  @map("zoom_meeting_id") @db.VarChar(64)
+  zoomJoinUrl    String?  @map("zoom_join_url") @db.VarChar(2048)
+  zoomHostUrl    String?  @map("zoom_host_url") @db.VarChar(2048)
+  zoomPassword   String?  @map("zoom_password") @db.VarChar(64)
+  status         String   @default("pending") @db.VarChar(20)
+  notes          String   @default("") @db.Text
+  isPrivate      Boolean  @default(false) @map("is_private")
+  idempotencyKey String?  @unique @map("idempotency_key") @db.VarChar(128)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([studentUserId, status], map: "idx_meetings_student_user_status")
+  @@index([mentorUserId, status], map: "idx_meetings_mentor_user_status")
+  @@map("meetings")
 }

@@ -1,12 +1,15 @@
 import { useEffect } from "react";
 import { motion } from "motion/react";
 import { X } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
-import { getLegalDocument, LEGAL_DOCUMENTS } from "../lib/legalContent.js";
+import { getLegalDocument, getLegalDocuments } from "../lib/legalContent.js";
 
 export default function LegalModal() {
   const { documentType, legalOpen, openLegal, closeLegal } = useLegalModal();
-  const activeDocument = documentType ? getLegalDocument(documentType) : null;
+  const { language } = useLanguage();
+  const legalDocuments = getLegalDocuments(language);
+  const activeDocument = documentType ? getLegalDocument(documentType, language) : null;
 
   useEffect(() => {
     if (!legalOpen) return undefined;
@@ -27,6 +30,11 @@ export default function LegalModal() {
 
   if (!legalOpen || !activeDocument) return null;
 
+  const handleClose = (event) => {
+    event?.stopPropagation();
+    closeLegal();
+  };
+
   return (
     <div className="prelude-modal-backdrop" role="presentation" onClick={closeLegal}>
       <motion.div
@@ -40,7 +48,7 @@ export default function LegalModal() {
       >
         <div className="prelude-legal-modal__header">
           <div className="prelude-legal-modal__tabs" role="tablist" aria-label="Legal documents">
-            {Object.entries(LEGAL_DOCUMENTS).map(([type, item]) => (
+            {Object.entries(legalDocuments).map(([type, item]) => (
               <button
                 key={type}
                 type="button"
@@ -56,7 +64,7 @@ export default function LegalModal() {
           <button
             type="button"
             className="prelude-legal-modal__close"
-            onClick={closeLegal}
+            onClick={handleClose}
             aria-label="Close legal document"
           >
             <X className="h-4 w-4" />
@@ -70,6 +78,17 @@ export default function LegalModal() {
             </h2>
             <p className="prelude-legal-modal__updated">Last updated {activeDocument.updated}</p>
           </header>
+
+          {activeDocument.summary?.length ? (
+            <dl className="prelude-legal-modal__summary">
+              {activeDocument.summary.map((item) => (
+                <div key={item.label} className="prelude-legal-modal__summary-item">
+                  <dt>{item.label}</dt>
+                  <dd>{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
 
           {activeDocument.sections.map((section) => (
             <section key={section.heading} className="prelude-legal-modal__section">

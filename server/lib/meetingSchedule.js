@@ -1,0 +1,236 @@
+import { z } from "zod";
+import { db } from "../authApi.js";
+import {
+  createMeetingRecord,
+  findMeetingByIdempotencyKey,
+  getMeetingById,
+  updateMeetingRecord
+} from "./meetingStore.js";
+
+const meetingTypeSchema = z.enum(["zoom", "in_person", "phone"]);
+const meetingStatusSchema = z.enum(["scheduled", "pending", "approved", "declined", "canceled", "rescheduled"]);
+
+const zoomJoinUrlSchema = z.string().trim().url().max(2048).optional();
+
+const createMeetingSchema = z.object({
+  title: z.string().trim().min(1).max(180),
+  startTime: z.string().datetime({ offset: true }),
+  endTime: z.string().datetime({ offset: true }),
+  meetingType: meetingTypeSchema.default("zoom"),
+  timeZone: z.string().trim().min(1).max(64).optional(),
+  notes: z.string().trim().max(4000).optional(),
+  status: meetingStatusSchema.optional(),
+  studentId: z.string().trim().max(80).optional(),
+  mentorId: z.string().trim().max(80).optional(),
+  studentUserId: z.string().uuid().optional(),
+  mentorUserId: z.string().uuid().optional(),
+  isPrivate: z.boolean().optional(),
+  zoomJoinUrl: zoomJoinUrlSchema,
+  idempotencyKey: z.string().trim().min(8).max(128).optional(),
+  clientRequestId: z.string().trim().min(8).max(128).optional()
+});
+
+const updateMeetingSchema = z.object({
+  title: z.string().trim().min(1).max(180).optional(),
+  startTime: z.string().datetime({ offset: true }).optional(),
+  endTime: z.string().datetime({ offset: true }).optional(),
+  meetingType: meetingTypeSchema.optional(),
+  timeZone: z.string().trim().min(1).max(64).optional(),
+  notes: z.string().trim().max(4000).optional(),
+  status: meetingStatusSchema.optional(),
+  isPrivate: z.boolean().optional(),
+  zoomJoinUrl: zoomJoinUrlSchema
+});
+
+function userFacingError(message, statusCode = 400, code = "validation_error") {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.code = code;
+  return error;
+}
+
+function isValidZoomJoinUrl(url) {
+  if (!url || typeof url !== "string") return false;
+  try {
+    const parsed = new URL(url.trim());
+    if (parsed.protocol !== "https:") return false;
+    const host = parsed.hostname.toLowerCase();
+    return host === "zoom.us" || host.endsWith(".zoom.us");
+  } catch {
+    return false;
+  }
+}
+
+function resolveIdempotencyKey(body, req) {
+  return (
+    body.idempotencyKey ||
+    body.clientRequestId ||
+    req.headers["idempotency-key"] ||
+    req.headers["x-idempotency-key"] ||
+    null
+  );
+}
+
+function validateTimes(startTime, endTime) {
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw userFacingError("Meeting time is invalid.");
+  }
+  if (end <= start) {
+    throw userFacingError("Meeting end time must be after the start time.");
+  }
+  const maxFuture = Date.now() + 365 * 24 * 60 * 60 * 1000;
+  if (start.getTime() < Date.now() - 5 * 60 * 1000) {
+    throw userFacingError("Meeting must be scheduled in the future.");
+  }
+  if (start.getTime() > maxFuture) {
+    throw userFacingError("Meeting is too far in the future.");
+  }
+}
+
+function assertZoomLinkWhenRequired({ role, meetingType, status, zoomJoinUrl }) {
+  if (meetingType !== "zoom") return;
+  if (status !== "scheduled" && status !== "approved") return;
+  if (role?.toUpperCase() === "STUDENT") return;
+  if (!isValidZoomJoinUrl(zoomJoinUrl)) {
+    throw userFacingError(
+      "Paste a valid Zoom meeting link (https://zoom.us/j/… or https://….zoom.us/j/…).",
+      400,
+      "validation_error"
+    );
+  }
+}
+
+async function assertMentorStudentAccess({ mentorUserId, studentUserId }) {
+  if (!mentorUserId || !studentUserId) return;
+  try {
+    const assignment = await db().mentorAssignment.findFirst({
+      where: {
+        active: true,
+        mentorProfile: { userId: mentorUserId },
+        studentProfile: { userId: studentUserId }
+      },
+      select: { id: true }
+    });
+    if (!assignment) {
+      throw userFacingError("You do not have permission to schedule with this student.", 403, "forbidden");
+    }
+  } catch (error) {
+    if (error.statusCode) throw error;
+  }
+}
+
+function canUserAccessMeeting(user, meeting) {
+  const role = user.role?.toUpperCase();
+  if (role === "ADMIN") return true;
+  if (role === "MENTOR") {
+    if (meeting.mentorUserId) return meeting.mentorUserId === user.id;
+    return meeting.status === "pending" || meeting.status === "approved";
+  }
+  if (role === "STUDENT") return meeting.studentUserId === user.id && !meeting.isPrivate;
+  return false;
+}
+
+function normalizeCreatePayload(body, user) {
+  const role = user.role?.toUpperCase();
+  const payload = {
+    ...body,
+    studentUserId: body.studentUserId || (role === "STUDENT" ? user.id : undefined),
+    mentorUserId: body.mentorUserId || (role === "MENTOR" ? user.id : undefined),
+    status: body.status || (role === "STUDENT" ? "pending" : "scheduled"),
+    zoomJoinUrl: body.zoomJoinUrl?.trim() || null
+  };
+
+  if (role === "STUDENT" && payload.status === "scheduled" && payload.meetingType === "zoom") {
+    payload.status = "pending";
+    payload.zoomJoinUrl = null;
+  }
+
+  return payload;
+}
+
+export async function scheduleMeeting(body, user, req) {
+  const parsed = createMeetingSchema.parse(body);
+  validateTimes(parsed.startTime, parsed.endTime);
+
+  const idempotencyKey = resolveIdempotencyKey(parsed, req);
+  if (idempotencyKey) {
+    const existing = await findMeetingByIdempotencyKey(String(idempotencyKey));
+    if (existing) return existing;
+  }
+
+  const payload = normalizeCreatePayload(parsed, user);
+  assertZoomLinkWhenRequired({
+    role: user.role,
+    meetingType: payload.meetingType,
+    status: payload.status,
+    zoomJoinUrl: payload.zoomJoinUrl
+  });
+
+  await assertMentorStudentAccess({
+    mentorUserId: payload.mentorUserId,
+    studentUserId: payload.studentUserId
+  });
+
+  return createMeetingRecord({
+    ...payload,
+    idempotencyKey: idempotencyKey ? String(idempotencyKey) : null
+  });
+}
+
+export async function updateScheduledMeeting(id, body, user) {
+  const parsed = updateMeetingSchema.parse(body);
+  const existing = await getMeetingById(id);
+  if (!existing) {
+    throw userFacingError("Meeting not found.", 404, "not_found");
+  }
+  if (!canUserAccessMeeting(user, existing)) {
+    throw userFacingError("You do not have permission to update this meeting.", 403, "forbidden");
+  }
+
+  const role = user.role?.toUpperCase();
+  if (role === "STUDENT" && parsed.status && parsed.status !== "pending" && parsed.status !== "canceled") {
+    throw userFacingError("Students cannot approve meetings.", 403, "forbidden");
+  }
+
+  const nextStatus = parsed.status || existing.status;
+  const nextMeetingType = parsed.meetingType || existing.meetingType;
+  const nextStart = parsed.startTime || existing.startTime;
+  const nextEnd = parsed.endTime || existing.endTime;
+  const nextZoomJoinUrl = parsed.zoomJoinUrl !== undefined ? parsed.zoomJoinUrl?.trim() || null : existing.zoomJoinUrl;
+
+  validateTimes(nextStart, nextEnd);
+
+  const approving =
+    (existing.status === "pending" || existing.status === "declined") &&
+    (nextStatus === "scheduled" || nextStatus === "approved");
+
+  if (approving && nextMeetingType === "zoom") {
+    assertZoomLinkWhenRequired({
+      role: user.role,
+      meetingType: nextMeetingType,
+      status: nextStatus,
+      zoomJoinUrl: nextZoomJoinUrl
+    });
+  }
+
+  let meeting = await updateMeetingRecord(id, {
+    ...parsed,
+    status: nextStatus,
+    zoomJoinUrl: parsed.zoomJoinUrl !== undefined ? nextZoomJoinUrl : undefined
+  });
+
+  if (nextMeetingType !== "zoom") {
+    meeting = await updateMeetingRecord(id, {
+      zoomMeetingId: null,
+      zoomJoinUrl: null,
+      zoomHostUrl: null,
+      zoomPassword: null
+    });
+  }
+
+  return meeting;
+}
+
+export { createMeetingSchema, updateMeetingSchema, isValidZoomJoinUrl };

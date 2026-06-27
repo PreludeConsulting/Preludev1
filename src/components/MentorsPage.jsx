@@ -8,7 +8,7 @@ import Navbar from "./Navbar.jsx";
 import PreludeChat from "./PreludeChat.jsx";
 import SignInModal from "./SignInModal.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { LanguageProvider, useLanguage } from "../context/LanguageContext.jsx";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import { EXAMPLE_MENTORS } from "../data/mentors.js";
 import { appPath } from "../lib/appPaths.js";
 import { dashboardPathForRole, messagesPathForRole } from "../lib/onboardingRoutes.js";
@@ -190,9 +190,5 @@ function MentorsPageContent() {
 }
 
 export default function MentorsPage() {
-  return (
-    <LanguageProvider>
-      <MentorsPageContent />
-    </LanguageProvider>
-  );
+  return <MentorsPageContent />;
 }

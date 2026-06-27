@@ -1,7 +1,7 @@
 /* Prelude dashboard — matches landing lavender / navy / purple system */
 
 .dash-shell {
-  --dash-font-sans: "Barlow", sans-serif;
+  --dash-font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   position: relative;
   display: grid;
   min-height: 100vh;
@@ -3322,6 +3322,54 @@
   background: hsl(0 72% 97%);
   border-color: hsl(0 65% 88%);
   color: hsl(0 45% 32%);
+}
+
+.dash-callout--success {
+  background: hsl(145 45% 96%);
+  border-color: hsl(145 35% 82%);
+  color: hsl(145 30% 24%);
+}
+
+.dash-zoom-ready-banner {
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.dash-zoom-ready-banner__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dash-zoom-ready-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.dash-schedule-form__zoom-ready {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.dash-meetings-requests__accept-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.dash-meetings-requests__accept-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dash-meetings-requests__link-field {
+  width: 100%;
 }
 
 .dash-empty-prompt {

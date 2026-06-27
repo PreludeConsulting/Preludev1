@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { isValidZoomJoinUrl } from "../../../lib/zoomMeetingLinks.js";
 import {
   Award,
   Bot,
@@ -123,9 +124,9 @@ function UpcomingMeetingCard({ meeting, mentorName }) {
           <DashBadge variant={statusMeta.variant}>{statusMeta.label}</DashBadge>
         </div>
       </div>
-      {meeting.meetingType === "zoom" && meeting.zoomJoinUrl ? (
+      {meeting.meetingType === "zoom" && isValidZoomJoinUrl(meeting.zoomJoinUrl) ? (
         <a href={meeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-btn dash-btn--secondary dash-btn--sm">
-          <Video className="h-4 w-4" /> Join
+          <Video className="h-4 w-4" /> Join Meeting
         </a>
       ) : null}
     </article>

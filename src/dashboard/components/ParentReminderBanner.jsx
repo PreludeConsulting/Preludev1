@@ -46,18 +46,23 @@ export default function ParentReminderBanner() {
   }
 
   return (
-    <div className="dash-parent-reminder" role="status">
+    <div className="dash-parent-reminder" role="status" aria-live="polite">
       <div className="dash-parent-reminder__inner">
-        <Users className="h-5 w-5" aria-hidden="true" />
-        <p>
-          <strong>Don&apos;t forget to add your parents!</strong> Invite a parent or guardian to follow your progress on Prelude.
-        </p>
-        <Link to={settingsPath} className="dash-btn dash-btn--secondary dash-btn--sm" onClick={dismiss}>
+        <div className="dash-parent-reminder__icon" aria-hidden="true">
+          <Users className="h-5 w-5" />
+        </div>
+        <div className="dash-parent-reminder__content">
+          <p className="dash-parent-reminder__title">Don&apos;t forget to add your parents!</p>
+          <p className="dash-parent-reminder__body">
+            Invite a parent or guardian to follow your progress on Prelude.
+          </p>
+        </div>
+        <button type="button" className="dash-parent-reminder__close" onClick={dismiss} aria-label="Dismiss reminder">
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <Link to={settingsPath} className="dash-parent-reminder__cta" onClick={dismiss}>
           Add in Settings
         </Link>
-        <button type="button" className="dash-parent-reminder__close" onClick={dismiss} aria-label="Dismiss">
-          <X className="h-4 w-4" />
-        </button>
       </div>
     </div>
   );

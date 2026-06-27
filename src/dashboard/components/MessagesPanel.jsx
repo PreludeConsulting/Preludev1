@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Calendar, MessageCircle, Paperclip, Send, Smile, Video } from "lucide-react";
+import { findNextJoinableMeeting, isValidZoomJoinUrl } from "../../lib/zoomMeetingLinks.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AnimatedIcon from "../../components/interaction/AnimatedIcon.jsx";
 import { useInteractionFeedback } from "../../components/interaction/InteractionFeedback.jsx";
@@ -103,7 +104,9 @@ export default function MessagesPanel({
 
   const active = sorted.find((c) => c.id === activeId) || sorted[0];
   const groups = active ? groupMessages(active.messages) : [];
-  const nextMeeting = meetings.find((m) => m.zoomJoinUrl) || (active?.nextZoomUrl ? { zoomJoinUrl: active.nextZoomUrl } : null);
+  const nextMeeting =
+    findNextJoinableMeeting(meetings)
+    || (active?.nextZoomUrl && isValidZoomJoinUrl(active.nextZoomUrl) ? { zoomJoinUrl: active.nextZoomUrl } : null);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -236,7 +239,7 @@ export default function MessagesPanel({
                 </Link>
                 {nextMeeting?.zoomJoinUrl ? (
                   <a href={nextMeeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-btn dash-btn--primary dash-btn--sm">
-                    <Video className="h-4 w-4" /> Join Zoom
+                      <Video className="h-4 w-4" /> Join Meeting
                   </a>
                 ) : null}
               </div>

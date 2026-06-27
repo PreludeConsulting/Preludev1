@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Video, X } from "lucide-react";
+import { isValidZoomJoinUrl, normalizeZoomJoinUrl } from "../../lib/zoomMeetingLinks.js";
+import JoinZoomButton from "./JoinZoomButton.jsx";
 import { cn } from "../../lib/utils.js";
 import {
   getDefaultReminderMinutes,
@@ -31,9 +33,8 @@ const CATEGORIES = [
   { value: "mentor_private", label: "Mentor-Only Private Event" }
 ];
 
-function joinMeetingLabel(meetingType) {
-  if (meetingType === "google_meet") return "Join Google Meet";
-  return "Join Zoom";
+function joinMeetingLabel() {
+  return "Join Meeting";
 }
 
 export function CalendarEventDetailModal({ event, role, mentorName, studentName, students = [], onClose, onEdit, onDelete }) {
@@ -50,7 +51,7 @@ export function CalendarEventDetailModal({ event, role, mentorName, studentName,
   const manageable = event.extendedProps?.manageable;
   const canEdit = Boolean(onEdit) && manageable !== false;
   const canDelete = Boolean(onDelete) && manageable !== false;
-  const showJoin = Boolean(joinUrl && meetingType !== "in_person");
+  const showJoin = isValidZoomJoinUrl(joinUrl) && meetingType !== "in_person";
 
   return (
     <Modal
@@ -67,7 +68,7 @@ export function CalendarEventDetailModal({ event, role, mentorName, studentName,
               className="dash-btn dash-btn--primary dash-modal__join-btn"
             >
               <Video className="h-4 w-4" aria-hidden="true" />
-              <span>{joinMeetingLabel(meetingType)}</span>
+              <span>{joinMeetingLabel()}</span>
             </a>
           ) : null}
           {canEdit && onEdit ? <SecondaryButton type="button" onClick={() => onEdit(event)}>Edit plan</SecondaryButton> : null}
@@ -123,7 +124,8 @@ const DEFAULT_FORM = {
   shared: true,
   zoom: true,
   calendarColor: "",
-  reminderMinutes: getDefaultReminderMinutes()
+  reminderMinutes: getDefaultReminderMinutes(),
+  zoomJoinUrl: ""
 };
 
 function toDateInputValue(date) {
@@ -162,7 +164,8 @@ function buildFormFromEvent(initialEvent, initialCategory) {
     meetingType: initialEvent.meetingType || "zoom",
     studentId: initialEvent.studentId || initialEvent.raw?.studentId || "",
     calendarColor: initialEvent.pillColor || "",
-    reminderMinutes: initialEvent.reminderMinutes || getDefaultReminderMinutes()
+    reminderMinutes: initialEvent.reminderMinutes || getDefaultReminderMinutes(),
+    zoomJoinUrl: initialEvent.zoomJoinUrl || initialEvent.raw?.zoomJoinUrl || ""
   };
 }
 
@@ -186,6 +189,8 @@ export function CalendarAddEventModal({
   const [errors, setErrors] = useState({});
   const [requestSent, setRequestSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [scheduledMeeting, setScheduledMeeting] = useState(null);
   const [permissionModalOpen, setPermissionModalOpen] = useState(false);
   const [permissionWarning, setPermissionWarning] = useState("");
   const [reminderSavedWarning, setReminderSavedWarning] = useState("");
@@ -211,6 +216,8 @@ export function CalendarAddEventModal({
     setErrors({});
     setRequestSent(false);
     setSubmitting(false);
+    setSubmitError("");
+    setScheduledMeeting(null);
     setPermissionWarning("");
     setReminderSavedWarning("");
   }, [open, inline, initialCategory, initialEvent, defaultStudentId]);
@@ -297,6 +304,11 @@ export function CalendarAddEventModal({
     if (role === "mentor" && !defaultStudentId && (isEventForm || (!isSimplifiedForm && form.category === "mentor_meeting")) && !form.studentId) {
       next.studentId = "Select a student.";
     }
+    if (role === "mentor" && isEventForm && form.meetingType === "zoom") {
+      if (!isValidZoomJoinUrl(form.zoomJoinUrl)) {
+        next.zoomJoinUrl = "Paste a valid Zoom link (https://zoom.us/j/…).";
+      }
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -313,18 +325,13 @@ export function CalendarAddEventModal({
       : new Date(`${form.date}T${form.endTime}`);
 
     const meetingType = isTaskForm ? "zoom" : form.meetingType;
-    const zoomJoinUrl = form.meetingType === "zoom"
-      ? "https://zoom.us/j/placeholder-new"
-      : form.meetingType === "google_meet"
-        ? "https://meet.google.com/placeholder-new"
-        : initialEvent?.zoomJoinUrl;
-
     const sendToMentor = submitMode === "mentor";
 
     if (sendToMentor) {
       setSubmitting(true);
+      setSubmitError("");
       try {
-        await onRequestMeeting?.({
+        const meeting = await onRequestMeeting?.({
           title: form.title.trim(),
           meetingType,
           startTime: start.toISOString(),
@@ -332,8 +339,12 @@ export function CalendarAddEventModal({
           notes: form.description,
           status: "pending"
         });
-        resetFormState();
-        onClose();
+        setRequestSent(true);
+        if (meeting?.zoomJoinUrl) {
+          setScheduledMeeting(meeting);
+        }
+      } catch (error) {
+        setSubmitError(error?.message || "Could not send your meeting request. Please try again.");
       } finally {
         setSubmitting(false);
       }
@@ -343,44 +354,74 @@ export function CalendarAddEventModal({
     const resolvedStudentId = form.studentId || defaultStudentId || undefined;
     const selectedStudent = students.find((s) => s.id === resolvedStudentId);
 
-    onSave?.({
-      id: initialEvent?.id || `evt-${Date.now()}`,
-      title: form.title.trim(),
-      category: isTaskForm ? "personal_task" : isEventForm ? "mentor_meeting" : form.category,
-      start: start.toISOString(),
-      end: end.toISOString(),
-      description: form.description,
-      studentId: resolvedStudentId,
-      studentName: selectedStudent?.name,
-      shared: role === "mentor" && isEventForm ? true : form.shared,
-      mentorOnly: role === "mentor" && isEventForm ? false : (!form.shared && role === "mentor"),
-      meetingType,
-      zoomJoinUrl,
-      formVariant: isTaskForm ? "task" : isEventForm ? "event" : undefined,
-      calendarItemType: isTaskForm ? "task" : isEventForm ? "event" : undefined,
-      pillColor: form.calendarColor || undefined,
-      reminderMinutes: isSimplifiedForm ? form.reminderMinutes : "none",
-      status: "scheduled"
-    });
-    resetFormState();
-    onClose();
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const stored = await onSave?.({
+        id: initialEvent?.id || `evt-${Date.now()}`,
+        title: form.title.trim(),
+        category: isTaskForm ? "personal_task" : isEventForm ? "mentor_meeting" : form.category,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        description: form.description,
+        studentId: resolvedStudentId,
+        studentName: selectedStudent?.name,
+        shared: role === "mentor" && isEventForm ? true : form.shared,
+        mentorOnly: role === "mentor" && isEventForm ? false : (!form.shared && role === "mentor"),
+        meetingType,
+        zoomJoinUrl: role === "mentor" && meetingType === "zoom" ? normalizeZoomJoinUrl(form.zoomJoinUrl) : undefined,
+        formVariant: isTaskForm ? "task" : isEventForm ? "event" : undefined,
+        calendarItemType: isTaskForm ? "task" : isEventForm ? "event" : undefined,
+        pillColor: form.calendarColor || undefined,
+        reminderMinutes: isSimplifiedForm ? form.reminderMinutes : "none",
+        status: "scheduled"
+      });
+
+      if (isValidZoomJoinUrl(stored?.zoomJoinUrl) && meetingType === "zoom" && isEventForm) {
+        setScheduledMeeting(stored);
+        return;
+      }
+
+      resetFormState();
+      onClose();
+    } catch (error) {
+      setSubmitError(error?.message || "Could not save this event. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function resetFormState() {
     setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: getDefaultReminderMinutes() });
     setErrors({});
     setRequestSent(false);
+    setSubmitting(false);
+    setSubmitError("");
+    setScheduledMeeting(null);
     setPermissionWarning("");
     setReminderSavedWarning("");
     endTimeManuallyEdited.current = false;
+  }
+
+  function handleDoneAfterSchedule() {
+    resetFormState();
+    onClose();
   }
 
   if (!open && !inline) return null;
 
   const titleLabel = isTaskForm ? "Task title" : "Event title";
   const resolvedSubmitLabel = submitLabel ?? (isTaskForm ? "Save task" : "Save event");
+  const zoomReady = isValidZoomJoinUrl(scheduledMeeting?.zoomJoinUrl);
 
-  const formNode = (
+  const formNode = zoomReady ? (
+    <div className="dash-modal__body dash-schedule-form__zoom-ready" role="status">
+      <p className="dash-schedule-form__success-title">Meeting scheduled.</p>
+      <p className="dash-muted">{scheduledMeeting.title || "Meeting"} was added to the calendar.</p>
+      <JoinZoomButton href={scheduledMeeting.zoomJoinUrl} className="dash-btn dash-btn--primary" label="Join Meeting" />
+      <SecondaryButton type="button" onClick={handleDoneAfterSchedule}>Done</SecondaryButton>
+    </div>
+  ) : (
         <form
           className={cn(
             "dash-event-form",
@@ -487,13 +528,18 @@ export function CalendarAddEventModal({
               </label>
             </>
           ) : null}
-          {isEventForm ? (
+          {isEventForm && role === "mentor" ? (
             <label className="prelude-field">
-              <span>Meeting type</span>
-              <select value={form.meetingType} onChange={(e) => setForm((f) => ({ ...f, meetingType: e.target.value }))}>
-                <option value="zoom">Zoom</option>
-                <option value="google_meet">Google Meet</option>
-              </select>
+              <span>Zoom meeting link</span>
+              <input
+                type="url"
+                value={form.zoomJoinUrl}
+                onChange={(e) => setForm((f) => ({ ...f, meetingType: "zoom", zoomJoinUrl: e.target.value }))}
+                placeholder="https://zoom.us/j/1234567890"
+                autoComplete="off"
+              />
+              <em className="dash-field-hint">Schedule the meeting in Zoom first, then paste the join link here.</em>
+              {errors.zoomJoinUrl ? <em className="dash-field-error">{errors.zoomJoinUrl}</em> : null}
             </label>
           ) : null}
           {isSimplifiedForm ? (
@@ -579,9 +625,20 @@ export function CalendarAddEventModal({
               )}
             </div>
             {meetingRequestMode && requestSent && !showStudentEventChoice ? (
-              <p className="dash-schedule-form__request-sent" role="status">
-                A request has been made to your mentor!
-              </p>
+              <div className="dash-schedule-form__request-sent" role="status">
+                <p>A request has been sent to your mentor for review.</p>
+                {isValidZoomJoinUrl(scheduledMeeting?.zoomJoinUrl) ? (
+                  <p>
+                    Join link:{" "}
+                    <a href={scheduledMeeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-link">
+                      {scheduledMeeting.zoomJoinUrl}
+                    </a>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            {submitError ? (
+              <p className="dash-schedule-form__form-error" role="alert">{submitError}</p>
             ) : null}
           </div>
         </form>

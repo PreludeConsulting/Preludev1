@@ -8,8 +8,15 @@ export async function getMeetings() {
   return api("/api/meetings");
 }
 
-export async function createMeeting(payload) {
-  return api("/api/meetings", { method: "POST", body: JSON.stringify(payload) });
+export async function createMeeting(payload, options = {}) {
+  const headers = {};
+  const idempotencyKey = options.idempotencyKey || payload.clientRequestId || payload.idempotencyKey;
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+  return api("/api/meetings", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers
+  });
 }
 
 export async function updateMeeting(id, payload) {

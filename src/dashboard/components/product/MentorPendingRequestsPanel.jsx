@@ -1,6 +1,5 @@
 import { Video } from "lucide-react";
-import { useDashboardData } from "../../context/DashboardDataContext.jsx";
-import { PrimaryButton, SecondaryButton } from "../ui/index.jsx";
+import MeetingRequestActions from "../MeetingRequestActions.jsx";
 
 function RequestTypeLabel({ type = "" }) {
   const match = type.match(/^(Zoom)(\s+.*)?$/i);
@@ -15,8 +14,6 @@ function RequestTypeLabel({ type = "" }) {
 }
 
 export default function MentorPendingRequestsPanel({ requests }) {
-  const { acceptMeetingRequest, declineMeetingRequest } = useDashboardData();
-
   if (!requests.length) return null;
 
   return (
@@ -43,20 +40,11 @@ export default function MentorPendingRequestsPanel({ requests }) {
               </div>
             </div>
             <div className="dash-mentor-request-row__actions">
-              <PrimaryButton
-                type="button"
-                className="dash-btn--sm dash-mentor-request-row__accept"
-                onClick={() => acceptMeetingRequest(request)}
-              >
-                Accept
-              </PrimaryButton>
-              <SecondaryButton
-                type="button"
-                className="dash-btn--sm dash-mentor-request-row__decline"
-                onClick={() => declineMeetingRequest(request.id)}
-              >
-                Decline
-              </SecondaryButton>
+              <MeetingRequestActions
+                request={request}
+                acceptClassName="dash-btn--sm dash-mentor-request-row__accept"
+                declineClassName="dash-btn--sm dash-mentor-request-row__decline"
+              />
             </div>
           </article>
         ))}
