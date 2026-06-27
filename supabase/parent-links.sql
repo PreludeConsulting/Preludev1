@@ -292,10 +292,8 @@ as $$
 declare
   requested_role text;
   safe_role text;
-  role_selected boolean;
 begin
   requested_role := coalesce(new.raw_user_meta_data ->> 'role', 'student');
-  role_selected := coalesce((new.raw_user_meta_data ->> 'role_selection_complete')::boolean, false);
 
   if requested_role in ('student', 'mentor', 'parent') then
     safe_role := requested_role;
@@ -303,12 +301,11 @@ begin
     safe_role := 'student';
   end if;
 
-  insert into public.profiles (id, full_name, role, role_selection_complete)
+  insert into public.profiles (id, full_name, role)
   values (
     new.id,
-    coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name'),
-    safe_role,
-    role_selected
+    new.raw_user_meta_data ->> 'full_name',
+    safe_role
   )
   on conflict (id) do nothing;
 
