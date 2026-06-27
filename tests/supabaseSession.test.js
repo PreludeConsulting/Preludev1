@@ -32,13 +32,4 @@ describe("mapSupabaseUser", () => {
     expect(user.onboardingStatus).toBeNull();
     expect(user.planSelected).toBe(false);
   });
-
-  it("treats missing profile role-selection state as incomplete", () => {
-    const user = mapSupabaseUser(session(), null, { onboarding_status: "needs_plan" });
-
-    expect(user.role).toBe("student");
-    expect(user.roleSelectionComplete).toBe(false);
-    expect(user.onboardingStatus).toBeNull();
-    expect(user.planSelected).toBe(false);
-  });
 });

@@ -203,6 +203,9 @@ export function AuthProvider({ children }) {
         const fullName = `${payload.firstName || ""} ${payload.lastName || ""}`.trim() || (payload.name || "").trim();
         const roleRaw = payload.role ? payload.role.toLowerCase() : "";
         const role = roleRaw === "mentor" ? "mentor" : roleRaw === "parent" ? "parent" : roleRaw === "student" ? "student" : null;
+        if (!role) {
+          throw new Error("Please choose Student, Mentor, or Parent before creating your account.");
+        }
         if (role === "parent" && payload.parentInviteToken) {
           storePendingParentInvite(payload.parentInviteToken);
         }

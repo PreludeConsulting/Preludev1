@@ -23,7 +23,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
   const parentInviteStepComplete =
     onboardingFields.parentInviteStepComplete || readParentInviteStepComplete(u.id);
   const authSignInMethods = normalizeAuthProviders(u.identities || [], u);
-  const roleSelectionComplete = Boolean(profile?.role_selection_complete);
+  const roleSelectionComplete = profile?.role_selection_complete !== false;
 
   let onboardingStatus = onboardingFields.onboardingStatus;
   if (!roleSelectionComplete) {
