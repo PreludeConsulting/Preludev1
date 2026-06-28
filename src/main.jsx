@@ -20,6 +20,7 @@ import { SoundProvider } from "./lib/sound/SoundProvider.jsx";
 import { InteractionFeedbackProvider } from "./components/interaction/InteractionFeedback.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import {
+  AuthCallbackPage,
   ForgotPasswordPage,
   LoginPage,
   RegisterPage,
@@ -55,6 +56,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/onboarding/role" element={<RoleSelectionOnboardingPage />} />
             <Route path="/onboarding/plan" element={<PlanSelectionPage />} />
             <Route path="/onboarding/match" element={<PreludeMatchOnboardingPage />} />

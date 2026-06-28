@@ -11,6 +11,8 @@
 create table if not exists public.profiles (
   id           uuid primary key references auth.users (id) on delete cascade,
   full_name    text,
+  email        text,
+  avatar_url   text,
   role         text not null default 'student' check (role in ('student', 'mentor', 'parent', 'admin')),
   role_selection_complete boolean not null default false,
   school       text,
@@ -23,6 +25,8 @@ comment on table public.profiles is 'Public profile data linked 1:1 to auth.user
 
 -- Add plan_id for existing deployments (safe to re-run).
 alter table public.profiles add column if not exists plan_id text check (plan_id is null or plan_id in ('basic', 'plus', 'pro'));
+alter table public.profiles add column if not exists email text;
+alter table public.profiles add column if not exists avatar_url text;
 alter table public.profiles add column if not exists role_selection_complete boolean;
 update public.profiles
 set role_selection_complete = true
@@ -46,6 +50,13 @@ create policy "Profiles are viewable by their owner"
   to authenticated
   using (auth.uid() = id);
 
+drop policy if exists "Profiles are insertable by their owner" on public.profiles;
+create policy "Profiles are insertable by their owner"
+  on public.profiles
+  for insert
+  to authenticated
+  with check (auth.uid() = id and role in ('student', 'mentor', 'parent'));
+
 -- Update own profile only. Role-escalation protection is enforced by the
 -- BEFORE UPDATE trigger below (which compares OLD vs NEW unambiguously) rather
 -- than by a WITH CHECK subquery against this same table — a subquery that reads
@@ -59,8 +70,7 @@ create policy "Profiles are updatable by their owner"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
--- No INSERT policy: rows are created exclusively by the SECURITY DEFINER signup
--- trigger below. No DELETE policy: end users cannot delete profiles.
+-- No DELETE policy: end users cannot delete profiles.
 
 -- 3) Block authenticated users from changing their own authorization role -----
 -- auth.uid() is NULL for the service_role / SQL Editor, so a developer can still
@@ -135,14 +145,20 @@ begin
     safe_role := 'student';
   end if;
 
-  insert into public.profiles (id, full_name, role, role_selection_complete)
+  insert into public.profiles (id, full_name, email, avatar_url, role, role_selection_complete)
   values (
     new.id,
-    new.raw_user_meta_data ->> 'full_name',
+    coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name'),
+    new.email,
+    coalesce(new.raw_user_meta_data ->> 'avatar_url', new.raw_user_meta_data ->> 'picture'),
     safe_role,
     role_selected
   )
-  on conflict (id) do nothing;
+  on conflict (id) do update set
+    email = excluded.email,
+    avatar_url = coalesce(excluded.avatar_url, public.profiles.avatar_url),
+    full_name = coalesce(excluded.full_name, public.profiles.full_name),
+    role_selection_complete = public.profiles.role_selection_complete;
 
   return new;
 end;

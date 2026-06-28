@@ -1,19 +1,22 @@
 import { api } from "./auth.js";
 import { appPath } from "./appPaths.js";
+import { sanitizeAuthRedirect } from "./authRedirects.js";
 import { getSupabase } from "./supabase.js";
 import { getPublicAppOrigin, isSupabaseConfigured } from "./supabaseConfig.js";
 
 /** Where Supabase should send the browser after Google OAuth completes. */
-export function getGoogleOAuthRedirectTo() {
+export function getGoogleOAuthRedirectTo(next = "") {
   const origin = getPublicAppOrigin() || window.location.origin;
-  return `${origin}${appPath("/dashboard")}`;
+  const safeNext = sanitizeAuthRedirect(next, "");
+  const query = safeNext ? `?next=${encodeURIComponent(safeNext)}` : "";
+  return `${origin}${appPath(`/auth/callback${query}`)}`;
 }
 
 /**
  * Start Google OAuth via Supabase when configured, otherwise legacy API placeholder.
  * @returns {{ url: string | null, error: string | null, message?: string }}
  */
-export async function signInWithGoogle() {
+export async function signInWithGoogle(options = {}) {
   if (isSupabaseConfigured()) {
     const supabase = getSupabase();
     if (!supabase) {
@@ -23,7 +26,7 @@ export async function signInWithGoogle() {
       return { url: null, error: message };
     }
 
-    const redirectTo = getGoogleOAuthRedirectTo();
+    const redirectTo = getGoogleOAuthRedirectTo(options.next);
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",

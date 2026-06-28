@@ -69,6 +69,11 @@ create policy "Profiles are viewable by their owner"
   on public.profiles for select to authenticated
   using (auth.uid() = id);
 
+drop policy if exists "Profiles are insertable by their owner" on public.profiles;
+create policy "Profiles are insertable by their owner"
+  on public.profiles for insert to authenticated
+  with check (auth.uid() = id and role in ('student', 'mentor', 'parent'));
+
 drop policy if exists "Profiles are updatable by their owner" on public.profiles;
 create policy "Profiles are updatable by their owner"
   on public.profiles for update to authenticated

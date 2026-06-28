@@ -6,6 +6,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getSupabase } from "./supabase.js";
 import { appPath } from "./appPaths.js";
+import { sanitizeAuthRedirect } from "./authRedirects.js";
 import { getPublicAppOrigin, isSupabaseConfigured } from "./supabaseConfig.js";
 import { mapSupabaseUser } from "./supabaseSession.js";
 import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
@@ -18,10 +19,30 @@ import {
 import { primaryOAuthProvider } from "./authSignInMethod.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
+const OAUTH_PROVIDERS = ["google"];
 
 function fullUrl(path) {
   const origin = getPublicAppOrigin() || window.location.origin;
   return `${origin}${appPath(path)}`;
+}
+
+function normalizeEmail(email) {
+  return (email || "").trim().toLowerCase();
+}
+
+function safeOAuthMetadata(user) {
+  const meta = user?.user_metadata || {};
+  return {
+    fullName: (meta.full_name || meta.name || "").trim(),
+    avatarUrl: (meta.avatar_url || meta.picture || "").trim(),
+    email: normalizeEmail(user?.email)
+  };
+}
+
+export function getAuthCallbackUrl(next = "") {
+  const safeNext = sanitizeAuthRedirect(next, "");
+  const query = safeNext ? `?next=${encodeURIComponent(safeNext)}` : "";
+  return fullUrl(`/auth/callback${query}`);
 }
 
 function friendlyError(error) {
@@ -37,11 +58,17 @@ function friendlyError(error) {
   if (message.includes("user already registered") || message.includes("already been registered")) {
     return "An account with this email already exists. Try logging in instead.";
   }
+  if (message.includes("unable to validate email") || message.includes("invalid email")) {
+    return "Please enter a valid email address.";
+  }
   if (message.includes("password should be at least")) {
     return "Please choose a longer password (at least 6 characters).";
   }
-  if (message.includes("inactive recipient")) {
-    return "Supabase couldn't email this address. For local testing, disable email confirmation in the Supabase dashboard or use a different email.";
+  if (message.includes("weak password") || message.includes("password")) {
+    return "Please choose a stronger password.";
+  }
+  if (message.includes("inactive recipient") || message.includes("smtp") || message.includes("email rate limit exceeded")) {
+    return "We couldn't send that email right now. Please wait a moment and try again.";
   }
   if (message.includes("for security purposes") || message.includes("rate limit")) {
     return "Too many attempts. Please wait a moment and try again.";
@@ -73,10 +100,11 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
     options: {
       data: {
         full_name: fullName,
+        email: normalizeEmail(email),
         role: safeRole,
         role_selection_complete: true
       },
-      emailRedirectTo: fullUrl("/login"),
+      emailRedirectTo: fullUrl("/verify-email"),
       ...captchaOptions(captchaToken)
     }
   });
@@ -85,8 +113,13 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
 
   const needsEmailConfirmation = Boolean(data?.user && !data?.session);
   let profile = null;
-  if (data?.user) {
-    const result = await getProfile(data.user.id);
+  if (data?.session?.user) {
+    const result = await ensureUserProfile(data.session.user, {
+      fullName,
+      email,
+      role: safeRole,
+      roleSelectionComplete: true
+    });
     profile = result.profile;
   }
   const user = data?.session ? mapSupabaseUser(data.session, profile) : null;
@@ -96,6 +129,28 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
     error: null,
     needsEmailConfirmation
   };
+}
+
+export async function signInWithOAuth(provider = "google", options = {}) {
+  if (!isSupabaseConfigured()) return { url: null, error: "Supabase is not configured for this deployment." };
+  const safeProvider = OAUTH_PROVIDERS.includes(provider) ? provider : null;
+  if (!safeProvider) return { url: null, error: "That sign-in provider is not supported yet." };
+  const supabase = getSupabase();
+  if (!supabase) return { url: null, error: "Supabase client unavailable." };
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: safeProvider,
+    options: {
+      redirectTo: getAuthCallbackUrl(options.next),
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent"
+      }
+    }
+  });
+
+  if (error) return { url: null, error: friendlyError(error) };
+  return { url: data?.url || null, error: data?.url ? null : "Google sign-in did not return a redirect URL." };
 }
 
 export async function logIn({ email, password, captchaToken }) {
@@ -182,7 +237,7 @@ export async function resendSignupConfirmation(email) {
   const { error } = await supabase.auth.resend({
     type: "signup",
     email,
-    options: { emailRedirectTo: fullUrl("/login") }
+    options: { emailRedirectTo: fullUrl("/verify-email") }
   });
   if (error) throw new Error(friendlyError(error));
   return { message: "Verification email sent. Check your inbox." };
@@ -341,6 +396,138 @@ export async function getProfile(userId) {
   return { profile: data, error: null };
 }
 
+export async function ensureUserProfile(user, overrides = {}) {
+  const supabase = getSupabase();
+  if (!supabase || !user?.id) return { profile: null, error: "Supabase client unavailable." };
+
+  const existing = await getProfile(user.id);
+  if (existing.profile) {
+    const metadata = safeOAuthMetadata(user);
+    const update = {
+      email: existing.profile.email || overrides.email || metadata.email || null,
+      avatar_url: existing.profile.avatar_url || overrides.avatarUrl || metadata.avatarUrl || null,
+      full_name: existing.profile.full_name || overrides.fullName || metadata.fullName || null,
+      updated_at: new Date().toISOString()
+    };
+    const { data, error } = await supabase
+      .from("profiles")
+      .update(update)
+      .eq("id", user.id)
+      .select("*")
+      .maybeSingle();
+    if (error) return { profile: existing.profile, error: friendlyError(error) };
+    return { profile: data || existing.profile, error: null };
+  }
+
+  const metadata = safeOAuthMetadata(user);
+  const role = SELECTABLE_ROLES.includes(overrides.role) ? overrides.role : "student";
+  const payload = {
+    id: user.id,
+    email: overrides.email || metadata.email || null,
+    full_name: overrides.fullName || metadata.fullName || null,
+    avatar_url: overrides.avatarUrl || metadata.avatarUrl || null,
+    role,
+    role_selection_complete: Boolean(overrides.roleSelectionComplete)
+  };
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert(payload, { onConflict: "id" })
+    .select("*")
+    .maybeSingle();
+  if (error) return { profile: null, error: friendlyError(error) };
+  return { profile: data, error: null };
+}
+
+export async function completeAuthCallback(search = window.location.search, hash = window.location.hash) {
+  if (!isSupabaseConfigured()) return { user: null, error: "Supabase is not configured for this deployment." };
+  const supabase = getSupabase();
+  const searchParams = new URLSearchParams(search || "");
+  const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
+
+  const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
+  if (providerError) {
+    return { user: null, error: providerError === "access_denied" ? "Google sign-in was canceled." : providerError };
+  }
+
+  const code = searchParams.get("code");
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return { user: null, error: friendlyError(error) };
+  }
+
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return { user: null, error: friendlyError(userError) || "This sign-in link is invalid or expired." };
+  }
+
+  const { error: profileError } = await ensureUserProfile(user);
+  if (profileError) return { user: null, error: profileError };
+  const appUser = await resolveSupabaseAppUser();
+  return { user: appUser, error: null };
+}
+
+export async function completeEmailVerification(search = window.location.search, hash = window.location.hash) {
+  if (!isSupabaseConfigured()) return { user: null, error: "Supabase is not configured for this deployment." };
+  const supabase = getSupabase();
+  const searchParams = new URLSearchParams(search || "");
+  const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
+
+  const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
+  if (providerError) {
+    return { user: null, error: providerError.includes("expired") ? "This verification link has expired. Request a new confirmation email." : providerError };
+  }
+
+  const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");
+  const rawType = searchParams.get("type") || hashParams.get("type") || "signup";
+  const type = rawType === "email" ? "signup" : rawType;
+  if (tokenHash) {
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (error) return { user: null, error: friendlyError(error) };
+  } else {
+    const code = searchParams.get("code");
+    if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) return { user: null, error: friendlyError(error) };
+    }
+  }
+
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return { user: null, error: friendlyError(userError) || "This verification link is invalid or expired." };
+  }
+
+  const { error: profileError } = await ensureUserProfile(user);
+  if (profileError) return { user: null, error: profileError };
+  const appUser = await resolveSupabaseAppUser();
+  return { user: appUser, error: null };
+}
+
+export async function initializePasswordRecovery(search = window.location.search, hash = window.location.hash) {
+  const supabase = getSupabase();
+  if (!supabase) return { hasRecoverySession: false, error: "Supabase client unavailable." };
+  const searchParams = new URLSearchParams(search || "");
+  const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
+  const providerError = searchParams.get("error_description") || hashParams.get("error_description");
+  if (providerError) return { hasRecoverySession: false, error: providerError };
+
+  const code = searchParams.get("code");
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return { hasRecoverySession: false, error: friendlyError(error) };
+  }
+
+  const { session, error } = await getCurrentSession();
+  if (error) return { hasRecoverySession: false, error };
+  const urlType = searchParams.get("type") || hashParams.get("type");
+  return { hasRecoverySession: Boolean(session && (urlType === "recovery" || code || hashParams.get("access_token"))), error: null };
+}
+
 const PLAN_STORAGE_PREFIX = "prelude_plan_";
 
 export function readCachedPlan(userId) {
@@ -417,7 +604,7 @@ export async function resolveSupabaseAppUser() {
   if (userError || !authUser) return null;
 
   const userId = authUser.id;
-  const { profile } = await getProfile(userId);
+  const { profile } = await ensureUserProfile(authUser);
 
   const [onboardingRes, mentorRes, mentorQuestionnaireRes] = await Promise.all([
     supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle(),

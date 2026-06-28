@@ -1,6 +1,6 @@
 import { GraduationCap, HeartHandshake, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
 import { postAuthDestination } from "../lib/onboardingRoutes.js";
 import { signInWithGoogle } from "../lib/googleAuth.js";
@@ -11,6 +11,7 @@ import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 import AppLink from "./AppLink.jsx";
 import TurnstileWidget from "./auth/TurnstileWidget.jsx";
 import { isTurnstileRequired } from "../lib/turnstile.js";
+import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
 
 const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
 
@@ -109,14 +110,17 @@ function validateSignupPassword(password, supabaseAuth) {
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn, signInAsDemo, user, ready } = useAuth();
   const supabaseAuth = isSupabaseConfigured();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [message] = useState(() => (new URLSearchParams(location.search).get("reset") === "success" ? "Your password has been updated. Log in with your new password." : ""));
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
+  const destination = sanitizeAuthRedirect(location.state?.from || new URLSearchParams(location.search).get("next") || "");
 
   useEffect(() => {
     if (!ready) return;
@@ -129,7 +133,7 @@ export function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const { url, error: oauthError, message } = await signInWithGoogle();
+      const { url, error: oauthError, message } = await signInWithGoogle({ next: destination });
       if (oauthError) {
         setError(oauthError);
         return;
@@ -152,7 +156,7 @@ export function LoginPage() {
     setError("");
     try {
       const user = await signIn(demoEmail, demoPassword, { captchaToken });
-      navigate(postAuthDestination(user), { replace: true });
+      navigate(destination || postAuthDestination(user), { replace: true });
     } catch (err) {
       setError(err.message);
       turnstileRef.current?.reset();
@@ -171,7 +175,7 @@ export function LoginPage() {
     setError("");
     try {
       const nextUser = await signInAsDemo(accountKey);
-      navigate(postAuthDestination(nextUser), { replace: true });
+      navigate(destination || postAuthDestination(nextUser), { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -188,6 +192,7 @@ export function LoginPage() {
       <p className="dash-auth-divider">or continue with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
+        {message ? <Alert>{message}</Alert> : null}
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
@@ -237,14 +242,60 @@ export function LoginPage() {
   );
 }
 
+export function AuthCallbackPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { refreshUser } = useAuth();
+  const [state, setState] = useState({ loading: true, error: "", message: "Finishing Google sign-in…" });
+  const nextPath = sanitizeAuthRedirect(searchParams.get("next") || "");
+
+  useEffect(() => {
+    let cancelled = false;
+    import("../lib/supabaseAuth.js")
+      .then(({ completeAuthCallback }) => completeAuthCallback())
+      .then(async ({ user: nextUser, error }) => {
+        if (cancelled) return;
+        if (error) {
+          setState({ loading: false, error, message: "" });
+          return;
+        }
+        const refreshed = await refreshUser();
+        const resolvedUser = nextUser || refreshed;
+        const destination = nextPath || postAuthDestination(resolvedUser);
+        setState({ loading: false, error: "", message: "Signed in. Redirecting…" });
+        navigate(destination, { replace: true });
+      })
+      .catch((err) => {
+        if (!cancelled) setState({ loading: false, error: err.message || "Google sign-in could not be completed.", message: "" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, nextPath, refreshUser]);
+
+  return (
+    <Shell title="Signing you in" subtitle="Prelude is finishing your secure Google sign-in.">
+      {state.message ? <Alert>{state.message}</Alert> : null}
+      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
+      {!state.loading && state.error ? (
+        <p className="mt-4 text-sm text-muted-foreground">
+          <AppLink className="underline" href="/login">Back to login</AppLink>
+        </p>
+      ) : null}
+    </Shell>
+  );
+}
+
 export function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const parentInviteToken = searchParams.get("parentInvite") || "";
   const invitedAsParent = searchParams.get("role") === "parent" || Boolean(parentInviteToken);
   const prefilledEmail = searchParams.get("email")?.trim() || "";
   const { signUp } = useAuth();
   const supabaseAuth = isSupabaseConfigured();
+  const destination = sanitizeAuthRedirect(location.state?.from || searchParams.get("next") || "");
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -261,7 +312,7 @@ export function RegisterPage() {
     setMessage("");
     setLoading(true);
     try {
-      const { url, error: oauthError, message } = await signInWithGoogle();
+      const { url, error: oauthError, message } = await signInWithGoogle({ next: destination });
       if (oauthError) {
         setError(oauthError);
         return;
@@ -281,6 +332,8 @@ export function RegisterPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
@@ -307,9 +360,10 @@ export function RegisterPage() {
       };
       const result = await signUp(payload);
       if (result?.needsEmailConfirmation || result?.verificationEmailSent) {
+        setConfirmationEmail(form.email.trim());
         setMessage(
           result?.message ||
-            "Account created! We sent a verification link to your email. Please verify your address, then log in."
+            "Account created. We sent a confirmation link to your email. Please verify your address before logging in."
         );
         return;
       }
@@ -323,6 +377,25 @@ export function RegisterPage() {
       turnstileRef.current?.reset();
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function resendConfirmationEmail() {
+    const email = confirmationEmail || form.email.trim();
+    if (!email) {
+      setError("Enter the email you used to sign up, then request a new confirmation email.");
+      return;
+    }
+    setResending(true);
+    setError("");
+    try {
+      const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
+      const result = await resendSignupConfirmation(email);
+      setMessage(result.message || "Confirmation email sent. Check your inbox.");
+    } catch (err) {
+      setError(err.message || "Could not resend the confirmation email.");
+    } finally {
+      setResending(false);
     }
   }
 
@@ -342,9 +415,14 @@ export function RegisterPage() {
         {message ? (
           <>
             <Alert>{message}</Alert>
-            <p className="text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              {supabaseAuth ? (
+                <button type="button" className="underline disabled:opacity-60" disabled={resending} onClick={resendConfirmationEmail}>
+                  {resending ? "Sending…" : "Resend confirmation email"}
+                </button>
+              ) : null}
               <AppLink className="underline" href="/login">Go to login</AppLink>
-            </p>
+            </div>
           </>
         ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
@@ -442,6 +520,7 @@ export function ForgotPasswordPage() {
 }
 
 export function ResetPasswordPage() {
+  const navigate = useNavigate();
   const supabaseAuth = isSupabaseConfigured();
   const params = new URLSearchParams(window.location.search);
   const [token] = useState(params.get("token") || "");
@@ -451,18 +530,22 @@ export function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [hasRecoverySession, setHasRecoverySession] = useState(false);
+  const [checkingRecovery, setCheckingRecovery] = useState(supabaseAuth);
 
   useEffect(() => {
     if (!supabaseAuth) return undefined;
     let active = true;
     let unsubscribe = () => {};
 
-    import("../lib/supabaseAuth.js").then(({ getCurrentSession, onAuthStateChange }) => {
-      getCurrentSession().then(({ session }) => {
-        if (active) setHasRecoverySession(Boolean(session));
+    import("../lib/supabaseAuth.js").then(({ initializePasswordRecovery, onAuthStateChange }) => {
+      initializePasswordRecovery().then(({ hasRecoverySession: recovered, error: recoveryError }) => {
+        if (!active) return;
+        setHasRecoverySession(Boolean(recovered));
+        if (recoveryError) setError(recoveryError);
+        setCheckingRecovery(false);
       });
-      const { data } = onAuthStateChange((_event, session) => {
-        if (active) setHasRecoverySession(Boolean(session));
+      const { data } = onAuthStateChange((event, session) => {
+        if (active && event === "PASSWORD_RECOVERY") setHasRecoverySession(Boolean(session));
       });
       unsubscribe = () => data.subscription.unsubscribe();
     });
@@ -490,6 +573,7 @@ export function ResetPasswordPage() {
         const { error: updateError } = await supabaseUpdate(password);
         if (updateError) throw new Error(updateError);
         setMessage("Your password has been updated. You can log in with your new password.");
+        setTimeout(() => navigate("/login?reset=success", { replace: true }), 1200);
         return;
       }
 
@@ -512,7 +596,8 @@ export function ResetPasswordPage() {
         <form className="space-y-5" onSubmit={onSubmit}>
           {error ? <Alert tone="error">{error}</Alert> : null}
           {message ? <Alert>{message}</Alert> : null}
-          {!hasRecoverySession && !message ? (
+          {checkingRecovery ? <Alert>Checking your reset link…</Alert> : null}
+          {!checkingRecovery && !hasRecoverySession && !message ? (
             <Alert>
               Open this page from the reset link in your email, or request a new link on the{" "}
               <AppLink className="underline" href="/forgot-password">forgot password</AppLink> page.
@@ -520,7 +605,7 @@ export function ResetPasswordPage() {
           ) : null}
           <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
           <Field label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
-          <button disabled={loading || (!hasRecoverySession && !message)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
+          <button disabled={loading || checkingRecovery || (!hasRecoverySession && !message)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
             {loading ? "Updating…" : "Update password"}
           </button>
           {message ? (
@@ -578,14 +663,31 @@ export function VerifyEmailPage() {
 
   useEffect(() => {
     if (supabaseAuth) {
-      setState({
-        loading: false,
-        message:
-          "Check your inbox for the confirmation link from Prelude. After confirming, return here to log in.",
-        error: "",
-        alreadyVerified: false
-      });
-      return undefined;
+      let cancelled = false;
+      import("../lib/supabaseAuth.js")
+        .then(({ completeEmailVerification }) => completeEmailVerification())
+        .then(async ({ user: nextUser, error }) => {
+          if (cancelled) return;
+          if (error) {
+            setState({ loading: false, message: "", error, alreadyVerified: false });
+            return;
+          }
+          await refreshUser();
+          setState({
+            loading: false,
+            message: "Email verified. We’re checking your Prelude profile before continuing.",
+            error: "",
+            alreadyVerified: false
+          });
+          const destination = postAuthDestination(nextUser);
+          setTimeout(() => navigate(destination, { replace: true }), 900);
+        })
+        .catch((err) => {
+          if (!cancelled) setState({ loading: false, message: "", error: err.message, alreadyVerified: false });
+        });
+      return () => {
+        cancelled = true;
+      };
     }
 
     const token = new URLSearchParams(window.location.search).get("token") || "";
@@ -638,7 +740,7 @@ export function VerifyEmailPage() {
           className="mt-6 inline-block rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
           onClick={() => navigate(continuePath, { replace: true })}
         >
-          {supabaseAuth ? "Go to login" : continueLabel}
+          {continueLabel}
         </button>
       ) : null}
       {state.error ? (
