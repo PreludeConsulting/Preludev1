@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "seed:demo": "node scripts/seed-demo.mjs",
+    "stripe:domain": "node scripts/setup-stripe-domain.mjs https://preludeconsultingllc.com",
     "stripe:webhook": "node scripts/stripe-listen.mjs vite",
     "stripe:webhook:api": "node scripts/stripe-listen.mjs api",
     "sync:main": "node scripts/sync-main.mjs",
