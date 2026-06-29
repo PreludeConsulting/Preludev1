@@ -124,9 +124,10 @@ function summarizeUserAgent(userAgent = "") {
 }
 
 async function supabaseFetch(context, path, options = {}) {
-  const url = `${getSupabaseUrl(context).replace(/\/$/, "")}${path}`;
+  const supabaseUrl = getSupabaseUrl(context);
   const key = getServiceRoleKey(context);
-  if (!url || !key) throw Object.assign(new Error("Supabase server credentials are not configured."), { status: 503 });
+  if (!supabaseUrl || !key) throw Object.assign(new Error("Supabase server credentials are not configured."), { status: 503 });
+  const url = `${supabaseUrl.replace(/\/$/, "")}${path}`;
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -146,12 +147,15 @@ async function supabaseFetch(context, path, options = {}) {
 }
 
 async function requireUser(context) {
+  const supabaseUrl = getSupabaseUrl(context);
+  const key = getServiceRoleKey(context);
+  if (!supabaseUrl || !key) throw Object.assign(new Error("Supabase server credentials are not configured."), { status: 503 });
   const auth = context.request.headers.get("Authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "");
   if (!token) throw Object.assign(new Error("Authentication required."), { status: 401 });
-  const response = await fetch(`${getSupabaseUrl(context).replace(/\/$/, "")}/auth/v1/user`, {
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/user`, {
     headers: {
-      apikey: getServiceRoleKey(context),
+      apikey: key,
       Authorization: `Bearer ${token}`
     }
   });

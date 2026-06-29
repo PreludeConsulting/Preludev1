@@ -150,9 +150,8 @@ async function sendCodeEmail({ to, code, req, challengeId, requestId }) {
     recipientDomain: recipientDomain(to)
   });
   if (!apiKey) {
-    if (!isProduction()) console.info(`[prelude-auth:login-code] dev delivery for ${recipientDomain(to)} challenge=${challengeId}`);
     logAuth("verification.email.failed", { requestId, challengeId, reason: "missing_provider" });
-    return { delivered: false, reason: "missing_provider", devOnly: !isProduction() };
+    return { delivered: false, reason: "missing_provider" };
   }
 
   const device = summarizeUserAgent(req.headers["user-agent"] || "");
@@ -296,7 +295,7 @@ async function handleSend(req, res) {
       resend_message_id: delivery.messageId || null
     })
     .eq("id", challenge.id);
-  if (!delivery.delivered && isProduction()) {
+  if (!delivery.delivered) {
     return sendJson(res, 503, { error: "email_delivery_failed", message: "Verification email could not be sent. Check Resend configuration." });
   }
   sendJson(res, 200, {
@@ -304,8 +303,7 @@ async function handleSend(req, res) {
     expiresAt: challenge.expires_at,
     resendMessageId: delivery.messageId || null,
     message: "Verification code sent.",
-    emailSent: Boolean(delivery.delivered),
-    devOnly: Boolean(delivery.devOnly)
+    emailSent: true
   });
 }
 

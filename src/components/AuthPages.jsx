@@ -893,7 +893,7 @@ export function VerifyLoginPage() {
       setDigits(["", "", "", "", "", ""]);
       setSubmittedCode("");
       setCooldown(Number(result.retryAfter || 60));
-      setMessage(result.resendMessageId ? "A new verification code was sent." : "A new verification code was submitted.");
+      setMessage(result.emailSent ? "A new verification code was sent." : "Prelude could not confirm email delivery. Please try again.");
       setStatus("waiting");
       window.requestAnimationFrame(() => inputRefs.current[0]?.focus());
     } catch (err) {
