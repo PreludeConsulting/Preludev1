@@ -11,6 +11,8 @@ import PreludeMatchOnboardingPage from "./components/onboarding/PreludeMatchOnbo
 import ParentInviteOnboardingPage from "./components/onboarding/ParentInviteOnboardingPage.jsx";
 import MentorQuestionnaireOnboardingPage from "./components/onboarding/MentorQuestionnaireOnboardingPage.jsx";
 import RequirePlanGuard from "./components/RequirePlanGuard.jsx";
+import RequireLoginVerification from "./components/RequireLoginVerification.jsx";
+import SecuritySettingsRedirect from "./components/SecuritySettingsRedirect.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { LegalModalProvider } from "./context/LegalModalContext.jsx";
@@ -25,7 +27,8 @@ import {
   LoginPage,
   RegisterPage,
   ResetPasswordPage,
-  VerifyEmailPage
+  VerifyEmailPage,
+  VerifyLoginPage
 } from "./components/AuthPages.jsx";
 import { ROUTER_BASENAME } from "./lib/appPaths.js";
 import "./index.css";
@@ -56,12 +59,14 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/verify-login" element={<VerifyLoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
-            <Route path="/onboarding/role" element={<RoleSelectionOnboardingPage />} />
-            <Route path="/onboarding/plan" element={<PlanSelectionPage />} />
-            <Route path="/onboarding/match" element={<PreludeMatchOnboardingPage />} />
-            <Route path="/onboarding/parent" element={<ParentInviteOnboardingPage />} />
-            <Route path="/onboarding/mentor" element={<MentorQuestionnaireOnboardingPage />} />
+            <Route path="/settings/security" element={<SecuritySettingsRedirect />} />
+            <Route path="/onboarding/role" element={<RequireLoginVerification><RoleSelectionOnboardingPage /></RequireLoginVerification>} />
+            <Route path="/onboarding/plan" element={<RequireLoginVerification><PlanSelectionPage /></RequireLoginVerification>} />
+            <Route path="/onboarding/match" element={<RequireLoginVerification><PreludeMatchOnboardingPage /></RequireLoginVerification>} />
+            <Route path="/onboarding/parent" element={<RequireLoginVerification><ParentInviteOnboardingPage /></RequireLoginVerification>} />
+            <Route path="/onboarding/mentor" element={<RequireLoginVerification><MentorQuestionnaireOnboardingPage /></RequireLoginVerification>} />
             <Route
               path="/dashboard/*"
               element={

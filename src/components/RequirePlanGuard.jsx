@@ -11,7 +11,7 @@ import {
 
 /** Requires login + plan. Match onboarding is enforced after login, not on every dashboard page. */
 export default function RequirePlanGuard({ children }) {
-  const { user, ready } = useAuth();
+  const { user, ready, verificationRequired, loginVerificationLoading } = useAuth();
   const location = useLocation();
 
   if (!ready) {
@@ -24,6 +24,18 @@ export default function RequirePlanGuard({ children }) {
 
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (loginVerificationLoading) {
+    return (
+      <div className="dash-loading">
+        <p>Checking your trusted device…</p>
+      </div>
+    );
+  }
+
+  if (verificationRequired) {
+    return <Navigate to={`/verify-login?next=${encodeURIComponent(location.pathname)}`} replace />;
   }
 
   if (userNeedsRoleSelection(user)) {

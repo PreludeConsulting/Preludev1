@@ -3,7 +3,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { canAccessDashboardRole, dashboardHomeForRole } from "../../lib/dashboardRoutes.js";
 
 export default function RoleGuard({ role, children }) {
-  const { user, ready } = useAuth();
+  const { user, ready, verificationRequired, loginVerificationLoading } = useAuth();
 
   if (!ready) {
     return (
@@ -15,6 +15,18 @@ export default function RoleGuard({ role, children }) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (loginVerificationLoading) {
+    return (
+      <div className="dash-loading">
+        <p>Checking your trusted device…</p>
+      </div>
+    );
+  }
+
+  if (verificationRequired) {
+    return <Navigate to="/verify-login" replace />;
   }
 
   if (!canAccessDashboardRole(user, role)) {

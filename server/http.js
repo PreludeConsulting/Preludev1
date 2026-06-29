@@ -15,9 +15,10 @@ export function readJsonBody(req) {
   });
 }
 
-export function sendJson(res, statusCode, payload) {
+export function sendJson(res, statusCode, payload, headers = {}) {
   res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json");
+  for (const [key, value] of Object.entries(headers)) res.setHeader(key, value);
   res.end(JSON.stringify(payload));
 }
 

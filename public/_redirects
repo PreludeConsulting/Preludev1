@@ -1,5 +1,7 @@
 /verify-email  /index.html  200
+/verify-login  /index.html  200
 /auth/callback  /index.html  200
 /reset-password  /index.html  200
 /forgot-password  /index.html  200
+/settings/security  /index.html  200
 /*  /index.html  200

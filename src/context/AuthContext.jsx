@@ -13,6 +13,7 @@ import { resumePendingOAuthAccountDeletion } from "../lib/pendingAccountDeletion
 import { getDevBypassUser, getDemoSessionUser, isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { getPlan, normalizePlanId } from "../lib/plans.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
+import { checkLoginVerification, sendLoginVerificationCode } from "../lib/loginVerification.js";
 
 const AuthContext = createContext(null);
 
@@ -25,11 +26,43 @@ export function AuthProvider({ children }) {
   const useSupabase = isSupabaseConfigured();
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
+  const [loginVerified, setLoginVerified] = useState(false);
+  const [loginVerificationLoading, setLoginVerificationLoading] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [personalizedAiRequest, setPersonalizedAiRequest] = useState(0);
   const oauthDeletionResumeRef = useRef(false);
+
+  const refreshLoginVerification = useCallback(async () => {
+    if (!useSupabase) {
+      setLoginVerified(true);
+      return { verified: true };
+    }
+    setLoginVerificationLoading(true);
+    try {
+      const result = await checkLoginVerification();
+      setLoginVerified(Boolean(result.verified));
+      return result;
+    } catch (error) {
+      setLoginVerified(false);
+      return { verified: false, error: error.message };
+    } finally {
+      setLoginVerificationLoading(false);
+    }
+  }, [useSupabase]);
+
+  const beginLoginVerification = useCallback(async () => {
+    if (!useSupabase) {
+      setLoginVerified(true);
+      return { verified: true };
+    }
+    const current = await refreshLoginVerification();
+    if (current.verified) return current;
+    await sendLoginVerificationCode();
+    setLoginVerified(false);
+    return { verified: false, codeSent: true };
+  }, [refreshLoginVerification, useSupabase]);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +71,10 @@ export function AuthProvider({ children }) {
     async function bootstrap() {
       try {
         if (isDevAuthBypassEnabled()) {
-          if (!cancelled) setUser(getDevBypassUser());
+          if (!cancelled) {
+            setUser(getDevBypassUser());
+            setLoginVerified(true);
+          }
           return;
         }
 
@@ -46,10 +82,21 @@ export function AuthProvider({ children }) {
           const { resolveSupabaseAppUser, onAuthStateChange } = await loadSupabaseAuth();
           try {
             const sessionUser = await resolveSupabaseAppUser();
-            if (!cancelled) setUser(sessionUser);
+            if (!cancelled) {
+              setUser(sessionUser);
+              if (sessionUser) {
+                const verification = await refreshLoginVerification();
+                if (!cancelled) setLoginVerified(Boolean(verification.verified));
+              } else {
+                setLoginVerified(false);
+              }
+            }
           } catch (err) {
             console.warn("[prelude-auth] Supabase session restore failed:", err?.message || err);
-            if (!cancelled) setUser(null);
+            if (!cancelled) {
+              setUser(null);
+              setLoginVerified(false);
+            }
           }
 
           try {
@@ -57,12 +104,17 @@ export function AuthProvider({ children }) {
               if (cancelled) return;
               if (!session) {
                 setUser(null);
+                setLoginVerified(false);
                 return;
               }
               try {
                 const { resolveSupabaseAppUser: resolveUser } = await loadSupabaseAuth();
                 const next = await resolveUser();
-                if (!cancelled) setUser(next);
+                if (!cancelled) {
+                  setUser(next);
+                  const verification = await refreshLoginVerification();
+                  if (!cancelled) setLoginVerified(Boolean(verification.verified));
+                }
               } catch (err) {
                 console.warn("[prelude-auth] Supabase auth state update failed:", err?.message || err);
               }
@@ -74,15 +126,24 @@ export function AuthProvider({ children }) {
         } else {
           try {
             const session = await getStoredSession();
-            if (!cancelled) setUser(session);
+            if (!cancelled) {
+              setUser(session);
+              setLoginVerified(Boolean(session));
+            }
           } catch (err) {
             console.warn("[prelude-auth] Legacy session restore failed:", err?.message || err);
-            if (!cancelled) setUser(null);
+            if (!cancelled) {
+              setUser(null);
+              setLoginVerified(false);
+            }
           }
         }
       } catch (err) {
         console.warn("[prelude-auth] Auth bootstrap failed:", err?.message || err);
-        if (!cancelled) setUser(null);
+        if (!cancelled) {
+          setUser(null);
+          setLoginVerified(false);
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -93,7 +154,7 @@ export function AuthProvider({ children }) {
       cancelled = true;
       subscription?.unsubscribe();
     };
-  }, [useSupabase]);
+  }, [refreshLoginVerification, useSupabase]);
 
   const openSignIn = useCallback(() => {
     setAuthError(null);
@@ -181,19 +242,23 @@ export function AuthProvider({ children }) {
             studentName: next.name || next.email
           });
         }
+        const verification = await beginLoginVerification();
+        next.requiresLoginVerification = !verification.verified;
         setUser(next);
+        setLoginVerified(Boolean(verification.verified));
         setSignInOpen(false);
         return next;
       }
       const next = await authSignIn(email, password);
       setUser(next);
+      setLoginVerified(true);
       setSignInOpen(false);
       return next;
     } catch (error) {
       setAuthError(error.message);
       throw error;
     }
-  }, [useSupabase]);
+  }, [beginLoginVerification, useSupabase]);
 
   const signUp = useCallback(async (payload) => {
     setAuthError(null);
@@ -240,6 +305,7 @@ export function AuthProvider({ children }) {
         }
         if (next) {
           setUser(next);
+          setLoginVerified(true);
           setSignInOpen(false);
         }
         return {
@@ -252,6 +318,7 @@ export function AuthProvider({ children }) {
       const next = await authSignUp(payload);
       if (next?.id) {
         setUser(next);
+        setLoginVerified(true);
         setSignInOpen(false);
       }
       return next;
@@ -265,6 +332,7 @@ export function AuthProvider({ children }) {
     setAuthError(null);
     const next = getDemoSessionUser(accountKey);
     setUser(next);
+    setLoginVerified(true);
     setSignInOpen(false);
     return next;
   }, []);
@@ -286,6 +354,7 @@ export function AuthProvider({ children }) {
     }
 
     setUser(null);
+    setLoginVerified(false);
     setSignInOpen(false);
     setAccountOpen(false);
   }, [useSupabase, navigate, closeModals]);
@@ -363,12 +432,19 @@ export function AuthProvider({ children }) {
       const { resolveSupabaseAppUser } = await loadSupabaseAuth();
       const session = await resolveSupabaseAppUser();
       setUser(session);
+      if (session) {
+        const verification = await refreshLoginVerification();
+        setLoginVerified(Boolean(verification.verified));
+      } else {
+        setLoginVerified(false);
+      }
       return session;
     }
     const session = await getStoredSession();
     setUser(session);
+    setLoginVerified(Boolean(session));
     return session;
-  }, [useSupabase]);
+  }, [refreshLoginVerification, useSupabase]);
 
   const requestPersonalizedAi = useCallback(() => {
     setPersonalizedAiRequest((n) => n + 1);
@@ -404,6 +480,9 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       ready,
+      loginVerified,
+      loginVerificationLoading,
+      verificationRequired: Boolean(user && !loginVerified),
       isAuthenticated: Boolean(user),
       planDetails,
       useSupabase,
@@ -426,11 +505,15 @@ export function AuthProvider({ children }) {
       setAuthError,
       personalizedAiRequest,
       requestPersonalizedAi,
-      refreshUser
+      refreshUser,
+      refreshLoginVerification,
+      beginLoginVerification
     }),
     [
       user,
       ready,
+      loginVerified,
+      loginVerificationLoading,
       planDetails,
       useSupabase,
       signInOpen,
@@ -451,7 +534,9 @@ export function AuthProvider({ children }) {
       saveUserPlan,
       personalizedAiRequest,
       requestPersonalizedAi,
-      refreshUser
+      refreshUser,
+      refreshLoginVerification,
+      beginLoginVerification
     ]
   );
 

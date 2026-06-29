@@ -12,6 +12,7 @@ import AppLink from "./AppLink.jsx";
 import TurnstileWidget from "./auth/TurnstileWidget.jsx";
 import { isTurnstileRequired } from "../lib/turnstile.js";
 import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
+import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerification.js";
 
 const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -157,6 +158,10 @@ export function LoginPage() {
     setError("");
     try {
       const user = await signIn(demoEmail, demoPassword, { captchaToken });
+      if (user?.requiresLoginVerification) {
+        navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}`, { replace: true });
+        return;
+      }
       navigate(destination || postAuthDestination(user), { replace: true });
     } catch (err) {
       setError(err.message);
@@ -246,7 +251,7 @@ export function LoginPage() {
 export function AuthCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { refreshUser } = useAuth();
+  const { beginLoginVerification, refreshUser } = useAuth();
   const processed = useRef(false);
   const callbackPromise = useRef(null);
   const [state, setState] = useState({ loading: true, error: "", message: "Finishing Google sign-in…" });
@@ -269,6 +274,12 @@ export function AuthCallbackPage() {
         const refreshed = await refreshUser();
         if (!active) return;
         const resolvedUser = nextUser || refreshed;
+        const verification = await beginLoginVerification();
+        if (!active) return;
+        if (!verification.verified) {
+          navigate(`/verify-login?next=${encodeURIComponent(nextPath || "/dashboard")}`, { replace: true });
+          return;
+        }
         const destination = nextPath === "/dashboard" ? postAuthDestination(resolvedUser) : nextPath || postAuthDestination(resolvedUser);
         setState({ loading: false, error: "", message: "Signed in. Redirecting…" });
         navigate(destination, { replace: true });
@@ -279,7 +290,7 @@ export function AuthCallbackPage() {
     return () => {
       active = false;
     };
-  }, [navigate, nextPath, refreshUser]);
+  }, [beginLoginVerification, navigate, nextPath, refreshUser]);
 
   return (
     <Shell title="Signing you in" subtitle="Prelude is finishing your secure Google sign-in.">
@@ -777,6 +788,141 @@ export function VerifyEmailPage() {
           <AppLink className="underline" href="/login">Back to login</AppLink>
         </p>
       ) : null}
+    </Shell>
+  );
+}
+
+export function VerifyLoginPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user, ready, signOut, refreshLoginVerification, refreshUser } = useAuth();
+  const inputRefs = useRef([]);
+  const [digits, setDigits] = useState(["", "", "", "", "", ""]);
+  const [trustDevice, setTrustDevice] = useState(true);
+  const [cooldown, setCooldown] = useState(60);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("We sent a six-digit code to your email.");
+  const [error, setError] = useState("");
+  const nextPath = sanitizeAuthRedirect(searchParams.get("next") || "", "/dashboard");
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!user) navigate("/login", { replace: true, state: { from: nextPath } });
+  }, [navigate, nextPath, ready, user]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return undefined;
+    const id = window.setInterval(() => setCooldown((current) => Math.max(0, current - 1)), 1000);
+    return () => window.clearInterval(id);
+  }, [cooldown]);
+
+  function setCodeValue(value) {
+    const next = value.replace(/\D/g, "").slice(0, 6).padEnd(6, " ").split("").map((char) => (/\d/.test(char) ? char : ""));
+    setDigits(next);
+    const nextIndex = Math.min(value.replace(/\D/g, "").length, 5);
+    window.requestAnimationFrame(() => inputRefs.current[nextIndex]?.focus());
+  }
+
+  function onDigitChange(index, value) {
+    const clean = value.replace(/\D/g, "");
+    if (clean.length > 1) {
+      setCodeValue(clean);
+      return;
+    }
+    setDigits((current) => {
+      const next = [...current];
+      next[index] = clean;
+      return next;
+    });
+    if (clean && index < 5) inputRefs.current[index + 1]?.focus();
+  }
+
+  function onKeyDown(index, event) {
+    if (event.key === "Backspace" && !digits[index] && index > 0) inputRefs.current[index - 1]?.focus();
+  }
+
+  async function onResend() {
+    setLoading(true);
+    setError("");
+    try {
+      await sendLoginVerificationCode();
+      setCooldown(60);
+      setMessage("A new verification code was sent.");
+    } catch (err) {
+      setError(err.message || "Could not send a new code.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onSubmit(event) {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const code = digits.join("");
+      await verifyLoginCode({ code, trustDevice });
+      const verification = await refreshLoginVerification();
+      const refreshed = await refreshUser();
+      if (!verification.verified) throw new Error("Login verification could not be confirmed.");
+      navigate(nextPath === "/dashboard" ? postAuthDestination(refreshed) : nextPath, { replace: true });
+    } catch (err) {
+      setError(err.message || "That code could not be verified.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Shell title="Verify your login" subtitle="Enter the code we sent to finish signing in.">
+      {message ? <Alert>{message}</Alert> : null}
+      {error ? <Alert tone="error">{error}</Alert> : null}
+      <form className="space-y-5" onSubmit={onSubmit}>
+        <fieldset className="space-y-3">
+          <legend className="text-sm font-medium text-foreground">Verification code</legend>
+          <div className="grid grid-cols-6 gap-2" onPaste={(event) => {
+            event.preventDefault();
+            setCodeValue(event.clipboardData.getData("text"));
+          }}>
+            {digits.map((digit, index) => (
+              <input
+                key={index}
+                ref={(node) => {
+                  inputRefs.current[index] = node;
+                }}
+                className="auth-input h-14 rounded-2xl border border-border bg-background text-center text-xl font-semibold outline-none transition focus:border-primary"
+                value={digit}
+                inputMode="numeric"
+                autoComplete={index === 0 ? "one-time-code" : "off"}
+                aria-label={`Code digit ${index + 1}`}
+                onChange={(event) => onDigitChange(index, event.target.value)}
+                onKeyDown={(event) => onKeyDown(index, event)}
+              />
+            ))}
+          </div>
+        </fieldset>
+        <label className="flex items-start gap-3 rounded-2xl border border-border bg-background/70 p-4 text-sm">
+          <input
+            className="mt-1"
+            type="checkbox"
+            checked={trustDevice}
+            onChange={(event) => setTrustDevice(event.target.checked)}
+          />
+          <span>
+            <span className="block font-semibold text-foreground">Trust this device for 30 days</span>
+            <span className="block text-muted-foreground">Skip verification codes on this browser while the trusted-device cookie is valid.</span>
+          </span>
+        </label>
+        <button disabled={loading || digits.join("").length !== 6} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
+          {loading ? "Verifying…" : "Verify login"}
+        </button>
+      </form>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm">
+        <button type="button" className="underline disabled:no-underline disabled:opacity-50" disabled={loading || cooldown > 0} onClick={onResend}>
+          {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+        </button>
+        <button type="button" className="underline" onClick={signOut}>Use another account</button>
+      </div>
     </Shell>
   );
 }
