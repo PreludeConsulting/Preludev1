@@ -4,13 +4,13 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { isSupabaseConfigured } from "./supabaseConfig.js";
+import { getSupabaseConfigError, isSupabaseConfigured } from "./supabaseConfig.js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl?.trim() || !supabaseKey?.trim()) {
-  console.error("Missing Supabase environment variables.");
+  console.error(getSupabaseConfigError());
 }
 
 let client = null;
@@ -22,7 +22,8 @@ export function getSupabase() {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: false,
+        flowType: "pkce"
       }
     });
   }
@@ -32,7 +33,7 @@ export function getSupabase() {
 function requireSupabase() {
   const instance = getSupabase();
   if (!instance) {
-    throw new Error("Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.");
+    throw new Error(getSupabaseConfigError() || "Supabase is not configured.");
   }
   return instance;
 }

@@ -14,6 +14,7 @@ import { isTurnstileRequired } from "../lib/turnstile.js";
 import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
 
 const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
+const RESEND_COOLDOWN_SECONDS = 60;
 
 const SIGNUP_ROLE_OPTIONS = [
   {
@@ -333,10 +334,19 @@ export function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [confirmationEmail, setConfirmationEmail] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return undefined;
+    const id = window.setInterval(() => {
+      setResendCooldown((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [resendCooldown]);
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -373,7 +383,14 @@ export function RegisterPage() {
       }
       setMessage(result?.message || "Account created.");
     } catch (err) {
-      setError(err.message);
+      const duplicate = /already exists|already registered|try logging in/i.test(err.message || "");
+      if (supabaseAuth && duplicate) {
+        setConfirmationEmail(form.email.trim());
+        setMessage("An account with this email already exists. If it is not confirmed yet, resend the confirmation email; otherwise log in or reset your password.");
+        setError("");
+      } else {
+        setError(err.message);
+      }
       turnstileRef.current?.reset();
     } finally {
       setLoading(false);
@@ -392,6 +409,7 @@ export function RegisterPage() {
       const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
       const result = await resendSignupConfirmation(email);
       setMessage(result.message || "Confirmation email sent. Check your inbox.");
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       setError(err.message || "Could not resend the confirmation email.");
     } finally {
@@ -417,8 +435,12 @@ export function RegisterPage() {
             <Alert>{message}</Alert>
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               {supabaseAuth ? (
-                <button type="button" className="underline disabled:opacity-60" disabled={resending} onClick={resendConfirmationEmail}>
-                  {resending ? "Sending…" : "Resend confirmation email"}
+                <button type="button" className="underline disabled:opacity-60" disabled={resending || resendCooldown > 0} onClick={resendConfirmationEmail}>
+                  {resending
+                    ? "Sending…"
+                    : resendCooldown > 0
+                      ? `Resend available in ${resendCooldown}s`
+                      : "Resend confirmation email"}
                 </button>
               ) : null}
               <AppLink className="underline" href="/login">Go to login</AppLink>

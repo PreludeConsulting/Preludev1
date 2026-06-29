@@ -48,7 +48,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_…
 Authentication → **URL Configuration → Site URL**:
 
 ```
-http://localhost:5173/Preludev1/
+https://preludeconsultingllc.com
 ```
 
 ## 6. Add both Redirect URLs
@@ -56,14 +56,13 @@ http://localhost:5173/Preludev1/
 Authentication → **URL Configuration → Redirect URLs** (add each):
 
 ```
-http://localhost:5173/Preludev1/login
-http://localhost:5173/Preludev1/reset-password
+https://preludeconsultingllc.com/**
+https://preludev1.pages.dev/**
+http://localhost:5173/**
 ```
 
-**Production later:** after deploying, also add your live origin, e.g.
-`https://yourdomain.com/Preludev1/auth/login` and
-`https://yourdomain.com/Preludev1/auth/reset-password`, and set the production
-**Site URL** to your deployed URL.
+The app sends confirmation links to `/verify-email`, password reset links to
+`/reset-password`, and Google OAuth callbacks to `/auth/callback`.
 
 ## 7. Inactive-recipient workaround (local testing)
 
@@ -86,18 +85,23 @@ The built-in mailer is rate-limited and for testing only. For production:
 
 1. Authentication → **SMTP Settings**.
 2. Enable **Custom SMTP**.
-3. Use a provider: **Resend, Postmark, SendGrid, Brevo, or AWS SES**.
-4. Send from a domain sender, e.g. `no-reply@yourdomain.com`.
-5. Enter SMTP credentials **only in the dashboard** — never in `.env.local`,
+3. Use:
+   - Sender name: `Prelude`
+   - Sender email: `no-reply@preludeconsultingllc.com`
+   - Host: `smtp.resend.com`
+   - Port: `465`
+   - Username: `resend`
+   - Password: Resend API key beginning with `re_`
+4. Enter SMTP credentials **only in the dashboard** — never in `.env.local`,
    frontend code, or committed files.
 
 ## 9. Test signup and login locally
 
 1. Start the app: `npm run dev`.
-2. Open **`http://localhost:5173/Preludev1/auth/signup`** and create an account
+2. Open **`http://localhost:5173/register`** and create an account
    (with email confirmation disabled per step 7, or a confirmable address).
-3. Log in at `http://localhost:5173/Preludev1/auth/login`.
-4. You'll land on `http://localhost:5173/Preludev1/auth/account`.
+3. Confirm the email link, then log in at `http://localhost:5173/login`.
+4. You'll continue through onboarding or land on `/dashboard`.
 5. Refresh the page — you should stay signed in.
 6. Click **Log out** — you should return to `/auth/login`.
 
@@ -107,14 +111,7 @@ To make a user an admin (developer-only — never selectable in the UI):
 update public.profiles set role = 'admin' where id = '<user-uuid>';
 ```
 
-## 10. About `/auth/account`
+## 10. About `/dashboard`
 
-`/auth/account` is **only a protected Supabase sample page** that proves the
-session + RLS profile read work. It is not the product dashboard.
-
-## 11. About `/dashboard`
-
-The existing `/dashboard` still uses the **Prisma/JWT** auth system and has
-**intentionally not been migrated** to Supabase in this task. The two systems
-run side by side; the Supabase stack stays isolated under `/auth/*` until a
-deliberate migration later.
+The main Prelude routes use Supabase when `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY` are configured.

@@ -10,7 +10,7 @@ import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 
 export default function SignInModal({ onSuccess }) {
   const navigate = useNavigate();
-  const { signInOpen, closeModals, signIn, signUp, authError } = useAuth();
+  const { signInOpen, closeModals, signIn, authError } = useAuth();
   const [mode, setMode] = useState("signin");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -35,7 +35,10 @@ export default function SignInModal({ onSuccess }) {
       if (mode === "signin") {
         user = await signIn(form.email, form.password);
       } else {
-        user = await signUp(form);
+        closeModals();
+        const query = form.email ? `?email=${encodeURIComponent(form.email)}` : "";
+        navigate(`/register${query}`);
+        return;
       }
       onSuccess?.(user);
       if (user) {
@@ -149,7 +152,7 @@ export default function SignInModal({ onSuccess }) {
                   onChange={update("focus")}
                 />
               </label>
-              <p className="font-body text-xs text-muted-foreground">By creating an account you accept Prelude's terms. Passwords must be 12+ characters with uppercase, lowercase, number, and symbol.</p>
+              <p className="font-body text-xs text-muted-foreground">Continue to Prelude&apos;s secure signup page to create and verify your account.</p>
             </>
           ) : null}
 
@@ -157,22 +160,23 @@ export default function SignInModal({ onSuccess }) {
             <span>Email</span>
             <input type="email" required value={form.email} onChange={update("email")} autoComplete="email" />
           </label>
-          <label className="prelude-field">
-            <span>Password</span>
-            <input
-              type="password"
-              required
-              minLength={mode === "signup" ? 12 : 1}
-              value={form.password}
-              onChange={update("password")}
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-            />
-          </label>
+          {mode === "signin" ? (
+            <label className="prelude-field">
+              <span>Password</span>
+              <input
+                type="password"
+                required
+                value={form.password}
+                onChange={update("password")}
+                autoComplete="current-password"
+              />
+            </label>
+          ) : null}
 
           {authError ? <p className="text-sm text-accent">{authError}</p> : null}
 
           <button type="submit" className="prelude-btn-primary w-full" disabled={loading}>
-            {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+            {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Continue to signup"}
           </button>
 
         </form>

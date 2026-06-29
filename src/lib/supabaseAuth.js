@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabase } from "./supabase.js";
 import { appPath } from "./appPaths.js";
 import { sanitizeAuthRedirect } from "./authRedirects.js";
-import { getPublicAppOrigin, isSupabaseConfigured } from "./supabaseConfig.js";
+import { getPublicAppOrigin, getSupabaseConfigError, isSupabaseConfigured } from "./supabaseConfig.js";
 import { mapSupabaseUser } from "./supabaseSession.js";
 import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
 import {
@@ -20,6 +20,16 @@ import { primaryOAuthProvider } from "./authSignInMethod.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
 const OAUTH_PROVIDERS = ["google"];
+
+function authDebug(event, details = {}) {
+  if (!import.meta.env.DEV) return;
+  const safeDetails = {};
+  for (const [key, value] of Object.entries(details)) {
+    if (/password|token|secret|key/i.test(key)) continue;
+    safeDetails[key] = value;
+  }
+  console.info(`[prelude-auth] ${event}`, safeDetails);
+}
 
 function fullUrl(path) {
   const origin = getPublicAppOrigin() || window.location.origin;
@@ -45,6 +55,17 @@ export function getAuthCallbackUrl(next = "") {
   return fullUrl(`/auth/callback${query}`);
 }
 
+async function setSessionFromHashIfPresent(supabase, hashParams) {
+  const accessToken = hashParams.get("access_token");
+  const refreshToken = hashParams.get("refresh_token");
+  if (!accessToken || !refreshToken) return { usedHashSession: false, error: null };
+  const { error } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken
+  });
+  return { usedHashSession: true, error };
+}
+
 function friendlyError(error) {
   if (!error) return null;
   const message = (error.message || "").toLowerCase();
@@ -57,6 +78,9 @@ function friendlyError(error) {
   }
   if (message.includes("user already registered") || message.includes("already been registered")) {
     return "An account with this email already exists. Try logging in instead.";
+  }
+  if (message.includes("already confirmed")) {
+    return "This email is already confirmed. Log in or use forgot password if you need help signing in.";
   }
   if (message.includes("unable to validate email") || message.includes("invalid email")) {
     return "Please enter a valid email address.";
@@ -84,7 +108,7 @@ function friendlyError(error) {
 
 export async function signUp({ email, password, fullName, role, captchaToken }) {
   if (!isSupabaseConfigured()) {
-    return { user: null, error: "Supabase is not configured for this deployment.", needsEmailConfirmation: false };
+    return { user: null, error: getSupabaseConfigError() || "Supabase is not configured for this deployment.", needsEmailConfirmation: false };
   }
   const safeRole = SELECTABLE_ROLES.includes(role) ? role : null;
   if (!safeRole) {
@@ -94,29 +118,39 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
   if (!supabase) return { user: null, error: "Supabase client unavailable.", needsEmailConfirmation: false };
   requireTurnstileToken(captchaToken);
 
+  const normalizedEmail = normalizeEmail(email);
+  const emailRedirectTo = fullUrl("/verify-email");
+  authDebug("signup_started", { email: normalizedEmail, role: safeRole, emailRedirectTo });
+
   const { data, error } = await supabase.auth.signUp({
-    email,
+    email: normalizedEmail,
     password,
     options: {
       data: {
         full_name: fullName,
-        email: normalizeEmail(email),
+        email: normalizedEmail,
         role: safeRole,
         role_selection_complete: true
       },
-      emailRedirectTo: fullUrl("/verify-email"),
+      emailRedirectTo,
       ...captchaOptions(captchaToken)
     }
   });
 
-  if (error) return { user: null, error: friendlyError(error), needsEmailConfirmation: false };
+  authDebug("signup_response_received", {
+    hasUser: Boolean(data?.user),
+    hasSession: Boolean(data?.session),
+    error: error?.message || null
+  });
+
+  if (error) return { user: null, error: friendlyError(error), rawError: error.message, needsEmailConfirmation: false };
 
   const needsEmailConfirmation = Boolean(data?.user && !data?.session);
   let profile = null;
   if (data?.session?.user) {
     const result = await ensureUserProfile(data.session.user, {
       fullName,
-      email,
+      email: normalizedEmail,
       role: safeRole,
       roleSelectionComplete: true
     });
@@ -219,8 +253,10 @@ export async function getCurrentSession() {
 
 export async function resetPassword(email, captchaToken) {
   requireTurnstileToken(captchaToken);
+  const redirectTo = fullUrl("/reset-password");
+  authDebug("password_reset_request_started", { email: normalizeEmail(email), redirectTo });
   const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo: fullUrl("/reset-password"),
+    redirectTo,
     ...captchaOptions(captchaToken)
   });
   if (error) return { error: friendlyError(error) };
@@ -229,16 +265,20 @@ export async function resetPassword(email, captchaToken) {
 
 export async function resendSignupConfirmation(email) {
   if (!isSupabaseConfigured()) {
-    return { message: "Supabase is not configured for this deployment." };
+    throw new Error(getSupabaseConfigError() || "Supabase is not configured for this deployment.");
   }
   const supabase = getSupabase();
-  if (!supabase) return { message: "Supabase client unavailable." };
+  if (!supabase) throw new Error("Supabase client unavailable.");
 
+  const normalizedEmail = normalizeEmail(email);
+  const emailRedirectTo = fullUrl("/verify-email");
+  authDebug("resend_confirmation_started", { email: normalizedEmail, emailRedirectTo });
   const { error } = await supabase.auth.resend({
     type: "signup",
-    email,
-    options: { emailRedirectTo: fullUrl("/verify-email") }
+    email: normalizedEmail,
+    options: { emailRedirectTo }
   });
+  authDebug("resend_confirmation_response_received", { email: normalizedEmail, error: error?.message || null });
   if (error) throw new Error(friendlyError(error));
   return { message: "Verification email sent. Check your inbox." };
 }
@@ -439,10 +479,16 @@ export async function ensureUserProfile(user, overrides = {}) {
 }
 
 export async function completeAuthCallback(search = window.location.search, hash = window.location.hash) {
-  if (!isSupabaseConfigured()) return { user: null, error: "Supabase is not configured for this deployment." };
+  if (!isSupabaseConfigured()) return { user: null, error: getSupabaseConfigError() || "Supabase is not configured for this deployment." };
   const supabase = getSupabase();
   const searchParams = new URLSearchParams(search || "");
   const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
+  authDebug("auth_callback_parameters_detected", {
+    hasCode: Boolean(searchParams.get("code")),
+    hasError: Boolean(searchParams.get("error") || hashParams.get("error")),
+    hasHashAccessToken: Boolean(hashParams.get("access_token")),
+    next: searchParams.get("next") || ""
+  });
 
   const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
   if (providerError) {
@@ -453,6 +499,9 @@ export async function completeAuthCallback(search = window.location.search, hash
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) return { user: null, error: friendlyError(error) };
+  } else {
+    const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
+    if (error) return { user: null, error: friendlyError(error) };
   }
 
   const {
@@ -462,6 +511,7 @@ export async function completeAuthCallback(search = window.location.search, hash
   if (userError || !user) {
     return { user: null, error: friendlyError(userError) || "This sign-in link is invalid or expired." };
   }
+  authDebug("session_detected", { userId: user.id, email: normalizeEmail(user.email) });
 
   const { error: profileError } = await ensureUserProfile(user);
   if (profileError) return { user: null, error: profileError };
@@ -470,10 +520,15 @@ export async function completeAuthCallback(search = window.location.search, hash
 }
 
 export async function completeEmailVerification(search = window.location.search, hash = window.location.hash) {
-  if (!isSupabaseConfigured()) return { user: null, error: "Supabase is not configured for this deployment." };
+  if (!isSupabaseConfigured()) return { user: null, error: getSupabaseConfigError() || "Supabase is not configured for this deployment." };
   const supabase = getSupabase();
   const searchParams = new URLSearchParams(search || "");
   const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
+  authDebug("verify_email_parameters_detected", {
+    hasCode: Boolean(searchParams.get("code")),
+    hasTokenHash: Boolean(searchParams.get("token_hash") || hashParams.get("token_hash")),
+    type: searchParams.get("type") || hashParams.get("type") || ""
+  });
 
   const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
   if (providerError) {
@@ -491,6 +546,9 @@ export async function completeEmailVerification(search = window.location.search,
     if (code) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) return { user: null, error: friendlyError(error) };
+    } else {
+      const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
+      if (error) return { user: null, error: friendlyError(error) };
     }
   }
 
@@ -501,6 +559,7 @@ export async function completeEmailVerification(search = window.location.search,
   if (userError || !user) {
     return { user: null, error: friendlyError(userError) || "This verification link is invalid or expired." };
   }
+  authDebug("session_detected", { userId: user.id, email: normalizeEmail(user.email) });
 
   const { error: profileError } = await ensureUserProfile(user);
   if (profileError) return { user: null, error: profileError };
@@ -513,6 +572,11 @@ export async function initializePasswordRecovery(search = window.location.search
   if (!supabase) return { hasRecoverySession: false, error: "Supabase client unavailable." };
   const searchParams = new URLSearchParams(search || "");
   const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
+  authDebug("password_recovery_parameters_detected", {
+    hasCode: Boolean(searchParams.get("code")),
+    type: searchParams.get("type") || hashParams.get("type") || "",
+    hasHashAccessToken: Boolean(hashParams.get("access_token"))
+  });
   const providerError = searchParams.get("error_description") || hashParams.get("error_description");
   if (providerError) return { hasRecoverySession: false, error: providerError };
 
@@ -520,12 +584,17 @@ export async function initializePasswordRecovery(search = window.location.search
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) return { hasRecoverySession: false, error: friendlyError(error) };
+  } else {
+    const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
+    if (error) return { hasRecoverySession: false, error: friendlyError(error) };
   }
 
   const { session, error } = await getCurrentSession();
   if (error) return { hasRecoverySession: false, error };
   const urlType = searchParams.get("type") || hashParams.get("type");
-  return { hasRecoverySession: Boolean(session && (urlType === "recovery" || code || hashParams.get("access_token"))), error: null };
+  const hasRecoverySession = Boolean(session && (urlType === "recovery" || code || hashParams.get("access_token")));
+  authDebug("password_recovery_session_detected", { hasRecoverySession });
+  return { hasRecoverySession, error: null };
 }
 
 const PLAN_STORAGE_PREFIX = "prelude_plan_";
@@ -613,6 +682,12 @@ export async function resolveSupabaseAppUser() {
   ]);
 
   const hasAssignedMentor = (mentorRes.data || []).length > 0;
+  authDebug("profile_lookup_completed", {
+    userId,
+    hasProfile: Boolean(profile),
+    hasOnboarding: Boolean(onboardingRes.data),
+    hasAssignedMentor
+  });
   const hydratedSession = { ...session, user: authUser };
   return mapSupabaseUser(hydratedSession, profile, onboardingRes.data, hasAssignedMentor, mentorQuestionnaireRes.data);
 }

@@ -78,20 +78,15 @@ env files at startup).
 Go to **Authentication → URL Configuration** and add the app URLs so email
 confirmation and password reset links return to the right place.
 
-- **Site URL:** `http://localhost:5173/Preludev1/`
+- **Site URL:** `https://preludeconsultingllc.com`
 - **Redirect URLs** (add each):
-  - `http://localhost:5173/Preludev1/login`
-  - `http://localhost:5173/Preludev1/register`
-  - `http://localhost:5173/Preludev1/reset-password`
-  - `http://localhost:5173/Preludev1/verify-email` (legacy Prisma auth only)
+  - `https://preludeconsultingllc.com/**`
+  - `https://preludev1.pages.dev/**`
+  - `http://localhost:5173/**`
 
-> The app builds these from the Vite base (`/Preludev1/`). If you change the
-> base, update these accordingly.
-
-**For production later**, add your deployed origin too, e.g.:
-- `https://yourdomain.com/Preludev1/login`
-- `https://yourdomain.com/Preludev1/reset-password`
-- and set the production **Site URL** to your deployed URL.
+The app builds confirmation links for `/verify-email`, password reset links for
+`/reset-password`, and Google OAuth callbacks for `/auth/callback` from
+`VITE_PUBLIC_APP_URL || window.location.origin`.
 
 ---
 
@@ -126,11 +121,16 @@ testing. For production, use your own SMTP provider:
 
 1. Go to **Authentication → SMTP Settings**.
 2. Enable **Custom SMTP**.
-3. Connect a provider such as **Resend, Postmark, SendGrid, Brevo, or AWS SES**.
+3. Use:
+   - Sender name: `Prelude`
+   - Sender email: `no-reply@preludeconsultingllc.com`
+   - Host: `smtp.resend.com`
+   - Port: `465`
+   - Username: `resend`
+   - Password: Resend API key beginning with `re_`
 
 Enter SMTP credentials **only in the Supabase dashboard** — never paste them
-into frontend code or `.env.local`. Send production email from a domain-based
-sender, e.g. `no-reply@yourdomain.com`.
+into frontend code or `.env.local`.
 
 ---
 
@@ -140,11 +140,12 @@ With `.env.local` filled in and the dev server restarted:
 
 | Page | URL |
 | --- | --- |
-| Sign up | `http://localhost:5173/Preludev1/auth/signup` |
-| Log in | `http://localhost:5173/Preludev1/auth/login` |
-| Forgot password | `http://localhost:5173/Preludev1/auth/forgot-password` |
-| Reset password | (opened from the email link) `…/auth/reset-password` |
-| Protected sample | `http://localhost:5173/Preludev1/auth/account` (redirects to login when logged out) |
+| Sign up | `http://localhost:5173/register` |
+| Log in | `http://localhost:5173/login` |
+| Forgot password | `http://localhost:5173/forgot-password` |
+| Reset password | (opened from the email link) `…/reset-password` |
+| Google callback | `http://localhost:5173/auth/callback` |
+| Dashboard | `http://localhost:5173/dashboard` (redirects to login when logged out) |
 
 To make a user an **admin** (never selectable from the UI), run in SQL Editor:
 
