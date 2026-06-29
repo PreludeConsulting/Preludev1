@@ -1,13 +1,13 @@
 import { api } from "./auth.js";
 import { appPath } from "./appPaths.js";
 import { sanitizeAuthRedirect } from "./authRedirects.js";
-import { isSupabaseConfigured } from "./supabaseConfig.js";
+import { getPublicAppUrl, isSupabaseConfigured } from "./supabaseConfig.js";
 
 /** Where Supabase should send the browser after Google OAuth completes. */
 export function getGoogleOAuthRedirectTo(next = "") {
-  const origin = window.location.origin;
-  const safeNext = sanitizeAuthRedirect(next, "");
-  const query = safeNext ? `?next=${encodeURIComponent(safeNext)}` : "";
+  const origin = getPublicAppUrl() || window.location.origin;
+  const safeNext = sanitizeAuthRedirect(next || "/dashboard", "/dashboard");
+  const query = `?next=${encodeURIComponent(safeNext)}`;
   return `${origin}${appPath(`/auth/callback${query}`)}`;
 }
 

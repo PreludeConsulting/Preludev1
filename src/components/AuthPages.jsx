@@ -247,30 +247,37 @@ export function AuthCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { refreshUser } = useAuth();
+  const processed = useRef(false);
+  const callbackPromise = useRef(null);
   const [state, setState] = useState({ loading: true, error: "", message: "Finishing Google sign-in…" });
-  const nextPath = sanitizeAuthRedirect(searchParams.get("next") || "");
+  const nextPath = sanitizeAuthRedirect(searchParams.get("next") || "", "/dashboard");
 
   useEffect(() => {
-    let cancelled = false;
-    import("../lib/supabaseAuth.js")
-      .then(({ completeAuthCallback }) => completeAuthCallback())
+    let active = true;
+    if (!processed.current) {
+      processed.current = true;
+      callbackPromise.current = import("../lib/supabaseAuth.js").then(({ completeAuthCallback }) => completeAuthCallback());
+    }
+
+    callbackPromise.current
       .then(async ({ user: nextUser, error }) => {
-        if (cancelled) return;
+        if (!active) return;
         if (error) {
           setState({ loading: false, error, message: "" });
           return;
         }
         const refreshed = await refreshUser();
+        if (!active) return;
         const resolvedUser = nextUser || refreshed;
-        const destination = nextPath || postAuthDestination(resolvedUser);
+        const destination = nextPath === "/dashboard" ? postAuthDestination(resolvedUser) : nextPath || postAuthDestination(resolvedUser);
         setState({ loading: false, error: "", message: "Signed in. Redirecting…" });
         navigate(destination, { replace: true });
       })
       .catch((err) => {
-        if (!cancelled) setState({ loading: false, error: err.message || "Google sign-in could not be completed.", message: "" });
+        if (active) setState({ loading: false, error: err.message || "Google sign-in could not be completed.", message: "" });
       });
     return () => {
-      cancelled = true;
+      active = false;
     };
   }, [navigate, nextPath, refreshUser]);
 

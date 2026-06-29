@@ -39,11 +39,6 @@ function fullUrl(path) {
   return `${origin}${appPath(path)}`;
 }
 
-function currentOriginUrl(path) {
-  const origin = typeof window !== "undefined" && window.location?.origin ? window.location.origin : getPublicAppUrl();
-  return `${origin}${appPath(path)}`;
-}
-
 function normalizeEmail(email) {
   return (email || "").trim().toLowerCase();
 }
@@ -58,9 +53,9 @@ function safeOAuthMetadata(user) {
 }
 
 export function getAuthCallbackUrl(next = "") {
-  const safeNext = sanitizeAuthRedirect(next, "");
-  const query = safeNext ? `?next=${encodeURIComponent(safeNext)}` : "";
-  return currentOriginUrl(`/auth/callback${query}`);
+  const safeNext = sanitizeAuthRedirect(next || "/dashboard", "/dashboard");
+  const query = `?next=${encodeURIComponent(safeNext)}`;
+  return fullUrl(`/auth/callback${query}`);
 }
 
 async function setSessionFromHashIfPresent(supabase, hashParams) {
@@ -545,15 +540,27 @@ async function processAuthCallback(search, hash) {
   } = await supabase.auth.getSession();
 
   const code = searchParams.get("code");
+  let exchangedSession = null;
   if (code) {
     if (!existingSession) {
       authDebug("callback_code_detected", { flow: "oauth" });
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) return { user: null, error: friendlyError(error) };
+      exchangedSession = data?.session || null;
     }
   } else {
+    if (!hashParams.get("access_token") && !existingSession) {
+      return { user: null, error: "Missing OAuth authorization code." };
+    }
     const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
     if (error) return { user: null, error: friendlyError(error) };
+  }
+
+  const {
+    data: { session: confirmedSession }
+  } = await supabase.auth.getSession();
+  if (!exchangedSession && !existingSession && !confirmedSession) {
+    return { user: null, error: "Google login completed, but no Supabase session was created." };
   }
 
   const {
