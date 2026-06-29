@@ -27,6 +27,12 @@ function AppContent() {
   const [hash, setHash] = useState(window.location.hash);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("code") && !params.has("error") && !params.has("error_description")) return;
+    navigate(`/auth/callback${window.location.search}`, { replace: true });
+  }, [navigate]);
+
+  useEffect(() => {
     const onHashChange = () => setHash(window.location.hash);
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
