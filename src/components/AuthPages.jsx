@@ -1,4 +1,4 @@
-import { GraduationCap, HeartHandshake, Users } from "lucide-react";
+import { CheckCircle2, GraduationCap, HeartHandshake, LockKeyhole, Mail, RefreshCw, ShieldCheck, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
@@ -110,6 +110,26 @@ function validateSignupPassword(password, supabaseAuth) {
   return "";
 }
 
+function maskEmail(email) {
+  if (!email || !email.includes("@")) return "";
+  const [name, domain] = email.split("@");
+  const visible = name.slice(0, 1);
+  return `${visible}${"•".repeat(Math.min(Math.max(name.length - 1, 4), 8))}@${domain}`;
+}
+
+function friendlyVerificationError(error) {
+  const code = error?.payload?.error || "";
+  if (code === "cooldown") return error.message || "Please wait before requesting another code.";
+  if (code === "rate_limited") return "Too many codes requested. Please wait and try again.";
+  if (code === "email_delivery_failed") return "Prelude could not send the verification email. Please try again or contact support.";
+  if (code === "expired_code") return "That code expired. Request a new one to continue.";
+  if (code === "locked_challenge") return "Too many incorrect attempts. Request a new code.";
+  if (code === "incorrect_code") return "That code is not correct. Check the email and try again.";
+  if (code === "email_unconfirmed") return "Confirm your email address before completing login verification.";
+  if (error?.status === 401) return "Your secure session expired. Sign in again to continue.";
+  return error?.message || "Verification could not be completed.";
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -159,7 +179,8 @@ export function LoginPage() {
     try {
       const user = await signIn(demoEmail, demoPassword, { captchaToken });
       if (user?.requiresLoginVerification) {
-        navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}`, { replace: true });
+        const challenge = user.challengeId ? `&challenge=${encodeURIComponent(user.challengeId)}` : "";
+        navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}${challenge}`, { replace: true });
         return;
       }
       navigate(destination || postAuthDestination(user), { replace: true });
@@ -277,7 +298,8 @@ export function AuthCallbackPage() {
         const verification = await beginLoginVerification();
         if (!active) return;
         if (!verification.verified) {
-          navigate(`/verify-login?next=${encodeURIComponent(nextPath || "/dashboard")}`, { replace: true });
+          const challenge = verification.challengeId ? `&challenge=${encodeURIComponent(verification.challengeId)}` : "";
+          navigate(`/verify-login?next=${encodeURIComponent(nextPath || "/dashboard")}${challenge}`, { replace: true });
           return;
         }
         const destination = nextPath === "/dashboard" ? postAuthDestination(resolvedUser) : nextPath || postAuthDestination(resolvedUser);
@@ -798,12 +820,18 @@ export function VerifyLoginPage() {
   const { user, ready, signOut, refreshLoginVerification, refreshUser } = useAuth();
   const inputRefs = useRef([]);
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
+  const [challengeId, setChallengeId] = useState(searchParams.get("challenge") || "");
   const [trustDevice, setTrustDevice] = useState(true);
   const [cooldown, setCooldown] = useState(60);
-  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("waiting");
   const [message, setMessage] = useState("We sent a six-digit code to your email.");
   const [error, setError] = useState("");
+  const [shake, setShake] = useState(false);
+  const [submittedCode, setSubmittedCode] = useState("");
   const nextPath = sanitizeAuthRedirect(searchParams.get("next") || "", "/dashboard");
+  const code = digits.join("");
+  const loading = status === "sending" || status === "verifying" || status === "success";
+  const maskedEmail = maskEmail(user?.email || "");
 
   useEffect(() => {
     if (!ready) return;
@@ -815,6 +843,19 @@ export function VerifyLoginPage() {
     const id = window.setInterval(() => setCooldown((current) => Math.max(0, current - 1)), 1000);
     return () => window.clearInterval(id);
   }, [cooldown]);
+
+  useEffect(() => {
+    inputRefs.current[0]?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (code.length !== 6 || loading || submittedCode === code) return;
+    const id = window.setTimeout(() => {
+      const form = inputRefs.current[0]?.form;
+      form?.requestSubmit();
+    }, 180);
+    return () => window.clearTimeout(id);
+  }, [code, loading, submittedCode]);
 
   function setCodeValue(value) {
     const next = value.replace(/\D/g, "").slice(0, 6).padEnd(6, " ").split("").map((char) => (/\d/.test(char) ? char : ""));
@@ -839,91 +880,132 @@ export function VerifyLoginPage() {
 
   function onKeyDown(index, event) {
     if (event.key === "Backspace" && !digits[index] && index > 0) inputRefs.current[index - 1]?.focus();
+    if (event.key === "ArrowLeft" && index > 0) inputRefs.current[index - 1]?.focus();
+    if (event.key === "ArrowRight" && index < 5) inputRefs.current[index + 1]?.focus();
   }
 
   async function onResend() {
-    setLoading(true);
+    setStatus("sending");
     setError("");
     try {
-      await sendLoginVerificationCode();
-      setCooldown(60);
-      setMessage("A new verification code was sent.");
+      const result = await sendLoginVerificationCode();
+      setChallengeId(result.challengeId || "");
+      setDigits(["", "", "", "", "", ""]);
+      setSubmittedCode("");
+      setCooldown(Number(result.retryAfter || 60));
+      setMessage(result.resendMessageId ? "A new verification code was sent." : "A new verification code was submitted.");
+      setStatus("waiting");
+      window.requestAnimationFrame(() => inputRefs.current[0]?.focus());
     } catch (err) {
-      setError(err.message || "Could not send a new code.");
-    } finally {
-      setLoading(false);
+      setStatus("delivery_failed");
+      setError(friendlyVerificationError(err));
     }
   }
 
   async function onSubmit(event) {
     event.preventDefault();
-    setLoading(true);
+    if (code.length !== 6 || loading) return;
+    setStatus("verifying");
     setError("");
+    setSubmittedCode(code);
     try {
-      const code = digits.join("");
-      await verifyLoginCode({ code, trustDevice });
+      await verifyLoginCode({ challengeId, code, trustDevice });
       const verification = await refreshLoginVerification();
       const refreshed = await refreshUser();
       if (!verification.verified) throw new Error("Login verification could not be confirmed.");
+      setStatus("success");
+      setMessage("Verification successful. Opening your dashboard…");
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
       navigate(nextPath === "/dashboard" ? postAuthDestination(refreshed) : nextPath, { replace: true });
     } catch (err) {
-      setError(err.message || "That code could not be verified.");
-    } finally {
-      setLoading(false);
+      setStatus(err?.payload?.error === "expired_code" ? "expired" : err?.payload?.error === "locked_challenge" ? "locked" : "incorrect");
+      setError(friendlyVerificationError(err));
+      setShake(true);
+      window.setTimeout(() => setShake(false), 420);
+      if (err?.payload?.error === "incorrect_code" || err?.payload?.error === "expired_code" || err?.payload?.error === "locked_challenge") {
+        setDigits(["", "", "", "", "", ""]);
+        window.requestAnimationFrame(() => inputRefs.current[0]?.focus());
+      }
     }
   }
 
   return (
-    <Shell title="Verify your login" subtitle="Enter the code we sent to finish signing in.">
-      {message ? <Alert>{message}</Alert> : null}
-      {error ? <Alert tone="error">{error}</Alert> : null}
-      <form className="space-y-5" onSubmit={onSubmit}>
-        <fieldset className="space-y-3">
-          <legend className="text-sm font-medium text-foreground">Verification code</legend>
-          <div className="grid grid-cols-6 gap-2" onPaste={(event) => {
-            event.preventDefault();
-            setCodeValue(event.clipboardData.getData("text"));
-          }}>
-            {digits.map((digit, index) => (
-              <input
-                key={index}
-                ref={(node) => {
-                  inputRefs.current[index] = node;
-                }}
-                className="auth-input h-14 rounded-2xl border border-border bg-background text-center text-xl font-semibold outline-none transition focus:border-primary"
-                value={digit}
-                inputMode="numeric"
-                autoComplete={index === 0 ? "one-time-code" : "off"}
-                aria-label={`Code digit ${index + 1}`}
-                onChange={(event) => onDigitChange(index, event.target.value)}
-                onKeyDown={(event) => onKeyDown(index, event)}
-              />
-            ))}
-          </div>
-        </fieldset>
-        <label className="flex items-start gap-3 rounded-2xl border border-border bg-background/70 p-4 text-sm">
-          <input
-            className="mt-1"
-            type="checkbox"
-            checked={trustDevice}
-            onChange={(event) => setTrustDevice(event.target.checked)}
-          />
-          <span>
-            <span className="block font-semibold text-foreground">Trust this device for 30 days</span>
-            <span className="block text-muted-foreground">Skip verification codes on this browser while the trusted-device cookie is valid.</span>
-          </span>
-        </label>
-        <button disabled={loading || digits.join("").length !== 6} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
-          {loading ? "Verifying…" : "Verify login"}
-        </button>
-      </form>
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm">
-        <button type="button" className="underline disabled:no-underline disabled:opacity-50" disabled={loading || cooldown > 0} onClick={onResend}>
-          {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
-        </button>
-        <button type="button" className="underline" onClick={signOut}>Use another account</button>
-      </div>
-    </Shell>
+    <main className="verify-login-page">
+      <section className={`verify-card${shake ? " verify-card--shake" : ""}${status === "success" ? " verify-card--success" : ""}`} aria-labelledby="verify-heading">
+        <div className="verify-logo-wrap">
+          <img src="/prelude-email-logo.png" alt="Prelude" className="verify-logo" />
+        </div>
+        <div className="verify-badge">
+          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+          Secure sign-in
+        </div>
+        <h1 id="verify-heading" className="verify-title">Check your email</h1>
+        <p className="verify-copy">
+          We sent a six-digit code to <strong>{maskedEmail || "your confirmed email"}</strong>. Enter it below to finish signing in.
+        </p>
+
+        <form className="verify-form" onSubmit={onSubmit}>
+          <fieldset className="verify-otp-fieldset">
+            <legend className="sr-only">Six-digit verification code</legend>
+            <p id="verify-code-help" className="sr-only">Enter the six digits from your Prelude verification email. Paste is supported.</p>
+            <div className="verify-otp-row" aria-describedby="verify-code-help" onPaste={(event) => {
+              event.preventDefault();
+              setCodeValue(event.clipboardData.getData("text"));
+            }}>
+              {digits.map((digit, index) => (
+                <input
+                  key={index}
+                  ref={(node) => {
+                    inputRefs.current[index] = node;
+                  }}
+                  className="verify-otp-input"
+                  value={digit}
+                  inputMode="numeric"
+                  autoComplete={index === 0 ? "one-time-code" : "off"}
+                  aria-label={`Verification code digit ${index + 1}`}
+                  maxLength={1}
+                  onChange={(event) => onDigitChange(index, event.target.value)}
+                  onKeyDown={(event) => onKeyDown(index, event)}
+                  onFocus={(event) => event.target.select()}
+                />
+              ))}
+            </div>
+          </fieldset>
+
+          <button type="submit" disabled={loading || code.length !== 6} className="verify-submit">
+            {status === "success" ? <CheckCircle2 className="h-5 w-5" aria-hidden="true" /> : loading ? <span className="verify-spinner" aria-hidden="true" /> : <LockKeyhole className="h-5 w-5" aria-hidden="true" />}
+            <span>{status === "success" ? "Verified" : status === "verifying" ? "Verifying code" : "Verify login"}</span>
+          </button>
+
+          <label className="verify-trust">
+            <input type="checkbox" checked={trustDevice} onChange={(event) => setTrustDevice(event.target.checked)} />
+            <span>
+              <span>Trust this device for 30 days</span>
+              <small>Skip verification codes on this browser. Do not use this on a shared device.</small>
+            </span>
+          </label>
+        </form>
+
+        <div className="verify-status" aria-live="polite">
+          {error ? (
+            <div className="verify-status__error">
+              <Mail className="h-4 w-4" aria-hidden="true" />
+              <span>{error}</span>
+            </div>
+          ) : (
+            <span>{message}</span>
+          )}
+        </div>
+
+        <div className="verify-actions">
+          <button type="button" className="verify-link-button" disabled={loading || cooldown > 0} onClick={onResend}>
+            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+          </button>
+          <button type="button" className="verify-link-button" onClick={signOut}>Use another account</button>
+        </div>
+      </section>
+    </main>
   );
 }
 

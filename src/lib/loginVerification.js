@@ -42,13 +42,13 @@ export async function checkLoginVerification() {
 }
 
 export async function sendLoginVerificationCode() {
-  return verificationApi("/api/auth/login-verification/send", { method: "POST" });
+  return verificationApi("/api/auth/create-login-challenge", { method: "POST" });
 }
 
-export async function verifyLoginCode({ code, trustDevice = false, deviceName = "" }) {
-  return verificationApi("/api/auth/login-verification/verify", {
+export async function verifyLoginCode({ challengeId = "", code, trustDevice = false, deviceName = "" }) {
+  return verificationApi("/api/auth/verify-login-challenge", {
     method: "POST",
-    body: JSON.stringify({ code, trustDevice, deviceName })
+    body: JSON.stringify({ challengeId: challengeId || undefined, code, trustDevice, deviceName })
   });
 }
 
@@ -62,4 +62,12 @@ export async function revokeTrustedDevice(id) {
 
 export async function revokeOtherTrustedDevices() {
   return verificationApi("/api/auth/trusted-devices/others", { method: "DELETE" });
+}
+
+export async function clearLoginAssurance() {
+  return fetch("/api/auth/login-verification/clear", {
+    method: "POST",
+    credentials: "include",
+    headers: { Accept: "application/json" }
+  }).catch(() => null);
 }

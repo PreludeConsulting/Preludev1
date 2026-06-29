@@ -13,7 +13,7 @@ import { resumePendingOAuthAccountDeletion } from "../lib/pendingAccountDeletion
 import { getDevBypassUser, getDemoSessionUser, isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { getPlan, normalizePlanId } from "../lib/plans.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
-import { checkLoginVerification, sendLoginVerificationCode } from "../lib/loginVerification.js";
+import { checkLoginVerification, clearLoginAssurance, sendLoginVerificationCode } from "../lib/loginVerification.js";
 
 const AuthContext = createContext(null);
 
@@ -59,9 +59,9 @@ export function AuthProvider({ children }) {
     }
     const current = await refreshLoginVerification();
     if (current.verified) return current;
-    await sendLoginVerificationCode();
+    const challenge = await sendLoginVerificationCode();
     setLoginVerified(false);
-    return { verified: false, codeSent: true };
+    return { verified: false, codeSent: true, ...challenge };
   }, [refreshLoginVerification, useSupabase]);
 
   useEffect(() => {
@@ -244,6 +244,7 @@ export function AuthProvider({ children }) {
         }
         const verification = await beginLoginVerification();
         next.requiresLoginVerification = !verification.verified;
+        next.challengeId = verification.challengeId || "";
         setUser(next);
         setLoginVerified(Boolean(verification.verified));
         setSignInOpen(false);
@@ -344,6 +345,7 @@ export function AuthProvider({ children }) {
 
     try {
       if (useSupabase) {
+        await clearLoginAssurance();
         const { logOut } = await loadSupabaseAuth();
         await logOut();
       } else {

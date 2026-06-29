@@ -5,7 +5,7 @@ import { z } from "zod";
 import { readJsonBody, sendJson } from "./http.js";
 
 const TRUSTED_DEVICE_COOKIE = "prelude_trusted_device";
-const VERIFIED_LOGIN_COOKIE = "prelude_login_verified";
+const LOGIN_ASSURANCE_COOKIE = "prelude_login_assurance";
 const CODE_TTL_MINUTES = 10;
 const SEND_COOLDOWN_SECONDS = 60;
 const SEND_LIMIT_PER_HOUR = 5;
@@ -13,10 +13,28 @@ const MAX_FAILED_ATTEMPTS = 5;
 const TRUSTED_DEVICE_DAYS = 30;
 
 const verifyCodeSchema = z.object({
+  challengeId: z.string().uuid().optional(),
   code: z.string().trim().regex(/^\d[\d\s-]{4,12}\d$/, "Enter the six-digit code."),
   trustDevice: z.boolean().optional(),
   deviceName: z.string().trim().max(120).optional()
 });
+
+function correlationId() {
+  return randomBytes(12).toString("hex");
+}
+
+function recipientDomain(email = "") {
+  return email.includes("@") ? email.split("@").pop().toLowerCase() : "unknown";
+}
+
+function logAuth(event, details = {}) {
+  const safe = {
+    event,
+    timestamp: new Date().toISOString(),
+    ...details
+  };
+  console.info("[prelude-auth]", JSON.stringify(safe));
+}
 
 function isProduction() {
   return process.env.NODE_ENV === "production";
@@ -109,23 +127,6 @@ function makeCode() {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
-function makeSignedLoginCookie(userId) {
-  const expiresAt = Date.now() + 12 * 60 * 60 * 1000;
-  const nonce = randomBytes(16).toString("base64url");
-  const body = `${userId}.${expiresAt}.${nonce}`;
-  return `${body}.${sha256(body + getSecret())}`;
-}
-
-function isSignedLoginCookieValid(value, userId) {
-  if (!value) return false;
-  const parts = value.split(".");
-  if (parts.length !== 4) return false;
-  const body = parts.slice(0, 3).join(".");
-  const signature = parts[3];
-  if (parts[0] !== userId || Number(parts[1]) <= Date.now()) return false;
-  return signature === sha256(body + getSecret());
-}
-
 function serializeCookie(name, value, options = {}) {
   return cookie.serialize(name, value, {
     httpOnly: true,
@@ -140,11 +141,17 @@ function clearCookie(name) {
   return serializeCookie(name, "", { maxAge: 0 });
 }
 
-async function sendCodeEmail({ to, code, req }) {
+async function sendCodeEmail({ to, code, req, challengeId, requestId }) {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.AUTH_EMAIL_FROM?.trim() || "Prelude <no-reply@preludeconsultingllc.com>";
+  logAuth("verification.email.requested", {
+    requestId,
+    challengeId,
+    recipientDomain: recipientDomain(to)
+  });
   if (!apiKey) {
-    if (!isProduction()) console.info(`[prelude-auth:login-code] To ${to}: ${code}`);
+    if (!isProduction()) console.info(`[prelude-auth:login-code] dev delivery for ${recipientDomain(to)} challenge=${challengeId}`);
+    logAuth("verification.email.failed", { requestId, challengeId, reason: "missing_provider" });
     return { delivered: false, reason: "missing_provider", devOnly: !isProduction() };
   }
 
@@ -177,8 +184,23 @@ async function sendCodeEmail({ to, code, req }) {
     })
   });
 
-  if (!response.ok) return { delivered: false, reason: "provider_error" };
-  return { delivered: true };
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    logAuth("verification.email.failed", {
+      requestId,
+      challengeId,
+      resendStatus: response.status,
+      reason: body?.name || body?.message || "provider_error"
+    });
+    return { delivered: false, reason: "provider_error", status: response.status };
+  }
+  logAuth("verification.email.accepted", {
+    requestId,
+    challengeId,
+    resendStatus: response.status,
+    resendMessageId: body?.id || null
+  });
+  return { delivered: true, messageId: body?.id || null };
 }
 
 async function findTrustedDevice(supabase, userId, req) {
@@ -195,23 +217,42 @@ async function findTrustedDevice(supabase, userId, req) {
     .maybeSingle();
   if (!data) return null;
   await supabase.from("trusted_devices").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
+  logAuth("trusted_device.accepted", { userId, trustedDeviceId: data.id });
   return data;
+}
+
+async function findLoginAssurance(supabase, userId, req) {
+  const raw = cookie.parse(req.headers.cookie || "")[LOGIN_ASSURANCE_COOKIE];
+  if (!raw) return null;
+  const tokenHash = hashToken(raw);
+  const { data } = await supabase
+    .from("login_assurances")
+    .select("id, user_id, expires_at, revoked_at, trusted_device_id")
+    .eq("user_id", userId)
+    .eq("assurance_token_hash", tokenHash)
+    .is("revoked_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+  return data || null;
 }
 
 async function handleCheck(req, res) {
   const { supabase, user } = await requireSupabaseUser(req);
-  const parsed = cookie.parse(req.headers.cookie || "");
   const trustedDevice = await findTrustedDevice(supabase, user.id, req);
-  const verified = Boolean(trustedDevice || isSignedLoginCookieValid(parsed[VERIFIED_LOGIN_COOKIE], user.id));
+  const assurance = trustedDevice ? null : await findLoginAssurance(supabase, user.id, req);
+  const verified = Boolean(trustedDevice || assurance);
   sendJson(res, 200, {
     verified,
     trustedDevice: Boolean(trustedDevice),
-    device: trustedDevice || null
+    device: trustedDevice || null,
+    assuranceId: assurance?.id || null
   });
 }
 
 async function handleSend(req, res) {
+  const requestId = correlationId();
   const { supabase, user } = await requireSupabaseUser(req);
+  logAuth("verification.challenge.create.started", { requestId, userId: user.id });
   if (!user.email || !user.email_confirmed_at) {
     return sendJson(res, 403, { error: "email_unconfirmed", message: "Confirm your email before completing login verification." });
   }
@@ -236,66 +277,104 @@ async function handleSend(req, res) {
     .update({ used_at: new Date().toISOString() })
     .eq("user_id", user.id)
     .is("used_at", null);
-  const { error } = await supabase.from("login_verification_challenges").insert({
+  const { data: challenge, error } = await supabase.from("login_verification_challenges").insert({
     user_id: user.id,
     code_hash: hashCode(user.id, code),
     expires_at: new Date(Date.now() + CODE_TTL_MINUTES * 60 * 1000).toISOString(),
     requested_ip_hash: getIpHash(req),
-    user_agent_summary: summarizeUserAgent(req.headers["user-agent"] || "")
-  });
+    user_agent_summary: summarizeUserAgent(req.headers["user-agent"] || ""),
+    delivery_status: "pending"
+  }).select("id, expires_at").maybeSingle();
   if (error) return sendJson(res, 500, { error: "challenge_create_failed", message: "Could not create a verification code." });
+  logAuth("verification.challenge.created", { requestId, userId: user.id, challengeId: challenge.id });
 
-  const delivery = await sendCodeEmail({ to: user.email, code, req });
+  const delivery = await sendCodeEmail({ to: user.email, code, req, challengeId: challenge.id, requestId });
+  await supabase
+    .from("login_verification_challenges")
+    .update({
+      delivery_status: delivery.delivered ? "accepted" : delivery.reason || "failed",
+      resend_message_id: delivery.messageId || null
+    })
+    .eq("id", challenge.id);
   if (!delivery.delivered && isProduction()) {
     return sendJson(res, 503, { error: "email_delivery_failed", message: "Verification email could not be sent. Check Resend configuration." });
   }
-  sendJson(res, 200, { message: "Verification code sent.", emailSent: Boolean(delivery.delivered), devOnly: Boolean(delivery.devOnly) });
+  sendJson(res, 200, {
+    challengeId: challenge.id,
+    expiresAt: challenge.expires_at,
+    resendMessageId: delivery.messageId || null,
+    message: "Verification code sent.",
+    emailSent: Boolean(delivery.delivered),
+    devOnly: Boolean(delivery.devOnly)
+  });
 }
 
 async function handleVerify(req, res) {
+  const requestId = correlationId();
   const { supabase, user } = await requireSupabaseUser(req);
   const payload = verifyCodeSchema.parse(await readJsonBody(req));
   const code = payload.code.replace(/\D/g, "");
   if (code.length !== 6) return sendJson(res, 400, { error: "invalid_code", message: "Enter the six-digit code." });
 
-  const { data: challenge } = await supabase
-    .from("login_verification_challenges")
-    .select("id, code_hash, expires_at, used_at, failed_attempts")
-    .eq("user_id", user.id)
-    .is("used_at", null)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  let selectedChallenge = null;
+  if (payload.challengeId) {
+    const { data } = await supabase
+      .from("login_verification_challenges")
+      .select("id, code_hash, expires_at, used_at, failed_attempts, locked_at")
+      .eq("id", payload.challengeId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    selectedChallenge = data;
+  } else {
+    const { data } = await supabase
+      .from("login_verification_challenges")
+      .select("id, code_hash, expires_at, used_at, failed_attempts, locked_at")
+      .eq("user_id", user.id)
+      .is("used_at", null)
+      .is("locked_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    selectedChallenge = data;
+  }
 
-  if (!challenge) return sendJson(res, 400, { error: "missing_challenge", message: "Request a new verification code." });
-  if (challenge.used_at) return sendJson(res, 400, { error: "used_code", message: "This code has already been used." });
-  if (new Date(challenge.expires_at) <= new Date()) return sendJson(res, 400, { error: "expired_code", message: "This code expired. Request a new one." });
-  if (challenge.failed_attempts >= MAX_FAILED_ATTEMPTS) return sendJson(res, 423, { error: "locked_challenge", message: "Too many incorrect attempts. Request a new code." });
+  if (!selectedChallenge) return sendJson(res, 400, { error: "missing_challenge", message: "Request a new verification code." });
+  if (selectedChallenge.used_at) return sendJson(res, 400, { error: "used_code", message: "This code has already been used." });
+  if (new Date(selectedChallenge.expires_at) <= new Date()) {
+    logAuth("verification.challenge.expired", { requestId, userId: user.id, challengeId: selectedChallenge.id });
+    return sendJson(res, 400, { error: "expired_code", message: "This code expired. Request a new one." });
+  }
+  if (selectedChallenge.locked_at || selectedChallenge.failed_attempts >= MAX_FAILED_ATTEMPTS) return sendJson(res, 423, { error: "locked_challenge", message: "Too many incorrect attempts. Request a new code." });
 
-  const expected = Buffer.from(challenge.code_hash);
+  const expected = Buffer.from(selectedChallenge.code_hash);
   const actual = Buffer.from(hashCode(user.id, code));
   const valid = expected.length === actual.length && timingSafeEqual(expected, actual);
   if (!valid) {
+    const failedAttempts = selectedChallenge.failed_attempts + 1;
     await supabase
       .from("login_verification_challenges")
-      .update({ failed_attempts: challenge.failed_attempts + 1 })
-      .eq("id", challenge.id);
+      .update({
+        failed_attempts: failedAttempts,
+        locked_at: failedAttempts >= MAX_FAILED_ATTEMPTS ? new Date().toISOString() : null
+      })
+      .eq("id", selectedChallenge.id);
+    logAuth("verification.challenge.rejected", { requestId, userId: user.id, challengeId: selectedChallenge.id, failedAttempts });
     return sendJson(res, 401, { error: "incorrect_code", message: "That code is not correct." });
   }
 
-  const cookies = [serializeCookie(VERIFIED_LOGIN_COOKIE, makeSignedLoginCookie(user.id), { maxAge: 12 * 60 * 60 })];
-  await supabase.from("login_verification_challenges").update({ used_at: new Date().toISOString() }).eq("id", challenge.id);
+  await supabase.from("login_verification_challenges").update({ used_at: new Date().toISOString() }).eq("id", selectedChallenge.id);
 
   let trustedDevice = null;
+  let rawTrustedDeviceToken = null;
   if (payload.trustDevice) {
-    const rawToken = randomBytes(32).toString("base64url");
+    rawTrustedDeviceToken = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + TRUSTED_DEVICE_DAYS * 24 * 60 * 60 * 1000).toISOString();
     const deviceName = payload.deviceName || summarizeUserAgent(req.headers["user-agent"] || "");
     const { data } = await supabase
       .from("trusted_devices")
       .insert({
         user_id: user.id,
-        token_hash: hashToken(rawToken),
+        token_hash: hashToken(rawTrustedDeviceToken),
         device_name: deviceName,
         user_agent_summary: summarizeUserAgent(req.headers["user-agent"] || ""),
         expires_at: expiresAt,
@@ -304,10 +383,26 @@ async function handleVerify(req, res) {
       .select("id, device_name, user_agent_summary, created_at, last_used_at, expires_at")
       .maybeSingle();
     trustedDevice = data;
-    cookies.push(serializeCookie(TRUSTED_DEVICE_COOKIE, rawToken, { maxAge: TRUSTED_DEVICE_DAYS * 24 * 60 * 60 }));
+    logAuth("trusted_device.created", { requestId, userId: user.id, trustedDeviceId: data?.id || null });
   }
 
-  sendJson(res, 200, { verified: true, trustedDevice }, { "Set-Cookie": cookies });
+  const assuranceToken = randomBytes(32).toString("base64url");
+  const assuranceExpiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+  const { data: assurance } = await supabase
+    .from("login_assurances")
+    .insert({
+      user_id: user.id,
+      assurance_token_hash: hashToken(assuranceToken),
+      session_reference: req.headers.authorization ? sha256(req.headers.authorization.slice(-64)) : null,
+      expires_at: assuranceExpiresAt,
+      trusted_device_id: trustedDevice?.id || null
+    })
+    .select("id, expires_at")
+    .maybeSingle();
+  const cookies = [serializeCookie(LOGIN_ASSURANCE_COOKIE, assuranceToken, { maxAge: 12 * 60 * 60 })];
+  if (trustedDevice && rawTrustedDeviceToken) cookies.push(serializeCookie(TRUSTED_DEVICE_COOKIE, rawTrustedDeviceToken, { maxAge: TRUSTED_DEVICE_DAYS * 24 * 60 * 60 }));
+  logAuth("verification.challenge.verified", { requestId, userId: user.id, challengeId: selectedChallenge.id, assuranceId: assurance?.id || null });
+  sendJson(res, 200, { verified: true, trustedDevice, assuranceId: assurance?.id || null, expiresAt: assurance?.expires_at || assuranceExpiresAt }, { "Set-Cookie": cookies });
 }
 
 async function handleListDevices(req, res) {
@@ -333,7 +428,9 @@ async function handleRevoke(req, res, url) {
     return sendJson(res, 200, { message: "Other trusted devices revoked." });
   }
   await supabase.from("trusted_devices").update({ revoked_at: now }).eq("id", id).eq("user_id", user.id);
-  sendJson(res, 200, { message: "Trusted device revoked." }, { "Set-Cookie": [clearCookie(TRUSTED_DEVICE_COOKIE), clearCookie(VERIFIED_LOGIN_COOKIE)] });
+  await supabase.from("login_assurances").update({ revoked_at: now }).eq("user_id", user.id).eq("trusted_device_id", id);
+  logAuth("trusted_device.revoked", { userId: user.id, trustedDeviceId: id });
+  sendJson(res, 200, { message: "Trusted device revoked." }, { "Set-Cookie": [clearCookie(TRUSTED_DEVICE_COOKIE), clearCookie(LOGIN_ASSURANCE_COOKIE)] });
 }
 
 export function createSupabaseLoginVerificationMiddleware() {
@@ -342,6 +439,7 @@ export function createSupabaseLoginVerificationMiddleware() {
     const pathname = url.pathname;
     const matches =
       pathname.startsWith("/api/auth/login-verification") ||
+      ["/api/auth/create-login-challenge", "/api/auth/resend-login-challenge", "/api/auth/verify-login-challenge"].includes(pathname) ||
       pathname === "/api/auth/trusted-devices" ||
       pathname.startsWith("/api/auth/trusted-devices/");
     if (!matches) return next();
@@ -356,8 +454,11 @@ export function createSupabaseLoginVerificationMiddleware() {
 
     try {
       if (pathname === "/api/auth/login-verification/check" && req.method === "GET") return await handleCheck(req, res);
-      if (pathname === "/api/auth/login-verification/send" && req.method === "POST") return await handleSend(req, res);
+      if (pathname === "/api/auth/login-verification/clear" && req.method === "POST") return sendJson(res, 200, { cleared: true }, { "Set-Cookie": clearCookie(LOGIN_ASSURANCE_COOKIE) });
+      if (["/api/auth/login-verification/send", "/api/auth/login-verification/create", "/api/auth/login-verification/resend"].includes(pathname) && req.method === "POST") return await handleSend(req, res);
+      if (["/api/auth/create-login-challenge", "/api/auth/resend-login-challenge"].includes(pathname) && req.method === "POST") return await handleSend(req, res);
       if (pathname === "/api/auth/login-verification/verify" && req.method === "POST") return await handleVerify(req, res);
+      if (pathname === "/api/auth/verify-login-challenge" && req.method === "POST") return await handleVerify(req, res);
       if (pathname === "/api/auth/trusted-devices" && req.method === "GET") return await handleListDevices(req, res);
       if (pathname.startsWith("/api/auth/trusted-devices/") && req.method === "DELETE") return await handleRevoke(req, res, url);
       return sendJson(res, 404, { error: "not_found" });

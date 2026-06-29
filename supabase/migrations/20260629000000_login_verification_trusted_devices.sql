@@ -5,10 +5,18 @@ create table if not exists public.login_verification_challenges (
   expires_at timestamptz not null,
   used_at timestamptz,
   failed_attempts integer not null default 0,
+  locked_at timestamptz,
+  resend_message_id text,
+  delivery_status text,
   created_at timestamptz not null default now(),
   requested_ip_hash text,
   user_agent_summary text
 );
+
+alter table public.login_verification_challenges
+  add column if not exists locked_at timestamptz,
+  add column if not exists resend_message_id text,
+  add column if not exists delivery_status text;
 
 create index if not exists idx_login_verification_user_id
   on public.login_verification_challenges(user_id);
@@ -18,7 +26,7 @@ create index if not exists idx_login_verification_expires_at
 
 create index if not exists idx_login_verification_active_unused
   on public.login_verification_challenges(user_id, created_at desc)
-  where used_at is null;
+  where used_at is null and locked_at is null;
 
 alter table public.login_verification_challenges enable row level security;
 
@@ -72,6 +80,7 @@ create index if not exists idx_trusted_devices_active
 alter table public.trusted_devices enable row level security;
 
 drop policy if exists "Users can view safe trusted device metadata" on public.trusted_devices;
+drop policy if exists "Users cannot read trusted device token records directly" on public.trusted_devices;
 create policy "Users cannot read trusted device token records directly"
   on public.trusted_devices
   for select
@@ -88,6 +97,51 @@ create policy "Users cannot insert trusted devices directly"
 drop policy if exists "Users cannot update trusted devices directly" on public.trusted_devices;
 create policy "Users cannot update trusted devices directly"
   on public.trusted_devices
+  for update
+  to authenticated
+  using (false)
+  with check (false);
+
+create table if not exists public.login_assurances (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  assurance_token_hash text not null unique,
+  session_reference text,
+  verified_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  trusted_device_id uuid references public.trusted_devices(id) on delete set null,
+  revoked_at timestamptz
+);
+
+create index if not exists idx_login_assurances_user_id
+  on public.login_assurances(user_id);
+
+create index if not exists idx_login_assurances_token_hash
+  on public.login_assurances(assurance_token_hash);
+
+create index if not exists idx_login_assurances_active
+  on public.login_assurances(user_id, expires_at)
+  where revoked_at is null;
+
+alter table public.login_assurances enable row level security;
+
+drop policy if exists "Users cannot read login assurances directly" on public.login_assurances;
+create policy "Users cannot read login assurances directly"
+  on public.login_assurances
+  for select
+  to authenticated
+  using (false);
+
+drop policy if exists "Users cannot insert login assurances directly" on public.login_assurances;
+create policy "Users cannot insert login assurances directly"
+  on public.login_assurances
+  for insert
+  to authenticated
+  with check (false);
+
+drop policy if exists "Users cannot update login assurances directly" on public.login_assurances;
+create policy "Users cannot update login assurances directly"
+  on public.login_assurances
   for update
   to authenticated
   using (false)
