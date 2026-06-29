@@ -39,6 +39,11 @@ function fullUrl(path) {
   return `${origin}${appPath(path)}`;
 }
 
+function currentOriginUrl(path) {
+  const origin = typeof window !== "undefined" && window.location?.origin ? window.location.origin : getPublicAppUrl();
+  return `${origin}${appPath(path)}`;
+}
+
 function normalizeEmail(email) {
   return (email || "").trim().toLowerCase();
 }
@@ -55,7 +60,7 @@ function safeOAuthMetadata(user) {
 export function getAuthCallbackUrl(next = "") {
   const safeNext = sanitizeAuthRedirect(next, "");
   const query = safeNext ? `?next=${encodeURIComponent(safeNext)}` : "";
-  return fullUrl(`/auth/callback${query}`);
+  return currentOriginUrl(`/auth/callback${query}`);
 }
 
 async function setSessionFromHashIfPresent(supabase, hashParams) {
