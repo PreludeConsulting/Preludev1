@@ -11,7 +11,7 @@ import {
   Video,
   Zap
 } from "lucide-react";
-import { cn } from "../../../lib/utils.js";
+import { isJoinableMeeting, meetingTypeLabel } from "../../../lib/zoomMeetingLinks.js";
 import { Avatar, DashBadge, PrimaryButton, SecondaryButton, ViewAllLink } from "./index.jsx";
 
 export function LevelBadge({ level, name }) {
@@ -210,7 +210,8 @@ export function CompactStatCard({ icon: Icon, label, value, trend, progress }) {
 export function MeetingCardPremium({ meeting, mentorName, studentName, role, messagePath }) {
   const start = new Date(meeting.startTime);
   const name = mentorName || studentName;
-  const showZoom = meeting.meetingType === "zoom" && meeting.zoomJoinUrl;
+  const showJoin = isJoinableMeeting(meeting);
+  const typeLabel = meetingTypeLabel(meeting.meetingType);
   return (
     <article className="dash-meeting-card-premium">
       <div className="dash-meeting-card-premium__head">
@@ -219,16 +220,16 @@ export function MeetingCardPremium({ meeting, mentorName, studentName, role, mes
           <p className="dash-meeting-card-premium__title">{meeting.title}</p>
           <p className="dash-meeting-card-premium__with">{role === "student" ? `with ${mentorName}` : `with ${studentName}`}</p>
         </div>
-        <DashBadge variant="zoom">Zoom</DashBadge>
+        <DashBadge variant="zoom">{typeLabel}</DashBadge>
       </div>
       <p className="dash-meeting-card-premium__time">
         {start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} ·{" "}
         {start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
       </p>
       <div className="dash-meeting-card-premium__actions">
-        {showZoom ? (
+        {showJoin ? (
           <a href={meeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-btn dash-btn--primary dash-btn--sm">
-            <Video className="h-4 w-4" /> Join Zoom
+            <Video className="h-4 w-4" /> Join Meeting
           </a>
         ) : null}
         {messagePath ? (

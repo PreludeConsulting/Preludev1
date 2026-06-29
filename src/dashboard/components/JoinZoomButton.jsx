@@ -1,12 +1,14 @@
 import { Video } from "lucide-react";
-import { isValidZoomJoinUrl } from "../../lib/zoomMeetingLinks.js";
+import { inferMeetingTypeFromUrl, isValidMeetingJoinUrl } from "../../lib/zoomMeetingLinks.js";
 
 export default function JoinZoomButton({
   href,
+  meetingType,
   className = "dash-btn dash-btn--primary dash-btn--sm",
   label = "Join Meeting"
 }) {
-  if (!isValidZoomJoinUrl(href)) return null;
+  const resolvedType = meetingType || inferMeetingTypeFromUrl(href) || "zoom";
+  if (!isValidMeetingJoinUrl(href, resolvedType)) return null;
 
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className={className}>

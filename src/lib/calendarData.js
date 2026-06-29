@@ -3,6 +3,7 @@
  */
 
 import { getSupabase } from "./supabase.js";
+import { inferMeetingTypeFromUrl } from "./zoomMeetingLinks.js";
 
 function db() {
   const client = getSupabase();
@@ -22,7 +23,7 @@ export function mapCalendarEvent(row) {
     endTime: row.end_time,
     eventType: row.event_type,
     location: row.location,
-    meetingType: row.meeting_url ? "zoom" : row.location ? "in_person" : "zoom",
+    meetingType: row.meeting_url ? inferMeetingTypeFromUrl(row.meeting_url) || "zoom" : row.location ? "in_person" : "zoom",
     zoomJoinUrl: row.meeting_url,
     status: row.status,
     category: row.event_type === "personal" ? "personal_task" : "mentor_meeting",

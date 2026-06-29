@@ -109,6 +109,22 @@ async function main() {
   );
   assert.equal(scheduled.zoomJoinUrl, zoomJoinUrl);
 
+  const googleMeetUrl = "https://meet.google.com/abc-defg-hij";
+  const googleScheduled = await scheduleMeeting(
+    {
+      title: "Google Meet review",
+      startTime,
+      endTime,
+      meetingType: "google_meet",
+      status: "scheduled",
+      zoomJoinUrl: googleMeetUrl
+    },
+    mentorUser,
+    mockReq("/api/meetings", "POST")
+  );
+  assert.equal(googleScheduled.meetingType, "google_meet");
+  assert.equal(googleScheduled.zoomJoinUrl, googleMeetUrl);
+
   const approved = await updateScheduledMeeting(
     pending.id,
     { status: "scheduled", zoomJoinUrl },

@@ -1,6 +1,6 @@
 import { X, Video } from "lucide-react";
 
-import { isValidZoomJoinUrl } from "../../lib/zoomMeetingLinks.js";
+import { isJoinableMeeting } from "../../lib/zoomMeetingLinks.js";
 
 export default function MeetingDetailModal({ meeting, mentorName, studentName, role, onClose }) {
   if (!meeting) return null;
@@ -8,7 +8,7 @@ export default function MeetingDetailModal({ meeting, mentorName, studentName, r
   const start = new Date(meeting.startTime);
   const end = new Date(meeting.endTime);
   const durationMin = Math.round((end - start) / 60000);
-  const showJoin = isValidZoomJoinUrl(meeting.zoomJoinUrl) && meeting.meetingType === "zoom";
+  const showJoin = isJoinableMeeting(meeting);
 
   return (
     <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
@@ -32,7 +32,7 @@ export default function MeetingDetailModal({ meeting, mentorName, studentName, r
           ) : null}
           {showJoin ? (
             <div>
-              <dt>Zoom</dt>
+              <dt>{meeting.meetingType === "google_meet" ? "Google Meet" : "Zoom"}</dt>
               <dd>
                 <a href={meeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-link">
                   Student join link

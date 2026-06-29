@@ -7,7 +7,7 @@ import {
   updateMeetingRecord
 } from "./meetingStore.js";
 
-const meetingTypeSchema = z.enum(["zoom", "in_person", "phone"]);
+const meetingTypeSchema = z.enum(["zoom", "google_meet", "in_person", "phone"]);
 const meetingStatusSchema = z.enum(["scheduled", "pending", "approved", "declined", "canceled", "rescheduled"]);
 
 const zoomJoinUrlSchema = z.string().trim().url().max(2048).optional();
@@ -61,6 +61,27 @@ function isValidZoomJoinUrl(url) {
   }
 }
 
+function isValidGoogleMeetJoinUrl(url) {
+  if (!url || typeof url !== "string") return false;
+  try {
+    const parsed = new URL(url.trim());
+    if (parsed.protocol !== "https:") return false;
+    return parsed.hostname.toLowerCase() === "meet.google.com";
+  } catch {
+    return false;
+  }
+}
+
+function isVideoMeetingType(meetingType) {
+  return meetingType === "zoom" || meetingType === "google_meet";
+}
+
+function isValidMeetingJoinUrl(url, meetingType) {
+  if (meetingType === "google_meet") return isValidGoogleMeetJoinUrl(url);
+  if (meetingType === "zoom") return isValidZoomJoinUrl(url);
+  return isValidZoomJoinUrl(url) || isValidGoogleMeetJoinUrl(url);
+}
+
 function resolveIdempotencyKey(body, req) {
   return (
     body.idempotencyKey ||
@@ -89,13 +110,18 @@ function validateTimes(startTime, endTime) {
   }
 }
 
-function assertZoomLinkWhenRequired({ role, meetingType, status, zoomJoinUrl }) {
-  if (meetingType !== "zoom") return;
+function assertVideoLinkWhenRequired({ role, meetingType, status, zoomJoinUrl }) {
+  if (!isVideoMeetingType(meetingType)) return;
   if (status !== "scheduled" && status !== "approved") return;
   if (role?.toUpperCase() === "STUDENT") return;
-  if (!isValidZoomJoinUrl(zoomJoinUrl)) {
+  const label = meetingType === "google_meet" ? "Google Meet" : "Zoom";
+  const example =
+    meetingType === "google_meet"
+      ? "https://meet.google.com/abc-defg-hij"
+      : "https://zoom.us/j/… or https://….zoom.us/j/…";
+  if (!isValidMeetingJoinUrl(zoomJoinUrl, meetingType)) {
     throw userFacingError(
-      "Paste a valid Zoom meeting link (https://zoom.us/j/… or https://….zoom.us/j/…).",
+      `Paste a valid ${label} meeting link (${example}).`,
       400,
       "validation_error"
     );
@@ -142,7 +168,7 @@ function normalizeCreatePayload(body, user) {
     zoomJoinUrl: body.zoomJoinUrl?.trim() || null
   };
 
-  if (role === "STUDENT" && payload.status === "scheduled" && payload.meetingType === "zoom") {
+  if (role === "STUDENT" && payload.status === "scheduled" && isVideoMeetingType(payload.meetingType)) {
     payload.status = "pending";
     payload.zoomJoinUrl = null;
   }
@@ -161,7 +187,7 @@ export async function scheduleMeeting(body, user, req) {
   }
 
   const payload = normalizeCreatePayload(parsed, user);
-  assertZoomLinkWhenRequired({
+  assertVideoLinkWhenRequired({
     role: user.role,
     meetingType: payload.meetingType,
     status: payload.status,
@@ -206,8 +232,8 @@ export async function updateScheduledMeeting(id, body, user) {
     (existing.status === "pending" || existing.status === "declined") &&
     (nextStatus === "scheduled" || nextStatus === "approved");
 
-  if (approving && nextMeetingType === "zoom") {
-    assertZoomLinkWhenRequired({
+  if (approving && isVideoMeetingType(nextMeetingType)) {
+    assertVideoLinkWhenRequired({
       role: user.role,
       meetingType: nextMeetingType,
       status: nextStatus,
@@ -221,7 +247,7 @@ export async function updateScheduledMeeting(id, body, user) {
     zoomJoinUrl: parsed.zoomJoinUrl !== undefined ? nextZoomJoinUrl : undefined
   });
 
-  if (nextMeetingType !== "zoom") {
+  if (!isVideoMeetingType(nextMeetingType)) {
     meeting = await updateMeetingRecord(id, {
       zoomMeetingId: null,
       zoomJoinUrl: null,
@@ -233,4 +259,10 @@ export async function updateScheduledMeeting(id, body, user) {
   return meeting;
 }
 
-export { createMeetingSchema, updateMeetingSchema, isValidZoomJoinUrl };
+export {
+  createMeetingSchema,
+  updateMeetingSchema,
+  isValidZoomJoinUrl,
+  isValidGoogleMeetJoinUrl,
+  isValidMeetingJoinUrl
+};

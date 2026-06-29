@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Calendar, MessageCircle, Paperclip, Send, Smile, Video } from "lucide-react";
-import { findNextJoinableMeeting, isValidZoomJoinUrl } from "../../lib/zoomMeetingLinks.js";
+import { findNextJoinableMeeting, isValidMeetingJoinUrl } from "../../lib/zoomMeetingLinks.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AnimatedIcon from "../../components/interaction/AnimatedIcon.jsx";
 import { useInteractionFeedback } from "../../components/interaction/InteractionFeedback.jsx";
@@ -106,7 +106,7 @@ export default function MessagesPanel({
   const groups = active ? groupMessages(active.messages) : [];
   const nextMeeting =
     findNextJoinableMeeting(meetings)
-    || (active?.nextZoomUrl && isValidZoomJoinUrl(active.nextZoomUrl) ? { zoomJoinUrl: active.nextZoomUrl } : null);
+    || (active?.nextZoomUrl && isValidMeetingJoinUrl(active.nextZoomUrl) ? { zoomJoinUrl: active.nextZoomUrl } : null);
 
   useEffect(() => {
     const el = scrollRef.current;

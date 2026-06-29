@@ -35,7 +35,7 @@ import {
 import { isDemoEmail } from "../../data/demoAccounts.js";
 import { getDemoDashboardForUser } from "../../data/demoDashboardData.js";
 import { shouldUseDemoFixtures } from "../../lib/devAuthBypass.js";
-import { isValidZoomJoinUrl, resolveMeetingsForDisplay } from "../../lib/zoomMeetingLinks.js";
+import { isValidMeetingJoinUrl, isVideoMeetingType, resolveMeetingsForDisplay } from "../../lib/zoomMeetingLinks.js";
 import { roleFromUser } from "../../lib/dashboardRoutes.js";
 import { EMPTY_STUDENT_PROFILE } from "../config/studentDashboardByGrade.js";
 import {
@@ -674,20 +674,21 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
       let workingItem = { ...item };
 
-      const isZoomMentorMeeting =
-        workingItem.meetingType === "zoom"
+      const isVideoMentorMeeting =
+        isVideoMeetingType(workingItem.meetingType)
         && (workingItem.category === "mentor_meeting" || workingItem.formVariant === "event")
         && (workingItem.status || "scheduled") === "scheduled";
 
-      if (isZoomMentorMeeting && roleFromUser(user) === "MENTOR" && !workingItem.meetingRecordId) {
-        if (!isValidZoomJoinUrl(workingItem.zoomJoinUrl)) {
-          throw new Error("Paste a valid Zoom meeting link before saving.");
+      if (isVideoMentorMeeting && roleFromUser(user) === "MENTOR" && !workingItem.meetingRecordId) {
+        if (!isValidMeetingJoinUrl(workingItem.zoomJoinUrl, workingItem.meetingType)) {
+          const label = workingItem.meetingType === "google_meet" ? "Google Meet" : "Zoom";
+          throw new Error(`Paste a valid ${label} meeting link before saving.`);
         }
         const idempotencyKey = `calendar-${existingId || workingItem.id || `${workingItem.start}-${workingItem.title}`}`;
         const created = await apiCreateMeeting(
           {
             title: workingItem.title,
-            meetingType: "zoom",
+            meetingType: workingItem.meetingType,
             startTime: workingItem.start,
             endTime: workingItem.end,
             timeZone: workingItem.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -854,10 +855,11 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   }, []);
 
   const acceptMeetingRequest = useCallback(
-    async (request, zoomJoinUrl) => {
+    async (request, zoomJoinUrl, meetingType = "zoom") => {
       if (!request?.id) return null;
-      if (!isValidZoomJoinUrl(zoomJoinUrl)) {
-        throw new Error("Paste a valid Zoom meeting link (https://zoom.us/j/…).");
+      if (!isValidMeetingJoinUrl(zoomJoinUrl, meetingType)) {
+        const label = meetingType === "google_meet" ? "Google Meet" : "Zoom";
+        throw new Error(`Paste a valid ${label} meeting link before scheduling.`);
       }
 
       const parsedStart = request.startTime
@@ -877,13 +879,14 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       if (canPatchBackend) {
         const updated = await apiUpdateMeeting(backendMeetingId, {
           status: "scheduled",
+          meetingType,
           zoomJoinUrl
         });
         meeting = updated.meeting;
       } else {
         const created = await apiCreateMeeting({
-          title: request.title || request.type || "Zoom check-in",
-          meetingType: "zoom",
+          title: request.title || request.type || "Mentor check-in",
+          meetingType,
           startTime,
           endTime,
           studentId: request.studentId,
@@ -912,7 +915,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         shared: true,
         formVariant: "event",
         calendarItemType: "event",
-        meetingType: "zoom",
+        meetingType,
         zoomJoinUrl,
         meetingRecordId: meeting.id,
         status: "scheduled",

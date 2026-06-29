@@ -5,7 +5,7 @@ import { MotionDialog } from "../../../components/motion/MotionPrimitives.jsx";
 import InteractiveButton from "../../../components/interaction/InteractiveButton.jsx";
 import { Link } from "react-router-dom";
 import { cn } from "../../../lib/utils.js";
-import { isValidZoomJoinUrl } from "../../../lib/zoomMeetingLinks.js";
+import { isJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 
 export function DashBadge({ children, variant = "default", className }) {
   return <span className={cn("dash-badge", `dash-badge--${variant}`, className)}>{children}</span>;
@@ -244,7 +244,7 @@ export function Avatar({ name, size = "md" }) {
 
 export function MeetingPreviewCard({ meeting, mentorName, studentName, role, onView }) {
   const start = new Date(meeting.startTime);
-  const showZoom = meeting.meetingType === "zoom" && isValidZoomJoinUrl(meeting.zoomJoinUrl);
+  const showJoin = isJoinableMeeting(meeting);
   return (
     <article className="dash-meeting-preview">
       <div className="dash-meeting-preview__head">
@@ -255,6 +255,7 @@ export function MeetingPreviewCard({ meeting, mentorName, studentName, role, onV
             {mentorName ? `with ${mentorName}` : studentName ? `with ${studentName}` : ""}
           </p>
         </div>
+        {meeting.meetingType === "google_meet" ? <DashBadge variant="zoom">Google Meet</DashBadge> : null}
         {meeting.meetingType === "zoom" ? <DashBadge variant="zoom">Zoom Meeting</DashBadge> : null}
       </div>
       <p className="dash-meeting-preview__time">
@@ -262,7 +263,7 @@ export function MeetingPreviewCard({ meeting, mentorName, studentName, role, onV
         {start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
       </p>
       <div className="dash-meeting-preview__actions">
-        {showZoom ? (
+        {showJoin ? (
           <a href={meeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-btn dash-btn--primary dash-btn--sm">
             Join Meeting
           </a>

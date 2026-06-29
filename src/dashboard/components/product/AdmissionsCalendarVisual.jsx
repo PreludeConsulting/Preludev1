@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { isValidZoomJoinUrl, preferCalendarItemWithZoom } from "../../../lib/zoomMeetingLinks.js";
+import { isValidMeetingJoinUrl, preferCalendarItemWithZoom } from "../../../lib/zoomMeetingLinks.js";
 import { cn } from "../../../lib/utils.js";
 import { compactEventTitle } from "../CalendarEventPill.jsx";
 import { formatCalendarPillTitle } from "../../lib/calendarDisplay.js";
@@ -748,7 +748,7 @@ export default function AdmissionsCalendarVisual({
       showToast("Event updated");
       play(SOUND_EVENTS.SAVE_SUCCESS);
       flashEvent(`ev-${editDraft.id}`);
-      if (isValidZoomJoinUrl(stored?.zoomJoinUrl)) {
+      if (isValidMeetingJoinUrl(stored?.zoomJoinUrl, stored?.meetingType)) {
         const normalized = normalizeCalendarEvent({ ...stored, userCreated: true }, { mentorView: isMentorCalendar || isMentorStudentView });
         if (normalized) setDetailEvent(normalized);
       }
@@ -776,12 +776,12 @@ export default function AdmissionsCalendarVisual({
     });
     if (!enriched.pillColor) setColorCycleIndex((index) => index + 1);
     setCreateDraft(null);
-    showToast(isValidZoomJoinUrl(stored?.zoomJoinUrl) ? "Zoom meeting scheduled" : "Event added to calendar");
+    showToast(isValidMeetingJoinUrl(stored?.zoomJoinUrl, stored?.meetingType) ? "Meeting scheduled" : "Event added to calendar");
     play(SOUND_EVENTS.CALENDAR_SUCCESS);
     flashEvent(`ev-${stored.id}`);
     setPlusActive(true);
     window.setTimeout(() => setPlusActive(false), 450);
-    if (isValidZoomJoinUrl(stored?.zoomJoinUrl)) {
+    if (isValidMeetingJoinUrl(stored?.zoomJoinUrl, stored?.meetingType)) {
       const normalized = normalizeCalendarEvent({ ...stored, userCreated: true }, { mentorView: isMentorCalendar || isMentorStudentView });
       if (normalized) setDetailEvent(normalized);
     }
