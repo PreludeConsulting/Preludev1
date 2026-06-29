@@ -19,7 +19,7 @@ export function getSupabaseConfigError() {
 }
 
 /** Public site origin for auth email redirects (no trailing slash). */
-export function getPublicAppOrigin() {
+export function getPublicAppUrl() {
   const fromEnv = import.meta.env.VITE_PUBLIC_APP_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");
   if (typeof window !== "undefined" && window.location?.origin) {
@@ -27,3 +27,5 @@ export function getPublicAppOrigin() {
   }
   return "";
 }
+
+export const getPublicAppOrigin = getPublicAppUrl;

@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabase } from "./supabase.js";
 import { appPath } from "./appPaths.js";
 import { sanitizeAuthRedirect } from "./authRedirects.js";
-import { getPublicAppOrigin, getSupabaseConfigError, isSupabaseConfigured } from "./supabaseConfig.js";
+import { getPublicAppUrl, getSupabaseConfigError, isSupabaseConfigured } from "./supabaseConfig.js";
 import { mapSupabaseUser } from "./supabaseSession.js";
 import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
 import {
@@ -20,6 +20,9 @@ import { primaryOAuthProvider } from "./authSignInMethod.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
 const OAUTH_PROVIDERS = ["google"];
+const callbackRequests = new Map();
+const verificationRequests = new Map();
+const recoveryRequests = new Map();
 
 function authDebug(event, details = {}) {
   if (!import.meta.env.DEV) return;
@@ -32,7 +35,7 @@ function authDebug(event, details = {}) {
 }
 
 function fullUrl(path) {
-  const origin = getPublicAppOrigin() || window.location.origin;
+  const origin = getPublicAppUrl() || window.location.origin;
   return `${origin}${appPath(path)}`;
 }
 
@@ -66,6 +69,28 @@ async function setSessionFromHashIfPresent(supabase, hashParams) {
   return { usedHashSession: true, error };
 }
 
+function callbackKey(prefix, search = "", hash = "") {
+  const searchParams = new URLSearchParams(search || "");
+  const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
+  return [
+    prefix,
+    searchParams.get("code") || "",
+    searchParams.get("token_hash") || hashParams.get("token_hash") || "",
+    searchParams.get("type") || hashParams.get("type") || "",
+    Boolean(hashParams.get("access_token"))
+  ].join(":");
+}
+
+function runSingleFlight(map, key, task) {
+  if (map.has(key)) return map.get(key);
+  const promise = task().finally(() => {
+    const schedule = typeof window !== "undefined" ? window.setTimeout.bind(window) : setTimeout;
+    schedule(() => map.delete(key), 5000);
+  });
+  map.set(key, promise);
+  return promise;
+}
+
 function friendlyError(error) {
   if (!error) return null;
   const message = (error.message || "").toLowerCase();
@@ -94,6 +119,15 @@ function friendlyError(error) {
   if (message.includes("inactive recipient") || message.includes("smtp") || message.includes("email rate limit exceeded")) {
     return "We couldn't send that email right now. Please wait a moment and try again.";
   }
+  if (message.includes("redirect") || message.includes("not allowed")) {
+    return "This auth redirect is not allowed yet. Check the Supabase redirect URL allow list.";
+  }
+  if (message.includes("provider") || message.includes("oauth")) {
+    return "Google sign-in is not enabled or its redirect settings do not match. Check Supabase and Google Cloud OAuth settings.";
+  }
+  if (message.includes("invalid api key") || message.includes("project not found") || message.includes("jwt")) {
+    return "Supabase rejected the public auth configuration. Check VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.";
+  }
   if (message.includes("for security purposes") || message.includes("rate limit")) {
     return "Too many attempts. Please wait a moment and try again.";
   }
@@ -103,7 +137,11 @@ function friendlyError(error) {
   if (message.includes("failed to fetch")) {
     return "Couldn't reach Supabase. Check your connection and VITE_SUPABASE_URL.";
   }
-  return error.message || "Something went wrong. Please try again.";
+  const fallback = error.message || "Something went wrong. Please try again.";
+  if (import.meta.env.DEV && error.message && fallback !== error.message) {
+    return `${fallback} Supabase said: ${error.message}`;
+  }
+  return fallback;
 }
 
 export async function signUp({ email, password, fullName, role, captchaToken }) {
@@ -172,10 +210,12 @@ export async function signInWithOAuth(provider = "google", options = {}) {
   const supabase = getSupabase();
   if (!supabase) return { url: null, error: "Supabase client unavailable." };
 
+  const redirectTo = getAuthCallbackUrl(options.next);
+  authDebug("oauth_redirect_started", { provider: safeProvider, redirectTo });
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: safeProvider,
     options: {
-      redirectTo: getAuthCallbackUrl(options.next),
+      redirectTo,
       queryParams: {
         access_type: "offline",
         prompt: "consent"
@@ -365,7 +405,7 @@ export async function startOAuthAccountDeletionReauth({ user, returnPath }) {
   if (!user?.id || !user?.email) throw new Error("You must be signed in to delete your account.");
 
   const provider = primaryOAuthProvider(user.authSignInMethods || []);
-  const origin = getPublicAppOrigin() || window.location.origin;
+  const origin = getPublicAppUrl() || window.location.origin;
   const redirectTo = `${origin}${appPath(returnPath || window.location.pathname)}`;
 
   storePendingOAuthAccountDeletion({
@@ -478,7 +518,7 @@ export async function ensureUserProfile(user, overrides = {}) {
   return { profile: data, error: null };
 }
 
-export async function completeAuthCallback(search = window.location.search, hash = window.location.hash) {
+async function processAuthCallback(search, hash) {
   if (!isSupabaseConfigured()) return { user: null, error: getSupabaseConfigError() || "Supabase is not configured for this deployment." };
   const supabase = getSupabase();
   const searchParams = new URLSearchParams(search || "");
@@ -495,10 +535,17 @@ export async function completeAuthCallback(search = window.location.search, hash
     return { user: null, error: providerError === "access_denied" ? "Google sign-in was canceled." : providerError };
   }
 
+  const {
+    data: { session: existingSession }
+  } = await supabase.auth.getSession();
+
   const code = searchParams.get("code");
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return { user: null, error: friendlyError(error) };
+    if (!existingSession) {
+      authDebug("callback_code_detected", { flow: "oauth" });
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) return { user: null, error: friendlyError(error) };
+    }
   } else {
     const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
     if (error) return { user: null, error: friendlyError(error) };
@@ -519,7 +566,11 @@ export async function completeAuthCallback(search = window.location.search, hash
   return { user: appUser, error: null };
 }
 
-export async function completeEmailVerification(search = window.location.search, hash = window.location.hash) {
+export async function completeAuthCallback(search = window.location.search, hash = window.location.hash) {
+  return runSingleFlight(callbackRequests, callbackKey("oauth", search, hash), () => processAuthCallback(search, hash));
+}
+
+async function processEmailVerification(search, hash) {
   if (!isSupabaseConfigured()) return { user: null, error: getSupabaseConfigError() || "Supabase is not configured for this deployment." };
   const supabase = getSupabase();
   const searchParams = new URLSearchParams(search || "");
@@ -535,6 +586,10 @@ export async function completeEmailVerification(search = window.location.search,
     return { user: null, error: providerError.includes("expired") ? "This verification link has expired. Request a new confirmation email." : providerError };
   }
 
+  const {
+    data: { session: existingSession }
+  } = await supabase.auth.getSession();
+
   const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");
   const rawType = searchParams.get("type") || hashParams.get("type") || "signup";
   const type = rawType === "email" ? "signup" : rawType;
@@ -544,8 +599,11 @@ export async function completeEmailVerification(search = window.location.search,
   } else {
     const code = searchParams.get("code");
     if (code) {
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) return { user: null, error: friendlyError(error) };
+      if (!existingSession) {
+        authDebug("callback_code_detected", { flow: "verify-email" });
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) return { user: null, error: friendlyError(error) };
+      }
     } else {
       const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
       if (error) return { user: null, error: friendlyError(error) };
@@ -567,7 +625,11 @@ export async function completeEmailVerification(search = window.location.search,
   return { user: appUser, error: null };
 }
 
-export async function initializePasswordRecovery(search = window.location.search, hash = window.location.hash) {
+export async function completeEmailVerification(search = window.location.search, hash = window.location.hash) {
+  return runSingleFlight(verificationRequests, callbackKey("verify", search, hash), () => processEmailVerification(search, hash));
+}
+
+async function processPasswordRecovery(search, hash) {
   const supabase = getSupabase();
   if (!supabase) return { hasRecoverySession: false, error: "Supabase client unavailable." };
   const searchParams = new URLSearchParams(search || "");
@@ -580,10 +642,17 @@ export async function initializePasswordRecovery(search = window.location.search
   const providerError = searchParams.get("error_description") || hashParams.get("error_description");
   if (providerError) return { hasRecoverySession: false, error: providerError };
 
+  const {
+    data: { session: existingSession }
+  } = await supabase.auth.getSession();
+
   const code = searchParams.get("code");
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return { hasRecoverySession: false, error: friendlyError(error) };
+    if (!existingSession) {
+      authDebug("callback_code_detected", { flow: "password-recovery" });
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) return { hasRecoverySession: false, error: friendlyError(error) };
+    }
   } else {
     const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
     if (error) return { hasRecoverySession: false, error: friendlyError(error) };
@@ -595,6 +664,10 @@ export async function initializePasswordRecovery(search = window.location.search
   const hasRecoverySession = Boolean(session && (urlType === "recovery" || code || hashParams.get("access_token")));
   authDebug("password_recovery_session_detected", { hasRecoverySession });
   return { hasRecoverySession, error: null };
+}
+
+export async function initializePasswordRecovery(search = window.location.search, hash = window.location.hash) {
+  return runSingleFlight(recoveryRequests, callbackKey("recovery", search, hash), () => processPasswordRecovery(search, hash));
 }
 
 const PLAN_STORAGE_PREFIX = "prelude_plan_";

@@ -1,12 +1,11 @@
 import { api } from "./auth.js";
 import { appPath } from "./appPaths.js";
 import { sanitizeAuthRedirect } from "./authRedirects.js";
-import { getSupabase } from "./supabase.js";
-import { getPublicAppOrigin, isSupabaseConfigured } from "./supabaseConfig.js";
+import { getPublicAppUrl, isSupabaseConfigured } from "./supabaseConfig.js";
 
 /** Where Supabase should send the browser after Google OAuth completes. */
 export function getGoogleOAuthRedirectTo(next = "") {
-  const origin = getPublicAppOrigin() || window.location.origin;
+  const origin = getPublicAppUrl() || window.location.origin;
   const safeNext = sanitizeAuthRedirect(next, "");
   const query = safeNext ? `?next=${encodeURIComponent(safeNext)}` : "";
   return `${origin}${appPath(`/auth/callback${query}`)}`;
@@ -18,37 +17,8 @@ export function getGoogleOAuthRedirectTo(next = "") {
  */
 export async function signInWithGoogle(options = {}) {
   if (isSupabaseConfigured()) {
-    const supabase = getSupabase();
-    if (!supabase) {
-      const message =
-        "Supabase client could not be initialized. Check VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.";
-      console.error("Google OAuth error:", message);
-      return { url: null, error: message };
-    }
-
-    const redirectTo = getGoogleOAuthRedirectTo(options.next);
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-        queryParams: {
-          access_type: "offline",
-          prompt: "consent"
-        }
-      }
-    });
-
-    if (error) {
-      console.error("Google OAuth error:", error);
-      return { url: null, error: error.message || "Google sign-in failed." };
-    }
-
-    if (data?.url) {
-      return { url: data.url, error: null };
-    }
-
-    return { url: null, error: "Google sign-in did not return a redirect URL." };
+    const { signInWithOAuth } = await import("./supabaseAuth.js");
+    return signInWithOAuth("google", options);
   }
 
   try {
