@@ -1,60 +1,42 @@
-import { useRef } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, GraduationCap, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import AccountPanel from "./AccountPanel.jsx";
 import LanguageSwitcher from "./LanguageSwitcher.jsx";
-import { LowerFooter } from "./Sections.jsx";
 import Navbar from "./Navbar.jsx";
 import PreludeChat from "./PreludeChat.jsx";
 import SignInModal from "./SignInModal.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useLanguage } from "../context/LanguageContext.jsx";
 import { EXAMPLE_MENTORS } from "../data/mentors.js";
 import { appPath } from "../lib/appPaths.js";
 import { dashboardPathForRole, messagesPathForRole } from "../lib/onboardingRoutes.js";
 
-function MentorEmblem({ mentor }) {
-  if (mentor.fallbackEmblem) {
-    return <span className="mentors-page__emblem-fallback">{mentor.fallbackEmblem}</span>;
+const MENTOR_REVIEWS = [
+  {
+    quote: "Declan helped me turn my rough essay draft into something that sounded like me instead of a template.",
+    name: "Alex Williams",
+    role: "Brown student"
+  },
+  {
+    quote: "Ryan gave me a school-list reality check in ten minutes that saved me weeks of guessing.",
+    name: "Kye Taylor",
+    role: "Penn student"
+  },
+  {
+    quote: "Asim helped me turn a bunch of activities into an actual application story.",
+    name: "Kai Thomas",
+    role: "Georgia Tech student"
+  },
+  {
+    quote: "Jess made my essay feedback specific, honest, and actually useful in a way I could act on.",
+    name: "Keegan Walker",
+    role: "Brown student"
   }
-
-  return (
-    <img
-      src={mentor.emblem}
-      alt=""
-      className="mentors-page__emblem"
-      width={44}
-      height={44}
-      loading="lazy"
-      decoding="async"
-      aria-hidden="true"
-    />
-  );
-}
+];
 
 function MentorsPageContent() {
   const { requestPersonalizedAi, user } = useAuth();
-  const { t } = useLanguage();
-  const mentorScrollerRef = useRef(null);
   const findMorePath = user ? (user.role === "parent" ? dashboardPathForRole(user.role) : messagesPathForRole(user.role)) : "/login";
-  const emptyMentorCards = ["empty-mentor-card-1", "empty-mentor-card-2"];
-  const mentorCardsPerScroll = 4;
-
-  const scrollMentors = (direction) => {
-    const scroller = mentorScrollerRef.current;
-
-    if (!scroller) return;
-
-    const firstCard = scroller.querySelector(".mentors-page__card");
-    const cardWidth = firstCard?.getBoundingClientRect().width ?? 300;
-    const styles = window.getComputedStyle(scroller);
-    const gap = Number.parseFloat(styles.columnGap || styles.gap || "0") || 0;
-
-    scroller.scrollBy({
-      left: direction * mentorCardsPerScroll * (cardWidth + gap),
-      behavior: "smooth"
-    });
-  };
+  const featuredMentors = EXAMPLE_MENTORS.slice(0, 5);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -62,125 +44,67 @@ function MentorsPageContent() {
       <div className="relative z-10">
         <Navbar />
         <main className="mentors-page">
-          <section className="mentors-page__hero" aria-labelledby="mentors-page-title">
+          <section className="mentors-page__onepager" aria-labelledby="mentors-page-title">
             <div className="mentors-page__hero-copy">
               <p className="mentors-page__eyebrow">
                 <Sparkles className="h-4 w-4" aria-hidden="true" />
-                {t("mentors.eyebrow")}
+                Near-peer mentor matching
               </p>
               <h1 id="mentors-page-title" className="mentors-page__title">
-                {t("mentors.headline")}
+                Meet mentors who made it.
               </h1>
-              <p className="mentors-page__intro">{t("mentors.body")}</p>
+              <p className="mentors-page__intro">
+                Prelude matches students with near-peer mentors for essays, school lists, and application momentum.
+              </p>
               <div className="mentors-page__actions">
                 <Link to="/register" className="mentors-page__primary-action">
-                  {t("mentors.primaryCta")}
+                  Get matched
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
                 <a href={appPath("/#pricing")} className="mentors-page__secondary-action">
-                  {t("mentors.secondaryCta")}
+                  View plans
                 </a>
               </div>
             </div>
-            <div className="mentors-page__hero-card" aria-hidden="true">
-              <GraduationCap className="h-8 w-8" />
-              <span>{t("mentors.heroCardTitle")}</span>
-              <strong>{t("mentors.heroCardStat")}</strong>
-            </div>
-          </section>
 
-          <section className="mentors-page__directory" aria-labelledby="mentors-directory-title">
-            <div className="mentors-page__directory-head">
-              <div className="mentors-page__section-heading">
-                <p className="mentors-page__eyebrow">{t("mentors.directoryEyebrow")}</p>
-                <h2 id="mentors-directory-title">{t("mentors.directoryTitle")}</h2>
-              </div>
-              <div className="mentors-page__scroll-controls" aria-label="Mentor cards carousel controls">
-                <button
-                  type="button"
-                  className="mentors-page__scroll-button"
-                  onClick={() => scrollMentors(-1)}
-                  aria-label="Scroll mentor cards left"
+            <div className="mentors-page__mentor-art" aria-label="Prelude mentors">
+              {featuredMentors.map((mentor, index) => (
+                <article
+                  className="mentors-page__stamp"
+                  key={mentor.name}
                 >
-                  <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className="mentors-page__scroll-button"
-                  onClick={() => scrollMentors(1)}
-                  aria-label="Scroll mentor cards right"
-                >
-                  <ChevronRight className="h-5 w-5" aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-            <div className="mentors-page__grid" ref={mentorScrollerRef}>
-              {EXAMPLE_MENTORS.map((mentor) => (
-                <article className="mentors-page__card" key={mentor.name} tabIndex={0}>
-                  <div className="mentors-page__photo-shell">
-                    <img
-                      className="mentors-page__photo"
-                      src={mentor.photo}
-                      alt={`${mentor.name}, ${mentor.university}`}
-                      style={{ objectPosition: mentor.objectPosition }}
-                      width={420}
-                      height={360}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </div>
-                  <div className="mentors-page__card-body">
-                    <div className="mentors-page__institution-row">
-                      <MentorEmblem mentor={mentor} />
-                      <div>
-                        <span>{mentor.institutionShort}</span>
-                        <p>{mentor.university}</p>
-                      </div>
-                    </div>
-                    <h3>{mentor.name}</h3>
-                    <p className="mentors-page__major">{mentor.major}</p>
-                    <p className="mentors-page__description">{mentor.description}</p>
-                  </div>
+                  <img
+                    src={mentor.photo}
+                    alt={`${mentor.name}, ${mentor.university}`}
+                    style={{ objectPosition: mentor.objectPosition }}
+                    width={260}
+                    height={260}
+                    loading="eager"
+                    decoding="async"
+                  />
+                  <span>{mentor.institutionShort}</span>
                 </article>
               ))}
-              {emptyMentorCards.map((cardId) => (
-                <article className="mentors-page__card mentors-page__card--empty" key={cardId} aria-label="Open mentor card slot" tabIndex={0}>
-                  <div className="mentors-page__photo-shell mentors-page__photo-shell--empty" aria-hidden="true">
-                    <span className="mentors-page__empty-photo-mark" />
-                  </div>
-                  <div className="mentors-page__card-body mentors-page__card-body--empty" aria-hidden="true">
-                    <div className="mentors-page__institution-row mentors-page__institution-row--empty">
-                      <span className="mentors-page__emblem-fallback mentors-page__empty-emblem" />
-                      <div className="mentors-page__empty-lines">
-                        <span />
-                        <span />
-                      </div>
-                    </div>
-                    <span className="mentors-page__empty-title" />
-                    <span className="mentors-page__empty-major" />
-                    <div className="mentors-page__empty-description">
-                      <span />
-                      <span />
-                      <span />
-                    </div>
-                  </div>
+            </div>
+
+            <div className="mentors-page__review-carousel" aria-label="Student and parent reviews">
+              {[...MENTOR_REVIEWS, ...MENTOR_REVIEWS].map((review, index) => (
+                <article className="mentors-page__review-card" key={`${review.name}-${index}`}>
+                  <header>
+                    <strong>{review.name}</strong>
+                    <span>{review.role}</span>
+                  </header>
+                  <p>“{review.quote}”</p>
                 </article>
               ))}
-              <article className="mentors-page__card mentors-page__find-card">
-                <div className="mentors-page__find-card-inner">
-                  <Sparkles className="h-7 w-7" aria-hidden="true" />
-                  <h3>Find more mentors</h3>
-                  <p>Browse more Prelude mentors and start the right conversation for your goals.</p>
-                  <Link to={findMorePath} className="mentors-page__find-action">
-                    Find more mentors
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
-                </div>
-              </article>
             </div>
+
+            <p className="mentors-page__note">
+              Already have an account? Open your dashboard to message mentors and review matches.
+            </p>
+            <Link to={findMorePath} className="mentors-page__text-link">Open mentor workspace</Link>
           </section>
         </main>
-        <LowerFooter />
       </div>
       <PreludeChat />
       <SignInModal />
