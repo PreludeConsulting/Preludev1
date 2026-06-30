@@ -1,6 +1,25 @@
 const mediaBase = import.meta.env.BASE_URL;
 
-function logoPath(id, ext) {
+const FULL_ALT_NAMES = {
+  ucla: "University of California, Los Angeles",
+  "uc-berkeley": "University of California, Berkeley",
+  "notre-dame": "University of Notre Dame",
+  usc: "University of Southern California",
+  unc: "University of North Carolina at Chapel Hill"
+};
+
+const LOGO_DISPLAY = {
+  harvard: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
+  "johns-hopkins": { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
+  brown: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
+  cornell: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
+  "notre-dame": { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
+  georgetown: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
+  usc: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" }
+};
+
+function logoPath(id) {
+  const ext = "svg";
   return `${mediaBase}media/universities/${id}.${ext}`;
 }
 
@@ -32,9 +51,9 @@ export const UNIVERSITIES = [
   { id: "unc", name: "UNC Chapel Hill", shortName: "UNC" }
 ].map((school) => ({
   ...school,
-  logo: logoPath(school.id, "svg"),
-  logoFallback: logoPath(school.id, "png"),
-  alt: `${school.name} logo`
+  logo: logoPath(school.id),
+  logoStyle: LOGO_DISPLAY[school.id],
+  alt: `${FULL_ALT_NAMES[school.id] || school.name} logo`
 }));
 
 /** Subset shown in the dashboard mockup “My Colleges” row */

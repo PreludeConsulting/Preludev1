@@ -177,7 +177,7 @@ const STATE_REGION = {
 };
 
 function logoPath(id) {
-  return `${mediaBase}media/universities/${id}.png`;
+  return `${mediaBase}media/universities/${id}.svg`;
 }
 
 function tierFromRank(rank) {

@@ -5412,9 +5412,9 @@ html[lang="es"] .shopify-hero__headline-line {
 .university-marquee__logo {
   display: block;
   flex-shrink: 0;
-  height: clamp(1.625rem, 3.2vw, 2.5rem);
+  height: var(--university-logo-height, clamp(1.625rem, 3.2vw, 2.5rem));
   width: auto;
-  max-width: clamp(6.5rem, 14vw, 10.5rem);
+  max-width: var(--university-logo-max-width, clamp(6.5rem, 14vw, 10.5rem));
   object-fit: contain;
   object-position: center;
   opacity: 0.92;
