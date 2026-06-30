@@ -203,7 +203,7 @@ export default function MessagesPanel({
                   className={c.id === active?.id ? "dash-convo-row dash-convo-row--active" : "dash-convo-row"}
                   onClick={() => selectConversation(c.id)}
                 >
-                  <Avatar name={c.participant.name} size="sm" />
+                  <Avatar name={c.participant.name} avatarUrl={c.participant.avatarUrl} size="sm" />
                   <div className="dash-convo-row__body">
                     <div className="dash-convo-row__head">
                       <strong>{c.participant.name}</strong>
@@ -227,7 +227,7 @@ export default function MessagesPanel({
               <button type="button" className="dash-chat-app__back lg:hidden" onClick={() => setMobileShowChat(false)} aria-label="Back">
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <Avatar name={active.participant.name} />
+              <Avatar name={active.participant.name} avatarUrl={active.participant.avatarUrl} />
               <div className="dash-chat-app__header-text">
                 <strong>{active.participant.name}</strong>
                 <span>{active.participant.role} · {active.participant.context}</span>
@@ -251,7 +251,7 @@ export default function MessagesPanel({
                   <div key={`d-${idx}`} className="dash-chat-date">{g.label}</div>
                 ) : (
                   <div key={`m-${idx}`} className={`dash-chat-group dash-chat-group--${g.side}`}>
-                    {g.side === "them" ? <Avatar name={active.participant.name} size="sm" /> : null}
+                    {g.side === "them" ? <Avatar name={active.participant.name} avatarUrl={active.participant.avatarUrl} size="sm" /> : null}
                     <div className="dash-chat-group__bubbles">
                       {g.items.map((msg) => (
                         <div

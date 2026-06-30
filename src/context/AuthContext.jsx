@@ -92,6 +92,15 @@ export function AuthProvider({ children }) {
     }
   }, [ready]);
 
+  useEffect(() => {
+    function handleAvatarUpdated(event) {
+      const avatarUrl = event.detail?.avatarUrl || "";
+      setUser((current) => current ? { ...current, avatarUrl: avatarUrl || null } : current);
+    }
+    window.addEventListener("prelude:avatar-updated", handleAvatarUpdated);
+    return () => window.removeEventListener("prelude:avatar-updated", handleAvatarUpdated);
+  }, []);
+
   const beginLoginVerification = useCallback(async () => {
     if (!useSupabase) {
       setLoginVerified(true);

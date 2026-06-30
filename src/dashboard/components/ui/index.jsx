@@ -238,8 +238,8 @@ export function DeadlineRow({ title, dueDate, category, priority, done }) {
   );
 }
 
-export function Avatar({ name, avatarUrl, size = "md" }) {
-  return <UserAvatar name={name} avatarUrl={avatarUrl} size={size} className={cn("dash-avatar", `dash-avatar--${size}`)} />;
+export function Avatar({ name, user, profile, avatarUrl, oauthAvatarUrl, size = "md" }) {
+  return <UserAvatar name={name} user={user} profile={profile} avatarUrl={avatarUrl} oauthAvatarUrl={oauthAvatarUrl} size={size} className={cn("dash-avatar", `dash-avatar--${size}`)} />;
 }
 
 export function MeetingPreviewCard({ meeting, mentorName, studentName, role, onView }) {
@@ -282,7 +282,7 @@ export function StudentCard({ student, basePath, onSchedule }) {
   return (
     <article className="dash-student-card">
       <div className="dash-student-card__head">
-        <Avatar name={student.name} size="lg" />
+        <Avatar name={student.name} avatarUrl={student.avatarUrl} size="lg" />
         <div>
           <h3 className="dash-student-card__name">{student.name}</h3>
           <p className="dash-student-card__meta">

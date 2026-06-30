@@ -3,6 +3,7 @@ import { Link, NavLink } from "react-router-dom";
 import PreludeLogo from "../../components/PreludeLogo.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { cn } from "../../lib/utils.js";
+import { useDashboardData } from "../context/DashboardDataContext.jsx";
 import { Avatar } from "./ui/index.jsx";
 
 export default function DashboardSidebar({
@@ -15,6 +16,7 @@ export default function DashboardSidebar({
   onMobileClose
 }) {
   const { user } = useAuth();
+  const { profile } = useDashboardData();
   const roleLabel = user?.role === "mentor" ? "Mentor" : "Student";
   const showLabels = expanded || mobileOpen;
 
@@ -61,7 +63,7 @@ export default function DashboardSidebar({
       </nav>
 
       <div className="dash-sidebar__profile" title={!showLabels ? user?.name : undefined}>
-        <Avatar name={user?.name} />
+        <Avatar name={user?.name} user={user} profile={profile} />
         {showLabels ? (
           <div className="dash-sidebar__profile-text">
             <p className="dash-sidebar__profile-name">{user?.name}</p>

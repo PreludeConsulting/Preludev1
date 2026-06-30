@@ -4294,6 +4294,72 @@ img.dash-avatar {
   align-items: center;
 }
 
+.dash-avatar-crop {
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+  padding: 1rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 1.1rem;
+  background: hsl(var(--background) / 0.72);
+}
+
+.dash-avatar-crop__stage {
+  position: relative;
+  display: grid;
+  width: 16.25rem;
+  height: 16.25rem;
+  max-width: min(16.25rem, calc(100vw - 4rem));
+  max-height: min(16.25rem, calc(100vw - 4rem));
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid hsl(var(--primary));
+  border-radius: 999px;
+  background: linear-gradient(135deg, hsl(var(--primary)), #4c9aa7);
+  color: #fff;
+  cursor: grab;
+  font-size: 3rem;
+  font-weight: 800;
+  touch-action: none;
+  user-select: none;
+  box-shadow: 0 18px 44px rgb(74 58 255 / 0.16);
+}
+
+.dash-avatar-crop__stage--dragging {
+  cursor: grabbing;
+}
+
+.dash-avatar-crop__stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dash-avatar-crop__zoom {
+  display: grid;
+  width: min(18rem, 100%);
+  gap: 0.45rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.dash-avatar-crop__zoom input {
+  width: 100%;
+  accent-color: hsl(var(--primary));
+}
+
+.dash-avatar-crop__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: center;
+}
+
+.dash-avatar-crop__save {
+  border-color: hsl(var(--primary) / 0.24);
+  color: hsl(var(--primary));
+}
+
 .dash-setting-row {
   display: flex;
   align-items: center;

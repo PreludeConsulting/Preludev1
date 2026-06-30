@@ -12,7 +12,7 @@ export default function MentorStudentDirectoryCard({ student, basePath }) {
   return (
     <article className="dash-mentor-directory-card">
       <div className="dash-mentor-directory-card__head">
-        <Avatar name={student.name} size="lg" />
+        <Avatar name={student.name} avatarUrl={student.avatarUrl} size="lg" />
         <div className="dash-mentor-directory-card__identity">
           <h3 className="dash-mentor-directory-card__name">{student.name}</h3>
           <p className="dash-mentor-directory-card__meta">{student.grade} Grade</p>

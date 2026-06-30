@@ -22,7 +22,6 @@ export default function DashboardProductNav({ navItems, basePath }) {
   const tabsRef = useRef(null);
   const planName = planDetails?.name || user?.planName || "Basic";
   const firstName = (user?.firstName || user?.name || "Account").trim().split(/\s+/)[0] || "Account";
-  const avatarUrl = profile?.avatarUrl || user?.avatarUrl || "";
   const unreadCount = useMemo(
     () => notifications.filter((item) => item.unread).length,
     [notifications]
@@ -201,7 +200,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
             aria-haspopup="menu"
             aria-label="Account menu"
           >
-            <Avatar name={user?.name} avatarUrl={avatarUrl} />
+            <Avatar name={user?.name} user={user} profile={profile} />
             <div className="dash-product-nav__profile-text">
               <p className="dash-product-nav__name">{firstName}</p>
             </div>

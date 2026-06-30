@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { cn } from "../../lib/utils.js";
+import { useDashboardData } from "../context/DashboardDataContext.jsx";
 import { Avatar, IconButton } from "./ui/index.jsx";
 
 function segmentFromPath(pathname) {
@@ -12,6 +13,7 @@ function segmentFromPath(pathname) {
 
 export default function DashboardHeader({ routeMeta, basePath, onMenuToggle }) {
   const { user, signOut, planDetails } = useAuth();
+  const { profile } = useDashboardData();
   const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -79,7 +81,7 @@ export default function DashboardHeader({ routeMeta, basePath, onMenuToggle }) {
             aria-haspopup="menu"
             aria-expanded={profileOpen}
           >
-            <Avatar name={user?.name} avatarUrl={user?.avatarUrl} />
+            <Avatar name={user?.name} user={user} profile={profile} />
             <span className="dash-topbar__user-text">
               <span className="dash-topbar__name">{firstName}</span>
             </span>

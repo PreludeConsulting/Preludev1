@@ -3,6 +3,7 @@
  */
 
 import { getSupabase } from "./supabase.js";
+import { isOAuthAvatarUrl } from "./avatar.js";
 
 const BUCKET = "avatars";
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -31,6 +32,7 @@ function avatarProfileErrorMessage(error) {
 }
 
 function extensionFor(file) {
+  if (file.type === "image/webp") return "webp";
   const map = {
     "image/jpeg": "jpg",
     "image/png": "png",
@@ -47,17 +49,43 @@ export function validateAvatarFile(file) {
   return null;
 }
 
-export async function uploadAvatar(userId, file) {
+function uniqueAvatarPath(userId, extension = "webp") {
+  const suffix = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${userId}/avatar-${suffix}.${extension}`;
+}
+
+function storagePathFromPublicUrl(url, userId) {
+  if (!url || isOAuthAvatarUrl(url)) return null;
+  try {
+    const parsed = new URL(url);
+    const marker = `/storage/v1/object/public/${BUCKET}/`;
+    const idx = parsed.pathname.indexOf(marker);
+    if (idx === -1) return null;
+    const path = decodeURIComponent(parsed.pathname.slice(idx + marker.length));
+    return path.startsWith(`${userId}/`) ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+async function removePreviousAvatar(supabase, userId, previousAvatarUrl) {
+  const previousPath = storagePathFromPublicUrl(previousAvatarUrl, userId);
+  if (!previousPath) return null;
+  const { error } = await supabase.storage.from(BUCKET).remove([previousPath]);
+  return error;
+}
+
+export async function uploadAvatar(userId, file, options = {}) {
   const validation = validateAvatarFile(file);
   if (validation) return { url: null, error: validation };
 
   const supabase = getSupabase();
   if (!supabase) return { url: null, error: "Supabase is not configured, so profile photo upload is unavailable." };
-  const path = `${userId}/avatar.${extensionFor(file)}`;
+  const path = uniqueAvatarPath(userId, extensionFor(file));
 
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-    upsert: true,
-    cacheControl: "3600",
+    upsert: false,
+    cacheControl: "31536000",
     contentType: file.type
   });
 
@@ -72,17 +100,24 @@ export async function uploadAvatar(userId, file) {
     .eq("id", userId);
 
   if (profileError) return { url: null, error: avatarProfileErrorMessage(profileError) };
+  await removePreviousAvatar(supabase, userId, options.previousAvatarUrl);
   return { url: publicUrl, error: null };
 }
 
-export async function removeAvatar(userId) {
+export async function removeAvatar(userId, options = {}) {
   const supabase = getSupabase();
   if (!supabase) return { error: "Supabase is not configured, so profile photo removal is unavailable." };
-  const { data: files } = await supabase.storage.from(BUCKET).list(userId);
-  if (files?.length) {
-    const paths = files.map((f) => `${userId}/${f.name}`);
-    const { error: removeError } = await supabase.storage.from(BUCKET).remove(paths);
+  const previousPath = storagePathFromPublicUrl(options.previousAvatarUrl, userId);
+  if (previousPath) {
+    const { error: removeError } = await supabase.storage.from(BUCKET).remove([previousPath]);
     if (removeError) return { error: avatarStorageErrorMessage(removeError) };
+  } else {
+    const { data: files } = await supabase.storage.from(BUCKET).list(userId);
+    if (files?.length) {
+      const paths = files.map((f) => `${userId}/${f.name}`);
+      const { error: removeError } = await supabase.storage.from(BUCKET).remove(paths);
+      if (removeError) return { error: avatarStorageErrorMessage(removeError) };
+    }
   }
   const { error } = await supabase
     .from("profiles")

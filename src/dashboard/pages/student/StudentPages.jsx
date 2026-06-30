@@ -828,7 +828,7 @@ export function StudentProfileStats() {
     <div className="dash-page dash-page--premium">
       <SectionCard className="dash-profile-hero dash-panel" padding={false}>
         <div className="dash-profile-hero__inner">
-          <Avatar name={user?.name} size="lg" />
+          <Avatar name={user?.name} user={user} profile={profile} size="lg" />
           <div className="dash-profile-hero__id">
             <h2 className="dash-profile-hero__name">{user?.name || "Your name"}</h2>
             <p className="dash-profile-hero__email"><Mail className="h-4 w-4" /> {user?.email || "Add your email"}</p>

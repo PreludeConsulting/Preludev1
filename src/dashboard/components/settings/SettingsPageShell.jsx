@@ -4,6 +4,7 @@ import { Avatar, DashBadge, SectionCard } from "../ui/index.jsx";
 
 export default function SettingsPageShell({
   user,
+  profile,
   roleLabel,
   planName,
   tabs,
@@ -18,7 +19,7 @@ export default function SettingsPageShell({
     <div className="dash-page dash-page--premium dash-settings-page">
       <SectionCard className="dash-settings-id dash-panel" padding={false}>
         <div className="dash-settings-id__inner">
-          <Avatar name={user?.name} avatarUrl={user?.avatarUrl} size="lg" />
+          <Avatar name={user?.name} user={user} profile={profile} size="lg" />
           <div className="dash-settings-id__text">
             <h2 className="dash-settings-id__name">{user?.name || "Your account"}</h2>
             <p className="dash-settings-id__email">

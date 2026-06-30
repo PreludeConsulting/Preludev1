@@ -41,6 +41,12 @@
   font-weight: 800;
   font-size: 0.75rem;
   flex-shrink: 0;
+  object-fit: cover;
+  overflow: hidden;
+}
+
+img.account-menu-btn__avatar {
+  display: block;
 }
 
 .account-menu-btn__name {

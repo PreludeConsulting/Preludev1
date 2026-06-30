@@ -8,13 +8,19 @@ import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
 import { mapOnboardingToUserFields } from "./preludeMatchService.js";
 import { readParentInviteStepComplete } from "./parentLinks.js";
 import { normalizeAuthProviders } from "./authSignInMethod.js";
+import { resolveAvatarUrl } from "./avatar.js";
 
 export function mapSupabaseUser(session, profile = null, onboarding = null, hasAssignedMentor = false, mentorQuestionnaire = null) {
   if (!session?.user) return null;
   const u = session.user;
   const meta = u.user_metadata || {};
   const fullName = (profile?.full_name || meta.full_name || "").trim();
-  const avatarUrl = (profile?.avatar_url || meta.avatar_url || meta.picture || "").trim() || null;
+  const oauthAvatarUrl = (meta.avatar_url || meta.picture || "").trim() || null;
+  const avatarUrl = resolveAvatarUrl({
+    profile,
+    user: { avatarUrl: profile?.avatar_url, oauthAvatarUrl },
+    oauthAvatarUrl
+  }) || null;
   const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
   const role = (profile?.role || meta.role || "student").toLowerCase();
   const cachedPlan = typeof window !== "undefined" ? window.localStorage.getItem(`prelude_plan_${u.id}`) : null;
@@ -50,6 +56,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     authProvider: "supabase",
     authSignInMethods,
     avatarUrl,
+    oauthAvatarUrl,
     roleSelectionComplete,
     ...onboardingFields,
     parentInviteStepComplete,

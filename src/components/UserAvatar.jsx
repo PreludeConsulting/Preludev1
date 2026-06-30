@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-
-function userInitial(name) {
-  const part = (name || "P").trim().split(/\s+/)[0];
-  return (part[0] || "P").toUpperCase();
-}
+import { getInitials, resolveAvatarUrl } from "../lib/avatar.js";
 
 const SIZE_CLASS = {
   sm: "user-avatar--sm",
@@ -12,18 +8,19 @@ const SIZE_CLASS = {
 };
 
 /** Default avatar with optional uploaded profile image. */
-export default function UserAvatar({ name, avatarUrl, size = "md", className = "" }) {
+export default function UserAvatar({ name, user, profile, avatarUrl, oauthAvatarUrl, size = "md", className = "" }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const initial = userInitial(name);
+  const src = resolveAvatarUrl({ profile, user, avatarUrl, oauthAvatarUrl });
+  const initial = getInitials(name || profile?.fullName || profile?.full_name || user?.name || user?.email, "P").slice(0, 1);
 
   useEffect(() => {
     setImageFailed(false);
-  }, [avatarUrl]);
+  }, [src]);
 
-  if (avatarUrl && !imageFailed) {
+  if (src && !imageFailed) {
     return (
       <img
-        src={avatarUrl}
+        src={src}
         alt=""
         className={`user-avatar user-avatar--photo ${SIZE_CLASS[size] || SIZE_CLASS.md} ${className}`}
         onError={() => setImageFailed(true)}
@@ -37,6 +34,6 @@ export default function UserAvatar({ name, avatarUrl, size = "md", className = "
   );
 }
 
-export function Avatar({ name, avatarUrl, size = "md" }) {
-  return <UserAvatar name={name} avatarUrl={avatarUrl} size={size} className="dash-avatar" />;
+export function Avatar({ name, user, profile, avatarUrl, oauthAvatarUrl, size = "md" }) {
+  return <UserAvatar name={name} user={user} profile={profile} avatarUrl={avatarUrl} oauthAvatarUrl={oauthAvatarUrl} size={size} className="dash-avatar" />;
 }

@@ -160,7 +160,7 @@ function ChatPanel({
         <div className="dash-msg-fab__header-main">
           {activeThread ? (
             <>
-              <Avatar name={activeThread.tabLabel || activeThread.label} size="sm" />
+              <Avatar name={activeThread.tabLabel || activeThread.label} avatarUrl={activeThread.avatarUrl} size="sm" />
               <div className="dash-msg-fab__header-text">
                 <strong>{activeThread.label}</strong>
                 <span>{activeThread.sublabel || activeThread.participantRole}</span>

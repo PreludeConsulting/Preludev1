@@ -17,6 +17,7 @@ import {
   storePendingOAuthAccountDeletion
 } from "./accountDeletionFlow.js";
 import { primaryOAuthProvider } from "./authSignInMethod.js";
+import { isOAuthAvatarUrl } from "./avatar.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
 const OAUTH_PROVIDERS = ["google"];
@@ -535,9 +536,10 @@ export async function ensureUserProfile(user, overrides = {}) {
   const existing = await getProfile(user.id);
   if (existing.profile) {
     const metadata = safeOAuthMetadata(user);
+    const existingAvatar = isOAuthAvatarUrl(existing.profile.avatar_url) ? null : existing.profile.avatar_url;
     const update = {
       email: existing.profile.email || overrides.email || metadata.email || null,
-      avatar_url: existing.profile.avatar_url || overrides.avatarUrl || metadata.avatarUrl || null,
+      avatar_url: existingAvatar || overrides.avatarUrl || null,
       full_name: existing.profile.full_name || overrides.fullName || metadata.fullName || null,
       updated_at: new Date().toISOString()
     };
@@ -557,7 +559,7 @@ export async function ensureUserProfile(user, overrides = {}) {
     id: user.id,
     email: overrides.email || metadata.email || null,
     full_name: overrides.fullName || metadata.fullName || null,
-    avatar_url: overrides.avatarUrl || metadata.avatarUrl || null,
+    avatar_url: overrides.avatarUrl || null,
     role,
     role_selection_complete: Boolean(overrides.roleSelectionComplete)
   };

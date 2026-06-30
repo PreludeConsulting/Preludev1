@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bell,
@@ -20,6 +20,7 @@ import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dash
 import { getDemoLinkedChildren, listLinkedChildren } from "../../../lib/parentLinks.js";
 import { shouldUseDemoFixtures } from "../../../lib/devAuthBypass.js";
 import { removeAvatar, uploadAvatar, validateAvatarFile } from "../../../lib/supabaseStorage.js";
+import { emitAvatarUpdated, getInitials, isOAuthAvatarUrl, resolveAvatarUrl } from "../../../lib/avatar.js";
 import IntegrationConnect from "../../components/IntegrationConnect.jsx";
 import SettingsPageShell from "../../components/settings/SettingsPageShell.jsx";
 import SecuritySettingsPanel from "../../components/settings/SecuritySettingsPanel.jsx";
@@ -27,6 +28,168 @@ import { SaveRow, SettingSelect, SettingToggle } from "../../components/settings
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { loadPreferences, savePreferences } from "../../lib/dashboardPreferences.js";
 import { SecondaryButton, SectionCard } from "../../components/ui/index.jsx";
+
+const AVATAR_EXPORT_SIZE = 512;
+const AVATAR_EDITOR_SIZE = 260;
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function imageToCanvasBlob(canvas) {
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), "image/webp", 0.92);
+  });
+}
+
+function getPoint(event) {
+  const point = event.touches?.[0] || event;
+  return { x: point.clientX, y: point.clientY };
+}
+
+function AvatarCropEditor({ file, name, onCancel, onSave, saving }) {
+  const [imageUrl, setImageUrl] = useState("");
+  const [image, setImage] = useState(null);
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef(null);
+  const canvasRef = useRef(null);
+  const initials = getInitials(name, "P").slice(0, 1);
+
+  useEffect(() => {
+    if (!file) return undefined;
+    const url = URL.createObjectURL(file);
+    setImageUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  useEffect(() => {
+    if (!imageUrl) return undefined;
+    let cancelled = false;
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      setImage(img);
+      setZoom(1);
+      setOffset({ x: 0, y: 0 });
+    };
+    img.src = imageUrl;
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUrl]);
+
+  const drawPreview = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !image) return;
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = AVATAR_EDITOR_SIZE * dpr;
+    canvas.height = AVATAR_EDITOR_SIZE * dpr;
+    canvas.style.width = `${AVATAR_EDITOR_SIZE}px`;
+    canvas.style.height = `${AVATAR_EDITOR_SIZE}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, AVATAR_EDITOR_SIZE, AVATAR_EDITOR_SIZE);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(AVATAR_EDITOR_SIZE / 2, AVATAR_EDITOR_SIZE / 2, AVATAR_EDITOR_SIZE / 2, 0, Math.PI * 2);
+    ctx.clip();
+    const baseScale = Math.max(AVATAR_EDITOR_SIZE / image.width, AVATAR_EDITOR_SIZE / image.height);
+    const scale = baseScale * zoom;
+    const width = image.width * scale;
+    const height = image.height * scale;
+    const x = (AVATAR_EDITOR_SIZE - width) / 2 + offset.x;
+    const y = (AVATAR_EDITOR_SIZE - height) / 2 + offset.y;
+    ctx.drawImage(image, x, y, width, height);
+    ctx.restore();
+  }, [image, offset, zoom]);
+
+  useEffect(() => {
+    drawPreview();
+  }, [drawPreview]);
+
+  function startDrag(event) {
+    if (!image || saving) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    const point = getPoint(event);
+    dragRef.current = { point, offset };
+    setDragging(true);
+  }
+
+  function moveDrag(event) {
+    if (!dragRef.current || saving) return;
+    event.preventDefault();
+    const point = getPoint(event);
+    const dx = point.x - dragRef.current.point.x;
+    const dy = point.y - dragRef.current.point.y;
+    setOffset({
+      x: dragRef.current.offset.x + dx,
+      y: dragRef.current.offset.y + dy
+    });
+  }
+
+  function endDrag() {
+    dragRef.current = null;
+    setDragging(false);
+  }
+
+  async function handleSave() {
+    if (!image) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = AVATAR_EXPORT_SIZE;
+    canvas.height = AVATAR_EXPORT_SIZE;
+    const ctx = canvas.getContext("2d");
+    const exportScale = AVATAR_EXPORT_SIZE / AVATAR_EDITOR_SIZE;
+    const baseScale = Math.max(AVATAR_EDITOR_SIZE / image.width, AVATAR_EDITOR_SIZE / image.height);
+    const scale = baseScale * zoom * exportScale;
+    const width = image.width * scale;
+    const height = image.height * scale;
+    const x = (AVATAR_EXPORT_SIZE - width) / 2 + offset.x * exportScale;
+    const y = (AVATAR_EXPORT_SIZE - height) / 2 + offset.y * exportScale;
+    ctx.clearRect(0, 0, AVATAR_EXPORT_SIZE, AVATAR_EXPORT_SIZE);
+    ctx.drawImage(image, x, y, width, height);
+    const blob = await imageToCanvasBlob(canvas);
+    if (!blob) return;
+    const croppedFile = new File([blob], "avatar.webp", { type: "image/webp" });
+    await onSave(croppedFile);
+  }
+
+  return (
+    <div className="dash-avatar-crop" role="dialog" aria-label="Edit profile picture">
+      <div
+        className={`dash-avatar-crop__stage${dragging ? " dash-avatar-crop__stage--dragging" : ""}`}
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
+        {image ? <canvas ref={canvasRef} aria-label="Circular crop preview" /> : <span>{initials}</span>}
+      </div>
+      <label className="dash-avatar-crop__zoom">
+        <span>Zoom</span>
+        <input
+          type="range"
+          min="1"
+          max="3"
+          step="0.01"
+          value={zoom}
+          onChange={(event) => setZoom(clamp(Number(event.target.value), 1, 3))}
+          disabled={!image || saving}
+        />
+      </label>
+      <div className="dash-avatar-crop__actions">
+        <SecondaryButton type="button" className="dash-btn--sm" onClick={onCancel} disabled={saving}>
+          Cancel
+        </SecondaryButton>
+        <SecondaryButton type="button" className="dash-btn--sm dash-avatar-crop__save" onClick={handleSave} disabled={!image || saving}>
+          {saving ? "Saving…" : "Save photo"}
+        </SecondaryButton>
+      </div>
+    </div>
+  );
+}
 
 const LANGUAGE_OPTIONS = [
   { value: "en", label: "English" },
@@ -49,6 +212,13 @@ function cleanText(value) {
 }
 
 function accountFormFromUser(user, profile, fallbackRole) {
+  const profileAvatar = profile?.avatarUrl || profile?.avatar_url || "";
+  const userAvatar = user?.avatarUrl || user?.avatar_url || "";
+  const customAvatarUrl = profileAvatar && !isOAuthAvatarUrl(profileAvatar)
+    ? profileAvatar
+    : userAvatar && !isOAuthAvatarUrl(userAvatar)
+      ? userAvatar
+      : "";
   return {
     fullName: profile?.fullName || user?.name || "",
     preferredName: profile?.preferredName || "",
@@ -60,7 +230,7 @@ function accountFormFromUser(user, profile, fallbackRole) {
     locationCityState: profile?.locationCityState || "",
     email: profile?.email || user?.email || "",
     role: profile?.role || user?.role || fallbackRole,
-    avatarUrl: profile?.avatarUrl || user?.avatarUrl || ""
+    avatarUrl: customAvatarUrl
   };
 }
 
@@ -84,6 +254,7 @@ function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveP
   const [state, setState] = useState({ status: "idle", message: "" });
   const [avatarState, setAvatarState] = useState({ status: "idle", message: "" });
   const [brokenAvatar, setBrokenAvatar] = useState(false);
+  const [cropFile, setCropFile] = useState(null);
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -94,13 +265,8 @@ function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveP
 
   const dirty = JSON.stringify(form) !== JSON.stringify(initialForm);
   const displayName = form.preferredName || form.fullName || user?.name || "Prelude";
-  const initials = displayName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase() || "P";
+  const initials = getInitials(displayName, "P").slice(0, 1);
+  const previewAvatarUrl = resolveAvatarUrl({ user, profile: { avatarUrl: form.avatarUrl || profile?.avatarUrl } });
 
   useEffect(() => {
     function beforeUnload(event) {
@@ -158,23 +324,28 @@ function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveP
       event.target.value = "";
       return;
     }
+    setCropFile(file);
+    setAvatarState({ status: "idle", message: "" });
+    event.target.value = "";
+  }
+
+  async function handleCroppedAvatarSave(file) {
     if (!useSupabaseData) {
       setAvatarState({ status: "error", message: "Profile photo upload requires a signed-in Supabase session." });
-      event.target.value = "";
       return;
     }
     setAvatarState({ status: "saving", message: "" });
     try {
-      const { url, error } = await uploadAvatar(user.id, file);
+      const { url, error } = await uploadAvatar(user.id, file, { previousAvatarUrl: form.avatarUrl });
       if (error) throw new Error(error);
       setForm((current) => ({ ...current, avatarUrl: url || "" }));
       await saveProfile({ avatarUrl: url || "" }, { localOnly: true });
+      emitAvatarUpdated(url || "");
       setBrokenAvatar(false);
+      setCropFile(null);
       setAvatarState({ status: "saved", message: "Profile photo updated." });
     } catch (error) {
       setAvatarState({ status: "error", message: error?.message || "We could not update your photo. Try another image." });
-    } finally {
-      event.target.value = "";
     }
   }
 
@@ -186,10 +357,11 @@ function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveP
     }
     setAvatarState({ status: "saving", message: "" });
     try {
-      const { error } = await removeAvatar(user.id);
+      const { error } = await removeAvatar(user.id, { previousAvatarUrl: form.avatarUrl });
       if (error) throw new Error(error);
       setForm((current) => ({ ...current, avatarUrl: "" }));
       await saveProfile({ avatarUrl: null }, { localOnly: true });
+      emitAvatarUpdated("");
       setBrokenAvatar(false);
       setAvatarState({ status: "saved", message: "Profile photo removed." });
     } catch (error) {
@@ -202,8 +374,8 @@ function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveP
       <div className="dash-account-settings">
         <div className="dash-avatar-editor">
           <div className="dash-avatar-editor__preview" aria-label="Profile photo preview">
-            {form.avatarUrl && !brokenAvatar ? (
-              <img src={form.avatarUrl} alt="" onError={() => setBrokenAvatar(true)} />
+            {previewAvatarUrl && !brokenAvatar ? (
+              <img src={previewAvatarUrl} alt="" onError={() => setBrokenAvatar(true)} />
             ) : (
               <span aria-hidden="true">{initials}</span>
             )}
@@ -224,6 +396,18 @@ function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveP
             {avatarState.status === "error" ? <span className="dash-save-state dash-save-state--error" role="alert">{avatarState.message}</span> : null}
           </div>
         </div>
+        {cropFile ? (
+          <AvatarCropEditor
+            file={cropFile}
+            name={displayName}
+            saving={avatarState.status === "saving"}
+            onCancel={() => {
+              setCropFile(null);
+              setAvatarState({ status: "idle", message: "" });
+            }}
+            onSave={handleCroppedAvatarSave}
+          />
+        ) : null}
 
         <div className="dash-form-grid dash-form-grid--settings">
           <label className="dash-field">
@@ -386,6 +570,7 @@ export function StudentSettingsPage() {
   return (
     <SettingsPageShell
       user={user}
+      profile={profile}
       roleLabel={roleLabel}
       planName={planName}
       tabs={STUDENT_SETTINGS_TABS}
@@ -658,6 +843,7 @@ export function MentorSettingsPage() {
   return (
     <SettingsPageShell
       user={user}
+      profile={profile}
       roleLabel="Mentor"
       planName={planName}
       tabs={MENTOR_SETTINGS_TABS}
@@ -798,6 +984,7 @@ export function ParentSettingsPage() {
   return (
     <SettingsPageShell
       user={user}
+      profile={profile}
       roleLabel={roleLabel}
       planName={planName}
       tabs={PARENT_SETTINGS_TABS}

@@ -953,13 +953,13 @@ begin
     new.id,
     coalesce(new.raw_user_meta_data ->> 'full_name', new.raw_user_meta_data ->> 'name'),
     new.email,
-    new.raw_user_meta_data ->> 'avatar_url',
+    null,
     safe_role,
     role_selected
   )
   on conflict (id) do update set
     email = excluded.email,
-    avatar_url = coalesce(excluded.avatar_url, public.profiles.avatar_url),
+    avatar_url = public.profiles.avatar_url,
     full_name = coalesce(excluded.full_name, public.profiles.full_name),
     role_selection_complete = public.profiles.role_selection_complete;
 

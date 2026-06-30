@@ -7,7 +7,7 @@ import { getDemoLinkedChildren, listLinkedChildren } from "../../../lib/parentLi
 import { shouldUseDemoFixtures } from "../../../lib/devAuthBypass.js";
 import { resolveStudentAuthUser } from "../../lib/studentDemoBundle.js";
 import ParentChildDashboard from "../../components/product/ParentChildDashboard.jsx";
-import { EmptyState, SectionCard } from "../../components/ui/index.jsx";
+import { Avatar, EmptyState, SectionCard } from "../../components/ui/index.jsx";
 
 export function ParentOverview() {
   const { user } = useAuth();
@@ -55,9 +55,7 @@ export function ParentOverview() {
           {children.map((child) => (
             <li key={child.id}>
               <Link to={`${PARENT_DASHBOARD_BASE}/children/${child.id}/overview`} className="dash-parent-child-card">
-                <span className="dash-parent-child-card__avatar" aria-hidden="true">
-                  <Users className="h-5 w-5" />
-                </span>
+                <Avatar name={child.name} avatarUrl={child.avatarUrl} size="sm" />
                 <span className="dash-parent-child-card__text">
                   <strong>{child.name}</strong>
                   <span>{child.grade || "Student"}</span>

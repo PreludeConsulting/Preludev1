@@ -2,11 +2,7 @@ import { ChevronDown } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import PlanBadge from "./PlanBadge.jsx";
 import { normalizePlanId } from "../lib/plans.js";
-
-function userInitial(name) {
-  const part = (name || "P").trim().split(/\s+/)[0];
-  return (part[0] || "P").toUpperCase();
-}
+import UserAvatar from "./UserAvatar.jsx";
 
 export default function AccountMenuButton({ onClick, className = "" }) {
   const { user } = useAuth();
@@ -16,9 +12,7 @@ export default function AccountMenuButton({ onClick, className = "" }) {
 
   return (
     <button type="button" onClick={onClick} className={`account-menu-btn ${className}`} aria-haspopup="dialog">
-      <span className="account-menu-btn__avatar" aria-hidden="true">
-        {userInitial(user.name)}
-      </span>
+      <UserAvatar name={user.name} user={user} size="sm" className="account-menu-btn__avatar" />
       <span className="account-menu-btn__name">{firstName}</span>
       {planId ? <PlanBadge planId={planId} className="account-menu-btn__plan" /> : null}
       <ChevronDown className="account-menu-btn__chevron h-4 w-4" aria-hidden="true" />

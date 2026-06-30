@@ -143,7 +143,7 @@ export function StudentProgressCard({ student, basePath, needsAttention }) {
   return (
     <article className={cn("dash-progress-card", needsAttention && "dash-progress-card--alert")}>
       <div className="dash-progress-card__head">
-        <Avatar name={student.name} size="lg" />
+        <Avatar name={student.name} avatarUrl={student.avatarUrl} size="lg" />
         <div className="dash-progress-card__info">
           <h3>{student.name}</h3>
           <p>{student.grade} · {student.major}</p>

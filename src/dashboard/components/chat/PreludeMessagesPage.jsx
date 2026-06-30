@@ -113,7 +113,7 @@ function ConvoRow({ thread, active, unreadCount, preview, lastAt, onSelect }) {
         onSelect(thread.id);
       }}
     >
-      <Avatar name={thread.tabLabel || thread.label} size="sm" />
+      <Avatar name={thread.tabLabel || thread.label} avatarUrl={thread.avatarUrl} size="sm" />
       <div className="dash-convo-row__body">
         <div className="dash-convo-row__head">
           <strong>{thread.tabLabel || thread.label}</strong>
@@ -269,7 +269,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
               <button type="button" className="dash-chat-app__back lg:hidden" onClick={() => setMobileShowChat(false)} aria-label="Back">
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <Avatar name={activeThread.tabLabel || activeThread.label} />
+              <Avatar name={activeThread.tabLabel || activeThread.label} avatarUrl={activeThread.avatarUrl} />
               <div className="dash-chat-app__header-text">
                 <strong>{activeThread.label}</strong>
                 <span>{activeThread.sublabel || activeThread.participantRole}</span>
@@ -299,7 +299,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                     <div key={`d-${idx}`} className="dash-chat-date">{g.label}</div>
                   ) : (
                     <div key={`m-${idx}`} className={`dash-chat-group dash-chat-group--${g.side}`}>
-                      {g.side === "them" ? <Avatar name={activeThread.label} size="sm" /> : null}
+                      {g.side === "them" ? <Avatar name={activeThread.label} avatarUrl={activeThread.avatarUrl} size="sm" /> : null}
                       <div className="dash-chat-group__bubbles">
                         {g.items.map((msg) =>
                           editingId === msg.id ? (

@@ -50,7 +50,7 @@ export default function UserMenuDropdown({ className = "" }) {
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
-          <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" className="account-menu-btn__avatar" />
+          <UserAvatar name={user.name} user={user} size="sm" className="account-menu-btn__avatar" />
           <span className="account-menu-btn__name">{firstName}</span>
           <ChevronDown className={`account-menu-btn__chevron h-4 w-4 ${open ? "user-menu__chevron--open" : ""}`} aria-hidden="true" />
         </button>

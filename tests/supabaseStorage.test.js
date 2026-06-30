@@ -49,14 +49,14 @@ describe("supabaseStorage avatar uploads", () => {
     const mock = storageClient();
     supabaseMock = mock.client;
 
-    const result = await uploadAvatar("user-1", imageFile());
+  const result = await uploadAvatar("user-1", imageFile());
 
     expect(result.error).toBeNull();
     expect(result.url).toMatch(/^https:\/\/cdn\.example\.com\/user\/avatar\.png\?t=/);
     expect(mock.upload).toHaveBeenCalledWith(
-      "user-1/avatar.png",
+      expect.stringMatching(/^user-1\/avatar-.+\.png$/),
       expect.objectContaining({ type: "image/png" }),
-      expect.objectContaining({ upsert: true, contentType: "image/png" })
+      expect.objectContaining({ upsert: false, contentType: "image/png" })
     );
     expect(mock.update).toHaveBeenCalledWith(expect.objectContaining({ avatar_url: result.url }));
   });
