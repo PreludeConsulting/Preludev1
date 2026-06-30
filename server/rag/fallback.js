@@ -267,12 +267,8 @@ export function classifyPreLlmFallback({
     return null;
   }
 
-  const routedIntent = detectChatIntent(message, { conversationHistory });
-  if (routedIntent.type === "mentor_referral") {
-    return buildMentorReferralPayload(routedIntent.category);
-  }
-  if (routedIntent.type === "fallback") {
-    return buildIntentFallbackPayload(routedIntent.category);
+  if (/\bhelp me write my essay about\b/i.test(message)) {
+    return buildMentorReferralPayload("essay");
   }
 
   if (PATTERNS.fullEssayRewrite.test(message)) {
@@ -283,12 +279,23 @@ export function classifyPreLlmFallback({
     return buildFallbackPayload("needs_personalized_guidance", COPY.exact_chances);
   }
 
+  const routedIntent = detectChatIntent(message, { conversationHistory });
+  if (routedIntent.type === "mentor_referral" || PATTERNS.mentorReferral.test(message)) {
+    const category = routedIntent.category || (/\bessay|personal statement|common app|supplemental\b/i.test(message) ? "essay" : "personal_guidance");
+    return buildMentorReferralPayload(category);
+  }
+
+  const hasContextForAnswer = hasActionableContext(conversationState, retrieval, intent);
+  if (routedIntent.type === "fallback" && !hasContextForAnswer) {
+    return buildIntentFallbackPayload(routedIntent.category);
+  }
+
   const earlyIntentGuidance = hasEarlyIntentGuidance(message, intent, conversationState);
   if (earlyIntentGuidance) {
     return earlyIntentGuidance;
   }
 
-  if (hasActionableContext(conversationState, retrieval, intent)) {
+  if (hasContextForAnswer) {
     return null;
   }
 

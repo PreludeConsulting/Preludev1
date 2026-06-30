@@ -1,9 +1,13 @@
 # Supabase Auth — Manual Setup Checklist
 
-This project now has an **optional Supabase authentication stack** living under the
-`/auth/*` routes (login, signup, forgot/reset password, and a protected sample
-account page). It runs **alongside** the existing Prisma/JWT auth that powers the
-current `/dashboard` — nothing was removed.
+This project uses **Supabase Auth** for production login, registration, email
+confirmation, password reset, Google OAuth, session restoration, and dashboard
+access. The custom six-digit post-login verification code is sent by the
+Prelude backend through Resend after Supabase creates the authenticated session.
+
+For the current production runbook, including Cloudflare Pages variables,
+Google OAuth redirects, Resend SMTP, Turnstile, and the login-verification SQL
+migration, see [`docs/supabase-production-auth.md`](./docs/supabase-production-auth.md).
 
 A few steps **cannot** be done from code and must be completed by you in the
 Supabase Dashboard. (Cursor can't click through the Supabase dashboard unless
@@ -25,13 +29,16 @@ browser automation is explicitly enabled, and it was not.) Do the steps below.
 4. Click **Run**.
 5. Paste and run [`supabase/setup-dashboard.sql`](./supabase/setup-dashboard.sql) for per-user dashboard tables (preferences, events, messages, notifications, resources, mentor matches, onboarding progress).
 6. Paste and run [`supabase/setup-storage.sql`](./supabase/setup-storage.sql) for profile avatar uploads (Storage bucket + RLS).
+7. Paste and run [`supabase/migrations/20260629000000_login_verification_trusted_devices.sql`](./supabase/migrations/20260629000000_login_verification_trusted_devices.sql) for six-digit login verification challenges, trusted devices, and login assurance cookies.
 
 **If profile or onboarding saves fail** with `Could not find the table public.onboarding_progress in the schema cache`, run the focused migration:
 
-7. Paste and run [`supabase/migrations/20260616000000_onboarding_progress.sql`](./supabase/migrations/20260616000000_onboarding_progress.sql) — creates `onboarding_progress`, backfills existing users, and reloads the API schema cache.
+8. Paste and run [`supabase/migrations/20260616000000_onboarding_progress.sql`](./supabase/migrations/20260616000000_onboarding_progress.sql) — creates `onboarding_progress`, backfills existing users, and reloads the API schema cache.
 
-8. Verify tables exist: **Table Editor → onboarding_progress** and **profiles**.
-9. Verify **Row Level Security is enabled** (the `profiles` table shows an
+If login reaches `/verify-login` and then fails with `login_verification_storage_missing`, run the login-verification migration from step 7 in the Supabase project connected to production.
+
+9. Verify tables exist: **Table Editor → onboarding_progress**, **profiles**, **login_verification_challenges**, **trusted_devices**, and **login_assurances**.
+10. Verify **Row Level Security is enabled** (the `profiles` table shows an
    "RLS enabled" badge). You can also run:
    ```sql
    select relrowsecurity from pg_class where oid = 'public.profiles'::regclass; -- true
@@ -155,13 +162,10 @@ update public.profiles set role = 'admin' where id = '<user-uuid>';
 
 ---
 
-## Notes / what's intentionally NOT wired yet
+## Notes
 
-- The Supabase stack is **isolated under `/auth/*`** and lazy-loaded. If the
-  env vars are missing, only `/auth/*` shows a friendly "not configured" message
-  — the landing pages and the existing `/dashboard` are unaffected.
-- After a Supabase login, the user is sent to `/auth/account` (a Supabase-gated
-  sample), **not** the existing `/dashboard`. The current dashboard still uses
-  the Prisma/JWT system, so it is deliberately left untouched. Pointing the real
-  dashboard at Supabase sessions is the next step of a full migration whenever
-  you're ready.
+- The dashboard is protected by the shared Supabase-backed auth provider.
+- The six-digit login code is server-generated, hashed before storage, expires
+  after 10 minutes, and is sent by the backend through Resend.
+- Trusted devices are stored as hashed tokens in Supabase and HTTP-only cookies
+  in the browser; the raw trusted-device secret is never stored in localStorage.

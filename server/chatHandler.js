@@ -13,6 +13,7 @@ import {
 } from "./rag/promptBuilder.js";
 import { normalizeChatResponse } from "./chatResponse.js";
 import {
+  buildServiceErrorFallback,
   classifyPostLlmFallback,
   classifyPreLlmFallback
 } from "./rag/fallback.js";
@@ -162,7 +163,16 @@ export async function createRagChatCompletion({ message, conversationHistory = [
     profile
   });
 
-  const result = await callChatModel(chatMessages, resolvedConfig);
+  let result = null;
+  try {
+    result = await callChatModel(chatMessages, resolvedConfig);
+  } catch (error) {
+    const serviceFallback = buildServiceErrorFallback(error);
+    if (serviceFallback) {
+      return normalizeChatResponse({ ...serviceFallback, ...sharedMeta });
+    }
+    throw error;
+  }
 
   let answerText = result.text;
 

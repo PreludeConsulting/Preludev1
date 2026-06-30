@@ -11,6 +11,9 @@ const SEND_COOLDOWN_SECONDS = 60;
 const SEND_LIMIT_PER_HOUR = 5;
 const MAX_FAILED_ATTEMPTS = 5;
 const TRUSTED_DEVICE_DAYS = 30;
+export const LOGIN_VERIFICATION_STORAGE_ERROR = "login_verification_storage_missing";
+export const LOGIN_VERIFICATION_STORAGE_MESSAGE =
+  "Prelude login verification storage is not configured yet. Run supabase/migrations/20260629000000_login_verification_trusted_devices.sql in Supabase, then retry sign-in.";
 
 const verifyCodeSchema = z.object({
   challengeId: z.string().uuid().optional(),
@@ -34,6 +37,34 @@ function logAuth(event, details = {}) {
     ...details
   };
   console.info("[prelude-auth]", JSON.stringify(safe));
+}
+
+export function isLoginVerificationStorageError(error) {
+  const text = `${error?.message || ""} ${error?.hint || ""} ${error?.code || ""} ${error?.details || ""}`.toLowerCase();
+  if (!text) return false;
+  return (
+    text.includes("login_verification_challenges") ||
+    text.includes("trusted_devices") ||
+    text.includes("login_assurances") ||
+    text.includes("schema cache")
+  );
+}
+
+function createLoginVerificationStorageError(cause) {
+  const error = new Error(LOGIN_VERIFICATION_STORAGE_MESSAGE);
+  error.statusCode = 503;
+  error.code = LOGIN_VERIFICATION_STORAGE_ERROR;
+  error.cause = cause;
+  return error;
+}
+
+function throwIfSupabaseError(result, operation) {
+  if (!result?.error) return result;
+  if (isLoginVerificationStorageError(result.error)) {
+    logAuth("verification.storage.missing", { operation, reason: result.error.code || result.error.message });
+    throw createLoginVerificationStorageError(result.error);
+  }
+  throw result.error;
 }
 
 function isProduction() {
@@ -258,10 +289,12 @@ async function handleSend(req, res) {
 
   const sinceCooldown = new Date(Date.now() - SEND_COOLDOWN_SECONDS * 1000).toISOString();
   const sinceHour = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const [{ data: recent }, { count: hourlyCount }] = await Promise.all([
+  const [recentResult, hourlyResult] = await Promise.all([
     supabase.from("login_verification_challenges").select("id").eq("user_id", user.id).gte("created_at", sinceCooldown).limit(1),
     supabase.from("login_verification_challenges").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", sinceHour)
   ]);
+  const { data: recent } = throwIfSupabaseError(recentResult, "challenge.cooldown_check");
+  const { count: hourlyCount } = throwIfSupabaseError(hourlyResult, "challenge.hourly_check");
 
   if (recent?.length) {
     return sendJson(res, 429, { error: "cooldown", message: "Please wait before requesting another code.", retryAfter: SEND_COOLDOWN_SECONDS });
@@ -271,11 +304,11 @@ async function handleSend(req, res) {
   }
 
   const code = makeCode();
-  await supabase
+  throwIfSupabaseError(await supabase
     .from("login_verification_challenges")
     .update({ used_at: new Date().toISOString() })
     .eq("user_id", user.id)
-    .is("used_at", null);
+    .is("used_at", null), "challenge.expire_previous");
   const { data: challenge, error } = await supabase.from("login_verification_challenges").insert({
     user_id: user.id,
     code_hash: hashCode(user.id, code),
@@ -284,17 +317,20 @@ async function handleSend(req, res) {
     user_agent_summary: summarizeUserAgent(req.headers["user-agent"] || ""),
     delivery_status: "pending"
   }).select("id, expires_at").maybeSingle();
-  if (error) return sendJson(res, 500, { error: "challenge_create_failed", message: "Could not create a verification code." });
+  if (error) {
+    throwIfSupabaseError({ error }, "challenge.create");
+    return sendJson(res, 500, { error: "challenge_create_failed", message: "Could not create a verification code." });
+  }
   logAuth("verification.challenge.created", { requestId, userId: user.id, challengeId: challenge.id });
 
   const delivery = await sendCodeEmail({ to: user.email, code, req, challengeId: challenge.id, requestId });
-  await supabase
+  throwIfSupabaseError(await supabase
     .from("login_verification_challenges")
     .update({
       delivery_status: delivery.delivered ? "accepted" : delivery.reason || "failed",
       resend_message_id: delivery.messageId || null
     })
-    .eq("id", challenge.id);
+    .eq("id", challenge.id), "challenge.delivery_update");
   if (!delivery.delivered) {
     return sendJson(res, 503, { error: "email_delivery_failed", message: "Verification email could not be sent. Check Resend configuration." });
   }
@@ -316,15 +352,17 @@ async function handleVerify(req, res) {
 
   let selectedChallenge = null;
   if (payload.challengeId) {
-    const { data } = await supabase
+    const result = await supabase
       .from("login_verification_challenges")
       .select("id, code_hash, expires_at, used_at, failed_attempts, locked_at")
       .eq("id", payload.challengeId)
       .eq("user_id", user.id)
       .maybeSingle();
+    throwIfSupabaseError(result, "challenge.lookup_by_id");
+    const { data } = result;
     selectedChallenge = data;
   } else {
-    const { data } = await supabase
+    const result = await supabase
       .from("login_verification_challenges")
       .select("id, code_hash, expires_at, used_at, failed_attempts, locked_at")
       .eq("user_id", user.id)
@@ -333,6 +371,8 @@ async function handleVerify(req, res) {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+    throwIfSupabaseError(result, "challenge.lookup_latest");
+    const { data } = result;
     selectedChallenge = data;
   }
 
@@ -349,18 +389,18 @@ async function handleVerify(req, res) {
   const valid = expected.length === actual.length && timingSafeEqual(expected, actual);
   if (!valid) {
     const failedAttempts = selectedChallenge.failed_attempts + 1;
-    await supabase
+    throwIfSupabaseError(await supabase
       .from("login_verification_challenges")
       .update({
         failed_attempts: failedAttempts,
         locked_at: failedAttempts >= MAX_FAILED_ATTEMPTS ? new Date().toISOString() : null
       })
-      .eq("id", selectedChallenge.id);
+      .eq("id", selectedChallenge.id), "challenge.failed_attempt");
     logAuth("verification.challenge.rejected", { requestId, userId: user.id, challengeId: selectedChallenge.id, failedAttempts });
     return sendJson(res, 401, { error: "incorrect_code", message: "That code is not correct." });
   }
 
-  await supabase.from("login_verification_challenges").update({ used_at: new Date().toISOString() }).eq("id", selectedChallenge.id);
+  throwIfSupabaseError(await supabase.from("login_verification_challenges").update({ used_at: new Date().toISOString() }).eq("id", selectedChallenge.id), "challenge.mark_used");
 
   let trustedDevice = null;
   let rawTrustedDeviceToken = null;
@@ -368,7 +408,7 @@ async function handleVerify(req, res) {
     rawTrustedDeviceToken = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + TRUSTED_DEVICE_DAYS * 24 * 60 * 60 * 1000).toISOString();
     const deviceName = payload.deviceName || summarizeUserAgent(req.headers["user-agent"] || "");
-    const { data } = await supabase
+    const result = await supabase
       .from("trusted_devices")
       .insert({
         user_id: user.id,
@@ -380,13 +420,15 @@ async function handleVerify(req, res) {
       })
       .select("id, device_name, user_agent_summary, created_at, last_used_at, expires_at")
       .maybeSingle();
+    throwIfSupabaseError(result, "trusted_device.create");
+    const { data } = result;
     trustedDevice = data;
     logAuth("trusted_device.created", { requestId, userId: user.id, trustedDeviceId: data?.id || null });
   }
 
   const assuranceToken = randomBytes(32).toString("base64url");
   const assuranceExpiresAt = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
-  const { data: assurance } = await supabase
+  const assuranceResult = await supabase
     .from("login_assurances")
     .insert({
       user_id: user.id,
@@ -397,6 +439,8 @@ async function handleVerify(req, res) {
     })
     .select("id, expires_at")
     .maybeSingle();
+  throwIfSupabaseError(assuranceResult, "assurance.create");
+  const { data: assurance } = assuranceResult;
   const cookies = [serializeCookie(LOGIN_ASSURANCE_COOKIE, assuranceToken, { maxAge: 12 * 60 * 60 })];
   if (trustedDevice && rawTrustedDeviceToken) cookies.push(serializeCookie(TRUSTED_DEVICE_COOKIE, rawTrustedDeviceToken, { maxAge: TRUSTED_DEVICE_DAYS * 24 * 60 * 60 }));
   logAuth("verification.challenge.verified", { requestId, userId: user.id, challengeId: selectedChallenge.id, assuranceId: assurance?.id || null });
@@ -465,7 +509,7 @@ export function createSupabaseLoginVerificationMiddleware() {
       const statusCode = error.statusCode || 500;
       if (statusCode >= 500) console.error("[prelude-supabase-login-verification]", error);
       return sendJson(res, statusCode, {
-        error: statusCode >= 500 ? "server_error" : "request_failed",
+        error: error.code || (statusCode >= 500 ? "server_error" : "request_failed"),
         message: error.message || "Request failed."
       });
     }

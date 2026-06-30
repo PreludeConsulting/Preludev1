@@ -432,6 +432,7 @@ Copy the `whsec_...` signing secret printed by Stripe CLI into `.env` as `STRIPE
 | Topic | Location |
 |---|---|
 | RAG, datasets, API routes, and testing | [docs/rag-and-datasets.md](docs/rag-and-datasets.md) |
+| Supabase production auth, Google OAuth, six-digit verification, Resend, and Turnstile | [docs/supabase-production-auth.md](docs/supabase-production-auth.md) |
 | Authentication and security | [docs/auth-security.md](docs/auth-security.md) |
 | Database schema | [docs/database-schema.md](docs/database-schema.md) |
 | Dataset kit setup | [prelude_dataset_kit/README.md](prelude_dataset_kit/README.md) |

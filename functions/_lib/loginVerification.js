@@ -5,6 +5,9 @@ const SEND_COOLDOWN_SECONDS = 60;
 const SEND_LIMIT_PER_HOUR = 5;
 const MAX_FAILED_ATTEMPTS = 5;
 const TRUSTED_DEVICE_DAYS = 30;
+const LOGIN_VERIFICATION_STORAGE_ERROR = "login_verification_storage_missing";
+const LOGIN_VERIFICATION_STORAGE_MESSAGE =
+  "Prelude login verification storage is not configured yet. Run supabase/migrations/20260629000000_login_verification_trusted_devices.sql in Supabase, then retry sign-in.";
 
 function json(payload, status = 200, headers = {}) {
   const responseHeaders = headers instanceof Headers ? headers : new Headers(headers);
@@ -93,6 +96,30 @@ function requestId() {
 
 function logAuth(event, details = {}) {
   console.log(JSON.stringify({ source: "prelude-auth", event, timestamp: new Date().toISOString(), ...details }));
+}
+
+function isLoginVerificationStorageError(error) {
+  const text = `${error?.message || ""} ${error?.body?.message || ""} ${error?.body?.hint || ""} ${error?.body?.code || ""}`.toLowerCase();
+  if (!text) return false;
+  return (
+    text.includes("login_verification_challenges") ||
+    text.includes("trusted_devices") ||
+    text.includes("login_assurances") ||
+    text.includes("schema cache")
+  );
+}
+
+function loginVerificationStorageResponse(error) {
+  logAuth("verification.storage.missing", {
+    reason: error?.body?.code || error?.message || "unknown"
+  });
+  return json(
+    {
+      error: LOGIN_VERIFICATION_STORAGE_ERROR,
+      message: LOGIN_VERIFICATION_STORAGE_MESSAGE
+    },
+    503
+  );
 }
 
 function recipientDomain(email = "") {
@@ -333,6 +360,7 @@ export async function handleLoginVerification(context, action) {
 
     return json({ error: "not_found" }, 404);
   } catch (error) {
+    if (isLoginVerificationStorageError(error)) return loginVerificationStorageResponse(error);
     const status = error.status || 500;
     if (status >= 500) console.error("[prelude-auth]", error.message);
     return json({ error: status >= 500 ? "server_error" : "request_failed", message: error.message || "Request failed." }, status);
@@ -364,6 +392,7 @@ export async function handleTrustedDevices(context, id = "") {
     }
     return json({ error: "not_found" }, 404);
   } catch (error) {
+    if (isLoginVerificationStorageError(error)) return loginVerificationStorageResponse(error);
     const status = error.status || 500;
     return json({ error: status >= 500 ? "server_error" : "request_failed", message: error.message || "Request failed." }, status);
   }

@@ -122,6 +122,7 @@ function friendlyVerificationError(error) {
   if (code === "cooldown") return error.message || "Please wait before requesting another code.";
   if (code === "rate_limited") return "Too many codes requested. Please wait and try again.";
   if (code === "email_delivery_failed") return "Prelude could not send the verification email. Please try again or contact support.";
+  if (code === "login_verification_storage_missing") return error.message || "Prelude login verification storage is not configured yet. Ask an admin to run the Supabase login verification migration.";
   if (code === "expired_code") return "That code expired. Request a new one to continue.";
   if (code === "locked_challenge") return "Too many incorrect attempts. Request a new code.";
   if (code === "incorrect_code") return "That code is not correct. Check the email and try again.";
