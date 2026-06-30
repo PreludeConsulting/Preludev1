@@ -27,6 +27,7 @@ import { resolveShopRewardIds } from "../lib/rewardShop.js";
 import CoinCelebration from "../components/product/rewards/CoinCelebration.jsx";
 import { useInteractionFeedback } from "../../components/interaction/InteractionFeedback.jsx";
 import { useInterfaceSound } from "../../lib/sound/SoundProvider.jsx";
+import { isJordanDemoEmail } from "../../data/demoAccounts.js";
 
 const ProgressRewardsContext = createContext(null);
 
@@ -101,7 +102,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   }, []);
 
   const grade = parseGradeLevel(profile?.grade);
-  const isJordan = user?.email === "student@prelude-demo.com";
+  const isJordan = isJordanDemoEmail(user?.email);
   const studentFirstName = user?.name?.split(" ")[0] || profile?.firstName || "Your";
   const services = useMemo(
     () => (isJordan ? buildJordanDemoServices() : getActiveServices(profile)),

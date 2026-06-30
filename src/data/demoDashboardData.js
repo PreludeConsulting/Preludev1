@@ -3,7 +3,7 @@
  * Replace with database-backed records when production data is available.
  */
 
-import { DEMO_MENTOR, DEMO_STUDENT, DEMO_STUDENT_2 } from "./demoAccounts.js";
+import { DEMO_MENTOR, DEMO_STUDENT, DEMO_STUDENT_2, isJordanDemoEmail, JORDAN_DEMO_ACCOUNTS } from "./demoAccounts.js";
 import { conversationsToInbox, getDemoConversations } from "../dashboard/data/demoConversations.js";
 import { buildDefaultGamification } from "../dashboard/data/gamification.js";
 import { buildDefaultProgressRewards } from "../dashboard/lib/progressRewards.js";
@@ -296,7 +296,7 @@ function buildAvailabilityEvents() {
 }
 
 function studentBundle(email) {
-  const isJordan = email === DEMO_STUDENT.email;
+  const isJordan = isJordanDemoEmail(email);
   const profile = isJordan ? JORDAN_PROFILE : ALEX_PROFILE;
   const slug = profile.slug;
   const meetings = buildMeetings().filter((m) => m.studentId === slug);
@@ -634,10 +634,13 @@ function mentorBundle() {
 }
 
 const BUNDLES = {
-  [DEMO_STUDENT.email]: (role) => (role === "MENTOR" ? mentorBundle() : studentBundle(DEMO_STUDENT.email)),
   [DEMO_STUDENT_2.email]: () => studentBundle(DEMO_STUDENT_2.email),
   [DEMO_MENTOR.email]: () => mentorBundle()
 };
+
+for (const account of JORDAN_DEMO_ACCOUNTS) {
+  BUNDLES[account.email] = (role) => (role === "MENTOR" ? mentorBundle() : studentBundle(account.email));
+}
 
 export function getDemoDashboardForUser(email, role) {
   const key = (email || "").trim().toLowerCase();

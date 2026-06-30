@@ -10,6 +10,7 @@ import CalendarReminderBootstrap from "./CalendarReminderBootstrap.jsx";
 import DashboardProductNav from "./product/DashboardProductNav.jsx";
 import PreludeFloatingChat from "./chat/PreludeFloatingChat.jsx";
 import { PreludeChatProvider } from "../context/PreludeChatContext.jsx";
+import { PlanUpgradeProvider } from "../context/PlanUpgradeContext.jsx";
 import { MotionPage } from "../../components/motion/MotionPrimitives.jsx";
 
 export default function DashboardLayout({ navItems, basePath, productNav }) {
@@ -25,6 +26,7 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
 
   return (
     <PreludeChatProvider>
+      <PlanUpgradeProvider>
       <div className={`dash-shell dash-shell--product${showVerifyBanner ? " dash-shell--verify-banner" : ""}`}>
         <CalendarReminderBootstrap />
         <div className="dash-shell__grain pointer-events-none" aria-hidden="true" />
@@ -47,6 +49,7 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
         {showParentReminder ? <ParentReminderBanner /> : null}
         <PreludeFloatingChat />
       </div>
+      </PlanUpgradeProvider>
     </PreludeChatProvider>
   );
 }

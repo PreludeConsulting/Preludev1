@@ -16,5 +16,5 @@ export const PRODUCT_STUDENT_NAV = [
   { to: "/mentor", label: "My Mentor", icon: GraduationCap },
   { to: "/messages", label: "Messages", icon: MessageCircle },
   { to: "/profile-stats", label: "Progress", icon: TrendingUp },
-  { to: "/progress-rewards", label: "Progress Rewards", icon: Sparkles }
+  { to: "/progress-rewards", label: "Progress Rewards", icon: Sparkles, lockFeature: "rewards" }
 ];

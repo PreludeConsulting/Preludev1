@@ -17,7 +17,8 @@ export function getDevBypassUser() {
 }
 
 export function buildDemoSessionUser(account) {
-  const plan = getPlan("plus");
+  const planId = account.plan || "basic";
+  const plan = getPlan(planId);
 
   return {
     id: `demo-${account.key}`,
@@ -26,7 +27,7 @@ export function buildDemoSessionUser(account) {
     lastName: account.lastName,
     name: `${account.firstName} ${account.lastName}`,
     role: account.role.toLowerCase(),
-    plan: "plus",
+    plan: planId,
     planName: plan.name,
     planSelected: true,
     authProvider: "demo",

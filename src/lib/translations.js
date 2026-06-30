@@ -246,7 +246,7 @@ export const translations = {
         priceLabels: {
           free: "Free",
           paid: "Paid",
-          perMonth: "/month"
+          perMonth: " / month"
         },
         startFree: "Choose Basic",
         choose: "Choose {{plan}}",
@@ -260,49 +260,42 @@ export const translations = {
           {
             id: "basic",
             name: "Basic",
-            description: "Foundational guidance for students beginning their college journey.",
+            description: "Foundational support from real college mentors.",
             features: [
-              "Monthly group mentorship session",
-              "Access to a matched mentor through PreludeMatch",
-              "Limited direct messaging",
-              "Personalized college roadmap",
-              "Progress tracking",
-              "General essay brainstorming support",
-              "Financial aid and scholarship resources",
-              "General consultant support"
+              "Monthly group mentor session",
+              "PreludeMatch mentor pairing",
+              "Assigned mentor messaging",
+              "Personalized student roadmap",
+              "Guidance from real admissions experience"
             ]
           },
           {
             id: "plus",
             name: "Plus",
-            description: "More personalized guidance and consistent support.",
+            description: "More mentor access, 1-on-1 support, and rewards.",
+            featureHeader: "Everything in Basic, and:",
             features: [
-              "Everything in Basic",
-              "Two 1-on-1 mentor sessions per month",
-              "Additional monthly group strategy session",
-              "Expanded direct messaging",
-              "Customized college and application roadmap",
-              "Identity-building coaching",
-              "Essay feedback and revision support",
-              "Peer benchmarking insights"
+              "2 monthly 1-on-1 sessions",
+              "Full mentor-network messaging",
+              "Personalized admissions guidance",
+              "Earn Prelude Coins for progress",
+              "Redeem coins for bonus sessions, multi-mentor essay feedback, tutoring, and more"
             ]
           },
           {
             id: "pro",
             name: "Pro",
-            description: "End-to-end support for students aiming for top-tier outcomes.",
+            description: "Our highest-touch plan with priority support and full application review.",
+            featureHeader: "Everything in Plus, and:",
             features: [
-              "Everything in Plus",
-              "Weekly or biweekly 1-on-1 mentor sessions",
-              "Priority mentor matching",
-              "Priority direct messaging",
-              "Comprehensive essay editing",
+              "4 monthly 1-on-1 sessions",
+              "Priority mentor-network messaging",
+              "Deeper personalized strategy",
               "Full application review",
-              "Interview preparation",
-              "School-specific admissions strategy",
-              "Advanced financial consulting",
-              "Parent strategy sessions",
-              "Premium gamified progress tracking"
+              "Essay and activity review included",
+              "Earn coins at a higher rate",
+              "Advanced milestone rewards",
+              "Redeem coins for 1-on-1s, essay review, tutoring, and more"
             ]
           }
         ]

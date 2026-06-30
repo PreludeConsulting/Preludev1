@@ -381,8 +381,9 @@ img.account-menu-btn__avatar {
 .pricing-card {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   height: 100%;
-  padding: clamp(1.25rem, 3vw, 1.75rem);
+  padding: clamp(1.5rem, 3.5vw, 2rem);
   border-radius: var(--radius-card-lg);
   border: 1px solid var(--border-subtle);
   background: #ffffff;
@@ -432,54 +433,100 @@ img.account-menu-btn__avatar {
 
 .pricing-card__name {
   margin: 0;
-  font-size: 1.65rem !important;
-  line-height: 1.1 !important;
+  font-size: clamp(1.5rem, 3vw, 1.75rem) !important;
+  line-height: 1.15 !important;
   color: hsl(var(--foreground));
 }
 
-.pricing-card__price {
-  margin: 0;
-  font-family: "Barlow", sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #5b4fd6;
-}
-
 .pricing-card__desc {
-  margin: 0.5rem 0 0;
+  margin: 0.625rem 0 0;
   font-family: "Barlow", sans-serif;
   font-size: 0.9375rem;
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.55;
   color: hsl(var(--muted-foreground));
 }
 
-.pricing-card__features {
-  list-style: none;
-  margin: 1rem 0 0;
-  padding: 0;
-  flex: 1;
+.pricing-card__price {
   display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 1.125rem 0 0;
+  font-family: "Barlow", sans-serif;
 }
 
-.pricing-card__features li {
-  display: flex;
-  gap: 0.45rem;
-  align-items: flex-start;
-  font-family: "Barlow", sans-serif;
+.pricing-card__price-amount {
+  font-size: clamp(2.125rem, 5vw, 2.625rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: hsl(var(--foreground));
+}
+
+.pricing-card__price-period {
   font-size: 0.9375rem;
   font-weight: 400;
-  line-height: 1.5;
-  color: hsl(var(--foreground) / 0.82);
+  line-height: 1.2;
+  color: hsl(var(--muted-foreground));
+}
+
+.pricing-card__price--fallback {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
 }
 
 .pricing-card__cta {
   margin-top: 1.25rem;
   width: 100%;
+}
+
+.pricing-card__features-wrap {
+  display: flex;
+  flex-direction: column;
+  margin-top: 1.75rem;
+  padding-top: 1.375rem;
+  border-top: 1px solid hsl(var(--foreground) / 0.08);
+}
+
+.pricing-card__feature-header {
+  margin: 0 0 0.875rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.08);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: hsl(var(--foreground));
+}
+
+.pricing-card__features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.pricing-card__features li {
+  display: grid;
+  grid-template-columns: 1.125rem minmax(0, 1fr);
+  column-gap: 0.625rem;
+  align-items: start;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: hsl(var(--foreground) / 0.78);
+}
+
+.pricing-card__feature-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 0.125rem;
+  color: hsl(var(--primary));
 }
 
 /* ——— User menu (logged-in homepage header) ——— */

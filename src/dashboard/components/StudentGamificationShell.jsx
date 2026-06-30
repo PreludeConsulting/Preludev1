@@ -2,11 +2,12 @@ import { GamificationProvider } from "../context/GamificationContext.jsx";
 import { ProgressRewardsProvider } from "../context/ProgressRewardsContext.jsx";
 import { useDashboardData } from "../context/DashboardDataContext.jsx";
 import { buildDefaultProgressRewards } from "../lib/progressRewards.js";
+import { isJordanDemoEmail } from "../../data/demoAccounts.js";
 
 export default function StudentGamificationShell({ user, children }) {
   const { gamification, progressRewards, profile } = useDashboardData();
   const initialGamification = gamification || { xp: 0, streak: 0, missions: [], badges: [], activityFeed: [], nextBadge: null };
-  const isJordan = user?.email === "student@prelude-demo.com";
+  const isJordan = isJordanDemoEmail(user?.email);
   const initialRewards = progressRewards || buildDefaultProgressRewards(isJordan);
 
   return (

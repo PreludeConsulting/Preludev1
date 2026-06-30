@@ -67,6 +67,10 @@ import { useGamification } from "../../context/GamificationContext.jsx";
 import CollegesExplore from "../../components/product/CollegesExplore.jsx";
 import StudentOverviewProduct from "../../components/product/StudentOverviewProduct.jsx";
 import StudentProgressRewardsProduct from "../../components/product/StudentProgressRewardsProduct.jsx";
+import PlanFeatureGate from "../../components/product/PlanFeatureGate.jsx";
+import PlanSessionBanner from "../../components/product/PlanSessionBanner.jsx";
+import PlanLockedFeature from "../../components/product/PlanLockedFeature.jsx";
+import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 
 /* ——— Shared presentational helpers for the redesigned pages ——— */
 
@@ -138,7 +142,11 @@ export function StudentOverview() {
 }
 
 export function StudentProgressRewards() {
-  return <StudentProgressRewardsProduct />;
+  return (
+    <PlanFeatureGate feature="rewards">
+      <StudentProgressRewardsProduct />
+    </PlanFeatureGate>
+  );
 }
 
 export function StudentCalendar() {
@@ -147,6 +155,7 @@ export function StudentCalendar() {
 
   return (
     <div className={cn("dash-page", "dash-page--meetings", isMentorStudentView && "dash-page--mentor-view")}>
+      {!isMentorStudentView ? <PlanSessionBanner meetings={meetings} /> : null}
       <div className={cn("dash-meetings-layout", isMentorStudentView && "dash-meetings-layout--mentor-view")}>
         <div className="dash-meetings-layout__calendar">
           <AdmissionsCalendarVisual
@@ -632,6 +641,7 @@ function computeLocalProfileCompletion(profile) {
 
 export function StudentProfileStats() {
   const { user } = useAuth();
+  const { canAccess } = usePlanAccess();
   const { profile, mentor, saveProfile, saveOnboarding, savedColleges } = useDashboardData();
   const [editorDraft, setEditorDraft] = useState(() => buildProfileEditorDraft(profile));
   const [activeEditor, setActiveEditor] = useState(null);
@@ -1158,6 +1168,12 @@ export function StudentProfileStats() {
           </div>
         </div>
       </Modal>
+
+      {!canAccess("rewards") ? (
+        <PlanLockedFeature feature="rewards" compact className="dash-panel" />
+      ) : !canAccess("advancedRewards") ? (
+        <PlanLockedFeature feature="advancedRewards" compact className="dash-panel" />
+      ) : null}
     </div>
   );
 }
@@ -1661,6 +1677,7 @@ function mentorHeadshot(mentor) {
 
 export function StudentMentor() {
   const { mentor, meetings, scheduleMeeting, persistCalendarItem, scheduleEventReminder } = useDashboardData();
+  const { canAccess } = usePlanAccess();
   const m = mentor;
   const upcoming = [...(meetings || [])]
     .filter((m) => m.status !== "pending")
@@ -1765,27 +1782,33 @@ export function StudentMentor() {
         </SectionCard>
 
         <SectionCard title="Schedule Meeting" className="dash-panel dash-mentor-sessions-grid__schedule" id="mentor-schedule">
-          <p className="dash-muted">Add an event to your calendar, or send a time to your mentor for review.</p>
-          <CalendarAddEventModal
-            inline
-            open
-            role="student"
-            formVariant="event"
-            initialCategory="mentor_meeting"
-            meetingRequestMode
-            onRequestMeeting={(payload) => scheduleMeeting({ ...payload, status: "pending" })}
-            onSave={async (saved) => {
-              const stored = await persistCalendarItem(saved);
-              scheduleEventReminder({
-                id: stored.id,
-                title: stored.title,
-                start: stored.start,
-                reminderMinutes: saved.reminderMinutes,
-                formVariant: saved.formVariant
-              });
-            }}
-            onClose={() => {}}
-          />
+          {canAccess("oneOnOneSessions") ? (
+            <>
+              <p className="dash-muted">Add an event to your calendar, or send a time to your mentor for review.</p>
+              <CalendarAddEventModal
+                inline
+                open
+                role="student"
+                formVariant="event"
+                initialCategory="mentor_meeting"
+                meetingRequestMode
+                onRequestMeeting={(payload) => scheduleMeeting({ ...payload, status: "pending" })}
+                onSave={async (saved) => {
+                  const stored = await persistCalendarItem(saved);
+                  scheduleEventReminder({
+                    id: stored.id,
+                    title: stored.title,
+                    start: stored.start,
+                    reminderMinutes: saved.reminderMinutes,
+                    formVariant: saved.formVariant
+                  });
+                }}
+                onClose={() => {}}
+              />
+            </>
+          ) : (
+            <PlanLockedFeature feature="oneOnOneSessions" compact />
+          )}
         </SectionCard>
       </div>
     </div>
