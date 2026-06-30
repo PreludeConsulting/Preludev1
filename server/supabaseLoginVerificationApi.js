@@ -157,16 +157,16 @@ async function sendCodeEmail({ to, code, req, challengeId, requestId }) {
   const device = summarizeUserAgent(req.headers["user-agent"] || "");
   const issuedAt = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
   const logoUrl = "https://preludeconsultingllc.com/prelude-email-logo.png";
-  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f6f4f0;font-family:Arial,sans-serif;color:#171717;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;background:#f6f4f0;"><tr><td align="center">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border:1px solid #e8e2d8;border-radius:12px;padding:28px;">
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f6f4f0;font-family:Barlow,Arial,Helvetica,sans-serif;color:#171717;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;background:#f6f4f0;font-family:Barlow,Arial,Helvetica,sans-serif;"><tr><td align="center">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border:1px solid #e8e2d8;border-radius:12px;padding:28px;font-family:Barlow,Arial,Helvetica,sans-serif;">
   <tr><td><img src="${logoUrl}" width="72" alt="Prelude" style="display:block;margin:0 0 18px;width:72px;height:auto;">
-  <h1 style="margin:0 0 12px;font-size:24px;line-height:1.3;">Your Prelude verification code</h1>
-  <p style="margin:0 0 18px;color:#4a4540;line-height:1.6;">Enter this code to finish signing in.</p>
-  <p style="margin:0 0 18px;font-size:36px;letter-spacing:8px;font-weight:700;color:#5b21b6;">${code}</p>
-  <p style="margin:0 0 10px;color:#4a4540;line-height:1.6;">This code expires in 10 minutes.</p>
-  <p style="margin:0 0 10px;color:#6b645c;font-size:13px;line-height:1.5;">Requested around ${issuedAt} from ${device}.</p>
-  <p style="margin:0;color:#8a7f72;font-size:12px;line-height:1.5;">If you did not try to sign in, ignore this email and consider resetting your password.</p>
+  <h1 style="margin:0 0 12px;font-family:Barlow,Arial,Helvetica,sans-serif;font-size:24px;line-height:1.3;font-weight:600;letter-spacing:0;">Your Prelude verification code</h1>
+  <p style="margin:0 0 18px;font-family:Barlow,Arial,Helvetica,sans-serif;color:#4a4540;line-height:1.6;font-weight:400;">Enter this code to finish signing in.</p>
+  <p style="margin:0 0 18px;font-family:Barlow,Arial,Helvetica,sans-serif;font-size:36px;letter-spacing:0;font-weight:600;color:#5b21b6;">${code}</p>
+  <p style="margin:0 0 10px;font-family:Barlow,Arial,Helvetica,sans-serif;color:#4a4540;line-height:1.6;font-weight:400;">This code expires in 10 minutes.</p>
+  <p style="margin:0 0 10px;font-family:Barlow,Arial,Helvetica,sans-serif;color:#6b645c;font-size:13px;line-height:1.5;font-weight:400;">Requested around ${issuedAt} from ${device}.</p>
+  <p style="margin:0;font-family:Barlow,Arial,Helvetica,sans-serif;color:#8a7f72;font-size:12px;line-height:1.5;font-weight:400;">If you did not try to sign in, ignore this email and consider resetting your password.</p>
   </td></tr></table></td></tr></table></body></html>`;
 
   const response = await fetch("https://api.resend.com/emails", {
