@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { MotionDialog } from "../../../components/motion/MotionPrimitives.jsx";
 import InteractiveButton from "../../../components/interaction/InteractiveButton.jsx";
 import { Link } from "react-router-dom";
+import UserAvatar from "../../../components/UserAvatar.jsx";
 import { cn } from "../../../lib/utils.js";
 import { isJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 
@@ -237,9 +238,8 @@ export function DeadlineRow({ title, dueDate, category, priority, done }) {
   );
 }
 
-export function Avatar({ name, size = "md" }) {
-  const initial = (name || "?")[0];
-  return <span className={cn("dash-avatar", `dash-avatar--${size}`)}>{initial}</span>;
+export function Avatar({ name, avatarUrl, size = "md" }) {
+  return <UserAvatar name={name} avatarUrl={avatarUrl} size={size} className={cn("dash-avatar", `dash-avatar--${size}`)} />;
 }
 
 export function MeetingPreviewCard({ meeting, mentorName, studentName, role, onView }) {

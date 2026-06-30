@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import PreludeLogo from "../../../components/PreludeLogo.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
-import { dashboardRoleLabel } from "../../../lib/dashboardRoutes.js";
 import { cn } from "../../../lib/utils.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { usePreludeChatContextOptional } from "../../context/PreludeChatContext.jsx";
@@ -12,7 +11,7 @@ import { Avatar } from "../ui/index.jsx";
 
 export default function DashboardProductNav({ navItems, basePath }) {
   const { user, signOut, planDetails } = useAuth();
-  const { notifications, markNotificationsRead } = useDashboardData();
+  const { notifications, markNotificationsRead, profile } = useDashboardData();
   const chat = usePreludeChatContextOptional();
   const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -21,8 +20,9 @@ export default function DashboardProductNav({ navItems, basePath }) {
   const profileRef = useRef(null);
   const profileTriggerRef = useRef(null);
   const tabsRef = useRef(null);
-  const roleLabel = dashboardRoleLabel(user?.role);
   const planName = planDetails?.name || user?.planName || "Basic";
+  const firstName = (user?.firstName || user?.name || "Account").trim().split(/\s+/)[0] || "Account";
+  const avatarUrl = profile?.avatarUrl || user?.avatarUrl || "";
   const unreadCount = useMemo(
     () => notifications.filter((item) => item.unread).length,
     [notifications]
@@ -201,10 +201,9 @@ export default function DashboardProductNav({ navItems, basePath }) {
             aria-haspopup="menu"
             aria-label="Account menu"
           >
-            <Avatar name={user?.name} />
+            <Avatar name={user?.name} avatarUrl={avatarUrl} />
             <div className="dash-product-nav__profile-text">
-              <p className="dash-product-nav__name">{user?.name}</p>
-              <p className="dash-product-nav__role">{roleLabel}</p>
+              <p className="dash-product-nav__name">{firstName}</p>
             </div>
             <ChevronDown
               className={cn("dash-product-nav__profile-chevron", profileOpen && "dash-product-nav__profile-chevron--open")}

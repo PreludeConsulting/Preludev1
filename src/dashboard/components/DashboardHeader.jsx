@@ -21,6 +21,7 @@ export default function DashboardHeader({ routeMeta, basePath, onMenuToggle }) {
   const metaKey = studentDetailMatch ? studentDetailMatch[1] : segment;
   const meta = routeMeta[metaKey] || routeMeta.overview || { title: "Dashboard", subtitle: "" };
   const planName = planDetails?.name || user?.planName || "Basic";
+  const firstName = (user?.firstName || user?.name || "Account").trim().split(/\s+/)[0] || "Account";
 
   function closeProfileMenu({ restoreFocus = true } = {}) {
     setProfileOpen(false);
@@ -78,9 +79,9 @@ export default function DashboardHeader({ routeMeta, basePath, onMenuToggle }) {
             aria-haspopup="menu"
             aria-expanded={profileOpen}
           >
-            <Avatar name={user?.name} />
+            <Avatar name={user?.name} avatarUrl={user?.avatarUrl} />
             <span className="dash-topbar__user-text">
-              <span className="dash-topbar__name">{user?.name || "Account"}</span>
+              <span className="dash-topbar__name">{firstName}</span>
             </span>
             <span className="dash-topbar__profile" aria-hidden="true">
               <ChevronDown className="h-4 w-4" />

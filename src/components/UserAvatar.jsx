@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 function userInitial(name) {
   const part = (name || "P").trim().split(/\s+/)[0];
   return (part[0] || "P").toUpperCase();
@@ -11,13 +13,20 @@ const SIZE_CLASS = {
 
 /** Default avatar with optional uploaded profile image. */
 export default function UserAvatar({ name, avatarUrl, size = "md", className = "" }) {
+  const [imageFailed, setImageFailed] = useState(false);
   const initial = userInitial(name);
-  if (avatarUrl) {
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [avatarUrl]);
+
+  if (avatarUrl && !imageFailed) {
     return (
       <img
         src={avatarUrl}
         alt=""
         className={`user-avatar user-avatar--photo ${SIZE_CLASS[size] || SIZE_CLASS.md} ${className}`}
+        onError={() => setImageFailed(true)}
       />
     );
   }

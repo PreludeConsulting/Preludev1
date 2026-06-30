@@ -14,6 +14,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
   const u = session.user;
   const meta = u.user_metadata || {};
   const fullName = (profile?.full_name || meta.full_name || "").trim();
+  const avatarUrl = (profile?.avatar_url || meta.avatar_url || meta.picture || "").trim() || null;
   const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
   const role = (profile?.role || meta.role || "student").toLowerCase();
   const cachedPlan = typeof window !== "undefined" ? window.localStorage.getItem(`prelude_plan_${u.id}`) : null;
@@ -48,7 +49,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     emailVerified: Boolean(u.email_confirmed_at),
     authProvider: "supabase",
     authSignInMethods,
-    avatarUrl: profile?.avatar_url || null,
+    avatarUrl,
     roleSelectionComplete,
     ...onboardingFields,
     parentInviteStepComplete,

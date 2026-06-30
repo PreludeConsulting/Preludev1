@@ -32,4 +32,42 @@ describe("mapSupabaseUser", () => {
     expect(user.onboardingStatus).toBeNull();
     expect(user.planSelected).toBe(false);
   });
+
+  it("uses the stored profile avatar before OAuth metadata", () => {
+    const user = mapSupabaseUser(
+      session({
+        user_metadata: {
+          picture: "https://accounts.google.com/photo.jpg"
+        }
+      }),
+      {
+        id: "user-1",
+        full_name: "Solomon Cho",
+        role: "student",
+        role_selection_complete: true,
+        avatar_url: "https://cdn.prelude.com/profile.jpg"
+      }
+    );
+
+    expect(user.avatarUrl).toBe("https://cdn.prelude.com/profile.jpg");
+  });
+
+  it("keeps a Google profile photo when no stored profile avatar exists", () => {
+    const user = mapSupabaseUser(
+      session({
+        user_metadata: {
+          picture: "https://accounts.google.com/photo.jpg"
+        }
+      }),
+      {
+        id: "user-1",
+        full_name: "Solomon Cho",
+        role: "student",
+        role_selection_complete: true,
+        avatar_url: null
+      }
+    );
+
+    expect(user.avatarUrl).toBe("https://accounts.google.com/photo.jpg");
+  });
 });
