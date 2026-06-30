@@ -3,7 +3,7 @@ import { UNIVERSITIES } from "../data/universities.js";
 import UniversityLogo from "./UniversityLogo.jsx";
 
 function MarqueeLogo({ school }) {
-  return <UniversityLogo school={school} className="university-marquee__logo" />;
+  return <UniversityLogo school={school} className="university-marquee__logo" loading="eager" />;
 }
 
 function UniversityGroup({ ariaHidden = false }) {

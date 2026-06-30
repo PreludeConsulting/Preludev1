@@ -1,21 +1,13 @@
-import { useState } from "react";
-
-export default function UniversityLogo({ school, className = "" }) {
-  const [src, setSrc] = useState(school.logo);
-
+export default function UniversityLogo({ school, className = "", loading = "lazy" }) {
   return (
     <img
-      src={src}
+      src={school.logo}
       alt={school.alt}
       className={className || "university-logo__img"}
-      loading="lazy"
+      style={school.logoStyle}
+      loading={loading}
       decoding="async"
       draggable={false}
-      onError={() => {
-        if (school.logoFallback && src !== school.logoFallback) {
-          setSrc(school.logoFallback);
-        }
-      }}
     />
   );
 }

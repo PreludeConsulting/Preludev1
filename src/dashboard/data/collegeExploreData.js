@@ -176,8 +176,19 @@ const STATE_REGION = {
   NV: "west"
 };
 
+const PNG_LOGOS = new Set([
+  "dartmouth",
+  "ucla",
+  "uchicago",
+  "cmu",
+  "princeton",
+  "yale",
+  "vanderbilt",
+  "columbia"
+]);
+
 function logoPath(id) {
-  return `${mediaBase}media/universities/${id}.png`;
+  return `${mediaBase}media/universities/${id}.${PNG_LOGOS.has(id) ? "png" : "svg"}`;
 }
 
 function tierFromRank(rank) {
