@@ -154,6 +154,34 @@ export async function saveMentorQuestionnaire(user, answers) {
   };
 }
 
+export async function saveMentorProfileSettings(user, fields) {
+  if (!user?.id) return { error: "You must be signed in." };
+
+  const { questionnaire, matchingProfile, error } = await loadMentorQuestionnaire(user.id);
+  if (error) return { error };
+
+  const currentAnswers = questionnaire?.answers || {};
+  const answers = {
+    ...currentAnswers,
+    college: fields.college ?? currentAnswers.college ?? matchingProfile?.college ?? "",
+    major: fields.major ?? currentAnswers.major ?? matchingProfile?.major ?? "",
+    bio: fields.bio ?? currentAnswers.bio ?? matchingProfile?.bio ?? "",
+    specialties: fields.specialties ?? currentAnswers.specialties ?? matchingProfile?.specialties ?? [],
+    targetMajors: fields.targetMajors ?? currentAnswers.targetMajors ?? matchingProfile?.target_majors ?? [],
+    targetSchools: fields.targetSchools ?? currentAnswers.targetSchools ?? matchingProfile?.target_schools ?? [],
+    supportStyles: fields.supportStyles ?? currentAnswers.supportStyles ?? matchingProfile?.support_styles ?? [],
+    applicationStrengths:
+      fields.applicationStrengths ??
+      currentAnswers.applicationStrengths ??
+      matchingProfile?.application_strengths ??
+      [],
+    availability: fields.availability ?? currentAnswers.availability ?? matchingProfile?.availability ?? "",
+    additionalNotes: fields.additionalNotes ?? currentAnswers.additionalNotes ?? ""
+  };
+
+  return saveMentorQuestionnaire(user, answers);
+}
+
 export function scoreMentorForStudent(studentAnswers = {}, mentorRow) {
   const studentHelp = asArray(studentAnswers.helpAreas || studentAnswers.accomplishFirst);
   const studentMajors = asArray(studentAnswers.academicInterests || studentAnswers.intendedMajor);

@@ -96,6 +96,7 @@ export default function SignInModal({ onSuccess }) {
 
         <div className="space-y-4 px-6 py-5">
           <GoogleSignInButton
+            className="dash-google-btn"
             disabled={loading}
             loading={loading}
             onClick={async () => {

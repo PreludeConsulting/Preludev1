@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {
@@ -150,6 +150,7 @@ export default function MentorQuestionnaireOnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const errorRef = useRef(null);
 
   const missingRequired = useMemo(() => {
     const missing = [];
@@ -221,6 +222,8 @@ export default function MentorQuestionnaireOnboardingPage() {
     setError("");
     if (missingRequired.length) {
       setError(`Please complete: ${missingRequired.join(", ")}.`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.requestAnimationFrame(() => errorRef.current?.focus());
       return;
     }
     setSaving(true);
@@ -248,7 +251,7 @@ export default function MentorQuestionnaireOnboardingPage() {
           </p>
         </header>
 
-        {error ? <div className="plan-select-page__error" role="alert">{error}</div> : null}
+        {error ? <div ref={errorRef} className="plan-select-page__error" role="alert" tabIndex={-1}>{error}</div> : null}
 
         <form className="mentor-onboarding__form" onSubmit={onSubmit}>
           <section className="mentor-onboarding__panel">

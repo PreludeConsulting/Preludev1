@@ -1,141 +1,35 @@
-import { ArrowLeft, CheckCircle2, GraduationCap, HeartHandshake, Loader2, LockKeyhole, Mail, RefreshCw, ShieldCheck, Users } from "lucide-react";
+import { CheckCircle2, Loader2, LockKeyhole, Mail, RefreshCw, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
 import { postAuthDestination } from "../lib/onboardingRoutes.js";
 import { signInWithGoogle } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
-import { ALL_DEMO_ACCOUNTS, DEMO_MENTOR, DEMO_PARENT, DEMO_STUDENT } from "../data/demoAccounts.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 import AppLink from "./AppLink.jsx";
 import TurnstileWidget from "./auth/TurnstileWidget.jsx";
+import AuthLayout from "./auth/AuthLayout.jsx";
+import AuthDemoSection from "./auth/AuthDemoSection.jsx";
+import AuthRoleSelector from "./auth/AuthRoleSelector.jsx";
+import {
+  AuthBanner,
+  AuthDivider,
+  AuthField,
+  AuthInlineLink,
+  AuthLegalAcknowledgment,
+  AuthPasswordField,
+  AuthSubmitButton,
+  AuthTermsCheckbox,
+  PasswordRequirements
+} from "./auth/AuthForm.jsx";
+import { friendlyAuthError, isValidEmail } from "./auth/authErrors.js";
 import { isTurnstileRequired } from "../lib/turnstile.js";
 import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
 import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerification.js";
-import AuthLoadingState from "./AuthLoadingState.jsx";
 
 const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
 const RESEND_COOLDOWN_SECONDS = 60;
-
-const SIGNUP_ROLE_OPTIONS = [
-  {
-    value: "STUDENT",
-    title: "Student",
-    description: "Build your college roadmap, match with mentors, and manage applications.",
-    Icon: GraduationCap
-  },
-  {
-    value: "MENTOR",
-    title: "Mentor",
-    description: "Support students with your college experience and mentor profile.",
-    Icon: HeartHandshake
-  },
-  {
-    value: "PARENT",
-    title: "Parent",
-    description: "Follow your student's progress, calendar, and mentor updates.",
-    Icon: Users
-  }
-];
-
-const AUTH_STEP_LABELS = {
-  login: "Secure sign-in",
-  register: "Create account",
-  callback: "Google OAuth",
-  forgot: "Password recovery",
-  reset: "Reset password",
-  email: "Email verification",
-  loginCode: "Login verification"
-};
-
-function Shell({ title, subtitle, children, step = "login", badge, footer }) {
-  return (
-    <main className="auth-page auth-flow-page">
-      <section className="auth-card auth-flow-card" aria-labelledby="auth-heading">
-        <div className="auth-flow__brand">
-          <AppLink href="/" className="auth-back-link" aria-label="Back to Prelude home">
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Prelude
-          </AppLink>
-          <div className="auth-mark" aria-hidden="true">
-            <img src="/prelude-email-logo.png" alt="" />
-          </div>
-          <span className="auth-status-pill">
-            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-            {badge || AUTH_STEP_LABELS[step] || "Secure access"}
-          </span>
-        </div>
-        <div className="auth-flow__header">
-          <h1 id="auth-heading" className="auth-title">{title}</h1>
-          {subtitle ? <p className="auth-subtitle">{subtitle}</p> : null}
-        </div>
-        <div className="auth-content">{children}</div>
-        {footer ? <div className="auth-flow__footer">{footer}</div> : null}
-      </section>
-    </main>
-  );
-}
-
-function Field({ label, ...props }) {
-  return (
-    <label className="auth-field block text-sm font-medium text-foreground">
-      {label}
-      <input className="auth-input mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 outline-none transition focus:border-primary" {...props} />
-    </label>
-  );
-}
-
-function Alert({ children, tone = "info" }) {
-  const cls =
-    tone === "error"
-      ? "auth-alert--error"
-      : tone === "success"
-        ? "auth-alert--success"
-        : "auth-alert--info";
-  return <div className={`auth-alert ${cls}`} role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"}>{children}</div>;
-}
-
-function AuthButton({ children, loading = false, icon: Icon, className = "", ...props }) {
-  return (
-    <button {...props} className={`auth-submit ${className}`} aria-busy={loading || undefined}>
-      {loading ? <Loader2 className="auth-button-spinner h-4 w-4" aria-hidden="true" /> : Icon ? <Icon className="h-4 w-4" aria-hidden="true" /> : null}
-      <span>{children}</span>
-    </button>
-  );
-}
-
-function RoleSelector({ value, onChange, disabled = false, lockedRole = "" }) {
-  return (
-    <fieldset className="space-y-3">
-      <legend className="text-sm font-medium text-foreground">I am signing up as a…</legend>
-      <div className="grid gap-3 sm:grid-cols-3">
-        {SIGNUP_ROLE_OPTIONS.map(({ value: roleValue, title, description, Icon }) => {
-          const selected = value === roleValue;
-          const locked = Boolean(lockedRole && lockedRole !== roleValue);
-          return (
-            <button
-              key={roleValue}
-              type="button"
-              disabled={disabled || locked}
-              aria-pressed={selected}
-              onClick={() => onChange(roleValue)}
-              className={`rounded-2xl border px-4 py-4 text-left transition ${
-                selected
-                  ? "border-primary bg-primary/10 shadow-sm"
-                  : "border-border bg-background/70 hover:border-primary/30"
-              } disabled:cursor-not-allowed disabled:opacity-50`}
-            >
-              <Icon className="mb-3 h-5 w-5 text-primary" aria-hidden="true" />
-              <p className="font-semibold text-foreground">{title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>
-            </button>
-          );
-        })}
-      </div>
-    </fieldset>
-  );
-}
 
 function validateSignupPassword(password, supabaseAuth) {
   if (supabaseAuth) {
@@ -171,6 +65,10 @@ function friendlyVerificationError(error) {
   return error?.message || "Verification could not be completed.";
 }
 
+function focusField(ref) {
+  ref.current?.focus();
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -178,11 +76,18 @@ export function LoginPage() {
   const supabaseAuth = isSupabaseConfigured();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [message] = useState(() => (new URLSearchParams(location.search).get("reset") === "success" ? "Your password has been updated. Log in with your new password." : ""));
+  const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [message] = useState(() =>
+    new URLSearchParams(location.search).get("reset") === "success"
+      ? "Your password has been updated. Log in with your new password."
+      : ""
+  );
   const [authAction, setAuthAction] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
   const destination = sanitizeAuthRedirect(location.state?.from || new URLSearchParams(location.search).get("next") || "");
   const loading = Boolean(authAction);
   const googleLoading = authAction === "google";
@@ -190,19 +95,29 @@ export function LoginPage() {
 
   useEffect(() => {
     if (!ready) return;
-    if (user) {
-      navigate(postAuthDestination(user), { replace: true });
-    }
+    if (user) navigate(postAuthDestination(user), { replace: true });
   }, [ready, user, navigate]);
 
+  function validateForm() {
+    const nextErrors = {};
+    if (!email.trim()) nextErrors.email = "Enter your email address.";
+    else if (!isValidEmail(email)) nextErrors.email = "Enter a valid email address.";
+    if (!password) nextErrors.password = "Enter your password.";
+    setFieldErrors(nextErrors);
+    if (nextErrors.email) focusField(emailRef);
+    else if (nextErrors.password) focusField(passwordRef);
+    return Object.keys(nextErrors).length === 0;
+  }
+
   async function onGoogle() {
-    setError("");
+    setFormError("");
+    setFieldErrors({});
     setAuthAction("google");
     let redirecting = false;
     try {
-      const { url, error: oauthError, message } = await signInWithGoogle({ next: destination });
+      const { url, error: oauthError, message: oauthMessage } = await signInWithGoogle({ next: destination });
       if (oauthError) {
-        setError(oauthError);
+        setFormError(friendlyAuthError(oauthError, "signin"));
         return;
       }
       if (url) {
@@ -210,28 +125,29 @@ export function LoginPage() {
         window.location.assign(url);
         return;
       }
-      setError(message || "Google sign-in did not return a redirect URL.");
+      setFormError(friendlyAuthError(oauthMessage || "Google sign-in did not return a redirect URL.", "signin"));
     } catch (err) {
       console.error("Unexpected Google OAuth failure:", err);
-      setError(err?.message || "Request failed. Check Supabase/Google OAuth settings.");
+      setFormError(friendlyAuthError(err?.message, "signin"));
     } finally {
       if (!redirecting) setAuthAction("");
     }
   }
 
-  async function loginWithCredentials(demoEmail, demoPassword) {
+  async function loginWithCredentials(loginEmail, loginPassword) {
+    if (!validateForm()) return;
     setAuthAction("email");
-    setError("");
+    setFormError("");
     try {
-      const user = await signIn(demoEmail, demoPassword, { captchaToken });
-      if (user?.requiresLoginVerification) {
-        const challenge = user.challengeId ? `&challenge=${encodeURIComponent(user.challengeId)}` : "";
+      const nextUser = await signIn(loginEmail, loginPassword, { captchaToken });
+      if (nextUser?.requiresLoginVerification) {
+        const challenge = nextUser.challengeId ? `&challenge=${encodeURIComponent(nextUser.challengeId)}` : "";
         navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}${challenge}`, { replace: true });
         return;
       }
-      navigate(destination || postAuthDestination(user), { replace: true });
+      navigate(destination || postAuthDestination(nextUser), { replace: true });
     } catch (err) {
-      setError(err.message);
+      setFormError(friendlyAuthError(err.message, "signin"));
       setCaptchaToken("");
       turnstileRef.current?.reset();
     } finally {
@@ -246,145 +162,69 @@ export function LoginPage() {
 
   async function continueAsDemo(accountKey) {
     setAuthAction(`demo-${accountKey}`);
-    setError("");
+    setFormError("");
     try {
       const nextUser = await signInAsDemo(accountKey);
       navigate(destination || postAuthDestination(nextUser), { replace: true });
     } catch (err) {
-      setError(err.message);
+      setFormError(friendlyAuthError(err.message, "signin"));
     } finally {
       setAuthAction("");
     }
   }
 
   return (
-    <Shell
+    <AuthLayout
       title="Welcome back"
-      subtitle={supabaseAuth ? "Sign in with Google or email, then Prelude will quietly verify this device before opening your workspace." : "Secure access uses HTTP-only cookies, CSRF protection, and server-side role checks."}
-      step="login"
+      subtitle="Log in to continue to your Prelude dashboard."
+      headerLink={{ prefix: "Don't have an account?", label: "Sign up", href: "/register" }}
+      footer={<AuthLegalAcknowledgment action="signing in" />}
     >
-      <GoogleSignInButton onClick={onGoogle} disabled={loading} loading={googleLoading} />
-      <p className="dash-auth-divider">or continue with email</p>
-      <form className="space-y-5" onSubmit={onSubmit}>
-        {error ? <Alert tone="error">{error}</Alert> : null}
-        {message ? <Alert>{message}</Alert> : null}
-        <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
-        <AuthButton disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} loading={emailLoading} className="w-full">
-          {emailLoading ? "Checking account" : "Log in"}
-        </AuthButton>
-        <p className="text-sm text-muted-foreground">
-          <AppLink className="underline" href="/forgot-password">Forgot password?</AppLink> ·{" "}
-          <AppLink className="underline" href="/register">Create an account</AppLink>
-        </p>
-      </form>
-
-      <div className="mt-8 rounded-2xl border border-primary/20 bg-primary/5 p-5">
-        <p className="text-sm font-semibold text-foreground">Try a demo dashboard</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Explore Prelude as a student or mentor — calendar, messages, and dashboard tools with no account required.
-        </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => continueAsDemo("student")}
-            className="rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
-          >
-            {authAction === "demo-student" ? "Opening demo…" : `Student · ${DEMO_STUDENT.firstName} ${DEMO_STUDENT.lastName}`}
-          </button>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => continueAsDemo("mentor")}
-            className="rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
-          >
-            {authAction === "demo-mentor" ? "Opening demo…" : `Mentor · ${DEMO_MENTOR.firstName} ${DEMO_MENTOR.lastName}`}
-          </button>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => continueAsDemo("parent")}
-            className="rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
-          >
-            {authAction === "demo-parent" ? "Opening demo…" : `Parent · ${DEMO_PARENT.firstName} ${DEMO_PARENT.lastName}`}
-          </button>
-        </div>
-        <p className="mt-3 break-words text-xs text-muted-foreground">
-          Or sign in with demo credentials: {ALL_DEMO_ACCOUNTS.map((account) => account.email).join(" · ")}
-        </p>
-      </div>
-    </Shell>
-  );
-}
-
-export function AuthCallbackPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { beginLoginVerification, refreshUser } = useAuth();
-  const processed = useRef(false);
-  const callbackPromise = useRef(null);
-  const callbackUrl = useMemo(() => ({ search: window.location.search, hash: window.location.hash }), []);
-  const [state, setState] = useState({ loading: true, error: "", message: "Finishing Google sign-in…" });
-  const nextPath = sanitizeAuthRedirect(searchParams.get("next") || "", "/dashboard");
-
-  useEffect(() => {
-    let active = true;
-    if (callbackUrl.search || callbackUrl.hash) {
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-    if (!processed.current) {
-      processed.current = true;
-      callbackPromise.current = import("../lib/supabaseAuth.js").then(({ completeAuthCallback }) =>
-        completeAuthCallback(callbackUrl.search, callbackUrl.hash)
-      );
-    }
-
-    callbackPromise.current
-      .then(async ({ user: nextUser, error }) => {
-        if (!active) return;
-        if (error) {
-          setState({ loading: false, error, message: "" });
-          return;
-        }
-        const refreshed = await refreshUser();
-        if (!active) return;
-        const resolvedUser = nextUser || refreshed;
-        const verification = await beginLoginVerification();
-        if (!active) return;
-        if (!verification.verified) {
-          const challenge = verification.challengeId ? `&challenge=${encodeURIComponent(verification.challengeId)}` : "";
-          navigate(`/verify-login?next=${encodeURIComponent(nextPath || "/dashboard")}${challenge}`, { replace: true });
-          return;
-        }
-        const destination = nextPath === "/dashboard" ? postAuthDestination(resolvedUser) : nextPath || postAuthDestination(resolvedUser);
-        setState({ loading: false, error: "", message: "Signed in. Opening Prelude…" });
-        navigate(destination, { replace: true });
-      })
-      .catch((err) => {
-        if (active) setState({ loading: false, error: err.message || "Google sign-in could not be completed.", message: "" });
-      });
-    return () => {
-      active = false;
-    };
-  }, [beginLoginVerification, callbackUrl.hash, callbackUrl.search, navigate, nextPath, refreshUser]);
-
-  return (
-    <Shell title="Finishing Google sign-in" subtitle="Prelude is exchanging your secure Google response and restoring your session." step="callback">
-      {state.loading ? (
-        <div className="auth-inline-loading">
-          <Loader2 className="auth-loading-spinner" aria-hidden="true" />
-          <span>{state.message}</span>
-        </div>
-      ) : state.message ? <Alert tone="success">{state.message}</Alert> : null}
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      {!state.loading && state.error ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          <AppLink className="underline" href="/login">Back to login</AppLink>
-        </p>
+      <GoogleSignInButton label="Log in with Google" onClick={onGoogle} disabled={loading} loading={googleLoading} />
+      <AuthDivider />
+      {(formError || message) ? (
+        <AuthBanner tone={formError ? "error" : "success"}>
+          {formError || message}
+        </AuthBanner>
       ) : null}
-    </Shell>
+      <form className="auth-form" onSubmit={onSubmit} noValidate>
+        <AuthField
+          ref={emailRef}
+          label="Email"
+          type="email"
+          name="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            if (fieldErrors.email) setFieldErrors((current) => ({ ...current, email: "" }));
+          }}
+          error={fieldErrors.email}
+          required
+        />
+        <AuthPasswordField
+          ref={passwordRef}
+          label="Password"
+          name="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(event) => {
+            setPassword(event.target.value);
+            if (fieldErrors.password) setFieldErrors((current) => ({ ...current, password: "" }));
+          }}
+          error={fieldErrors.password}
+          labelAside={<AuthInlineLink href="/forgot-password">Forgot password?</AuthInlineLink>}
+          required
+        />
+        {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
+        <AuthSubmitButton disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} loading={emailLoading}>
+          {emailLoading ? "Logging in…" : "Log in"}
+        </AuthSubmitButton>
+      </form>
+      <AuthDemoSection loading={loading} activeAction={authAction} onDemo={continueAsDemo} />
+    </AuthLayout>
   );
 }
 
@@ -408,28 +248,62 @@ export function RegisterPage() {
     termsAccepted: false,
     parentInviteToken
   });
-
+  const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
   const [authAction, setAuthAction] = useState("");
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [confirmationEmail, setConfirmationEmail] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
+  const firstNameRef = useRef(null);
+  const lastNameRef = useRef(null);
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
   const loading = Boolean(authAction);
   const googleLoading = authAction === "google";
   const signupLoading = authAction === "signup";
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return undefined;
+    const id = window.setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearInterval(id);
+  }, [resendCooldown]);
+
+  const update = (key) => (event) => {
+    setForm((current) => ({ ...current, [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
+    if (fieldErrors[key]) setFieldErrors((current) => ({ ...current, [key]: "" }));
+  };
+
+  function validateForm() {
+    const nextErrors = {};
+    if (!form.firstName.trim()) nextErrors.firstName = "Enter your first name.";
+    if (!form.lastName.trim()) nextErrors.lastName = "Enter your last name.";
+    if (!form.email.trim()) nextErrors.email = "Enter your email address.";
+    else if (!isValidEmail(form.email)) nextErrors.email = "Enter a valid email address.";
+    const passwordError = validateSignupPassword(form.password, supabaseAuth);
+    if (passwordError) nextErrors.password = passwordError;
+    if (!invitedAsParent && !SIGNUP_ROLE_VALUES.has(form.role)) nextErrors.role = "Choose Student, Mentor, or Parent.";
+    if (!form.termsAccepted) nextErrors.terms = "Accept the Terms and Privacy Policy to continue.";
+    setFieldErrors(nextErrors);
+    if (nextErrors.firstName) focusField(firstNameRef);
+    else if (nextErrors.lastName) focusField(lastNameRef);
+    else if (nextErrors.email) focusField(emailRef);
+    else if (nextErrors.password) focusField(passwordRef);
+    return Object.keys(nextErrors).length === 0;
+  }
+
   async function onGoogle() {
-    setError("");
+    setFormError("");
     setMessage("");
+    setFieldErrors({});
     setAuthAction("google");
     let redirecting = false;
     try {
-      const { url, error: oauthError, message } = await signInWithGoogle({ next: destination });
+      const { url, error: oauthError, message: oauthMessage } = await signInWithGoogle({ next: destination });
       if (oauthError) {
-        setError(oauthError);
+        setFormError(friendlyAuthError(oauthError, "signup"));
         return;
       }
       if (url) {
@@ -437,38 +311,23 @@ export function RegisterPage() {
         window.location.assign(url);
         return;
       }
-      setMessage(message || "Google sign-up will be available once OAuth is configured.");
+      setMessage(oauthMessage || "Google sign-up will be available once OAuth is configured.");
     } catch (err) {
       console.error("Unexpected Google OAuth failure:", err);
-      setError(err?.message || "Request failed. Check Supabase/Google OAuth settings.");
+      setFormError(friendlyAuthError(err?.message, "signup"));
     } finally {
       if (!redirecting) setAuthAction("");
     }
   }
-  const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
-
-  useEffect(() => {
-    if (resendCooldown <= 0) return undefined;
-    const id = window.setInterval(() => {
-      setResendCooldown((seconds) => Math.max(0, seconds - 1));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [resendCooldown]);
 
   async function onSubmit(event) {
     event.preventDefault();
+    if (!validateForm()) return;
     setAuthAction("signup");
-    setError("");
+    setFormError("");
     setMessage("");
     try {
       const role = invitedAsParent ? "PARENT" : form.role;
-      if (!SIGNUP_ROLE_VALUES.has(role)) {
-        throw new Error("Please choose Student, Mentor, or Parent before creating your account.");
-      }
-      const passwordError = validateSignupPassword(form.password, supabaseAuth);
-      if (passwordError) throw new Error(passwordError);
-      if (!form.termsAccepted) throw new Error("You must accept Prelude's terms to create an account.");
-
       const payload = {
         ...form,
         role,
@@ -494,9 +353,9 @@ export function RegisterPage() {
       if (supabaseAuth && duplicate) {
         setConfirmationEmail(form.email.trim());
         setMessage("An account with this email already exists. If it is not confirmed yet, resend the confirmation email; otherwise log in or reset your password.");
-        setError("");
+        setFormError("");
       } else {
-        setError(err.message);
+        setFormError(friendlyAuthError(err.message, "signup"));
       }
       setCaptchaToken("");
       turnstileRef.current?.reset();
@@ -506,97 +365,135 @@ export function RegisterPage() {
   }
 
   async function resendConfirmationEmail() {
-    const email = confirmationEmail || form.email.trim();
-    if (!email) {
-      setError("Enter the email you used to sign up, then request a new confirmation email.");
+    const targetEmail = confirmationEmail || form.email.trim();
+    if (!targetEmail) {
+      setFormError("Enter the email you used to sign up, then request a new confirmation email.");
       return;
     }
     setResending(true);
-    setError("");
+    setFormError("");
     try {
       const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
-      const result = await resendSignupConfirmation(email);
+      const result = await resendSignupConfirmation(targetEmail);
       setMessage(result.message || "Confirmation email sent. Check your inbox.");
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
-      setError(err.message || "Could not resend the confirmation email.");
+      setFormError(friendlyAuthError(err.message, "signup"));
     } finally {
       setResending(false);
     }
   }
 
   return (
-    <Shell
-      title={invitedAsParent ? "Create your Prelude parent account" : "Create your free Prelude account"}
+    <AuthLayout
+      title={invitedAsParent ? "Create your parent account" : "Create your account"}
       subtitle={
         invitedAsParent
           ? "You've been invited to follow your student's college journey on Prelude."
-          : "Choose your role, create your account, and verify your email to get started."
+          : "Choose your role, verify your email, and start your Prelude dashboard."
       }
-      step="register"
+      headerLink={{ prefix: "Already have an account?", label: "Log in", href: "/login" }}
     >
-      <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} loading={googleLoading} />
-      <p className="dash-auth-divider">or sign up with email</p>
-      <form className="space-y-5" onSubmit={onSubmit}>
-        {error ? <Alert tone="error">{error}</Alert> : null}
-        {message ? (
-          <>
-            <Alert tone="success">{message}</Alert>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-              {supabaseAuth ? (
-                <button type="button" className="underline disabled:opacity-60" disabled={resending || resendCooldown > 0} onClick={resendConfirmationEmail}>
-                  {resending
-                    ? "Sending…"
-                    : resendCooldown > 0
-                      ? `Resend available in ${resendCooldown}s`
-                      : "Resend confirmation email"}
-                </button>
-              ) : null}
-              <AppLink className="underline" href="/login">Go to login</AppLink>
-            </div>
-          </>
-        ) : null}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="First name" value={form.firstName} onChange={update("firstName")} required />
-          <Field label="Last name" value={form.lastName} onChange={update("lastName")} required />
+      <GoogleSignInButton label="Sign up with Google" onClick={onGoogle} disabled={loading} loading={googleLoading} />
+      <AuthDivider />
+      {(formError || message) ? (
+        <AuthBanner tone={formError ? "error" : "success"}>
+          {formError || message}
+        </AuthBanner>
+      ) : null}
+      {message ? (
+        <div className="auth-inline-actions">
+          {supabaseAuth ? (
+            <button type="button" disabled={resending || resendCooldown > 0} onClick={resendConfirmationEmail}>
+              {resending ? "Sending…" : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend confirmation email"}
+            </button>
+          ) : null}
+          <AuthInlineLink href="/login">Go to login</AuthInlineLink>
         </div>
-        <Field label="Email" type="email" value={form.email} onChange={update("email")} required />
-        <Field label="Password" type="password" value={form.password} onChange={update("password")} required minLength={supabaseAuth ? 6 : 12} />
-        {!supabaseAuth ? (
-          <p className="text-xs text-muted-foreground">
-            At least 12 characters with uppercase, lowercase, a number, and a symbol.
-          </p>
-        ) : (
-          <p className="text-xs text-muted-foreground">At least 6 characters.</p>
-        )}
+      ) : null}
+      <form className="auth-form" onSubmit={onSubmit} noValidate>
+        <div className="auth-form__row">
+          <AuthField
+            ref={firstNameRef}
+            label="First name"
+            name="given-name"
+            autoComplete="given-name"
+            value={form.firstName}
+            onChange={update("firstName")}
+            error={fieldErrors.firstName}
+            required
+          />
+          <AuthField
+            ref={lastNameRef}
+            label="Last name"
+            name="family-name"
+            autoComplete="family-name"
+            value={form.lastName}
+            onChange={update("lastName")}
+            error={fieldErrors.lastName}
+            required
+          />
+        </div>
+        <AuthField
+          ref={emailRef}
+          label="Email"
+          type="email"
+          name="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="you@example.com"
+          value={form.email}
+          onChange={update("email")}
+          error={fieldErrors.email}
+          required
+        />
+        <AuthPasswordField
+          ref={passwordRef}
+          label="Password"
+          name="new-password"
+          autoComplete="new-password"
+          value={form.password}
+          onChange={update("password")}
+          error={fieldErrors.password}
+          required
+          minLength={supabaseAuth ? 6 : 12}
+        />
+        <PasswordRequirements password={form.password} supabaseAuth={supabaseAuth} />
         {invitedAsParent ? (
-          <Alert>You&apos;ll continue as a parent account for this invitation.</Alert>
+          <AuthBanner tone="info" reserve>
+            You&apos;ll continue as a parent account for this invitation.
+          </AuthBanner>
         ) : (
-          <RoleSelector
+          <AuthRoleSelector
             value={form.role}
-            onChange={(role) => setForm((current) => ({ ...current, role }))}
+            onChange={(role) => {
+              setForm((current) => ({ ...current, role }));
+              if (fieldErrors.role) setFieldErrors((current) => ({ ...current, role: "" }));
+            }}
             disabled={loading}
             lockedRole={invitedAsParent ? "PARENT" : ""}
+            error={fieldErrors.role}
           />
         )}
-        <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
+        <AuthTermsCheckbox checked={form.termsAccepted} onChange={update("termsAccepted")} disabled={loading} />
+        {fieldErrors.terms ? (
+          <p className="auth-field__message auth-field__message--error" role="alert">
+            {fieldErrors.terms}
+          </p>
+        ) : (
+          <p className="auth-field__message auth-field__message--empty" aria-hidden="true">
+            {"\u00a0"}
+          </p>
+        )}
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
-        <AuthButton
-          disabled={
-            loading ||
-            (supabaseAuth && isTurnstileRequired() && !captchaToken) ||
-            (!invitedAsParent && !form.role)
-          }
+        <AuthSubmitButton
+          disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken) || (!invitedAsParent && !form.role)}
           loading={signupLoading}
-          className="w-full"
         >
-          {signupLoading ? "Creating account" : "Create account"}
-        </AuthButton>
-        <p className="text-sm text-muted-foreground">
-          Already have an account? <AppLink className="underline" href="/login">Log in</AppLink>
-        </p>
+          {signupLoading ? "Creating account…" : "Create account"}
+        </AuthSubmitButton>
       </form>
-    </Shell>
+    </AuthLayout>
   );
 }
 
@@ -604,15 +501,25 @@ export function ForgotPasswordPage() {
   const supabaseAuth = isSupabaseConfigured();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
+  const emailRef = useRef(null);
 
   async function onSubmit(event) {
     event.preventDefault();
+    const nextErrors = {};
+    if (!email.trim()) nextErrors.email = "Enter your email address.";
+    else if (!isValidEmail(email)) nextErrors.email = "Enter a valid email address.";
+    setFieldErrors(nextErrors);
+    if (nextErrors.email) {
+      focusField(emailRef);
+      return;
+    }
     setLoading(true);
-    setError("");
+    setFormError("");
     setMessage("");
     try {
       if (supabaseAuth) {
@@ -625,7 +532,7 @@ export function ForgotPasswordPage() {
       const result = await requestPasswordReset(email);
       setMessage(result.message);
     } catch (err) {
-      setError(err.message);
+      setFormError(friendlyAuthError(err.message, "signin"));
       setCaptchaToken("");
       turnstileRef.current?.reset();
     } finally {
@@ -634,20 +541,38 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <Shell title="Reset your password" subtitle="Enter your email and Prelude will send a secure reset link if an account exists." step="forgot">
-      <form className="space-y-5" onSubmit={onSubmit}>
-        {error ? <Alert tone="error">{error}</Alert> : null}
-        {message ? <Alert>{message}</Alert> : null}
-        <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+    <AuthLayout
+      title="Reset your password"
+      subtitle="Enter your email and we'll send a secure reset link if an account exists."
+      headerLink={{ prefix: "Remember your password?", label: "Log in", href: "/login" }}
+    >
+      <AuthBanner tone="success" reserve={Boolean(message)}>
+        {message || null}
+      </AuthBanner>
+      <AuthBanner tone="error" reserve={Boolean(formError)}>
+        {formError || null}
+      </AuthBanner>
+      <form className="auth-form" onSubmit={onSubmit} noValidate>
+        <AuthField
+          ref={emailRef}
+          label="Email"
+          type="email"
+          name="email"
+          autoComplete="email"
+          value={email}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            if (fieldErrors.email) setFieldErrors({});
+          }}
+          error={fieldErrors.email}
+          required
+        />
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
-        <AuthButton disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} loading={loading} className="w-full">
-          {loading ? "Sending secure link" : "Send reset link"}
-        </AuthButton>
-        <p className="text-sm text-muted-foreground">
-          <AppLink className="underline" href="/login">Back to login</AppLink>
-        </p>
+        <AuthSubmitButton disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} loading={loading}>
+          {loading ? "Sending link…" : "Send reset link"}
+        </AuthSubmitButton>
       </form>
-    </Shell>
+    </AuthLayout>
   );
 }
 
@@ -660,25 +585,25 @@ export function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [hasRecoverySession, setHasRecoverySession] = useState(false);
   const [checkingRecovery, setCheckingRecovery] = useState(supabaseAuth);
+  const passwordRef = useRef(null);
 
   useEffect(() => {
     if (!supabaseAuth) return undefined;
     let active = true;
     let unsubscribe = () => {};
-
     if (recoveryUrl.search || recoveryUrl.hash) {
       window.history.replaceState({}, "", window.location.pathname);
     }
-
     import("../lib/supabaseAuth.js").then(({ initializePasswordRecovery, onAuthStateChange }) => {
       initializePasswordRecovery(recoveryUrl.search, recoveryUrl.hash).then(({ hasRecoverySession: recovered, error: recoveryError }) => {
         if (!active) return;
         setHasRecoverySession(Boolean(recovered));
-        if (recoveryError) setError(recoveryError);
+        if (recoveryError) setFormError(friendlyAuthError(recoveryError, "signin"));
         setCheckingRecovery(false);
       });
       const { data } = onAuthStateChange((event, session) => {
@@ -686,7 +611,6 @@ export function ResetPasswordPage() {
       });
       unsubscribe = () => data.subscription.unsubscribe();
     });
-
     return () => {
       active = false;
       unsubscribe();
@@ -695,16 +619,20 @@ export function ResetPasswordPage() {
 
   async function onSubmit(event) {
     event.preventDefault();
-    setError("");
+    const nextErrors = {};
+    const passwordError = validateSignupPassword(password, supabaseAuth);
+    if (passwordError) nextErrors.password = passwordError;
+    if (!confirmPassword) nextErrors.confirmPassword = "Confirm your new password.";
+    else if (password !== confirmPassword) nextErrors.confirmPassword = "Passwords don't match.";
+    setFieldErrors(nextErrors);
+    if (nextErrors.password) {
+      focusField(passwordRef);
+      return;
+    }
+    setFormError("");
     setMessage("");
     setLoading(true);
     try {
-      if (password !== confirmPassword) {
-        throw new Error("Passwords don't match.");
-      }
-      const passwordError = validateSignupPassword(password, supabaseAuth);
-      if (passwordError) throw new Error(passwordError);
-
       if (supabaseAuth) {
         const { updatePassword: supabaseUpdate } = await import("../lib/supabaseAuth.js");
         const { error: updateError } = await supabaseUpdate(password);
@@ -713,87 +641,84 @@ export function ResetPasswordPage() {
         setTimeout(() => navigate("/login?reset=success", { replace: true }), 1200);
         return;
       }
-
-      if (!token) {
-        throw new Error("This reset link is missing a token. Request a new link from the forgot password page.");
-      }
-
+      if (!token) throw new Error("This reset link is missing a token. Request a new link from the forgot password page.");
       const result = await resetPassword(token, password);
       setMessage(result.message || "Password reset. Please log in again.");
     } catch (err) {
-      setError(err.message);
+      setFormError(friendlyAuthError(err.message, "signin"));
     } finally {
       setLoading(false);
     }
   }
 
-  if (supabaseAuth) {
-    return (
-      <Shell title="Choose a new password" subtitle="Use the secure link from your email to choose a new password." step="reset">
-        <form className="space-y-5" onSubmit={onSubmit}>
-          {error ? <Alert tone="error">{error}</Alert> : null}
-          {message ? <Alert tone="success">{message}</Alert> : null}
-          {checkingRecovery ? (
-            <div className="auth-inline-loading">
-              <Loader2 className="auth-loading-spinner" aria-hidden="true" />
-              <span>Checking your reset link…</span>
-            </div>
-          ) : null}
-          {!checkingRecovery && !hasRecoverySession && !message ? (
-            <Alert>
-              Open this page from the reset link in your email, or request a new link on the{" "}
-              <AppLink className="underline" href="/forgot-password">forgot password</AppLink> page.
-            </Alert>
-          ) : null}
-          <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
-          <Field label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
-          <AuthButton disabled={loading || checkingRecovery || (!hasRecoverySession && !message)} loading={loading} className="w-full">
-            {loading ? "Updating password" : "Update password"}
-          </AuthButton>
-          {message ? (
-            <p className="text-sm text-muted-foreground">
-              <AppLink className="underline" href="/login">Back to login</AppLink>
-            </p>
-          ) : null}
-        </form>
-      </Shell>
-    );
-  }
+  const canSubmit = supabaseAuth ? hasRecoverySession || message : Boolean(token);
 
   return (
-    <Shell title="Choose a new password" subtitle="All existing sessions are revoked after reset." step="reset">
-      {!token && !message ? (
-        <Alert tone="error">
-          This reset link is invalid or incomplete. Request a new link on the{" "}
-          <AppLink className="underline" href="/forgot-password">forgot password</AppLink> page.
-        </Alert>
+    <AuthLayout
+      title="Choose a new password"
+      subtitle={supabaseAuth ? "Use the secure link from your email to set a new password." : "All existing sessions are revoked after reset."}
+      headerLink={{ prefix: "Back to", label: "Log in", href: "/login" }}
+    >
+      {checkingRecovery ? (
+        <div className="auth-inline-loading">
+          <Loader2 className="auth-loading-spinner" aria-hidden="true" />
+          <span>Checking your reset link…</span>
+        </div>
       ) : null}
-      <form className="space-y-5" onSubmit={onSubmit}>
-        {error ? <Alert tone="error">{error}</Alert> : null}
-        {message ? <Alert>{message}</Alert> : null}
-        {token ? (
-          <>
-            <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={12} autoComplete="new-password" />
-            <Field label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={12} autoComplete="new-password" />
-            <p className="text-xs text-muted-foreground">
-              At least 12 characters with uppercase, lowercase, a number, and a symbol.
-            </p>
-            <AuthButton disabled={loading || Boolean(message)} loading={loading} className="w-full">
-              {loading ? "Updating password" : "Reset password"}
-            </AuthButton>
-          </>
-        ) : null}
-        {message ? (
-          <p className="text-sm text-muted-foreground">
-            <AppLink className="underline" href="/login">Back to login</AppLink>
-          </p>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            <AppLink className="underline" href="/login">Back to login</AppLink>
-          </p>
-        )}
-      </form>
-    </Shell>
+      {!checkingRecovery && supabaseAuth && !hasRecoverySession && !message ? (
+        <AuthBanner tone="info" reserve>
+          Open this page from the reset link in your email, or request a new link on the{" "}
+          <AuthInlineLink href="/forgot-password">forgot password</AuthInlineLink> page.
+        </AuthBanner>
+      ) : null}
+      {!supabaseAuth && !token && !message ? (
+        <AuthBanner tone="error" reserve>
+          This reset link is invalid or incomplete. Request a new link on the{" "}
+          <AuthInlineLink href="/forgot-password">forgot password</AuthInlineLink> page.
+        </AuthBanner>
+      ) : null}
+      <AuthBanner tone="success" reserve={Boolean(message)}>
+        {message || null}
+      </AuthBanner>
+      <AuthBanner tone="error" reserve={Boolean(formError)}>
+        {formError || null}
+      </AuthBanner>
+      {canSubmit ? (
+        <form className="auth-form" onSubmit={onSubmit} noValidate>
+          <AuthPasswordField
+            ref={passwordRef}
+            label="New password"
+            name="new-password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(event) => {
+              setPassword(event.target.value);
+              if (fieldErrors.password) setFieldErrors((current) => ({ ...current, password: "" }));
+            }}
+            error={fieldErrors.password}
+            required
+            minLength={supabaseAuth ? 6 : 12}
+          />
+          <AuthPasswordField
+            label="Confirm new password"
+            name="confirm-new-password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(event) => {
+              setConfirmPassword(event.target.value);
+              if (fieldErrors.confirmPassword) setFieldErrors((current) => ({ ...current, confirmPassword: "" }));
+            }}
+            error={fieldErrors.confirmPassword}
+            required
+            minLength={supabaseAuth ? 6 : 12}
+          />
+          {!supabaseAuth ? <PasswordRequirements password={password} supabaseAuth={false} /> : null}
+          <AuthSubmitButton disabled={loading || checkingRecovery || Boolean(message)} loading={loading}>
+            {loading ? "Updating password…" : "Update password"}
+          </AuthSubmitButton>
+        </form>
+      ) : null}
+    </AuthLayout>
   );
 }
 
@@ -816,13 +741,13 @@ export function VerifyEmailPage() {
         .then(async ({ user: nextUser, error }) => {
           if (cancelled) return;
           if (error) {
-            setState({ loading: false, message: "", error, alreadyVerified: false });
+            setState({ loading: false, message: "", error: friendlyAuthError(error, "signup"), alreadyVerified: false });
             return;
           }
           await refreshUser();
           setState({
             loading: false,
-            message: "Email verified. We’re checking your Prelude profile before continuing.",
+            message: "Email verified. We're checking your Prelude profile before continuing.",
             error: "",
             alreadyVerified: false
           });
@@ -830,7 +755,7 @@ export function VerifyEmailPage() {
           setTimeout(() => navigate(destination, { replace: true }), 900);
         })
         .catch((err) => {
-          if (!cancelled) setState({ loading: false, message: "", error: err.message, alreadyVerified: false });
+          if (!cancelled) setState({ loading: false, message: "", error: friendlyAuthError(err.message, "signup"), alreadyVerified: false });
         });
       return () => {
         cancelled = true;
@@ -860,46 +785,110 @@ export function VerifyEmailPage() {
         });
       })
       .catch((err) => {
-        if (!cancelled) {
-          setState({ loading: false, message: "", error: err.message, alreadyVerified: false });
-        }
+        if (!cancelled) setState({ loading: false, message: "", error: friendlyAuthError(err.message, "signup"), alreadyVerified: false });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [refreshUser, supabaseAuth, verificationToken, verificationUrl.hash, verificationUrl.search]);
+  }, [refreshUser, supabaseAuth, verificationToken, verificationUrl.hash, verificationUrl.search, navigate]);
 
   const continuePath = user ? postAuthDestination(user) : "/login";
   const continueLabel = user ? "Continue to dashboard" : "Continue to login";
 
   return (
-    <Shell title="Email verification" subtitle="Confirm your email address so Prelude can protect account updates and recovery." step="email">
+    <AuthLayout
+      title="Email verification"
+      subtitle="Confirm your email address so Prelude can protect account updates and recovery."
+      headerLink={{ prefix: "Need help?", label: "Log in", href: "/login" }}
+    >
       {state.loading ? (
         <div className="auth-inline-loading">
           <Loader2 className="auth-loading-spinner" aria-hidden="true" />
           <span>Verifying your email…</span>
         </div>
       ) : null}
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      {!state.loading && !state.error && state.message ? (
-        <Alert tone="success">{state.alreadyVerified ? state.message : state.message}</Alert>
-      ) : null}
+      <AuthBanner tone="error" reserve={Boolean(state.error)}>
+        {state.error || null}
+      </AuthBanner>
+      <AuthBanner tone="success" reserve={Boolean(!state.loading && !state.error && state.message)}>
+        {!state.loading && !state.error && state.message ? state.message : null}
+      </AuthBanner>
       {!state.loading && !state.error ? (
-        <AuthButton
-          type="button"
-          className="mt-6"
-          onClick={() => navigate(continuePath, { replace: true })}
-        >
+        <AuthSubmitButton type="button" onClick={() => navigate(continuePath, { replace: true })}>
           {continueLabel}
-        </AuthButton>
+        </AuthSubmitButton>
       ) : null}
-      {state.error ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          <AppLink className="underline" href="/login">Back to login</AppLink>
-        </p>
+    </AuthLayout>
+  );
+}
+
+export function AuthCallbackPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { beginLoginVerification, refreshUser } = useAuth();
+  const processed = useRef(false);
+  const callbackPromise = useRef(null);
+  const callbackUrl = useMemo(() => ({ search: window.location.search, hash: window.location.hash }), []);
+  const [state, setState] = useState({ loading: true, error: "", message: "Finishing Google sign-in…" });
+  const nextPath = sanitizeAuthRedirect(searchParams.get("next") || "", "/dashboard");
+
+  useEffect(() => {
+    let active = true;
+    if (callbackUrl.search || callbackUrl.hash) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    if (!processed.current) {
+      processed.current = true;
+      callbackPromise.current = import("../lib/supabaseAuth.js").then(({ completeAuthCallback }) =>
+        completeAuthCallback(callbackUrl.search, callbackUrl.hash)
+      );
+    }
+
+    callbackPromise.current
+      .then(async ({ user: nextUser, error }) => {
+        if (!active) return;
+        if (error) {
+          setState({ loading: false, error: friendlyAuthError(error, "signin"), message: "" });
+          return;
+        }
+        const refreshed = await refreshUser();
+        if (!active) return;
+        const resolvedUser = nextUser || refreshed;
+        const verification = await beginLoginVerification();
+        if (!active) return;
+        if (!verification.verified) {
+          const challenge = verification.challengeId ? `&challenge=${encodeURIComponent(verification.challengeId)}` : "";
+          navigate(`/verify-login?next=${encodeURIComponent(nextPath || "/dashboard")}${challenge}`, { replace: true });
+          return;
+        }
+        const destination = nextPath === "/dashboard" ? postAuthDestination(resolvedUser) : nextPath || postAuthDestination(resolvedUser);
+        setState({ loading: false, error: "", message: "Signed in. Opening Prelude…" });
+        navigate(destination, { replace: true });
+      })
+      .catch((err) => {
+        if (active) setState({ loading: false, error: friendlyAuthError(err.message, "signin"), message: "" });
+      });
+    return () => {
+      active = false;
+    };
+  }, [beginLoginVerification, callbackUrl.hash, callbackUrl.search, navigate, nextPath, refreshUser]);
+
+  return (
+    <AuthLayout title="Finishing Google sign-in" subtitle="Prelude is restoring your session securely." headerLink={{ prefix: "Having trouble?", label: "Log in", href: "/login" }}>
+      {state.loading ? (
+        <div className="auth-inline-loading">
+          <Loader2 className="auth-loading-spinner" aria-hidden="true" />
+          <span>{state.message}</span>
+        </div>
       ) : null}
-    </Shell>
+      <AuthBanner tone="success" reserve={Boolean(state.message && !state.loading)}>
+        {state.message && !state.loading ? state.message : null}
+      </AuthBanner>
+      <AuthBanner tone="error" reserve={Boolean(state.error)}>
+        {state.error || null}
+      </AuthBanner>
+    </AuthLayout>
   );
 }
 
@@ -1037,10 +1026,14 @@ export function VerifyLoginPage() {
           <fieldset className="verify-otp-fieldset">
             <legend className="sr-only">Six-digit verification code</legend>
             <p id="verify-code-help" className="sr-only">Enter the six digits from your Prelude verification email. Paste is supported.</p>
-            <div className="verify-otp-row" aria-describedby="verify-code-help" onPaste={(event) => {
-              event.preventDefault();
-              setCodeValue(event.clipboardData.getData("text"));
-            }}>
+            <div
+              className="verify-otp-row"
+              aria-describedby="verify-code-help"
+              onPaste={(event) => {
+                event.preventDefault();
+                setCodeValue(event.clipboardData.getData("text"));
+              }}
+            >
               {digits.map((digit, index) => (
                 <input
                   key={index}
@@ -1106,7 +1099,7 @@ export function DashboardPage() {
   useEffect(() => {
     if (ready && !user) navigate("/login", { replace: true });
     if (ready && user) getDashboardData().then(setData).catch((err) => setError(err.message));
-  }, [ready, user]);
+  }, [ready, user, navigate]);
   const cards = useMemo(() => {
     if (!data) return [];
     if (data.role === "STUDENT") return ["Profile", "College applications", "Essays", "Mentorship sessions", "Messages", "Notifications", "Progress tracking"];
@@ -1114,21 +1107,51 @@ export function DashboardPage() {
     if (data.role === "COUNSELOR") return ["Student roster", "Analytics", "Organization progress"];
     return ["Platform metrics", "User management", "Reports", "Security events"];
   }, [data]);
-  return <Shell title="Dashboard" subtitle={user ? `Signed in as ${user.name} (${user.role})` : "Loading…"}>{error ? <Alert tone="error">{error}</Alert> : null}{!data ? <p>Loading dashboard…</p> : <div className="grid gap-4 sm:grid-cols-2">{cards.map((card) => <div key={card} className="rounded-2xl border border-border bg-background/70 p-5"><h2 className="font-semibold">{card}</h2><p className="mt-2 text-sm text-muted-foreground">Visible only after server-side RBAC and ownership checks.</p></div>)}</div>}</Shell>;
+  return (
+    <AuthLayout title="Dashboard" subtitle={user ? `Signed in as ${user.name} (${user.role})` : "Loading…"} panel>
+      <AuthBanner tone="error" reserve={Boolean(error)}>{error || null}</AuthBanner>
+      {!data ? <p>Loading dashboard…</p> : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {cards.map((card) => (
+            <div key={card} className="rounded-2xl border border-border bg-background/70 p-5">
+              <h2 className="font-semibold">{card}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Visible only after server-side RBAC and ownership checks.</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </AuthLayout>
+  );
 }
 
 export function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  useEffect(() => { getProfile().then(setProfile).catch((err) => setError(err.message)); }, []);
+  useEffect(() => {
+    getProfile().then(setProfile).catch((err) => setError(err.message));
+  }, []);
   async function onSubmit(event) {
     event.preventDefault();
     const result = await updateProfile({ firstName: profile.user.firstName, lastName: profile.user.lastName });
     setProfile((current) => ({ ...current, user: result.user }));
     setMessage("Profile updated.");
   }
-  return <Shell title="Profile">{error ? <Alert tone="error">{error}</Alert> : null}{message ? <Alert>{message}</Alert> : null}{profile ? <form className="space-y-5" onSubmit={onSubmit}><Field label="First name" value={profile.user.firstName} onChange={(e) => setProfile((p) => ({ ...p, user: { ...p.user, firstName: e.target.value } }))} /><Field label="Last name" value={profile.user.lastName} onChange={(e) => setProfile((p) => ({ ...p, user: { ...p.user, lastName: e.target.value } }))} /><button className="rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground">Save profile</button></form> : <p>Loading profile…</p>}</Shell>;
+  return (
+    <AuthLayout title="Profile" panel>
+      <AuthBanner tone="error" reserve={Boolean(error)}>{error || null}</AuthBanner>
+      <AuthBanner tone="success" reserve={Boolean(message)}>{message || null}</AuthBanner>
+      {profile ? (
+        <form className="auth-form" onSubmit={onSubmit}>
+          <AuthField label="First name" value={profile.user.firstName} onChange={(e) => setProfile((p) => ({ ...p, user: { ...p.user, firstName: e.target.value } }))} />
+          <AuthField label="Last name" value={profile.user.lastName} onChange={(e) => setProfile((p) => ({ ...p, user: { ...p.user, lastName: e.target.value } }))} />
+          <AuthSubmitButton>Save profile</AuthSubmitButton>
+        </form>
+      ) : (
+        <p>Loading profile…</p>
+      )}
+    </AuthLayout>
+  );
 }
 
 export function SettingsPage() {
@@ -1136,6 +1159,26 @@ export function SettingsPage() {
   const [error, setError] = useState("");
   const load = () => getSessions().then((result) => setSessions(result.sessions)).catch((err) => setError(err.message));
   useEffect(load, []);
-  async function revoke(id) { await revokeSession(id); load(); }
-  return <Shell title="Settings" subtitle="Manage active devices and revoke sessions.">{error ? <Alert tone="error">{error}</Alert> : null}<div className="space-y-3">{sessions.map((session) => <div key={session.id} className="flex items-center justify-between rounded-2xl border border-border p-4"><div><p className="font-medium">{session.device} · {session.browser}</p><p className="text-sm text-muted-foreground">{session.status} · {new Date(session.createdAt).toLocaleString()}</p></div>{session.status === "ACTIVE" ? <button className="rounded-xl border border-border px-3 py-2 text-sm" onClick={() => revoke(session.id)}>Revoke</button> : null}</div>)}</div></Shell>;
+  async function revoke(id) {
+    await revokeSession(id);
+    load();
+  }
+  return (
+    <AuthLayout title="Settings" subtitle="Manage active devices and revoke sessions." panel>
+      <AuthBanner tone="error" reserve={Boolean(error)}>{error || null}</AuthBanner>
+      <div className="space-y-3">
+        {sessions.map((session) => (
+          <div key={session.id} className="flex items-center justify-between rounded-2xl border border-border p-4">
+            <div>
+              <p className="font-medium">{session.device} · {session.browser}</p>
+              <p className="text-sm text-muted-foreground">{session.status} · {new Date(session.createdAt).toLocaleString()}</p>
+            </div>
+            {session.status === "ACTIVE" ? (
+              <button className="rounded-xl border border-border px-3 py-2 text-sm" onClick={() => revoke(session.id)}>Revoke</button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </AuthLayout>
+  );
 }

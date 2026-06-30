@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, X } from "lucide-react";
+import { CheckCircle2, Search, X } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { getMentorCatalog, requestMentorMatch, saveMatchDecision } from "../../../lib/preludeMatchService.js";
 import { dashboardPathForRole, myMentorsPathForRole, studentRoute } from "../../../lib/onboardingRoutes.js";
@@ -26,6 +26,7 @@ export function PreludeMatchBrowsePage() {
   const [expertise, setExpertise] = useState("");
   const [loadingId, setLoadingId] = useState(null);
   const [message, setMessage] = useState("");
+  const [matchedMentorId, setMatchedMentorId] = useState(null);
 
   const mentors = getMentorCatalog();
   const colleges = [...new Set(mentors.map((m) => m.school || m.university).filter(Boolean))];
@@ -45,6 +46,7 @@ export function PreludeMatchBrowsePage() {
   async function handleSelect(mentorId) {
     setLoadingId(mentorId);
     setMessage("");
+    setMatchedMentorId(null);
     try {
       if (user?.authProvider === "supabase") {
         const { error: err } = await requestMentorMatch(user.id, mentorId);
@@ -57,11 +59,10 @@ export function PreludeMatchBrowsePage() {
         await refreshUser();
         await refresh();
         setMessage("Mentor saved to your account.");
-        window.setTimeout(() => {
-          window.location.assign(dashboardPathForRole(user.role));
-        }, 600);
+        setMatchedMentorId(mentorId);
       } else {
         setMessage("Demo mode — mentor selection preview only.");
+        setMatchedMentorId(mentorId);
       }
     } catch (err) {
       setMessage(err.message);
@@ -136,7 +137,17 @@ export function PreludeMatchBrowsePage() {
         </div>
       </SectionCard>
 
-      {message ? <p className="dash-callout">{message}</p> : null}
+      {message ? (
+        <div className="dash-callout pm-browse-complete" role={matchedMentorId ? "status" : undefined}>
+          <p>{message}</p>
+          {matchedMentorId ? (
+            <PrimaryButton as={Link} to={dashboardPathForRole(user?.role)} className="dash-btn--sm">
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              Complete
+            </PrimaryButton>
+          ) : null}
+        </div>
+      ) : null}
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -155,10 +166,10 @@ export function PreludeMatchBrowsePage() {
                 <PrimaryButton
                   type="button"
                   className="dash-btn--sm"
-                  disabled={loadingId === mentor.id}
+                  disabled={loadingId === mentor.id || matchedMentorId === mentor.id}
                   onClick={() => handleSelect(mentor.id)}
                 >
-                  {loadingId === mentor.id ? "Saving…" : "Select Mentor"}
+                  {loadingId === mentor.id ? "Saving…" : matchedMentorId === mentor.id ? "Matched" : "Select Mentor"}
                 </PrimaryButton>
               </div>
             </div>
