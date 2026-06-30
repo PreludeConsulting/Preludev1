@@ -16,6 +16,14 @@ export default function PreludeCollegeSearch({ selected, onChange, reducedMotion
   const [focusIndex, setFocusIndex] = useState(-1);
   const debounceRef = useRef(null);
   const listId = "pm-college-results";
+  const customCollegeName = query.trim().replace(/\s+/g, " ");
+  const canAddCustomCollege =
+    customCollegeName.length >= 2 &&
+    !selected.some((item) => {
+      const label = typeof item === "string" ? item : item.name;
+      return label?.trim().toLowerCase() === customCollegeName.toLowerCase();
+    }) &&
+    !results.some((college) => college.name?.trim().toLowerCase() === customCollegeName.toLowerCase());
 
   const runSearch = useCallback(
     async (term, signal) => {
@@ -55,6 +63,11 @@ export default function PreludeCollegeSearch({ selected, onChange, reducedMotion
     setFocusIndex(-1);
   }
 
+  function addCustomCollege() {
+    if (!canAddCustomCollege) return;
+    addCollege(customCollegeName);
+  }
+
   function removeCollege(item) {
     const key = typeof item === "string" ? item : collegeKey(item);
     onChange(
@@ -77,16 +90,21 @@ export default function PreludeCollegeSearch({ selected, onChange, reducedMotion
       setFocusIndex(-1);
       return;
     }
-    if (!open || results.length === 0) return;
+    if (!open) return;
     if (e.key === "ArrowDown") {
+      if (results.length === 0) return;
       e.preventDefault();
       setFocusIndex((i) => Math.min(i + 1, results.length - 1));
     } else if (e.key === "ArrowUp") {
+      if (results.length === 0) return;
       e.preventDefault();
       setFocusIndex((i) => Math.max(i - 1, 0));
     } else if (e.key === "Enter" && focusIndex >= 0) {
       e.preventDefault();
       addCollege(results[focusIndex]);
+    } else if (e.key === "Enter" && canAddCustomCollege) {
+      e.preventDefault();
+      addCustomCollege();
     }
   }
 
@@ -123,24 +141,34 @@ export default function PreludeCollegeSearch({ selected, onChange, reducedMotion
         <ul id={listId} className="pm-colleges__dropdown" role="listbox">
           {loading ? (
             <li className="pm-colleges__empty">Searching…</li>
-          ) : results.length === 0 ? (
+          ) : results.length === 0 && !canAddCustomCollege ? (
             <li className="pm-colleges__empty">No schools found. Try a different name.</li>
           ) : (
-            results.map((college, i) => (
-              <li key={collegeKey(college)} role="presentation">
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={focusIndex === i}
-                  className={`pm-colleges__option${focusIndex === i ? " pm-colleges__option--active" : ""}`}
-                  onMouseEnter={() => setFocusIndex(i)}
-                  onClick={() => addCollege(college)}
-                >
-                  <span className="pm-colleges__name">{college.name}</span>
-                  <span className="pm-colleges__location">{formatCollegeLocation(college)}</span>
-                </button>
-              </li>
-            ))
+            <>
+              {results.map((college, i) => (
+                <li key={collegeKey(college)} role="presentation">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={focusIndex === i}
+                    className={`pm-colleges__option${focusIndex === i ? " pm-colleges__option--active" : ""}`}
+                    onMouseEnter={() => setFocusIndex(i)}
+                    onClick={() => addCollege(college)}
+                  >
+                    <span className="pm-colleges__name">{college.name}</span>
+                    <span className="pm-colleges__location">{formatCollegeLocation(college)}</span>
+                  </button>
+                </li>
+              ))}
+              {canAddCustomCollege ? (
+                <li role="presentation">
+                  <button type="button" role="option" className="pm-colleges__option" onClick={addCustomCollege}>
+                    <span className="pm-colleges__name">Add "{customCollegeName}"</span>
+                    <span className="pm-colleges__location">Use a school that is not in the list</span>
+                  </button>
+                </li>
+              ) : null}
+            </>
           )}
         </ul>
       ) : null}
