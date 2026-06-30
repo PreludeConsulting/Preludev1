@@ -8,18 +8,37 @@ const FULL_ALT_NAMES = {
   unc: "University of North Carolina at Chapel Hill"
 };
 
+const PNG_LOGOS = new Set([
+  "dartmouth",
+  "ucla",
+  "uchicago",
+  "cmu",
+  "princeton",
+  "yale",
+  "vanderbilt",
+  "columbia"
+]);
+
 const LOGO_DISPLAY = {
   harvard: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
   "johns-hopkins": { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
   brown: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
   cornell: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
+  columbia: { "--university-logo-height": "clamp(1.95rem, 3.6vw, 2.85rem)" },
+  dartmouth: { "--university-logo-max-width": "clamp(5.75rem, 12vw, 8.25rem)" },
+  ucla: { "--university-logo-max-width": "clamp(7.75rem, 16vw, 11rem)" },
+  uchicago: { "--university-logo-height": "clamp(1.95rem, 3.6vw, 2.85rem)" },
+  vanderbilt: { "--university-logo-max-width": "clamp(5.75rem, 12vw, 8.25rem)" },
+  cmu: { "--university-logo-height": "clamp(1.95rem, 3.6vw, 2.85rem)" },
+  princeton: { "--university-logo-height": "clamp(1.95rem, 3.6vw, 2.85rem)" },
+  yale: { "--university-logo-max-width": "clamp(5.25rem, 11vw, 7.75rem)" },
   "notre-dame": { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
   georgetown: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" },
   usc: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" }
 };
 
 function logoPath(id) {
-  const ext = "svg";
+  const ext = PNG_LOGOS.has(id) ? "png" : "svg";
   return `${mediaBase}media/universities/${id}.${ext}`;
 }
 
