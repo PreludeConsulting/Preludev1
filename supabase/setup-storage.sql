@@ -56,3 +56,8 @@ alter table public.onboarding_progress add column if not exists suggested_mentor
 alter table public.onboarding_progress add column if not exists match_decision text
   check (match_decision is null or match_decision in ('accepted', 'declined'));
 alter table public.onboarding_progress add column if not exists declined_mentor_ids jsonb not null default '[]'::jsonb;
+
+-- Verification: this should return one row with id = 'avatars'.
+select id, name, public, file_size_limit, allowed_mime_types
+from storage.buckets
+where id = 'avatars';

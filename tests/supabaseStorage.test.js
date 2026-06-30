@@ -67,7 +67,7 @@ describe("supabaseStorage avatar uploads", () => {
 
     const result = await uploadAvatar("user-1", imageFile());
 
-    expect(result.error).toBe("Avatar storage is not configured yet. Run supabase/setup-storage.sql in the Supabase SQL Editor.");
+    expect(result.error).toBe("Avatar storage is not configured yet. Run the repo file supabase/setup-storage.sql in the Supabase SQL Editor; it starts with insert into storage.buckets.");
   });
 
   it("does not expose raw profile policy errors", async () => {

@@ -11,10 +11,10 @@ const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/g
 function avatarStorageErrorMessage(error) {
   const message = error?.message || "";
   if (/bucket|not found/i.test(message)) {
-    return "Avatar storage is not configured yet. Run supabase/setup-storage.sql in the Supabase SQL Editor.";
+    return "Avatar storage is not configured yet. Run the repo file supabase/setup-storage.sql in the Supabase SQL Editor; it starts with insert into storage.buckets.";
   }
   if (/row-level security|policy|permission|unauthorized|forbidden/i.test(message)) {
-    return "Avatar storage permissions are not configured correctly. Run supabase/setup-storage.sql in the Supabase SQL Editor.";
+    return "Avatar storage permissions are not configured correctly. Run the repo file supabase/setup-storage.sql in the Supabase SQL Editor; it creates storage.objects policies for the avatars bucket.";
   }
   if (/mime|type|file size|payload/i.test(message)) {
     return "Use a JPG, PNG, WebP, or GIF image that is 5 MB or smaller.";
