@@ -61,15 +61,49 @@ function mapSettings(row) {
     emailUpdates: row.email_updates,
     meetingReminders: row.meeting_reminders,
     mentorMessages: row.mentor_messages,
+    studentMessages: row.student_messages,
+    deadlineReminders: row.deadline_reminders,
+    progressReminders: row.progress_reminders,
+    rewardUpdates: row.reward_updates,
+    parentSummaries: row.parent_summaries,
+    notificationSounds: row.notification_sounds,
+    interfaceSounds: row.interface_sounds,
     weeklyDigest: row.weekly_digest,
+    digestFrequency: row.digest_frequency,
+    quietHoursEnabled: row.quiet_hours_enabled,
+    quietHoursStart: row.quiet_hours_start,
+    quietHoursEnd: row.quiet_hours_end,
     productTips: row.product_tips,
     defaultCalendarView: row.default_calendar_view,
     reminderLeadTime: row.reminder_lead_time,
     weekStart: row.week_start,
     density: row.density,
     reduceMotion: row.reduce_motion,
+    hapticFeedback: row.haptic_feedback,
     profileVisibility: row.profile_visibility,
-    theme: row.theme
+    theme: row.theme,
+    dataExportRequestedAt: row.data_export_requested_at
+  };
+}
+
+function mapScholarship(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    amount: Number(row.amount || 0),
+    deadline: row.deadline || "",
+    eligibility: row.eligibility || "",
+    requiredMaterials: Array.isArray(row.required_materials) ? row.required_materials : [],
+    essayRequired: Boolean(row.essay_required),
+    recommendationRequired: Boolean(row.recommendation_required),
+    status: row.status || "Saved",
+    submissionDate: row.submission_date || "",
+    result: row.result || "",
+    notes: row.notes || "",
+    link: row.link || "",
+    reminder: row.reminder || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
@@ -227,18 +261,88 @@ export async function updateMySettings(userId, prefs) {
     email_updates: prefs.emailUpdates,
     meeting_reminders: prefs.meetingReminders,
     mentor_messages: prefs.mentorMessages,
+    student_messages: prefs.studentMessages,
+    deadline_reminders: prefs.deadlineReminders,
+    progress_reminders: prefs.progressReminders,
+    reward_updates: prefs.rewardUpdates,
+    parent_summaries: prefs.parentSummaries,
+    notification_sounds: prefs.notificationSounds,
+    interface_sounds: prefs.interfaceSounds,
     weekly_digest: prefs.weeklyDigest,
+    digest_frequency: prefs.digestFrequency,
+    quiet_hours_enabled: prefs.quietHoursEnabled,
+    quiet_hours_start: prefs.quietHoursStart,
+    quiet_hours_end: prefs.quietHoursEnd,
     product_tips: prefs.productTips,
     default_calendar_view: prefs.defaultCalendarView,
     reminder_lead_time: prefs.reminderLeadTime,
     week_start: prefs.weekStart,
     density: prefs.density,
     reduce_motion: prefs.reduceMotion,
+    haptic_feedback: prefs.hapticFeedback,
     profile_visibility: prefs.profileVisibility,
-    theme: prefs.theme
+    theme: prefs.theme,
+    data_export_requested_at: prefs.dataExportRequestedAt
   };
   const { data, error } = await upsertSettings(id, payload);
   return { settings: mapSettings(data), error: error?.message || null };
+}
+
+export async function getMyScholarships(userId) {
+  const id = requireUserId(userId);
+  const { data, error } = await db()
+    .from("scholarships")
+    .select("*")
+    .eq("user_id", id)
+    .order("deadline", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: false });
+  return { scholarships: (data || []).map(mapScholarship), error: error?.message || null };
+}
+
+export async function createScholarship(userId, scholarship) {
+  const id = requireUserId(userId);
+  const { data, error } = await db()
+    .from("scholarships")
+    .insert({ user_id: id, ...scholarshipToRow(scholarship) })
+    .select()
+    .single();
+  return { scholarship: data ? mapScholarship(data) : null, error: error?.message || null };
+}
+
+export async function updateScholarship(userId, scholarshipId, fields) {
+  const id = requireUserId(userId);
+  const { data, error } = await db()
+    .from("scholarships")
+    .update({ ...scholarshipToRow(fields), updated_at: new Date().toISOString() })
+    .eq("id", scholarshipId)
+    .eq("user_id", id)
+    .select()
+    .maybeSingle();
+  return { scholarship: data ? mapScholarship(data) : null, error: error?.message || null };
+}
+
+export async function deleteScholarship(userId, scholarshipId) {
+  const id = requireUserId(userId);
+  const { error } = await db().from("scholarships").delete().eq("id", scholarshipId).eq("user_id", id);
+  return { error: error?.message || null };
+}
+
+function scholarshipToRow(input = {}) {
+  const row = {};
+  if (input.name !== undefined) row.name = input.name;
+  if (input.amount !== undefined) row.amount = Number(input.amount || 0);
+  if (input.deadline !== undefined) row.deadline = input.deadline || null;
+  if (input.eligibility !== undefined) row.eligibility = input.eligibility || null;
+  if (input.requiredMaterials !== undefined) row.required_materials = Array.isArray(input.requiredMaterials) ? input.requiredMaterials : [];
+  if (input.essayRequired !== undefined) row.essay_required = Boolean(input.essayRequired);
+  if (input.recommendationRequired !== undefined) row.recommendation_required = Boolean(input.recommendationRequired);
+  if (input.status !== undefined) row.status = input.status;
+  if (input.submissionDate !== undefined) row.submission_date = input.submissionDate || null;
+  if (input.result !== undefined) row.result = input.result || null;
+  if (input.notes !== undefined) row.notes = input.notes || null;
+  if (input.link !== undefined) row.link = input.link || null;
+  if (input.reminder !== undefined) row.reminder = input.reminder || null;
+  return row;
 }
 
 export async function getMyMentorMatches(userId) {
@@ -312,4 +416,4 @@ export async function saveMyCollegeList(userId, colleges) {
   };
 }
 
-export { mapTask, mapEssay, mapDeadline, mapSettings, mapMentorMatch };
+export { mapTask, mapEssay, mapDeadline, mapSettings, mapMentorMatch, mapScholarship };

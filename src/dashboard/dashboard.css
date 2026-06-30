@@ -1849,8 +1849,112 @@
 .dash-editor__actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 0.75rem;
+}
+
+.dash-snapshot-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.dash-snapshot-list h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: hsl(230 24% 20%);
+}
+
+.dash-snapshot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 0.65rem;
+  background: hsl(var(--background));
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dash-snapshot-row:hover {
+  border-color: hsl(var(--primary) / 0.28);
+  background: hsl(var(--primary) / 0.04);
+}
+
+.dash-scholarships {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.65fr);
+  gap: clamp(0.85rem, 1.8vw, 1.25rem);
+  align-items: start;
+}
+
+.dash-scholarship-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.dash-scholarship-list,
+.dash-scholarship-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dash-scholarship-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 0.75rem;
+  padding: 0.85rem;
+  background: hsl(var(--background));
+}
+
+.dash-scholarship-card__head,
+.dash-scholarship-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dash-scholarship-card__head {
+  flex-wrap: wrap;
+  margin-bottom: 0.2rem;
+}
+
+.dash-scholarship-card__actions {
+  flex-shrink: 0;
+}
+
+.dash-scholarship-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dash-scholarship-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: hsl(230 24% 20%);
+}
+
+.dash-scholarship-form__wide,
+.dash-scholarship-form .dash-form-actions,
+.dash-scholarship-form .dash-save-state {
+  grid-column: 1 / -1;
+}
+
+.dash-scholarship-form__check {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 0.5rem !important;
 }
 
 .dash-profile-sections {
@@ -4041,6 +4145,22 @@
   max-width: 50ch;
 }
 
+.dash-setting-row--stacked {
+  align-items: flex-start;
+}
+
+.dash-setting-row__inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.dash-setting-row__inline .dash-input {
+  width: 8.5rem;
+}
+
 /* Toggle switch */
 .dash-toggle {
   position: relative;
@@ -4189,6 +4309,21 @@
 
 /* Responsive refinements */
 @media (max-width: 720px) {
+  .dash-scholarships {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-scholarship-stats,
+  .dash-scholarship-form {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-scholarship-card,
+  .dash-snapshot-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .dash-mentor-profile {
     grid-template-columns: 1fr;
   }
@@ -4226,6 +4361,11 @@
   }
 
   .dash-setting-row .dash-select {
+    width: 100%;
+  }
+
+  .dash-setting-row__inline,
+  .dash-setting-row__inline .dash-input {
     width: 100%;
   }
 }

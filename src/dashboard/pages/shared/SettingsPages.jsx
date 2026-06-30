@@ -24,7 +24,7 @@ import SecuritySettingsPanel from "../../components/settings/SecuritySettingsPan
 import { SaveRow, SettingSelect, SettingToggle } from "../../components/settings/SettingsControls.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { loadPreferences, savePreferences } from "../../lib/dashboardPreferences.js";
-import { SectionCard } from "../../components/ui/index.jsx";
+import { SecondaryButton, SectionCard } from "../../components/ui/index.jsx";
 
 const STUDENT_SETTINGS_TABS = [
   { id: "profile", label: "Profile", icon: User, description: "Your account details" },
@@ -34,6 +34,7 @@ const STUDENT_SETTINGS_TABS = [
   { id: "integrations", label: "Connected accounts", icon: Link2, description: "Google and Zoom" },
   { id: "family", label: "Family", icon: Users, description: "Parents and guardians" },
   { id: "security", label: "Security", icon: Shield, description: "Password and deletion" },
+  { id: "privacy", label: "Privacy & data", icon: Shield, description: "Visibility and data requests" },
   { id: "support", label: "Support", icon: HelpCircle, description: "Help and contact" }
 ];
 
@@ -51,6 +52,7 @@ const PARENT_SETTINGS_TABS = [
   { id: "display", label: "Display", icon: Monitor, description: "Layout and accessibility" },
   { id: "integrations", label: "Connected accounts", icon: Link2, description: "Google and Zoom" },
   { id: "security", label: "Security", icon: Shield, description: "Password and deletion" },
+  { id: "privacy", label: "Privacy & data", icon: Shield, description: "Visibility and data requests" },
   { id: "support", label: "Support", icon: HelpCircle, description: "Help and contact" }
 ];
 
@@ -142,14 +144,39 @@ export function StudentSettingsPage() {
 
       {tab === "notifications" ? (
         <SectionCard title="Email &amp; notifications" className="dash-panel">
-          <p className="dash-muted">Choose what Prelude notifies you about. Preferences are saved to this browser.</p>
+          <p className="dash-muted">Choose what Prelude notifies you about. Signed-in accounts sync these preferences to Prelude.</p>
           <SettingToggle id="emailUpdates" label="Product &amp; account emails" description="Important updates about your account." checked={prefs.emailUpdates} onChange={(v) => setPref("emailUpdates", v)} />
           <SettingToggle id="meetingReminders" label="Meeting reminders" description="Reminders before mentor sessions." checked={prefs.meetingReminders} onChange={(v) => setPref("meetingReminders", v)} />
-          <SettingToggle id="interfaceSounds" label="Interface sounds" description="Play subtle sounds for clicks, messages, calendar actions, and rewards." checked={prefs.interfaceSounds} onChange={(v) => setPref("interfaceSounds", v)} />
-          <SettingToggle id="notificationSounds" label="In-app notification sounds" description="Play a short sound for live alerts and messages." checked={prefs.notificationSounds} onChange={(v) => setPref("notificationSounds", v)} />
           <SettingToggle id="mentorMessages" label="Mentor message alerts" description="Notify me when my mentor sends a message." checked={prefs.mentorMessages} onChange={(v) => setPref("mentorMessages", v)} />
-          <SettingToggle id="weeklyDigest" label="Weekly progress digest" description="A summary of deadlines and progress each week." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />
-          <SettingToggle id="productTips" label="Tips &amp; best practices" description="Occasional admissions tips from Prelude." checked={prefs.productTips} onChange={(v) => setPref("productTips", v)} />
+          <SettingToggle id="studentMessages" label="Student message alerts" description="Notify me when a student or peer message needs attention." checked={prefs.studentMessages} onChange={(v) => setPref("studentMessages", v)} />
+          <SettingToggle id="deadlineReminders" label="Deadline reminders" description="Admissions, scholarship, and task deadline reminders." checked={prefs.deadlineReminders} onChange={(v) => setPref("deadlineReminders", v)} />
+          <SettingToggle id="progressReminders" label="Progress reminders" description="Light nudges when a planning area has stalled." checked={prefs.progressReminders} onChange={(v) => setPref("progressReminders", v)} />
+          <SettingToggle id="rewardUpdates" label="Reward updates" description="Reward unlocks, redemptions, and milestone updates." checked={prefs.rewardUpdates} onChange={(v) => setPref("rewardUpdates", v)} />
+          <SettingToggle id="weeklyDigest" label="Progress digest" description="A summary of deadlines and progress." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />
+          <SettingSelect
+            id="digestFrequency"
+            label="Digest frequency"
+            value={prefs.digestFrequency}
+            onChange={(v) => setPref("digestFrequency", v)}
+            options={[
+              { value: "daily", label: "Daily" },
+              { value: "weekly", label: "Weekly" },
+              { value: "never", label: "Never" }
+            ]}
+          />
+          <SettingToggle id="productTips" label="Product announcements" description="Occasional admissions tips and Prelude updates." checked={prefs.productTips} onChange={(v) => setPref("productTips", v)} />
+          <SettingToggle id="quietHoursEnabled" label="Quiet hours" description="Pause non-urgent notifications during your chosen hours." checked={prefs.quietHoursEnabled} onChange={(v) => setPref("quietHoursEnabled", v)} />
+          <div className="dash-setting-row dash-setting-row--stacked">
+            <div className="dash-setting-row__text">
+              <span className="dash-setting-row__label">Quiet hours window</span>
+              <p className="dash-setting-row__desc">Urgent security messages are still delivered.</p>
+            </div>
+            <div className="dash-setting-row__inline">
+              <input className="dash-input" type="time" value={prefs.quietHoursStart} onChange={(e) => setPref("quietHoursStart", e.target.value)} aria-label="Quiet hours start" />
+              <span>to</span>
+              <input className="dash-input" type="time" value={prefs.quietHoursEnd} onChange={(e) => setPref("quietHoursEnd", e.target.value)} aria-label="Quiet hours end" />
+            </div>
+          </div>
           <SaveRow section="notifications" saveState={saveState} onSave={saveSection} />
         </SectionCard>
       ) : null}
@@ -199,6 +226,18 @@ export function StudentSettingsPage() {
       {tab === "display" ? (
         <SectionCard title="Display &amp; accessibility" className="dash-panel">
           <SettingSelect
+            id="theme"
+            label="Theme"
+            description="Use system mode unless you prefer a fixed display theme."
+            value={prefs.theme}
+            onChange={(v) => setPref("theme", v)}
+            options={[
+              { value: "system", label: "System" },
+              { value: "light", label: "Light" },
+              { value: "dark", label: "Dark" }
+            ]}
+          />
+          <SettingSelect
             id="density"
             label="Layout density"
             description="Comfortable adds more spacing; compact fits more on screen."
@@ -215,6 +254,27 @@ export function StudentSettingsPage() {
             description="Minimize animations across the dashboard."
             checked={prefs.reduceMotion}
             onChange={(v) => setPref("reduceMotion", v)}
+          />
+          <SettingToggle
+            id="interfaceSounds"
+            label="Interface sounds"
+            description="Play subtle sounds for clicks, messages, calendar actions, and rewards."
+            checked={prefs.interfaceSounds}
+            onChange={(v) => setPref("interfaceSounds", v)}
+          />
+          <SettingToggle
+            id="notificationSounds"
+            label="Notification sounds"
+            description="Play a short sound for live alerts and messages."
+            checked={prefs.notificationSounds}
+            onChange={(v) => setPref("notificationSounds", v)}
+          />
+          <SettingToggle
+            id="hapticFeedback"
+            label="Haptic feedback"
+            description="Use subtle vibration on supported mobile devices for confirmations."
+            checked={prefs.hapticFeedback}
+            onChange={(v) => setPref("hapticFeedback", v)}
           />
           <SaveRow section="display" saveState={saveState} onSave={saveSection} />
         </SectionCard>
@@ -244,6 +304,41 @@ export function StudentSettingsPage() {
       {tab === "family" ? <ParentGuardianSettingsPanel user={user} /> : null}
 
       {tab === "security" ? <SecuritySettingsPanel user={user} onOpenAccount={openAccount} /> : null}
+
+      {tab === "privacy" ? (
+        <SectionCard title="Privacy &amp; data" className="dash-panel">
+          <SettingSelect
+            id="profileVisibility"
+            label="Profile visibility"
+            description="Control who can see your college-planning profile inside Prelude."
+            value={prefs.profileVisibility}
+            onChange={(v) => setPref("profileVisibility", v)}
+            options={[
+              { value: "mentors_only", label: "Assigned mentors only" },
+              { value: "parents_and_mentors", label: "Parents and assigned mentors" },
+              { value: "private", label: "Private" }
+            ]}
+          />
+          <div className="dash-setting-row">
+            <div className="dash-setting-row__text">
+              <span className="dash-setting-row__label">Download account data</span>
+              <p className="dash-setting-row__desc">
+                Request a privacy-safe export of your profile, settings, saved colleges, tasks, essays, scholarships, and activity.
+              </p>
+              {prefs.dataExportRequestedAt ? (
+                <p className="dash-muted">Requested {new Date(prefs.dataExportRequestedAt).toLocaleString()}.</p>
+              ) : null}
+            </div>
+            <SecondaryButton type="button" className="dash-btn--sm" onClick={() => setPref("dataExportRequestedAt", new Date().toISOString())}>
+              Request export
+            </SecondaryButton>
+          </div>
+          <p className="dash-muted">
+            Account deletion and session revocation stay in Security so they can use the stricter confirmation flow.
+          </p>
+          <SaveRow section="privacy" saveState={saveState} onSave={saveSection} />
+        </SectionCard>
+      ) : null}
 
       {tab === "support" ? (
         <SectionCard title="Support" className="dash-panel">
@@ -322,6 +417,36 @@ export function MentorSettingsPage() {
       ) : null}
 
       {tab === "security" ? <SecuritySettingsPanel user={user} onOpenAccount={openAccount} /> : null}
+
+      {tab === "privacy" ? (
+        <SectionCard title="Privacy &amp; data" className="dash-panel">
+          <SettingSelect
+            id="parentProfileVisibility"
+            label="Profile visibility"
+            description="Control visibility for your parent account details."
+            value={prefs.profileVisibility}
+            onChange={(v) => setPref("profileVisibility", v)}
+            options={[
+              { value: "mentors_only", label: "Assigned mentors only" },
+              { value: "parents_and_mentors", label: "Family and assigned mentors" },
+              { value: "private", label: "Private" }
+            ]}
+          />
+          <div className="dash-setting-row">
+            <div className="dash-setting-row__text">
+              <span className="dash-setting-row__label">Download account data</span>
+              <p className="dash-setting-row__desc">Request an export of your parent account settings, linked-child summaries, notifications, and billing metadata.</p>
+              {prefs.dataExportRequestedAt ? (
+                <p className="dash-muted">Requested {new Date(prefs.dataExportRequestedAt).toLocaleString()}.</p>
+              ) : null}
+            </div>
+            <SecondaryButton type="button" className="dash-btn--sm" onClick={() => setPref("dataExportRequestedAt", new Date().toISOString())}>
+              Request export
+            </SecondaryButton>
+          </div>
+          <SaveRow section="privacy" saveState={saveState} onSave={saveSection} />
+        </SectionCard>
+      ) : null}
 
       {tab === "support" ? (
         <SectionCard title="Support" className="dash-panel">

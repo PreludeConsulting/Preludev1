@@ -3,7 +3,7 @@
  * Lower-level helpers live in dashboardData.js, profileData.js, messageData.js, calendarData.js.
  */
 
-import { getCurrentUser, getMyCollegeList, getMyDeadlines, getMyEssayDrafts, getMyMentorMatches, getMySettings, getMyTasks, getMatchAnswers, mapMentorMatch, updateMySettings } from "./dashboardData.js";
+import { getCurrentUser, getMyCollegeList, getMyDeadlines, getMyEssayDrafts, getMyMentorMatches, getMyScholarships, getMySettings, getMyTasks, getMatchAnswers, mapMentorMatch, updateMySettings } from "./dashboardData.js";
 import { getMyProfile, mapProfileRow, updateMyProfile } from "./profileData.js";
 import { getMyMessages, mapMessage, sendMessage as sendSupabaseMessage } from "./messageData.js";
 import {
@@ -43,15 +43,28 @@ function mapPreferences(row) {
     emailUpdates: row.email_updates,
     meetingReminders: row.meeting_reminders,
     mentorMessages: row.mentor_messages,
+    studentMessages: row.student_messages,
+    deadlineReminders: row.deadline_reminders,
+    progressReminders: row.progress_reminders,
+    rewardUpdates: row.reward_updates,
+    parentSummaries: row.parent_summaries,
+    notificationSounds: row.notification_sounds,
+    interfaceSounds: row.interface_sounds,
     weeklyDigest: row.weekly_digest,
+    digestFrequency: row.digest_frequency,
+    quietHoursEnabled: row.quiet_hours_enabled,
+    quietHoursStart: row.quiet_hours_start,
+    quietHoursEnd: row.quiet_hours_end,
     productTips: row.product_tips,
     defaultCalendarView: row.default_calendar_view,
     reminderLeadTime: row.reminder_lead_time,
     weekStart: row.week_start,
     density: row.density,
     reduceMotion: row.reduce_motion,
+    hapticFeedback: row.haptic_feedback,
     profileVisibility: row.profile_visibility,
-    theme: row.theme
+    theme: row.theme,
+    dataExportRequestedAt: row.data_export_requested_at
   };
 }
 
@@ -109,7 +122,8 @@ export async function loadSupabaseDashboard(userId, email) {
     essaysRes,
     deadlinesRes,
     collegesRes,
-    matchAnswersRes
+    matchAnswersRes,
+    scholarshipsRes
   ] = await Promise.all([
     getMyProfile(userId, email),
     getMySettings(userId),
@@ -123,7 +137,8 @@ export async function loadSupabaseDashboard(userId, email) {
     getMyEssayDrafts(userId),
     getMyDeadlines(userId),
     getMyCollegeList(userId),
-    getMatchAnswers(userId)
+    getMatchAnswers(userId),
+    getMyScholarships(userId)
   ]);
 
   const mentors = mentorsRes.matches || [];
@@ -152,6 +167,7 @@ export async function loadSupabaseDashboard(userId, email) {
     tasks: tasksRes.tasks || [],
     essays: essaysRes.essays || [],
     deadlines: deadlinesRes.deadlines || [],
+    scholarships: scholarshipsRes.scholarships || [],
     savedColleges: collegesRes.colleges || [],
     conversations: messages.length
       ? [{ id: "mentor", name: assigned?.name || "Mentor", preview: messages[0]?.body, unread: messages.some((m) => !m.read) }]
@@ -171,7 +187,8 @@ export async function loadSupabaseDashboard(userId, email) {
       essaysRes.error,
       deadlinesRes.error,
       collegesRes.error,
-      matchAnswersRes.error
+      matchAnswersRes.error,
+      scholarshipsRes.error
     ].filter(Boolean)
   };
 }

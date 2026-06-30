@@ -16,17 +16,30 @@ export const DEFAULT_PREFERENCES = {
   emailUpdates: true,
   meetingReminders: true,
   mentorMessages: true,
+  studentMessages: true,
+  deadlineReminders: true,
+  progressReminders: true,
+  rewardUpdates: true,
+  parentSummaries: false,
   notificationSounds: true,
   interfaceSounds: true,
   weeklyDigest: false,
+  digestFrequency: "weekly",
+  quietHoursEnabled: false,
+  quietHoursStart: "21:00",
+  quietHoursEnd: "07:00",
   productTips: false,
   // Calendar & meetings
   defaultCalendarView: "month",
   reminderLeadTime: "30",
   weekStart: "sunday",
   // Display & accessibility (applied to the dashboard)
+  theme: "system",
   density: "comfortable",
-  reduceMotion: false
+  reduceMotion: false,
+  hapticFeedback: true,
+  profileVisibility: "mentors_only",
+  dataExportRequestedAt: null
 };
 
 export function loadPreferences() {

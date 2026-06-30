@@ -28,7 +28,10 @@ import {
 } from "../../lib/supabaseData.js";
 import {
   createTask,
+  createScholarship,
+  deleteScholarship as deleteSupabaseScholarship,
   updateTask,
+  updateScholarship,
   saveEssayDraft as saveSupabaseEssayDraft,
   saveMyCollegeList
 } from "../../lib/dashboardData.js";
@@ -232,6 +235,66 @@ const EMPTY_ONBOARDING = {
   questionnaireAnswers: {}
 };
 
+function normalizeScholarshipPayload(input = {}, options = {}) {
+  if (options.partial) {
+    const payload = {};
+    if (input.name !== undefined) payload.name = input.name?.trim();
+    if (input.amount !== undefined) payload.amount = Number(input.amount || 0);
+    if (input.deadline !== undefined) payload.deadline = input.deadline || "";
+    if (input.requiredMaterials !== undefined) {
+      payload.requiredMaterials = Array.isArray(input.requiredMaterials)
+        ? input.requiredMaterials
+        : String(input.requiredMaterials || "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
+    }
+    if (input.essayRequired !== undefined) payload.essayRequired = Boolean(input.essayRequired);
+    if (input.recommendationRequired !== undefined) payload.recommendationRequired = Boolean(input.recommendationRequired);
+    if (input.status !== undefined) payload.status = input.status || "Saved";
+    if (input.eligibility !== undefined) payload.eligibility = input.eligibility || "";
+    if (input.submissionDate !== undefined) payload.submissionDate = input.submissionDate || "";
+    if (input.result !== undefined) payload.result = input.result || "";
+    if (input.notes !== undefined) payload.notes = input.notes || "";
+    if (input.link !== undefined) payload.link = input.link || "";
+    if (input.reminder !== undefined) payload.reminder = input.reminder || "";
+    return payload;
+  }
+
+  const requiredMaterials = Array.isArray(input.requiredMaterials)
+    ? input.requiredMaterials
+    : String(input.requiredMaterials || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+  const payload = {
+    ...input,
+    name: input.name?.trim(),
+    amount: Number(input.amount || 0),
+    deadline: input.deadline || "",
+    requiredMaterials,
+    essayRequired: Boolean(input.essayRequired),
+    recommendationRequired: Boolean(input.recommendationRequired),
+    status: input.status || "Saved",
+    eligibility: input.eligibility || "",
+    submissionDate: input.submissionDate || "",
+    result: input.result || "",
+    notes: input.notes || "",
+    link: input.link || "",
+    reminder: input.reminder || ""
+  };
+  return payload;
+}
+
+function sortScholarships(items = []) {
+  return [...items].sort((a, b) => {
+    const aTime = a.deadline ? new Date(a.deadline).getTime() : Number.POSITIVE_INFINITY;
+    const bTime = b.deadline ? new Date(b.deadline).getTime() : Number.POSITIVE_INFINITY;
+    if (aTime !== bTime) return aTime - bTime;
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  });
+}
+
 export function DashboardDataProvider({ children, user, overrides = null, mentorViewStudent = null, parentViewStudent = null }) {
   const useSupabase = isSupabaseConfigured() && user?.authProvider === "supabase";
   const [integrations, setIntegrations] = useState({
@@ -257,6 +320,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   const [localEssays, setLocalEssays] = useState(null);
   const [supabaseTasks, setSupabaseTasks] = useState([]);
   const [supabaseEssays, setSupabaseEssays] = useState([]);
+  const [supabaseScholarships, setSupabaseScholarships] = useState([]);
+  const [localScholarships, setLocalScholarships] = useState(null);
   const [supabaseDeadlines, setSupabaseDeadlines] = useState([]);
   const [supabaseSavedColleges, setSupabaseSavedColleges] = useState(null);
   const [savedColleges, setSavedColleges] = useState(null);
@@ -319,6 +384,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setSavedResources(data.savedResources || []);
         setSupabaseTasks(data.tasks || []);
         setSupabaseEssays(data.essays || []);
+        setSupabaseScholarships(data.scholarships || []);
         setSupabaseDeadlines(data.deadlines || []);
         setSupabaseSavedColleges(data.savedColleges?.length ? data.savedColleges : null);
       } catch (err) {
@@ -333,6 +399,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     setUserCalendarEvents(store.calendarEvents || []);
     setLocalTasks(store.tasks?.length ? store.tasks : null);
     setLocalEssays(store.essays?.length ? store.essays : null);
+    setLocalScholarships(store.scholarships?.length ? store.scholarships : null);
     setSavedColleges(store.savedColleges ?? null);
     setLocalConversationMessages(store.conversationMessages || []);
     setProfileOverrides(store.profileOverrides || {});
@@ -378,8 +445,10 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setUserCalendarEvents([]);
       setLocalTasks(null);
       setLocalEssays(null);
+      setLocalScholarships(null);
       setSupabaseTasks([]);
       setSupabaseEssays([]);
+      setSupabaseScholarships([]);
       setSupabaseDeadlines([]);
       setSupabaseSavedColleges(null);
       setSavedColleges(null);
@@ -1020,6 +1089,81 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     [useSupabase, user]
   );
 
+  const addScholarship = useCallback(
+    async (scholarship) => {
+      if (!user || !scholarship?.name?.trim()) return null;
+      const payload = normalizeScholarshipPayload(scholarship);
+
+      if (useSupabase) {
+        const { scholarship: saved, error: err } = await createScholarship(user.id, payload);
+        if (err) throw new Error(err);
+        setSupabaseScholarships((prev) => sortScholarships([...prev, saved]));
+        return saved;
+      }
+
+      const saved = {
+        ...payload,
+        id: `sch-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      setLocalScholarships((prev) => {
+        const next = sortScholarships([...(prev || []), saved]);
+        patchLocalDashboardStore(user.id, { scholarships: next });
+        return next;
+      });
+      return saved;
+    },
+    [useSupabase, user]
+  );
+
+  const editScholarship = useCallback(
+    async (scholarshipId, fields) => {
+      if (!user || !scholarshipId) return null;
+      const payload = normalizeScholarshipPayload(fields, { partial: true });
+
+      if (useSupabase) {
+        const { scholarship: saved, error: err } = await updateScholarship(user.id, scholarshipId, payload);
+        if (err) throw new Error(err);
+        setSupabaseScholarships((prev) => sortScholarships(prev.map((item) => (item.id === scholarshipId ? saved : item))));
+        return saved;
+      }
+
+      let updated = null;
+      setLocalScholarships((prev) => {
+        const next = sortScholarships((prev || []).map((item) => {
+          if (item.id !== scholarshipId) return item;
+          updated = { ...item, ...payload, updatedAt: new Date().toISOString() };
+          return updated;
+        }));
+        patchLocalDashboardStore(user.id, { scholarships: next });
+        return next;
+      });
+      return updated;
+    },
+    [useSupabase, user]
+  );
+
+  const deleteScholarship = useCallback(
+    async (scholarshipId) => {
+      if (!user || !scholarshipId) return;
+
+      if (useSupabase) {
+        const { error: err } = await deleteSupabaseScholarship(user.id, scholarshipId);
+        if (err) throw new Error(err);
+        setSupabaseScholarships((prev) => prev.filter((item) => item.id !== scholarshipId));
+        return;
+      }
+
+      setLocalScholarships((prev) => {
+        const next = (prev || []).filter((item) => item.id !== scholarshipId);
+        patchLocalDashboardStore(user.id, { scholarships: next });
+        return next;
+      });
+    },
+    [useSupabase, user]
+  );
+
   const updateSavedColleges = useCallback(
     async (colleges) => {
       if (!user) return;
@@ -1115,6 +1259,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     const resolvedTasks = userTasks.length ? userTasks : (demo?.tasks ?? []);
     const userEssays = (useSupabase ? supabaseEssays : localEssays) ?? [];
     const resolvedEssays = userEssays.length ? userEssays : (demo?.essays ?? []);
+    const userScholarships = (useSupabase ? supabaseScholarships : localScholarships) ?? [];
+    const resolvedScholarships = userScholarships.length ? userScholarships : (demo?.scholarships ?? []);
     const resolvedSavedColleges = demo?.savedColleges ?? supabaseSavedColleges ?? savedColleges ?? [];
     const resolvedConversations = (() => {
       if (demo?.conversations?.length) return demo.conversations;
@@ -1186,6 +1332,10 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       studentActivityFeed: demo?.studentActivityFeed ?? [],
       essays: resolvedEssays,
       saveEssayDraft: isGuardianViewMode ? () => {} : saveEssayDraft,
+      scholarships: resolvedScholarships,
+      addScholarship: isGuardianViewMode ? async () => null : addScholarship,
+      editScholarship: isGuardianViewMode ? async () => null : editScholarship,
+      deleteScholarship: isGuardianViewMode ? async () => null : deleteScholarship,
       savedColleges: resolvedSavedColleges,
       updateSavedColleges: isGuardianViewMode ? async () => null : updateSavedColleges,
       extracurriculars: demo?.extracurriculars ?? [],
@@ -1317,6 +1467,11 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       addTask,
       toggleTask,
       saveEssayDraft,
+      supabaseScholarships,
+      localScholarships,
+      addScholarship,
+      editScholarship,
+      deleteScholarship,
       updateSavedColleges,
       refresh,
       scheduleMeeting,

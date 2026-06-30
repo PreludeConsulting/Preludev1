@@ -1171,9 +1171,83 @@ const WORKSPACE_TABS = [
   { id: "tasks", label: "Tasks" }
 ];
 
+const SCHOLARSHIP_STATUSES = [
+  "Saved",
+  "Preparing",
+  "Ready",
+  "Submitted",
+  "Awarded",
+  "Not selected",
+  "Expired"
+];
+
+const EMPTY_SCHOLARSHIP_FORM = {
+  name: "",
+  amount: "",
+  deadline: "",
+  eligibility: "",
+  requiredMaterials: "",
+  essayRequired: false,
+  recommendationRequired: false,
+  status: "Saved",
+  submissionDate: "",
+  result: "",
+  notes: "",
+  link: "",
+  reminder: ""
+};
+
+function formatCurrency(value) {
+  const amount = Number(value || 0);
+  return amount.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+}
+
+function scholarshipMaterials(value) {
+  if (Array.isArray(value)) return value.join(", ");
+  return value || "";
+}
+
+function persistEssaySnapshot({ key, title, body, setEssaySnapshots }) {
+  if (typeof window === "undefined") return;
+  const text = body?.trim();
+  if (!text) return;
+  try {
+    const current = JSON.parse(window.localStorage.getItem(key) || "[]");
+    const last = current[0];
+    if (last?.body === body && last?.title === title) return;
+    const next = [
+      {
+        id: `snap-${Date.now()}`,
+        title: title?.trim() || "Untitled essay",
+        body,
+        createdAt: new Date().toISOString()
+      },
+      ...current
+    ].slice(0, 8);
+    window.localStorage.setItem(key, JSON.stringify(next));
+    setEssaySnapshots(next);
+  } catch {
+    /* Draft recovery is best-effort; Supabase/local autosave still owns the source of truth. */
+  }
+}
+
 export function StudentWorkspace() {
   const location = useLocation();
-  const { essays, tasks, extracurriculars, deadlines, applicationProgress: progress, addTask, toggleTask, saveEssayDraft } = useDashboardData();
+  const { user } = useAuth();
+  const {
+    essays,
+    tasks,
+    extracurriculars,
+    deadlines,
+    scholarships,
+    applicationProgress: progress,
+    addTask,
+    toggleTask,
+    saveEssayDraft,
+    addScholarship,
+    editScholarship,
+    deleteScholarship
+  } = useDashboardData();
   const { showToast, triggerCoinBurst } = useInteractionFeedback();
   const { play, SOUND_EVENTS } = useInterfaceSound();
   const [tab, setTab] = useState(location.state?.workspaceTab || "colleges");
@@ -1184,9 +1258,15 @@ export function StudentWorkspace() {
   const [essayTitle, setEssayTitle] = useState("");
   const [essayBody, setEssayBody] = useState("");
   const [essaySavedAt, setEssaySavedAt] = useState("");
+  const [essaySnapshots, setEssaySnapshots] = useState([]);
+  const [scholarshipForm, setScholarshipForm] = useState(EMPTY_SCHOLARSHIP_FORM);
+  const [editingScholarshipId, setEditingScholarshipId] = useState(null);
+  const [scholarshipSaving, setScholarshipSaving] = useState(false);
+  const [scholarshipError, setScholarshipError] = useState("");
   const isCollegesView = tab === "colleges";
   const activeEssay = essays[0] || null;
   const draftEssayId = activeEssay?.id || "new-essay";
+  const essaySnapshotKey = `prelude_essay_snapshots_${user?.id || "guest"}_${draftEssayId}`;
 
   useEffect(() => {
     if (location.state?.workspaceTab) {
@@ -1200,14 +1280,24 @@ export function StudentWorkspace() {
   }, [activeEssay?.id, activeEssay?.title, activeEssay?.body]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setEssaySnapshots(JSON.parse(window.localStorage.getItem(essaySnapshotKey) || "[]"));
+    } catch {
+      setEssaySnapshots([]);
+    }
+  }, [essaySnapshotKey]);
+
+  useEffect(() => {
     if (tab !== "essays") return undefined;
     if (!essayTitle.trim() && !essayBody.trim()) return undefined;
     const timer = window.setTimeout(() => {
       saveEssayDraft(draftEssayId, { title: essayTitle, body: essayBody });
+      persistEssaySnapshot({ key: essaySnapshotKey, title: essayTitle, body: essayBody, setEssaySnapshots });
       setEssaySavedAt("just now");
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [tab, draftEssayId, essayTitle, essayBody, saveEssayDraft]);
+  }, [tab, draftEssayId, essaySnapshotKey, essayTitle, essayBody, saveEssayDraft]);
 
   const filteredTasks = tasks.filter(
     (t) => taskFilter === "all" || t.title.toLowerCase().includes(String(taskFilter).toLowerCase())
@@ -1233,6 +1323,79 @@ export function StudentWorkspace() {
     if (!title?.trim()) return;
     addTask(title.trim());
     setNewTaskTitle("");
+  }
+
+  function updateScholarshipForm(key, value) {
+    setScholarshipForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function resetScholarshipForm() {
+    setScholarshipForm(EMPTY_SCHOLARSHIP_FORM);
+    setEditingScholarshipId(null);
+    setScholarshipError("");
+  }
+
+  function startEditScholarship(item) {
+    setEditingScholarshipId(item.id);
+    setScholarshipForm({
+      name: item.name || "",
+      amount: item.amount || "",
+      deadline: item.deadline || "",
+      eligibility: item.eligibility || "",
+      requiredMaterials: scholarshipMaterials(item.requiredMaterials),
+      essayRequired: Boolean(item.essayRequired),
+      recommendationRequired: Boolean(item.recommendationRequired),
+      status: item.status || "Saved",
+      submissionDate: item.submissionDate || "",
+      result: item.result || "",
+      notes: item.notes || "",
+      link: item.link || "",
+      reminder: item.reminder || ""
+    });
+    setScholarshipError("");
+  }
+
+  async function handleSaveScholarship(event) {
+    event.preventDefault();
+    if (!scholarshipForm.name.trim()) {
+      setScholarshipError("Scholarship name is required.");
+      return;
+    }
+    setScholarshipSaving(true);
+    setScholarshipError("");
+    const payload = {
+      ...scholarshipForm,
+      requiredMaterials: scholarshipForm.requiredMaterials
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    };
+    try {
+      if (editingScholarshipId) {
+        await editScholarship(editingScholarshipId, payload);
+        showToast("Scholarship updated");
+      } else {
+        await addScholarship(payload);
+        showToast("Scholarship added");
+      }
+      resetScholarshipForm();
+    } catch (error) {
+      setScholarshipError(error?.message || "Could not save this scholarship. Try again.");
+    } finally {
+      setScholarshipSaving(false);
+    }
+  }
+
+  async function handleDeleteScholarship(item) {
+    const confirmed = window.confirm(`Remove ${item.name} from your scholarship tracker?`);
+    if (!confirmed) return;
+    try {
+      await deleteScholarship(item.id);
+      showToast("Scholarship removed");
+      if (editingScholarshipId === item.id) resetScholarshipForm();
+    } catch (error) {
+      setScholarshipError(error?.message || "Could not remove this scholarship. Try again.");
+    }
   }
 
   const sectionPct = {
@@ -1280,13 +1443,15 @@ export function StudentWorkspace() {
               {essaySavedAt ? ` · Autosaved ${essaySavedAt}` : ""}
             </p>
             <div className="dash-editor__actions">
-              <p className="dash-muted dash-workspace-soon">Version history is coming soon.</p>
+              <span className="dash-save-state dash-save-state--ok" role="status" aria-live="polite">
+                Autosave on
+              </span>
               <Link to={`${STUDENT_DASHBOARD_BASE}/ai`} className="dash-btn dash-btn--primary">
                 <Sparkles className="h-4 w-4" /> Ask Prelude AI for Feedback
               </Link>
             </div>
           </SectionCard>
-          <SectionCard title="Drafts">
+          <SectionCard title="Drafts and recovery">
             {essays.map((e) => (
               <div key={e.id} className="dash-draft-row">
                 <strong>{e.title}</strong>
@@ -1294,6 +1459,26 @@ export function StudentWorkspace() {
                 <span className="dash-muted">{e.words} words · {e.updatedAt}</span>
               </div>
             ))}
+            <div className="dash-snapshot-list">
+              <h4>Recovery snapshots</h4>
+              {essaySnapshots.length ? essaySnapshots.map((snapshot) => (
+                <button
+                  key={snapshot.id}
+                  type="button"
+                  className="dash-snapshot-row"
+                  onClick={() => {
+                    setEssayTitle(snapshot.title);
+                    setEssayBody(snapshot.body);
+                    showToast("Draft snapshot restored");
+                  }}
+                >
+                  <span>{snapshot.title || "Untitled essay"}</span>
+                  <span className="dash-muted">{new Date(snapshot.createdAt).toLocaleString()}</span>
+                </button>
+              )) : (
+                <p className="dash-muted">Snapshots appear here as you write, so a refresh or failed save does not cost you the draft.</p>
+              )}
+            </div>
           </SectionCard>
         </div>
       ) : null}
@@ -1348,12 +1533,102 @@ export function StudentWorkspace() {
       ) : null}
 
       {tab === "scholarships" ? (
-        <SectionCard title="Scholarships">
-          <p className="dash-muted">
-            Scholarship tracking is coming soon. Add scholarship deadlines from your{" "}
-            <Link to={`${STUDENT_DASHBOARD_BASE}/overview`}>calendar</Link> for now.
-          </p>
-        </SectionCard>
+        <div className="dash-scholarships">
+          <SectionCard title="Scholarship tracker" className="dash-panel">
+            <div className="dash-scholarship-stats">
+              <CompactStatCard label="Potential value" value={formatCurrency(scholarships.reduce((sum, item) => sum + Number(item.amount || 0), 0))} />
+              <CompactStatCard label="Awarded" value={formatCurrency(scholarships.filter((item) => item.status === "Awarded").reduce((sum, item) => sum + Number(item.amount || 0), 0))} />
+              <CompactStatCard label="Upcoming" value={scholarships.filter((item) => item.deadline && new Date(item.deadline) >= new Date()).length} />
+            </div>
+            {scholarships.length ? (
+              <div className="dash-scholarship-list">
+                {scholarships.map((item) => (
+                  <article key={item.id} className="dash-scholarship-card">
+                    <div>
+                      <div className="dash-scholarship-card__head">
+                        <strong>{item.name}</strong>
+                        <DashBadge variant={item.status === "Awarded" ? "success" : item.status === "Expired" ? "urgent" : "soft"}>{item.status}</DashBadge>
+                      </div>
+                      <p className="dash-muted">
+                        {formatCurrency(item.amount)}
+                        {item.deadline ? ` · Due ${new Date(item.deadline).toLocaleDateString()}` : " · No deadline yet"}
+                      </p>
+                      {item.requiredMaterials?.length ? <p className="dash-muted">Materials: {item.requiredMaterials.join(", ")}</p> : null}
+                      {item.notes ? <p>{item.notes}</p> : null}
+                      {item.link ? <a href={item.link} target="_blank" rel="noreferrer">Open scholarship</a> : null}
+                    </div>
+                    <div className="dash-scholarship-card__actions">
+                      <SecondaryButton type="button" className="dash-btn--sm" onClick={() => startEditScholarship(item)}>Edit</SecondaryButton>
+                      <button type="button" className="dash-icon-btn" aria-label={`Remove ${item.name}`} onClick={() => handleDeleteScholarship(item)}>
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                icon={Award}
+                title="No scholarships saved yet"
+                description="Track awards, deadlines, materials, and decisions here. Add scholarships you find through school counselors, colleges, or trusted scholarship databases."
+              />
+            )}
+          </SectionCard>
+
+          <SectionCard title={editingScholarshipId ? "Edit scholarship" : "Add scholarship"} className="dash-panel">
+            <form className="dash-scholarship-form" onSubmit={handleSaveScholarship}>
+              <label>
+                <span>Name</span>
+                <input className="dash-input" value={scholarshipForm.name} onChange={(e) => updateScholarshipForm("name", e.target.value)} required />
+              </label>
+              <label>
+                <span>Amount</span>
+                <input className="dash-input" type="number" min="0" step="1" value={scholarshipForm.amount} onChange={(e) => updateScholarshipForm("amount", e.target.value)} />
+              </label>
+              <label>
+                <span>Deadline</span>
+                <input className="dash-input" type="date" value={scholarshipForm.deadline} onChange={(e) => updateScholarshipForm("deadline", e.target.value)} />
+              </label>
+              <label>
+                <span>Status</span>
+                <select className="dash-select" value={scholarshipForm.status} onChange={(e) => updateScholarshipForm("status", e.target.value)}>
+                  {SCHOLARSHIP_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
+                </select>
+              </label>
+              <label className="dash-scholarship-form__wide">
+                <span>Eligibility</span>
+                <input className="dash-input" value={scholarshipForm.eligibility} onChange={(e) => updateScholarshipForm("eligibility", e.target.value)} />
+              </label>
+              <label className="dash-scholarship-form__wide">
+                <span>Required materials</span>
+                <input className="dash-input" value={scholarshipForm.requiredMaterials} onChange={(e) => updateScholarshipForm("requiredMaterials", e.target.value)} placeholder="Essay, transcript, recommendation" />
+              </label>
+              <label className="dash-scholarship-form__check">
+                <input type="checkbox" checked={scholarshipForm.essayRequired} onChange={(e) => updateScholarshipForm("essayRequired", e.target.checked)} />
+                Essay required
+              </label>
+              <label className="dash-scholarship-form__check">
+                <input type="checkbox" checked={scholarshipForm.recommendationRequired} onChange={(e) => updateScholarshipForm("recommendationRequired", e.target.checked)} />
+                Recommendation required
+              </label>
+              <label className="dash-scholarship-form__wide">
+                <span>Link</span>
+                <input className="dash-input" type="url" value={scholarshipForm.link} onChange={(e) => updateScholarshipForm("link", e.target.value)} />
+              </label>
+              <label className="dash-scholarship-form__wide">
+                <span>Notes</span>
+                <textarea className="dash-textarea" rows={3} value={scholarshipForm.notes} onChange={(e) => updateScholarshipForm("notes", e.target.value)} />
+              </label>
+              {scholarshipError ? <p className="dash-save-state dash-save-state--error" role="alert">{scholarshipError}</p> : null}
+              <div className="dash-form-actions">
+                {editingScholarshipId ? <SecondaryButton type="button" className="dash-btn--sm" onClick={resetScholarshipForm}>Cancel</SecondaryButton> : null}
+                <PrimaryButton type="submit" className="dash-btn--sm" disabled={scholarshipSaving}>
+                  {scholarshipSaving ? "Saving…" : editingScholarshipId ? "Save scholarship" : "Add scholarship"}
+                </PrimaryButton>
+              </div>
+            </form>
+          </SectionCard>
+        </div>
       ) : null}
     </div>
   );

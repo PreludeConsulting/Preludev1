@@ -9,6 +9,7 @@ export function defaultLocalDashboardStore() {
     calendarEvents: [],
     tasks: [],
     essays: [],
+    scholarships: [],
     savedColleges: null,
     conversationMessages: [],
     profileOverrides: {}
