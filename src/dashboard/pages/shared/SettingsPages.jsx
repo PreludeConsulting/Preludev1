@@ -14,11 +14,20 @@ import {
   User,
   Users
 } from "lucide-react";
+import {
+  MENTOR_APPLICATION_STRENGTHS,
+  MENTOR_COLLEGE_OPTIONS,
+  MENTOR_PROGRAM_OPTIONS,
+  MENTOR_SPECIALTIES,
+  MENTOR_SUPPORT_STYLES,
+  MENTOR_TARGET_MAJORS
+} from "../../../data/mentorQuestionnaire.js";
 import ParentGuardianSettingsPanel from "../../components/settings/ParentGuardianSettingsPanel.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { getDemoLinkedChildren, listLinkedChildren } from "../../../lib/parentLinks.js";
 import { shouldUseDemoFixtures } from "../../../lib/devAuthBypass.js";
+import { loadMentorQuestionnaire, saveMentorProfileSettings } from "../../../lib/mentorQuestionnaireService.js";
 import { removeAvatar, uploadAvatar, validateAvatarFile } from "../../../lib/supabaseStorage.js";
 import { emitAvatarUpdated, getInitials, isOAuthAvatarUrl, resolveAvatarUrl } from "../../../lib/avatar.js";
 import IntegrationConnect from "../../components/IntegrationConnect.jsx";
@@ -207,8 +216,25 @@ const TIME_ZONE_OPTIONS = [
   { value: "Pacific/Honolulu", label: "Hawaii Time" }
 ];
 
+const EMPTY_MENTOR_PROFILE_FORM = {
+  college: "",
+  major: "",
+  bio: "",
+  specialties: [],
+  targetMajors: [],
+  targetSchools: [],
+  supportStyles: [],
+  applicationStrengths: [],
+  availability: "",
+  additionalNotes: ""
+};
+
 function cleanText(value) {
   return String(value || "").trim();
+}
+
+function asArray(value) {
+  return Array.isArray(value) ? value.filter(Boolean) : [];
 }
 
 function accountFormFromUser(user, profile, fallbackRole) {
@@ -245,6 +271,305 @@ function validateAccountForm(form) {
     errors.locationCityState = "Use city and state, for example Atlanta, GA.";
   }
   return errors;
+}
+
+function mentorProfileFormFromData(questionnaire, matchingProfile) {
+  const answers = questionnaire?.answers || {};
+  return {
+    ...EMPTY_MENTOR_PROFILE_FORM,
+    ...answers,
+    college: answers.college ?? matchingProfile?.college ?? "",
+    major: answers.major ?? matchingProfile?.major ?? "",
+    bio: answers.bio ?? matchingProfile?.bio ?? "",
+    specialties: asArray(answers.specialties ?? matchingProfile?.specialties),
+    targetMajors: asArray(answers.targetMajors ?? matchingProfile?.target_majors),
+    targetSchools: asArray(answers.targetSchools ?? matchingProfile?.target_schools),
+    supportStyles: asArray(answers.supportStyles ?? matchingProfile?.support_styles),
+    applicationStrengths: asArray(answers.applicationStrengths ?? matchingProfile?.application_strengths),
+    availability: answers.availability ?? matchingProfile?.availability ?? "",
+    additionalNotes: answers.additionalNotes ?? ""
+  };
+}
+
+function validateMentorProfileForm(form) {
+  const errors = {};
+  if (!cleanText(form.college)) errors.college = "Choose or enter your college.";
+  if (!cleanText(form.major)) errors.major = "Choose or enter your major.";
+  if (!cleanText(form.bio)) errors.bio = "Add a mentor bio.";
+  if (!form.specialties.length) errors.specialties = "Choose at least one area.";
+  if (!form.targetMajors.length) errors.targetMajors = "Choose at least one academic area.";
+  if (!form.supportStyles.length) errors.supportStyles = "Choose at least one support style.";
+  if (!form.applicationStrengths.length) errors.applicationStrengths = "Choose at least one strength.";
+  if (!cleanText(form.availability)) errors.availability = "Add availability notes.";
+  return errors;
+}
+
+function MentorMultiSelect({ label, options, value, onChange, error }) {
+  const selected = asArray(value);
+
+  function toggle(option) {
+    onChange(selected.includes(option) ? selected.filter((item) => item !== option) : [...selected, option]);
+  }
+
+  return (
+    <fieldset className="dash-field dash-mentor-profile-settings__group">
+      <legend>{label}</legend>
+      <div className="dash-mentor-profile-settings__chips">
+        {options.map((option) => (
+          <label
+            key={option}
+            className={`dash-mentor-profile-settings__chip${selected.includes(option) ? " dash-mentor-profile-settings__chip--selected" : ""}`}
+          >
+            <input type="checkbox" checked={selected.includes(option)} onChange={() => toggle(option)} />
+            <span>{option}</span>
+          </label>
+        ))}
+      </div>
+      {error ? <em>{error}</em> : null}
+    </fieldset>
+  );
+}
+
+function MentorListEditor({ label, value, onChange, placeholder }) {
+  const [draft, setDraft] = useState("");
+  const selected = asArray(value);
+
+  function addItem() {
+    const next = cleanText(draft);
+    if (!next || selected.includes(next)) return;
+    onChange([...selected, next]);
+    setDraft("");
+  }
+
+  return (
+    <section className="dash-field dash-mentor-profile-settings__group">
+      <span>{label}</span>
+      <div className="dash-mentor-profile-settings__add-row">
+        <input
+          className="dash-input"
+          list="mentor-target-school-options"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              addItem();
+            }
+          }}
+          placeholder={placeholder}
+        />
+        <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" onClick={addItem} disabled={!cleanText(draft)}>
+          Add
+        </button>
+      </div>
+      <datalist id="mentor-target-school-options">
+        {MENTOR_COLLEGE_OPTIONS.map((option) => <option key={option} value={option} />)}
+      </datalist>
+      {selected.length ? (
+        <div className="dash-tags">
+          {selected.map((item) => (
+            <button
+              key={item}
+              type="button"
+              className="dash-mentor-profile-settings__tag"
+              onClick={() => onChange(selected.filter((selectedItem) => selectedItem !== item))}
+            >
+              {item}
+              <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="dash-muted">No schools added yet.</p>
+      )}
+    </section>
+  );
+}
+
+function MentorProfileSettingsPanel({ user, profile, useSupabaseData, saveProfile }) {
+  const [initialForm, setInitialForm] = useState(EMPTY_MENTOR_PROFILE_FORM);
+  const [form, setForm] = useState(EMPTY_MENTOR_PROFILE_FORM);
+  const [errors, setErrors] = useState({});
+  const [state, setState] = useState({ status: "loading", message: "" });
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadProfile() {
+      if (!user?.id || !useSupabaseData) {
+        const fallback = {
+          ...EMPTY_MENTOR_PROFILE_FORM,
+          college: profile?.school || "",
+          bio: profile?.bio || "",
+          targetMajors: asArray(profile?.targetMajors || profile?.majors)
+        };
+        if (!cancelled) {
+          setInitialForm(fallback);
+          setForm(fallback);
+          setState({ status: "idle", message: "" });
+        }
+        return;
+      }
+
+      setState({ status: "loading", message: "" });
+      const { questionnaire, matchingProfile, error } = await loadMentorQuestionnaire(user.id);
+      if (cancelled) return;
+      const nextForm = mentorProfileFormFromData(questionnaire, matchingProfile);
+      setInitialForm(nextForm);
+      setForm(nextForm);
+      setState(error ? { status: "error", message: error } : { status: "idle", message: "" });
+    }
+    loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, useSupabaseData, profile]);
+
+  const dirty = JSON.stringify(form) !== JSON.stringify(initialForm);
+
+  function updateField(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+    setErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    const nextErrors = validateMentorProfileForm(form);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
+      setState({ status: "error", message: "Complete the highlighted mentor profile fields before saving." });
+      return;
+    }
+    if (!useSupabaseData) {
+      setState({ status: "error", message: "Mentor profile editing requires a signed-in Supabase session." });
+      return;
+    }
+
+    const payload = {
+      college: cleanText(form.college),
+      major: cleanText(form.major),
+      bio: cleanText(form.bio),
+      specialties: asArray(form.specialties),
+      targetMajors: asArray(form.targetMajors),
+      targetSchools: asArray(form.targetSchools),
+      supportStyles: asArray(form.supportStyles),
+      applicationStrengths: asArray(form.applicationStrengths),
+      availability: cleanText(form.availability),
+      additionalNotes: cleanText(form.additionalNotes)
+    };
+
+    setState({ status: "saving", message: "" });
+    try {
+      const { error } = await saveMentorProfileSettings(user, payload);
+      if (error) throw new Error(error);
+      await saveProfile({
+        school: payload.college,
+        bio: payload.bio,
+        targetMajors: payload.targetMajors
+      });
+      setInitialForm(payload);
+      setForm(payload);
+      setState({ status: "saved", message: "Mentor profile saved." });
+      window.setTimeout(() => setState((current) => current.status === "saved" ? { status: "idle", message: "" } : current), 2400);
+    } catch (error) {
+      setState({ status: "error", message: error?.message || "We could not save your mentor profile. Try again." });
+    }
+  }
+
+  return (
+    <SectionCard title="Mentor profile" className="dash-panel">
+      <div className="dash-mentor-profile-settings">
+        {state.status === "loading" ? <p className="dash-muted" role="status">Loading mentor profile…</p> : null}
+        <div className="dash-form-grid dash-form-grid--settings">
+          <label className="dash-field">
+            <span>College or university</span>
+            <input
+              className="dash-input"
+              list="mentor-college-options"
+              value={form.college}
+              onChange={(event) => updateField("college", event.target.value)}
+              aria-invalid={Boolean(errors.college)}
+            />
+            <datalist id="mentor-college-options">
+              {MENTOR_COLLEGE_OPTIONS.map((option) => <option key={option} value={option} />)}
+            </datalist>
+            {errors.college ? <em>{errors.college}</em> : null}
+          </label>
+          <label className="dash-field">
+            <span>Major or program</span>
+            <input
+              className="dash-input"
+              list="mentor-program-options"
+              value={form.major}
+              onChange={(event) => updateField("major", event.target.value)}
+              aria-invalid={Boolean(errors.major)}
+            />
+            <datalist id="mentor-program-options">
+              {MENTOR_PROGRAM_OPTIONS.map((option) => <option key={option} value={option} />)}
+            </datalist>
+            {errors.major ? <em>{errors.major}</em> : null}
+          </label>
+          <label className="dash-field dash-form-full">
+            <span>Mentor bio</span>
+            <textarea
+              className="dash-input dash-mentor-profile-settings__textarea"
+              value={form.bio}
+              onChange={(event) => updateField("bio", event.target.value)}
+              rows={4}
+              aria-invalid={Boolean(errors.bio)}
+              placeholder="Share the admissions topics, student goals, and application moments where you are strongest."
+            />
+            {errors.bio ? <em>{errors.bio}</em> : null}
+          </label>
+          <label className="dash-field dash-form-full">
+            <span>Availability notes</span>
+            <textarea
+              className="dash-input dash-mentor-profile-settings__textarea"
+              value={form.availability}
+              onChange={(event) => updateField("availability", event.target.value)}
+              rows={3}
+              aria-invalid={Boolean(errors.availability)}
+              placeholder="Available weeknights, Sunday afternoons, or by request during application season."
+            />
+            {errors.availability ? <em>{errors.availability}</em> : null}
+          </label>
+          <MentorListEditor
+            label="Target schools you know well"
+            value={form.targetSchools}
+            onChange={(value) => updateField("targetSchools", value)}
+            placeholder="Add a college or university"
+          />
+          <label className="dash-field dash-form-full">
+            <span>Other strengths or context</span>
+            <textarea
+              className="dash-input dash-mentor-profile-settings__textarea"
+              value={form.additionalNotes}
+              onChange={(event) => updateField("additionalNotes", event.target.value)}
+              rows={3}
+            />
+          </label>
+        </div>
+
+        <MentorMultiSelect label="Where can you help students most?" options={MENTOR_SPECIALTIES} value={form.specialties} onChange={(value) => updateField("specialties", value)} error={errors.specialties} />
+        <MentorMultiSelect label="Which academic areas are a strong fit?" options={MENTOR_TARGET_MAJORS} value={form.targetMajors} onChange={(value) => updateField("targetMajors", value)} error={errors.targetMajors} />
+        <MentorMultiSelect label="What is your mentoring style?" options={MENTOR_SUPPORT_STYLES} value={form.supportStyles} onChange={(value) => updateField("supportStyles", value)} error={errors.supportStyles} />
+        <MentorMultiSelect label="Which application strengths should matching consider?" options={MENTOR_APPLICATION_STRENGTHS} value={form.applicationStrengths} onChange={(value) => updateField("applicationStrengths", value)} error={errors.applicationStrengths} />
+
+        <div className="dash-form-actions">
+          {dirty ? <span className="dash-save-state" role="status">Unsaved changes</span> : null}
+          {state.status === "saved" ? <span className="dash-save-state dash-save-state--ok" role="status">{state.message}</span> : null}
+          {state.status === "error" ? <span className="dash-save-state dash-save-state--error" role="alert">{state.message}</span> : null}
+          <SecondaryButton type="button" className="dash-btn--sm" onClick={() => setForm(initialForm)} disabled={!dirty || state.status === "saving"}>Cancel</SecondaryButton>
+          <button type="button" className="dash-btn dash-btn--primary dash-btn--sm" onClick={handleSave} disabled={!dirty || state.status === "saving"}>
+            {state.status === "saving" ? "Saving…" : "Save mentor profile"}
+          </button>
+        </div>
+      </div>
+    </SectionCard>
+  );
 }
 
 function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveProfile }) {
@@ -852,13 +1177,21 @@ export function MentorSettingsPage() {
       onOpenAccount={openAccount}
     >
       {tab === "profile" ? (
-        <AccountSettingsPanel
-          user={user}
-          profile={profile}
-          roleLabel="Mentor"
-          useSupabaseData={useSupabaseData}
-          saveProfile={saveProfile}
-        />
+        <>
+          <AccountSettingsPanel
+            user={user}
+            profile={profile}
+            roleLabel="Mentor"
+            useSupabaseData={useSupabaseData}
+            saveProfile={saveProfile}
+          />
+          <MentorProfileSettingsPanel
+            user={user}
+            profile={profile}
+            useSupabaseData={useSupabaseData}
+            saveProfile={saveProfile}
+          />
+        </>
       ) : null}
 
       {tab === "integrations" ? (

@@ -871,6 +871,96 @@ img.dash-avatar {
   box-shadow: 0 0 0 3px rgb(217 45 32 / 0.12);
 }
 
+.dash-mentor-profile-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.dash-mentor-profile-settings__textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
+.dash-mentor-profile-settings__group {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dash-mentor-profile-settings__group legend {
+  margin-bottom: 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: hsl(230 24% 24%);
+}
+
+.dash-mentor-profile-settings__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.dash-mentor-profile-settings__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--card));
+  color: hsl(var(--muted-foreground));
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.dash-mentor-profile-settings__chip input {
+  width: 0.9rem;
+  height: 0.9rem;
+  accent-color: hsl(var(--primary));
+}
+
+.dash-mentor-profile-settings__chip--selected {
+  border-color: hsl(var(--primary) / 0.45);
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--foreground));
+  box-shadow: 0 8px 18px hsl(var(--primary) / 0.1);
+}
+
+.dash-mentor-profile-settings__add-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.dash-mentor-profile-settings__add-row .dash-input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dash-mentor-profile-settings__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2rem;
+  padding: 0.35rem 0.62rem;
+  border: 1px solid hsl(var(--primary) / 0.28);
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--foreground));
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dash-mentor-profile-settings__tag span {
+  color: hsl(var(--muted-foreground));
+}
+
 .dash-checklist {
   list-style: none;
   padding: 1rem;
@@ -3575,6 +3665,16 @@ img.dash-avatar {
   background: hsl(145 45% 96%);
   border-color: hsl(145 35% 82%);
   color: hsl(145 30% 24%);
+}
+
+.pm-browse-complete {
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.pm-browse-complete .dash-btn {
+  flex: 0 0 auto;
 }
 
 .dash-zoom-ready-banner {
