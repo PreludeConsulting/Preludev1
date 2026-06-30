@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase.js";
+import { filterMatchedMentors, MIN_MATCH_SCORE } from "../../shared/mentorSelectionLogic.js";
 
 const EMPTY_ARRAY = [];
 
@@ -235,12 +236,15 @@ export function scoreMentorForStudent(studentAnswers = {}, mentorRow) {
   };
 }
 
-export async function rankSupabaseMentorsForStudent(studentUserId, studentAnswers = {}, limit = 5) {
+export async function rankSupabaseMentorsForStudent(studentUserId, studentAnswers = {}, options = {}) {
+  const minScore = options.minScore ?? MIN_MATCH_SCORE;
+  const persistLimit = options.persistLimit ?? null;
+
   const { data, error } = await db()
     .from("mentor_matching_profiles")
     .select("*")
     .eq("completed", true);
-  if (error) return { mentors: [], error: error.message };
+  if (error) return { mentors: [], matchedMentors: [], error: error.message };
 
   const ranked = (data || [])
     .map((row) => {
@@ -252,22 +256,37 @@ export async function rankSupabaseMentorsForStudent(studentUserId, studentAnswer
         mentor: mapMentorMatchingProfile(row, score, reasons)
       };
     })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit);
+    .sort((a, b) => b.score - a.score);
 
-  if (studentUserId && ranked.length) {
+  const matched = filterMatchedMentors(
+    ranked.map((item) => ({ ...item.mentor, matchPercent: item.score })),
+    minScore
+  );
+  const matchedIds = new Set(matched.map((mentor) => mentor.id));
+  const matchedRanked = ranked.filter((item) => matchedIds.has(item.row.mentor_user_id));
+  const toPersist = persistLimit ? matchedRanked.slice(0, persistLimit) : matchedRanked;
+
+  if (studentUserId) {
     await db().from("mentor_match_scores").delete().eq("student_user_id", studentUserId);
-    await db().from("mentor_match_scores").insert(
-      ranked.map((item) => ({
-        student_user_id: studentUserId,
-        mentor_user_id: item.row.mentor_user_id,
-        score: item.score,
-        reasons: item.reasons
-      }))
-    );
+    if (toPersist.length) {
+      await db().from("mentor_match_scores").insert(
+        toPersist.map((item) => ({
+          student_user_id: studentUserId,
+          mentor_user_id: item.row.mentor_user_id,
+          score: item.score,
+          reasons: item.reasons
+        }))
+      );
+    }
   }
 
-  return { mentors: ranked.map((item) => item.mentor), error: null };
+  return {
+    mentors: matched,
+    matchedMentors: matched,
+    matchedMentorIds: matched.map((mentor) => mentor.id),
+    matchedMentorCount: matched.length,
+    error: null
+  };
 }
 
 export async function getMentorMatchingProfile(mentorUserId) {

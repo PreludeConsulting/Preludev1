@@ -9,17 +9,17 @@ import {
   MATCH_ONBOARDING_PATH,
   PLAN_SELECTION_PATH,
   PARENT_ONBOARDING_PATH,
-  preludeMatchPathForRole,
+  postAuthDestination,
   userNeedsMatchOnboarding,
+  userNeedsMatchDecision,
   userNeedsPlanSelection
 } from "../../lib/onboardingRoutes.js";
 import {
-  getMentorById,
-  getSuggestedMentor,
   pickSuggestedMentor,
-  saveMatchDecision,
+  rankDemoMatchedMentors,
   saveMatchQuestionnaire
 } from "../../lib/preludeMatchService.js";
+import { loadMentorSelectionState, saveMentorSelection } from "../../lib/mentorSelectionApi.js";
 import {
   computeQuestionProgress,
   getQuestionIndex,
@@ -32,7 +32,7 @@ import PreludeMatchBoot from "../hero/PreludeMatchBoot.jsx";
 import PreludeMatchIntro from "../hero/PreludeMatchIntro.jsx";
 import PreludeMatchLoading from "../hero/PreludeMatchLoading.jsx";
 import PreludeMatchQuestionFlow from "../hero/PreludeMatchQuestionFlow.jsx";
-import MatchResultPanel from "./MatchResultPanel.jsx";
+import MentorMatchSelectionPanel from "./MentorMatchSelectionPanel.jsx";
 import EmailVerificationBanner from "../EmailVerificationBanner.jsx";
 
 export default function PreludeMatchOnboardingPage() {
@@ -47,8 +47,12 @@ export default function PreludeMatchOnboardingPage() {
   const [currentQuestionId, setCurrentQuestionId] = useState(null);
   const [pigMotion, setPigMotion] = useState("none");
   const [progress, setProgress] = useState(0);
-  const [suggestedMentor, setSuggestedMentor] = useState(null);
+  const [matchedMentors, setMatchedMentors] = useState([]);
+  const [matchedMentorCount, setMatchedMentorCount] = useState(0);
+  const [selectedMentorId, setSelectedMentorId] = useState(user?.selectedMentorId || null);
+  const [selectionComplete, setSelectionComplete] = useState(Boolean(user?.mentorSelectionComplete));
   const [saving, setSaving] = useState(false);
+  const [loadingResult, setLoadingResult] = useState(false);
   const [error, setError] = useState("");
 
   const visibleQuestions = useMemo(
@@ -64,17 +68,44 @@ export default function PreludeMatchOnboardingPage() {
 
   const currentQuestion = visibleQuestions[currentIndex] ?? visibleQuestions[0];
 
+  const loadResultState = useCallback(async () => {
+    if (!user) return;
+    setLoadingResult(true);
+    setError("");
+    try {
+      if (user.authProvider === "supabase") {
+        const state = await loadMentorSelectionState();
+        setMatchedMentors(state.mentors || []);
+        setMatchedMentorCount(state.matchedMentorCount ?? 0);
+        setSelectedMentorId(state.selectedMentorId || null);
+        setSelectionComplete(Boolean(state.mentorSelectionComplete));
+      } else {
+        const demoMatches = rankDemoMatchedMentors(user.questionnaireAnswers || answers);
+        setMatchedMentors(demoMatches);
+        setMatchedMentorCount(demoMatches.length);
+        setSelectionComplete(Boolean(user.mentorSelectionComplete));
+      }
+      setPhase("result");
+    } catch (err) {
+      if (user.matchOnboardingComplete) {
+        const demoMatches = rankDemoMatchedMentors(user.questionnaireAnswers || answers);
+        setMatchedMentors(demoMatches);
+        setMatchedMentorCount(user.matchedMentorCount ?? demoMatches.length);
+        setSelectedMentorId(user.selectedMentorId || null);
+        setSelectionComplete(Boolean(user.mentorSelectionComplete));
+        setPhase("result");
+      } else {
+        setError(err.message || "Could not load your mentor matches.");
+      }
+    } finally {
+      setLoadingResult(false);
+    }
+  }, [user, answers]);
+
   useEffect(() => {
-    if (!user?.suggestedMentorId) return;
-    let cancelled = false;
-    getSuggestedMentor(user.suggestedMentorId).then((mentor) => {
-      if (!cancelled && mentor) setSuggestedMentor(mentor);
-    });
-    if (forceResult || user.matchOnboardingComplete) setPhase("result");
-    return () => {
-      cancelled = true;
-    };
-  }, [user, forceResult]);
+    if (!user?.matchOnboardingComplete && !forceResult) return;
+    loadResultState();
+  }, [user, forceResult, loadResultState]);
 
   const bumpPig = useCallback(() => {
     setPigMotion("bounce");
@@ -98,8 +129,12 @@ export default function PreludeMatchOnboardingPage() {
     return <Navigate to={dashboardPathForRole(user.role)} replace />;
   }
 
-  if (!userNeedsMatchOnboarding(user) && !forceResult && user.matchDecision === "accepted") {
-    return <Navigate to={dashboardPathForRole(user.role)} replace />;
+  if (userNeedsMatchDecision(user) && !forceResult && phase === "intro") {
+    return <Navigate to={`${MATCH_ONBOARDING_PATH}?step=result`} replace />;
+  }
+
+  if (!userNeedsMatchOnboarding(user) && !userNeedsMatchDecision(user) && !forceResult) {
+    return <Navigate to={postAuthDestination(user)} replace />;
   }
 
   function handleStart() {
@@ -130,15 +165,22 @@ export default function PreludeMatchOnboardingPage() {
     setError("");
     try {
       if (user.authProvider === "supabase") {
-        const { suggestedMentor: suggested, error: err } = await saveMatchQuestionnaire(user.id, finalAnswers);
+        const {
+          matchedMentors: mentors = [],
+          matchedMentorCount: count = 0,
+          error: err
+        } = await saveMatchQuestionnaire(user.id, finalAnswers);
         if (err) throw new Error(err);
-        setSuggestedMentor(suggested);
+        setMatchedMentors(mentors);
+        setMatchedMentorCount(count);
       } else {
-        setSuggestedMentor(pickSuggestedMentor(finalAnswers));
+        const demoMatches = rankDemoMatchedMentors(finalAnswers);
+        setMatchedMentors(demoMatches);
+        setMatchedMentorCount(demoMatches.length);
       }
       await refreshUser();
       setProgress(100);
-      setPhase("result");
+      await loadResultState();
     } catch (err) {
       setError(err.message || "Could not save your responses.");
       setPhase("questions");
@@ -147,7 +189,7 @@ export default function PreludeMatchOnboardingPage() {
     }
   }
 
-  function handleContinue() {
+  function handleContinueQuestion() {
     const visible = getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, answers);
     const idx = getQuestionIndex(visible, currentQuestionId);
     if (idx >= visible.length - 1) {
@@ -169,56 +211,33 @@ export default function PreludeMatchOnboardingPage() {
     setProgress(computeQuestionProgress(idx - 1, visible.length));
   }
 
-  async function handleAccept() {
-    const mentor = suggestedMentor || (await getSuggestedMentor(user.suggestedMentorId));
-    if (!mentor) return;
+  async function handleMentorContinue() {
+    if (selectionComplete) {
+      navigate(PARENT_ONBOARDING_PATH, { replace: true });
+      return;
+    }
+
     setSaving(true);
+    setError("");
     try {
       if (user.authProvider === "supabase") {
-        const { error: err } = await saveMatchDecision(user.id, { decision: "accepted", mentorId: mentor.id });
-        if (err) throw new Error(err);
+        await saveMentorSelection({ selectedMentorId: selectedMentorId || null });
       }
       await refreshUser();
       navigate(PARENT_ONBOARDING_PATH, { replace: true });
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not save your mentor selection.");
     } finally {
       setSaving(false);
     }
-  }
-
-  async function handleDecline() {
-    const mentor = suggestedMentor || (await getSuggestedMentor(user.suggestedMentorId));
-    setSaving(true);
-    setError("");
-    try {
-      if (user.authProvider === "supabase" && mentor) {
-        const { error: err } = await saveMatchDecision(user.id, {
-          decision: "declined",
-          mentorId: mentor.id,
-          declinedIds: [mentor.id]
-        });
-        if (err) throw new Error(err);
-      }
-      await refreshUser();
-      navigate(preludeMatchPathForRole(user.role), { replace: true });
-    } catch (err) {
-      setError(err.message || "Could not decline this recommendation.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleCompare() {
-    navigate(preludeMatchPathForRole(user.role));
   }
 
   const isLastQuestion =
     currentQuestion &&
     getQuestionIndex(visibleQuestions, currentQuestion.id) === visibleQuestions.length - 1;
 
-  const displayMentor = suggestedMentor || getMentorById(user.suggestedMentorId);
   const showVerifyBanner = !user.emailVerified && phase === "result";
+  const showResultPanel = phase === "result" && !loadingResult;
 
   return (
     <main className={`pm-onboarding-page${showVerifyBanner ? " pm-onboarding-page--verify-banner" : ""}`}>
@@ -229,7 +248,7 @@ export default function PreludeMatchOnboardingPage() {
           <p className="plan-select-page__eyebrow">Step 2 of 2</p>
           <h1 className="pm-onboarding-page__title">Prelude Match</h1>
           <p className="pm-onboarding-page__sub">
-            Tell us about your goals — we will recommend a mentor tailored to your preferences.
+            Tell us about your goals — we will recommend mentors tailored to your preferences.
           </p>
         </header>
 
@@ -264,8 +283,8 @@ export default function PreludeMatchOnboardingPage() {
                     progress={progress}
                     onAnswer={handleAnswer}
                     onBack={handleBack}
-                    onContinue={handleContinue}
-                    onSkip={handleContinue}
+                    onContinue={handleContinueQuestion}
+                    onSkip={handleContinueQuestion}
                     pigMotion={pigMotion}
                     reducedMotion={reducedMotion}
                     canGoBack={currentIndex > 0}
@@ -286,24 +305,23 @@ export default function PreludeMatchOnboardingPage() {
                 </motion.div>
               ) : null}
 
-              {phase === "result" && displayMentor ? (
+              {showResultPanel ? (
                 <motion.div key="result" className="pm-card__panel pm-card__panel--results">
-                  <MatchResultPanel
-                    mentor={displayMentor}
+                  <MentorMatchSelectionPanel
+                    mentors={matchedMentors}
+                    matchedMentorCount={matchedMentorCount}
+                    selectedMentorId={selectedMentorId}
                     loading={saving}
-                    onAccept={handleAccept}
-                    onCompare={handleCompare}
-                    onDecline={handleDecline}
+                    selectionComplete={selectionComplete}
+                    onSelectMentor={setSelectedMentorId}
+                    onContinue={handleMentorContinue}
                   />
                 </motion.div>
               ) : null}
 
-              {phase === "result" && !displayMentor ? (
-                <motion.div key="result-empty" className="pm-card__panel">
-                  <p className="pm-intro__body">We could not load your mentor match yet.</p>
-                  <button type="button" className="pm-btn pm-btn--primary pm-btn--lg" onClick={handleStart}>
-                    Start Prelude Match
-                  </button>
+              {phase === "result" && loadingResult ? (
+                <motion.div key="result-loading" className="pm-card__panel">
+                  <p className="pm-intro__body">Loading your mentor matches…</p>
                 </motion.div>
               ) : null}
             </AnimatePresence>

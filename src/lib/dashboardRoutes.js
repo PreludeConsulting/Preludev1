@@ -5,9 +5,11 @@ import { appPath } from "./appPaths.js";
 export const STUDENT_DASHBOARD_BASE = "/dashboard/student";
 export const MENTOR_DASHBOARD_BASE = "/dashboard/mentor";
 export const PARENT_DASHBOARD_BASE = "/dashboard/parent";
+export const ADMIN_DASHBOARD_BASE = "/dashboard/admin";
 
 export function dashboardHomeForRole(role) {
   const r = (role || "").toLowerCase();
+  if (r === "admin") return `${ADMIN_DASHBOARD_BASE}/mentor-review`;
   if (r === "mentor") return `${MENTOR_DASHBOARD_BASE}/overview`;
   if (r === "parent") return `${PARENT_DASHBOARD_BASE}/overview`;
   return `${STUDENT_DASHBOARD_BASE}/overview`;

@@ -377,6 +377,14 @@ create table if not exists public.onboarding_progress (
   suggested_mentor_id      text,
   match_decision           text check (match_decision is null or match_decision in ('accepted', 'declined')),
   declined_mentor_ids      jsonb not null default '[]'::jsonb,
+  selected_mentor_id       text,
+  mentor_selection_method  text check (mentor_selection_method is null or mentor_selection_method in ('student_selected', 'admin_review_required')),
+  mentor_assignment_status text check (mentor_assignment_status is null or mentor_assignment_status in ('student_selected', 'admin_review_required', 'admin_assigned')),
+  prelude_match_completed  boolean not null default false,
+  matched_mentor_count     integer not null default 0,
+  matched_mentor_ids       jsonb not null default '[]'::jsonb,
+  admin_review_required    boolean not null default false,
+  mentor_selection_timestamp timestamptz,
   updated_at               timestamptz not null default now()
 );
 

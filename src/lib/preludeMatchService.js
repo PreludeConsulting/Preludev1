@@ -6,6 +6,7 @@ import { PRELUDE_MATCH_MENTORS } from "../data/preludeMatchMentors.js";
 import { getSupabase } from "./supabase.js";
 import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
 import { getMentorMatchingProfile, rankSupabaseMentorsForStudent } from "./mentorQuestionnaireService.js";
+import { filterMatchedMentors, MIN_MATCH_SCORE } from "../../shared/mentorSelectionLogic.js";
 
 const MENTOR_CATALOG = PRELUDE_MATCH_MENTORS.map((m) => ({
   ...m,
@@ -50,8 +51,12 @@ export function rankMentors(answers = {}) {
     .sort((a, b) => b.matchPercent - a.matchPercent);
 }
 
+export function rankDemoMatchedMentors(answers = {}) {
+  return filterMatchedMentors(rankMentors(answers), MIN_MATCH_SCORE);
+}
+
 export function pickSuggestedMentor(answers) {
-  return rankMentors(answers)[0] || MENTOR_CATALOG[0];
+  return rankDemoMatchedMentors(answers)[0] || rankMentors(answers)[0] || MENTOR_CATALOG[0];
 }
 
 export async function getSuggestedMentor(id) {
@@ -72,16 +77,32 @@ export async function loadOnboardingProgress(userId) {
 }
 
 export async function saveMatchQuestionnaire(userId, answers) {
-  const { mentors: rankedMentors } = await rankSupabaseMentorsForStudent(userId, answers, 5);
-  const suggested = rankedMentors[0] || pickSuggestedMentor(answers);
+  const {
+    matchedMentors = [],
+    matchedMentorIds = [],
+    matchedMentorCount = 0
+  } = await rankSupabaseMentorsForStudent(userId, answers);
+  const demoMatches = rankDemoMatchedMentors(answers);
+  const mentors = matchedMentors.length ? matchedMentors : demoMatches;
+  const ids = matchedMentorIds.length ? matchedMentorIds : mentors.map((mentor) => mentor.id);
+  const count = matchedMentorCount || mentors.length;
+  const suggested = mentors[0] || pickSuggestedMentor(answers);
+
   const payload = {
     user_id: userId,
     questionnaire_answers: answers,
     mentor_matching_started: true,
     mentor_matching_complete: true,
-    suggested_mentor_id: suggested.id,
+    prelude_match_completed: true,
+    suggested_mentor_id: suggested?.id || null,
+    matched_mentor_ids: ids,
+    matched_mentor_count: count,
     onboarding_status: ONBOARDING_STATUS.MATCH_COMPLETED,
     match_decision: null,
+    selected_mentor_id: null,
+    mentor_selection_method: null,
+    mentor_assignment_status: null,
+    admin_review_required: false,
     updated_at: new Date().toISOString()
   };
   const { data, error } = await getSupabase()
@@ -89,7 +110,14 @@ export async function saveMatchQuestionnaire(userId, answers) {
     .upsert(payload, { onConflict: "user_id" })
     .select()
     .maybeSingle();
-  return { onboarding: data, suggestedMentor: suggested, error: error?.message || null };
+  return {
+    onboarding: data,
+    suggestedMentor: suggested,
+    matchedMentors: mentors,
+    matchedMentorCount: count,
+    matchedMentorIds: ids,
+    error: error?.message || null
+  };
 }
 
 export async function saveMatchDecision(userId, { decision, mentorId, declinedIds = [] }) {
@@ -165,17 +193,28 @@ export function mapOnboardingToUserFields(onboarding, hasAssignedMentor) {
       matchDecision: null,
       onboardingStatus: ONBOARDING_STATUS.NEEDS_MATCH,
       suggestedMentorId: null,
-      parentInviteStepComplete: false
+      parentInviteStepComplete: false,
+      mentorSelectionComplete: false,
+      matchedMentorCount: 0,
+      matchedMentorIds: [],
+      selectedMentorId: null,
+      mentorSelectionMethod: null,
+      mentorAssignmentStatus: null,
+      adminReviewRequired: false
     };
   }
 
+  const mentorSelectionComplete = Boolean(onboarding.mentor_assignment_status);
   let status = onboarding.onboarding_status || ONBOARDING_STATUS.NEEDS_MATCH;
-  if (hasAssignedMentor || onboarding.match_decision === "accepted") {
+
+  if (onboarding.parent_invite_step_completed) {
     status = ONBOARDING_STATUS.ONBOARDING_COMPLETED;
-  } else if (onboarding.mentor_matching_complete && !onboarding.match_decision) {
-    status = ONBOARDING_STATUS.MATCH_COMPLETED;
   } else if (!onboarding.mentor_matching_complete) {
     status = ONBOARDING_STATUS.NEEDS_MATCH;
+  } else if (!mentorSelectionComplete && !hasAssignedMentor && onboarding.match_decision !== "accepted") {
+    status = ONBOARDING_STATUS.MATCH_COMPLETED;
+  } else {
+    status = ONBOARDING_STATUS.MATCH_COMPLETED;
   }
 
   return {
@@ -184,6 +223,14 @@ export function mapOnboardingToUserFields(onboarding, hasAssignedMentor) {
     onboardingStatus: status,
     suggestedMentorId: onboarding.suggested_mentor_id || null,
     questionnaireAnswers: onboarding.questionnaire_answers || {},
-    parentInviteStepComplete: Boolean(onboarding.parent_invite_step_completed)
+    parentInviteStepComplete: Boolean(onboarding.parent_invite_step_completed),
+    mentorSelectionComplete,
+    matchedMentorCount: onboarding.matched_mentor_count ?? (onboarding.matched_mentor_ids || []).length,
+    matchedMentorIds: onboarding.matched_mentor_ids || [],
+    selectedMentorId: onboarding.selected_mentor_id || null,
+    mentorSelectionMethod: onboarding.mentor_selection_method || null,
+    mentorAssignmentStatus: onboarding.mentor_assignment_status || null,
+    adminReviewRequired: Boolean(onboarding.admin_review_required),
+    preludeMatchCompleted: Boolean(onboarding.prelude_match_completed ?? onboarding.mentor_matching_complete)
   };
 }

@@ -81,7 +81,14 @@ function mapOnboarding(row) {
     onboardingStatus: row.onboarding_status || null,
     suggestedMentorId: row.suggested_mentor_id || null,
     matchDecision: row.match_decision || null,
-    declinedMentorIds: row.declined_mentor_ids || []
+    declinedMentorIds: row.declined_mentor_ids || [],
+    mentorSelectionComplete: Boolean(row.mentor_assignment_status),
+    matchedMentorCount: row.matched_mentor_count ?? (row.matched_mentor_ids || []).length,
+    matchedMentorIds: row.matched_mentor_ids || [],
+    selectedMentorId: row.selected_mentor_id || null,
+    mentorSelectionMethod: row.mentor_selection_method || null,
+    mentorAssignmentStatus: row.mentor_assignment_status || null,
+    adminReviewRequired: Boolean(row.admin_review_required)
   };
 }
 

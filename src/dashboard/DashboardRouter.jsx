@@ -44,6 +44,8 @@ import {
   StudentResources
 } from "./pages/shared/FeaturePages.jsx";
 import { PreludeMatchBrowsePage } from "./pages/shared/PreludeMatchPages.jsx";
+import AdminMentorReviewPage from "./pages/admin/AdminPages.jsx";
+import { ADMIN_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
 
 function DashboardRedirect() {
   const { user, ready } = useAuth();
@@ -132,6 +134,20 @@ function ParentRoutes() {
   );
 }
 
+function AdminRoutes() {
+  const { user } = useAuth();
+  return (
+    <DashboardDataProvider user={user}>
+      <Routes>
+        <Route element={<DashboardLayout productNav={[]} basePath={ADMIN_DASHBOARD_BASE} routeMeta={{}} />}>
+          <Route path="mentor-review" element={<AdminMentorReviewPage />} />
+          <Route index element={<Navigate to="mentor-review" replace />} />
+        </Route>
+      </Routes>
+    </DashboardDataProvider>
+  );
+}
+
 /**
  * Routes are RELATIVE to the parent /dashboard/* match in main.jsx.
  * Do not prefix with /student — that would match /student/* at the site root instead.
@@ -161,6 +177,14 @@ export default function DashboardRouter() {
         element={
           <RoleGuard role="parent">
             <ParentRoutes />
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="admin/*"
+        element={
+          <RoleGuard role="admin">
+            <AdminRoutes />
           </RoleGuard>
         }
       />

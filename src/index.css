@@ -4099,6 +4099,121 @@ html[lang="es"] .shopify-hero__headline-line {
   color: hsl(var(--foreground) / 0.8);
 }
 
+.pm-match-result {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pm-match-result__head {
+  text-align: center;
+}
+
+.pm-match-result__grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.pm-match-result__grid--selectable {
+  gap: 1rem;
+}
+
+.pm-match-result__actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.25rem;
+}
+
+.pm-match-result__saved {
+  margin: 0;
+  text-align: center;
+  font-size: 0.78rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.pm-mentor-select-card {
+  position: relative;
+  border-radius: 0.85rem;
+}
+
+.pm-mentor-select-card--selectable {
+  cursor: pointer;
+}
+
+.pm-mentor-select-card--selectable:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+.pm-mentor-select-card--selected .pm-mentor-card {
+  border-color: hsl(var(--primary) / 0.55);
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.18);
+}
+
+.pm-mentor-select-card__selector {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 1;
+}
+
+.pm-mentor-select-card__radio {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 2px solid hsl(var(--foreground) / 0.25);
+  background: #fff;
+}
+
+.pm-mentor-select-card__radio--checked {
+  border-color: hsl(var(--primary));
+  background: radial-gradient(circle at center, hsl(var(--primary)) 0 35%, transparent 36%);
+}
+
+.admin-mentor-review {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-mentor-review__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.admin-mentor-review__card {
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 0.85rem;
+  padding: 1rem;
+  background: #fff;
+}
+
+.admin-mentor-review__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.78rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.admin-mentor-review__assign {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.admin-mentor-review__assign select {
+  min-width: 14rem;
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.65rem;
+  font: inherit;
+}
+
 .pm-btn--block {
   width: 100%;
 }
