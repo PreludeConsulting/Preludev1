@@ -32,6 +32,7 @@ import {
 } from "./components/AuthPages.jsx";
 import { ROUTER_BASENAME } from "./lib/appPaths.js";
 import "./index.css";
+import "./styles/auth.css";
 import "./dashboard/dashboard.css";
 import "./dashboard/dashboard-premium.css";
 import "./dashboard/dashboard-product.css";
