@@ -1,4 +1,4 @@
-import { CheckCircle2, GraduationCap, HeartHandshake, LockKeyhole, Mail, RefreshCw, ShieldCheck, Users } from "lucide-react";
+import { ArrowLeft, CheckCircle2, GraduationCap, HeartHandshake, Loader2, LockKeyhole, Mail, RefreshCw, ShieldCheck, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
@@ -13,6 +13,7 @@ import TurnstileWidget from "./auth/TurnstileWidget.jsx";
 import { isTurnstileRequired } from "../lib/turnstile.js";
 import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
 import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerification.js";
+import AuthLoadingState from "./AuthLoadingState.jsx";
 
 const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -38,14 +39,39 @@ const SIGNUP_ROLE_OPTIONS = [
   }
 ];
 
-function Shell({ title, subtitle, children }) {
+const AUTH_STEP_LABELS = {
+  login: "Secure sign-in",
+  register: "Create account",
+  callback: "Google OAuth",
+  forgot: "Password recovery",
+  reset: "Reset password",
+  email: "Email verification",
+  loginCode: "Login verification"
+};
+
+function Shell({ title, subtitle, children, step = "login", badge, footer }) {
   return (
-    <main className="auth-page mx-auto min-h-screen max-w-3xl px-4 py-8 text-foreground sm:px-6 sm:py-16">
-      <AppLink href="/" className="text-sm text-muted-foreground hover:text-foreground">← Back to Prelude</AppLink>
-      <section className="auth-card mt-8 rounded-3xl border border-border/70 bg-card/90 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-8">
-        <h1 className="auth-title text-3xl font-semibold tracking-tight">{title}</h1>
-        {subtitle ? <p className="auth-subtitle mt-2 text-muted-foreground">{subtitle}</p> : null}
-        <div className="auth-content mt-8">{children}</div>
+    <main className="auth-page auth-flow-page">
+      <section className="auth-card auth-flow-card" aria-labelledby="auth-heading">
+        <div className="auth-flow__brand">
+          <AppLink href="/" className="auth-back-link" aria-label="Back to Prelude home">
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Prelude
+          </AppLink>
+          <div className="auth-mark" aria-hidden="true">
+            <img src="/prelude-email-logo.png" alt="" />
+          </div>
+          <span className="auth-status-pill">
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            {badge || AUTH_STEP_LABELS[step] || "Secure access"}
+          </span>
+        </div>
+        <div className="auth-flow__header">
+          <h1 id="auth-heading" className="auth-title">{title}</h1>
+          {subtitle ? <p className="auth-subtitle">{subtitle}</p> : null}
+        </div>
+        <div className="auth-content">{children}</div>
+        {footer ? <div className="auth-flow__footer">{footer}</div> : null}
       </section>
     </main>
   );
@@ -61,8 +87,22 @@ function Field({ label, ...props }) {
 }
 
 function Alert({ children, tone = "info" }) {
-  const cls = tone === "error" ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-primary/30 bg-primary/10 text-foreground";
-  return <div className={`auth-alert rounded-2xl border px-4 py-3 text-sm ${cls}`} role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"}>{children}</div>;
+  const cls =
+    tone === "error"
+      ? "auth-alert--error"
+      : tone === "success"
+        ? "auth-alert--success"
+        : "auth-alert--info";
+  return <div className={`auth-alert ${cls}`} role={tone === "error" ? "alert" : "status"} aria-live={tone === "error" ? "assertive" : "polite"}>{children}</div>;
+}
+
+function AuthButton({ children, loading = false, icon: Icon, className = "", ...props }) {
+  return (
+    <button {...props} className={`auth-submit ${className}`} aria-busy={loading || undefined}>
+      {loading ? <Loader2 className="auth-button-spinner h-4 w-4" aria-hidden="true" /> : Icon ? <Icon className="h-4 w-4" aria-hidden="true" /> : null}
+      <span>{children}</span>
+    </button>
+  );
 }
 
 function RoleSelector({ value, onChange, disabled = false, lockedRole = "" }) {
@@ -140,10 +180,13 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [message] = useState(() => (new URLSearchParams(location.search).get("reset") === "success" ? "Your password has been updated. Log in with your new password." : ""));
-  const [loading, setLoading] = useState(false);
+  const [authAction, setAuthAction] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
   const destination = sanitizeAuthRedirect(location.state?.from || new URLSearchParams(location.search).get("next") || "");
+  const loading = Boolean(authAction);
+  const googleLoading = authAction === "google";
+  const emailLoading = authAction === "email";
 
   useEffect(() => {
     if (!ready) return;
@@ -154,7 +197,8 @@ export function LoginPage() {
 
   async function onGoogle() {
     setError("");
-    setLoading(true);
+    setAuthAction("google");
+    let redirecting = false;
     try {
       const { url, error: oauthError, message } = await signInWithGoogle({ next: destination });
       if (oauthError) {
@@ -162,7 +206,8 @@ export function LoginPage() {
         return;
       }
       if (url) {
-        window.location.href = url;
+        redirecting = true;
+        window.location.assign(url);
         return;
       }
       setError(message || "Google sign-in did not return a redirect URL.");
@@ -170,12 +215,12 @@ export function LoginPage() {
       console.error("Unexpected Google OAuth failure:", err);
       setError(err?.message || "Request failed. Check Supabase/Google OAuth settings.");
     } finally {
-      setLoading(false);
+      if (!redirecting) setAuthAction("");
     }
   }
 
   async function loginWithCredentials(demoEmail, demoPassword) {
-    setLoading(true);
+    setAuthAction("email");
     setError("");
     try {
       const user = await signIn(demoEmail, demoPassword, { captchaToken });
@@ -187,9 +232,10 @@ export function LoginPage() {
       navigate(destination || postAuthDestination(user), { replace: true });
     } catch (err) {
       setError(err.message);
+      setCaptchaToken("");
       turnstileRef.current?.reset();
     } finally {
-      setLoading(false);
+      setAuthAction("");
     }
   }
 
@@ -199,7 +245,7 @@ export function LoginPage() {
   }
 
   async function continueAsDemo(accountKey) {
-    setLoading(true);
+    setAuthAction(`demo-${accountKey}`);
     setError("");
     try {
       const nextUser = await signInAsDemo(accountKey);
@@ -207,16 +253,17 @@ export function LoginPage() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setAuthAction("");
     }
   }
 
   return (
     <Shell
-      title="Log in"
-      subtitle={supabaseAuth ? "Sign in to your Prelude account." : "Secure access uses HTTP-only cookies, CSRF protection, and server-side role checks."}
+      title="Welcome back"
+      subtitle={supabaseAuth ? "Sign in with Google or email, then Prelude will quietly verify this device before opening your workspace." : "Secure access uses HTTP-only cookies, CSRF protection, and server-side role checks."}
+      step="login"
     >
-      <GoogleSignInButton onClick={onGoogle} disabled={loading} loading={loading} />
+      <GoogleSignInButton onClick={onGoogle} disabled={loading} loading={googleLoading} />
       <p className="dash-auth-divider">or continue with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
@@ -224,7 +271,9 @@ export function LoginPage() {
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <Field label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
-        <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} aria-busy={loading || undefined} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">{loading ? "Logging in…" : "Log in"}</button>
+        <AuthButton disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} loading={emailLoading} className="w-full">
+          {emailLoading ? "Checking account" : "Log in"}
+        </AuthButton>
         <p className="text-sm text-muted-foreground">
           <AppLink className="underline" href="/forgot-password">Forgot password?</AppLink> ·{" "}
           <AppLink className="underline" href="/register">Create an account</AppLink>
@@ -243,7 +292,7 @@ export function LoginPage() {
             onClick={() => continueAsDemo("student")}
             className="rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
           >
-            {loading ? "Opening demo…" : `Student · ${DEMO_STUDENT.firstName} ${DEMO_STUDENT.lastName}`}
+            {authAction === "demo-student" ? "Opening demo…" : `Student · ${DEMO_STUDENT.firstName} ${DEMO_STUDENT.lastName}`}
           </button>
           <button
             type="button"
@@ -251,7 +300,7 @@ export function LoginPage() {
             onClick={() => continueAsDemo("mentor")}
             className="rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
           >
-            {loading ? "Opening demo…" : `Mentor · ${DEMO_MENTOR.firstName} ${DEMO_MENTOR.lastName}`}
+            {authAction === "demo-mentor" ? "Opening demo…" : `Mentor · ${DEMO_MENTOR.firstName} ${DEMO_MENTOR.lastName}`}
           </button>
           <button
             type="button"
@@ -259,7 +308,7 @@ export function LoginPage() {
             onClick={() => continueAsDemo("parent")}
             className="rounded-2xl border border-primary/25 bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5 disabled:opacity-60"
           >
-            {loading ? "Opening demo…" : `Parent · ${DEMO_PARENT.firstName} ${DEMO_PARENT.lastName}`}
+            {authAction === "demo-parent" ? "Opening demo…" : `Parent · ${DEMO_PARENT.firstName} ${DEMO_PARENT.lastName}`}
           </button>
         </div>
         <p className="mt-3 break-words text-xs text-muted-foreground">
@@ -276,14 +325,20 @@ export function AuthCallbackPage() {
   const { beginLoginVerification, refreshUser } = useAuth();
   const processed = useRef(false);
   const callbackPromise = useRef(null);
+  const callbackUrl = useMemo(() => ({ search: window.location.search, hash: window.location.hash }), []);
   const [state, setState] = useState({ loading: true, error: "", message: "Finishing Google sign-in…" });
   const nextPath = sanitizeAuthRedirect(searchParams.get("next") || "", "/dashboard");
 
   useEffect(() => {
     let active = true;
+    if (callbackUrl.search || callbackUrl.hash) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
     if (!processed.current) {
       processed.current = true;
-      callbackPromise.current = import("../lib/supabaseAuth.js").then(({ completeAuthCallback }) => completeAuthCallback());
+      callbackPromise.current = import("../lib/supabaseAuth.js").then(({ completeAuthCallback }) =>
+        completeAuthCallback(callbackUrl.search, callbackUrl.hash)
+      );
     }
 
     callbackPromise.current
@@ -304,7 +359,7 @@ export function AuthCallbackPage() {
           return;
         }
         const destination = nextPath === "/dashboard" ? postAuthDestination(resolvedUser) : nextPath || postAuthDestination(resolvedUser);
-        setState({ loading: false, error: "", message: "Signed in. Redirecting…" });
+        setState({ loading: false, error: "", message: "Signed in. Opening Prelude…" });
         navigate(destination, { replace: true });
       })
       .catch((err) => {
@@ -313,11 +368,16 @@ export function AuthCallbackPage() {
     return () => {
       active = false;
     };
-  }, [beginLoginVerification, navigate, nextPath, refreshUser]);
+  }, [beginLoginVerification, callbackUrl.hash, callbackUrl.search, navigate, nextPath, refreshUser]);
 
   return (
-    <Shell title="Signing you in" subtitle="Prelude is finishing your secure Google sign-in.">
-      {state.message ? <Alert>{state.message}</Alert> : null}
+    <Shell title="Finishing Google sign-in" subtitle="Prelude is exchanging your secure Google response and restoring your session." step="callback">
+      {state.loading ? (
+        <div className="auth-inline-loading">
+          <Loader2 className="auth-loading-spinner" aria-hidden="true" />
+          <span>{state.message}</span>
+        </div>
+      ) : state.message ? <Alert tone="success">{state.message}</Alert> : null}
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       {!state.loading && state.error ? (
         <p className="mt-4 text-sm text-muted-foreground">
@@ -349,10 +409,23 @@ export function RegisterPage() {
     parentInviteToken
   });
 
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [authAction, setAuthAction] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [captchaToken, setCaptchaToken] = useState("");
+  const turnstileRef = useRef(null);
+  const loading = Boolean(authAction);
+  const googleLoading = authAction === "google";
+  const signupLoading = authAction === "signup";
+
   async function onGoogle() {
     setError("");
     setMessage("");
-    setLoading(true);
+    setAuthAction("google");
+    let redirecting = false;
     try {
       const { url, error: oauthError, message } = await signInWithGoogle({ next: destination });
       if (oauthError) {
@@ -360,7 +433,8 @@ export function RegisterPage() {
         return;
       }
       if (url) {
-        window.location.href = url;
+        redirecting = true;
+        window.location.assign(url);
         return;
       }
       setMessage(message || "Google sign-up will be available once OAuth is configured.");
@@ -368,17 +442,9 @@ export function RegisterPage() {
       console.error("Unexpected Google OAuth failure:", err);
       setError(err?.message || "Request failed. Check Supabase/Google OAuth settings.");
     } finally {
-      setLoading(false);
+      if (!redirecting) setAuthAction("");
     }
   }
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [confirmationEmail, setConfirmationEmail] = useState("");
-  const [captchaToken, setCaptchaToken] = useState("");
-  const turnstileRef = useRef(null);
   const update = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
 
   useEffect(() => {
@@ -391,7 +457,7 @@ export function RegisterPage() {
 
   async function onSubmit(event) {
     event.preventDefault();
-    setLoading(true);
+    setAuthAction("signup");
     setError("");
     setMessage("");
     try {
@@ -432,9 +498,10 @@ export function RegisterPage() {
       } else {
         setError(err.message);
       }
+      setCaptchaToken("");
       turnstileRef.current?.reset();
     } finally {
-      setLoading(false);
+      setAuthAction("");
     }
   }
 
@@ -466,14 +533,15 @@ export function RegisterPage() {
           ? "You've been invited to follow your student's college journey on Prelude."
           : "Choose your role, create your account, and verify your email to get started."
       }
+      step="register"
     >
-      <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} loading={loading} />
+      <GoogleSignInButton label="Continue with Google" onClick={onGoogle} disabled={loading} loading={googleLoading} />
       <p className="dash-auth-divider">or sign up with email</p>
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
         {message ? (
           <>
-            <Alert>{message}</Alert>
+            <Alert tone="success">{message}</Alert>
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               {supabaseAuth ? (
                 <button type="button" className="underline disabled:opacity-60" disabled={resending || resendCooldown > 0} onClick={resendConfirmationEmail}>
@@ -513,17 +581,17 @@ export function RegisterPage() {
         )}
         <label className="flex items-start gap-3 text-sm text-muted-foreground"><input className="mt-1" type="checkbox" checked={form.termsAccepted} onChange={update("termsAccepted")} required /> I accept Prelude's terms and privacy requirements.</label>
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
-        <button
+        <AuthButton
           disabled={
             loading ||
             (supabaseAuth && isTurnstileRequired() && !captchaToken) ||
             (!invitedAsParent && !form.role)
           }
-          aria-busy={loading || undefined}
-          className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60"
+          loading={signupLoading}
+          className="w-full"
         >
-          {loading ? "Creating…" : "Create account"}
-        </button>
+          {signupLoading ? "Creating account" : "Create account"}
+        </AuthButton>
         <p className="text-sm text-muted-foreground">
           Already have an account? <AppLink className="underline" href="/login">Log in</AppLink>
         </p>
@@ -558,6 +626,7 @@ export function ForgotPasswordPage() {
       setMessage(result.message);
     } catch (err) {
       setError(err.message);
+      setCaptchaToken("");
       turnstileRef.current?.reset();
     } finally {
       setLoading(false);
@@ -565,15 +634,15 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <Shell title="Reset password" subtitle="We'll email you a link to choose a new password.">
+    <Shell title="Reset your password" subtitle="Enter your email and Prelude will send a secure reset link if an account exists." step="forgot">
       <form className="space-y-5" onSubmit={onSubmit}>
         {error ? <Alert tone="error">{error}</Alert> : null}
         {message ? <Alert>{message}</Alert> : null}
         <Field label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
-        <button disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
-          {loading ? "Sending…" : "Send reset link"}
-        </button>
+        <AuthButton disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)} loading={loading} className="w-full">
+          {loading ? "Sending secure link" : "Send reset link"}
+        </AuthButton>
         <p className="text-sm text-muted-foreground">
           <AppLink className="underline" href="/login">Back to login</AppLink>
         </p>
@@ -587,6 +656,7 @@ export function ResetPasswordPage() {
   const supabaseAuth = isSupabaseConfigured();
   const params = new URLSearchParams(window.location.search);
   const [token] = useState(params.get("token") || "");
+  const recoveryUrl = useMemo(() => ({ search: window.location.search, hash: window.location.hash }), []);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
@@ -600,8 +670,12 @@ export function ResetPasswordPage() {
     let active = true;
     let unsubscribe = () => {};
 
+    if (recoveryUrl.search || recoveryUrl.hash) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
     import("../lib/supabaseAuth.js").then(({ initializePasswordRecovery, onAuthStateChange }) => {
-      initializePasswordRecovery().then(({ hasRecoverySession: recovered, error: recoveryError }) => {
+      initializePasswordRecovery(recoveryUrl.search, recoveryUrl.hash).then(({ hasRecoverySession: recovered, error: recoveryError }) => {
         if (!active) return;
         setHasRecoverySession(Boolean(recovered));
         if (recoveryError) setError(recoveryError);
@@ -617,7 +691,7 @@ export function ResetPasswordPage() {
       active = false;
       unsubscribe();
     };
-  }, [supabaseAuth]);
+  }, [recoveryUrl.hash, recoveryUrl.search, supabaseAuth]);
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -655,11 +729,16 @@ export function ResetPasswordPage() {
 
   if (supabaseAuth) {
     return (
-      <Shell title="Choose a new password" subtitle="Enter a new password for your account.">
+      <Shell title="Choose a new password" subtitle="Use the secure link from your email to choose a new password." step="reset">
         <form className="space-y-5" onSubmit={onSubmit}>
           {error ? <Alert tone="error">{error}</Alert> : null}
-          {message ? <Alert>{message}</Alert> : null}
-          {checkingRecovery ? <Alert>Checking your reset link…</Alert> : null}
+          {message ? <Alert tone="success">{message}</Alert> : null}
+          {checkingRecovery ? (
+            <div className="auth-inline-loading">
+              <Loader2 className="auth-loading-spinner" aria-hidden="true" />
+              <span>Checking your reset link…</span>
+            </div>
+          ) : null}
           {!checkingRecovery && !hasRecoverySession && !message ? (
             <Alert>
               Open this page from the reset link in your email, or request a new link on the{" "}
@@ -668,9 +747,9 @@ export function ResetPasswordPage() {
           ) : null}
           <Field label="New password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
           <Field label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} autoComplete="new-password" />
-          <button disabled={loading || checkingRecovery || (!hasRecoverySession && !message)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
-            {loading ? "Updating…" : "Update password"}
-          </button>
+          <AuthButton disabled={loading || checkingRecovery || (!hasRecoverySession && !message)} loading={loading} className="w-full">
+            {loading ? "Updating password" : "Update password"}
+          </AuthButton>
           {message ? (
             <p className="text-sm text-muted-foreground">
               <AppLink className="underline" href="/login">Back to login</AppLink>
@@ -682,7 +761,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <Shell title="Choose a new password" subtitle="All existing sessions are revoked after reset.">
+    <Shell title="Choose a new password" subtitle="All existing sessions are revoked after reset." step="reset">
       {!token && !message ? (
         <Alert tone="error">
           This reset link is invalid or incomplete. Request a new link on the{" "}
@@ -699,9 +778,9 @@ export function ResetPasswordPage() {
             <p className="text-xs text-muted-foreground">
               At least 12 characters with uppercase, lowercase, a number, and a symbol.
             </p>
-            <button disabled={loading || Boolean(message)} className="auth-submit w-full rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground disabled:opacity-60">
-              {loading ? "Updating…" : "Reset password"}
-            </button>
+            <AuthButton disabled={loading || Boolean(message)} loading={loading} className="w-full">
+              {loading ? "Updating password" : "Reset password"}
+            </AuthButton>
           </>
         ) : null}
         {message ? (
@@ -722,13 +801,18 @@ export function VerifyEmailPage() {
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const supabaseAuth = isSupabaseConfigured();
+  const verificationUrl = useMemo(() => ({ search: window.location.search, hash: window.location.hash }), []);
+  const verificationToken = useMemo(() => new URLSearchParams(window.location.search).get("token") || "", []);
   const [state, setState] = useState({ loading: true, message: "", error: "", alreadyVerified: false });
 
   useEffect(() => {
+    if (window.location.search || window.location.hash) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
     if (supabaseAuth) {
       let cancelled = false;
       import("../lib/supabaseAuth.js")
-        .then(({ completeEmailVerification }) => completeEmailVerification())
+        .then(({ completeEmailVerification }) => completeEmailVerification(verificationUrl.search, verificationUrl.hash))
         .then(async ({ user: nextUser, error }) => {
           if (cancelled) return;
           if (error) {
@@ -753,8 +837,7 @@ export function VerifyEmailPage() {
       };
     }
 
-    const token = new URLSearchParams(window.location.search).get("token") || "";
-    if (!token) {
+    if (!verificationToken) {
       setState({
         loading: false,
         message: "",
@@ -765,7 +848,7 @@ export function VerifyEmailPage() {
     }
 
     let cancelled = false;
-    verifyEmail(token)
+    verifyEmail(verificationToken)
       .then(async (result) => {
         if (cancelled) return;
         await refreshUser();
@@ -785,26 +868,31 @@ export function VerifyEmailPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshUser, supabaseAuth]);
+  }, [refreshUser, supabaseAuth, verificationToken, verificationUrl.hash, verificationUrl.search]);
 
   const continuePath = user ? postAuthDestination(user) : "/login";
   const continueLabel = user ? "Continue to dashboard" : "Continue to login";
 
   return (
-    <Shell title="Email verification" subtitle="Confirm your email address for Prelude account updates.">
-      {state.loading ? <Alert>Verifying your email…</Alert> : null}
+    <Shell title="Email verification" subtitle="Confirm your email address so Prelude can protect account updates and recovery." step="email">
+      {state.loading ? (
+        <div className="auth-inline-loading">
+          <Loader2 className="auth-loading-spinner" aria-hidden="true" />
+          <span>Verifying your email…</span>
+        </div>
+      ) : null}
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       {!state.loading && !state.error && state.message ? (
-        <Alert>{state.alreadyVerified ? state.message : state.message}</Alert>
+        <Alert tone="success">{state.alreadyVerified ? state.message : state.message}</Alert>
       ) : null}
       {!state.loading && !state.error ? (
-        <button
+        <AuthButton
           type="button"
-          className="mt-6 inline-block rounded-2xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
+          className="mt-6"
           onClick={() => navigate(continuePath, { replace: true })}
         >
           {continueLabel}
-        </button>
+        </AuthButton>
       ) : null}
       {state.error ? (
         <p className="mt-4 text-sm text-muted-foreground">

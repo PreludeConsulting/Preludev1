@@ -23,6 +23,7 @@ const OAUTH_PROVIDERS = ["google"];
 const callbackRequests = new Map();
 const verificationRequests = new Map();
 const recoveryRequests = new Map();
+const AUTH_REQUEST_TIMEOUT_MS = 18000;
 
 function authDebug(event, details = {}) {
   if (!import.meta.env.DEV) return;
@@ -91,12 +92,30 @@ function runSingleFlight(map, key, task) {
   return promise;
 }
 
-function friendlyError(error) {
+function withAuthTimeout(promise, message = "Prelude could not reach Supabase. Check your connection and try again.") {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), AUTH_REQUEST_TIMEOUT_MS);
+    })
+  ]);
+}
+
+export function friendlyAuthError(error) {
   if (!error) return null;
   const message = (error.message || "").toLowerCase();
 
   if (message.includes("invalid login credentials")) {
     return "That email or password doesn't match our records.";
+  }
+  if (message.includes("captcha") || message.includes("security check")) {
+    return "The security check could not be verified. Please complete it again.";
+  }
+  if (message.includes("otp") || message.includes("token") || message.includes("expired") || message.includes("invalid_grant")) {
+    return "This secure link is invalid or expired. Request a new link and try again.";
+  }
+  if (message.includes("same password") || message.includes("different from the old password")) {
+    return "Choose a new password that is different from your current password.";
   }
   if (message.includes("email not confirmed")) {
     return "Please confirm your email first. Check your inbox for the confirmation link.";
@@ -131,17 +150,40 @@ function friendlyError(error) {
   if (message.includes("for security purposes") || message.includes("rate limit")) {
     return "Too many attempts. Please wait a moment and try again.";
   }
-  if (message.includes("captcha") || message.includes("security check")) {
-    return "The security check could not be verified. Please complete it again.";
-  }
   if (message.includes("failed to fetch")) {
     return "Couldn't reach Supabase. Check your connection and VITE_SUPABASE_URL.";
   }
   const fallback = error.message || "Something went wrong. Please try again.";
-  if (import.meta.env.DEV && error.message && fallback !== error.message) {
-    return `${fallback} Supabase said: ${error.message}`;
-  }
+  if (import.meta.env.PROD) return "Something went wrong. Please try again.";
   return fallback;
+}
+
+const friendlyError = friendlyAuthError;
+
+function friendlyPasswordSignInError(error) {
+  const message = (error?.message || "").toLowerCase();
+  if (message.includes("invalid_grant") || message.includes("invalid login credentials")) {
+    return "That email or password doesn't match our records.";
+  }
+  return friendlyError(error);
+}
+
+export function friendlyProviderError(rawError = "") {
+  const message = String(rawError || "").toLowerCase();
+  if (!message) return "Authentication could not be completed. Please try again.";
+  if (message.includes("access_denied") || message.includes("denied") || message.includes("cancel")) {
+    return "Google sign-in was canceled.";
+  }
+  if (message.includes("expired") || message.includes("invalid") || message.includes("token")) {
+    return "This secure link is invalid or expired. Request a new link and try again.";
+  }
+  if (message.includes("rate") || message.includes("too many")) {
+    return "Too many attempts. Please wait a moment and try again.";
+  }
+  if (message.includes("redirect")) {
+    return "This auth redirect is not allowed yet. Check the Supabase redirect URL allow list.";
+  }
+  return import.meta.env.PROD ? "Authentication could not be completed. Please try again." : rawError;
 }
 
 export async function signUp({ email, password, fullName, role, captchaToken }) {
@@ -160,20 +202,22 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
   const emailRedirectTo = fullUrl("/verify-email");
   authDebug("signup_started", { email: normalizedEmail, role: safeRole, emailRedirectTo });
 
-  const { data, error } = await supabase.auth.signUp({
-    email: normalizedEmail,
-    password,
-    options: {
-      data: {
-        full_name: fullName,
-        email: normalizedEmail,
-        role: safeRole,
-        role_selection_complete: true
-      },
-      emailRedirectTo,
-      ...captchaOptions(captchaToken)
-    }
-  });
+  const { data, error } = await withAuthTimeout(
+    supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          email: normalizedEmail,
+          role: safeRole,
+          role_selection_complete: true
+        },
+        emailRedirectTo,
+        ...captchaOptions(captchaToken)
+      }
+    })
+  );
 
   authDebug("signup_response_received", {
     hasUser: Boolean(data?.user),
@@ -212,16 +256,18 @@ export async function signInWithOAuth(provider = "google", options = {}) {
 
   const redirectTo = getAuthCallbackUrl(options.next);
   authDebug("oauth_redirect_started", { provider: safeProvider, redirectTo });
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: safeProvider,
-    options: {
-      redirectTo,
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent"
+  const { data, error } = await withAuthTimeout(
+    supabase.auth.signInWithOAuth({
+      provider: safeProvider,
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent"
+        }
       }
-    }
-  });
+    })
+  );
 
   if (error) return { url: null, error: friendlyError(error) };
   return { url: data?.url || null, error: data?.url ? null : "Google sign-in did not return a redirect URL." };
@@ -232,12 +278,14 @@ export async function logIn({ email, password, captchaToken }) {
   const supabase = getSupabase();
   if (!supabase) return { user: null, error: "Supabase client unavailable." };
   requireTurnstileToken(captchaToken);
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-    options: captchaOptions(captchaToken)
-  });
-  if (error) return { user: null, error: friendlyError(error) };
+  const { data, error } = await withAuthTimeout(
+    supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: captchaOptions(captchaToken)
+    })
+  );
+  if (error) return { user: null, error: friendlyPasswordSignInError(error) };
   const { profile } = await getProfile(data.user.id);
   return { user: mapSupabaseUser(data.session, profile), error: null };
 }
@@ -295,10 +343,12 @@ export async function resetPassword(email, captchaToken) {
   requireTurnstileToken(captchaToken);
   const redirectTo = fullUrl("/reset-password");
   authDebug("password_reset_request_started", { email: normalizeEmail(email), redirectTo });
-  const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
-    redirectTo,
-    ...captchaOptions(captchaToken)
-  });
+  const { error } = await withAuthTimeout(
+    getSupabase().auth.resetPasswordForEmail(email, {
+      redirectTo,
+      ...captchaOptions(captchaToken)
+    })
+  );
   if (error) return { error: friendlyError(error) };
   return { error: null };
 }
@@ -313,11 +363,13 @@ export async function resendSignupConfirmation(email) {
   const normalizedEmail = normalizeEmail(email);
   const emailRedirectTo = fullUrl("/verify-email");
   authDebug("resend_confirmation_started", { email: normalizedEmail, emailRedirectTo });
-  const { error } = await supabase.auth.resend({
-    type: "signup",
-    email: normalizedEmail,
-    options: { emailRedirectTo }
-  });
+  const { error } = await withAuthTimeout(
+    supabase.auth.resend({
+      type: "signup",
+      email: normalizedEmail,
+      options: { emailRedirectTo }
+    })
+  );
   authDebug("resend_confirmation_response_received", { email: normalizedEmail, error: error?.message || null });
   if (error) throw new Error(friendlyError(error));
   return { message: "Verification email sent. Check your inbox." };
@@ -345,7 +397,7 @@ export async function verifySupabasePassword({ email, password, captchaToken }) 
     options: captchaOptions(captchaToken)
   });
   if (error || !data?.session) {
-    throw new Error(friendlyError(error) || "That email or password doesn't match our records.");
+    throw new Error(friendlyPasswordSignInError(error) || "That email or password doesn't match our records.");
   }
 
   await tempClient.auth.signOut();
@@ -465,7 +517,7 @@ export async function deleteSupabaseAccountAfterOAuth() {
 }
 
 export async function updatePassword(newPassword) {
-  const { data, error } = await getSupabase().auth.updateUser({ password: newPassword });
+  const { data, error } = await withAuthTimeout(getSupabase().auth.updateUser({ password: newPassword }));
   if (error) return { data: null, error: friendlyError(error) };
   return { data, error: null };
 }
@@ -531,24 +583,19 @@ async function processAuthCallback(search, hash) {
   });
 
   const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
-  if (providerError) {
-    return { user: null, error: providerError === "access_denied" ? "Google sign-in was canceled." : providerError };
-  }
-
-  const {
-    data: { session: existingSession }
-  } = await supabase.auth.getSession();
+  if (providerError) return { user: null, error: friendlyProviderError(providerError) };
 
   const code = searchParams.get("code");
   let exchangedSession = null;
   if (code) {
-    if (!existingSession) {
-      authDebug("callback_code_detected", { flow: "oauth" });
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) return { user: null, error: friendlyError(error) };
-      exchangedSession = data?.session || null;
-    }
+    authDebug("callback_code_detected", { flow: "oauth" });
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return { user: null, error: friendlyError(error) };
+    exchangedSession = data?.session || null;
   } else {
+    const {
+      data: { session: existingSession }
+    } = await supabase.auth.getSession();
     if (!hashParams.get("access_token") && !existingSession) {
       return { user: null, error: "Missing OAuth authorization code." };
     }
@@ -559,7 +606,7 @@ async function processAuthCallback(search, hash) {
   const {
     data: { session: confirmedSession }
   } = await supabase.auth.getSession();
-  if (!exchangedSession && !existingSession && !confirmedSession) {
+  if (!exchangedSession && !confirmedSession) {
     return { user: null, error: "Google login completed, but no Supabase session was created." };
   }
 
@@ -594,13 +641,7 @@ async function processEmailVerification(search, hash) {
   });
 
   const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
-  if (providerError) {
-    return { user: null, error: providerError.includes("expired") ? "This verification link has expired. Request a new confirmation email." : providerError };
-  }
-
-  const {
-    data: { session: existingSession }
-  } = await supabase.auth.getSession();
+  if (providerError) return { user: null, error: friendlyProviderError(providerError) };
 
   const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");
   const rawType = searchParams.get("type") || hashParams.get("type") || "signup";
@@ -611,11 +652,9 @@ async function processEmailVerification(search, hash) {
   } else {
     const code = searchParams.get("code");
     if (code) {
-      if (!existingSession) {
-        authDebug("callback_code_detected", { flow: "verify-email" });
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) return { user: null, error: friendlyError(error) };
-      }
+      authDebug("callback_code_detected", { flow: "verify-email" });
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) return { user: null, error: friendlyError(error) };
     } else {
       const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
       if (error) return { user: null, error: friendlyError(error) };
@@ -651,20 +690,14 @@ async function processPasswordRecovery(search, hash) {
     type: searchParams.get("type") || hashParams.get("type") || "",
     hasHashAccessToken: Boolean(hashParams.get("access_token"))
   });
-  const providerError = searchParams.get("error_description") || hashParams.get("error_description");
-  if (providerError) return { hasRecoverySession: false, error: providerError };
-
-  const {
-    data: { session: existingSession }
-  } = await supabase.auth.getSession();
+  const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
+  if (providerError) return { hasRecoverySession: false, error: friendlyProviderError(providerError) };
 
   const code = searchParams.get("code");
   if (code) {
-    if (!existingSession) {
-      authDebug("callback_code_detected", { flow: "password-recovery" });
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) return { hasRecoverySession: false, error: friendlyError(error) };
-    }
+    authDebug("callback_code_detected", { flow: "password-recovery" });
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) return { hasRecoverySession: false, error: friendlyError(error) };
   } else {
     const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
     if (error) return { hasRecoverySession: false, error: friendlyError(error) };

@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import AuthLoadingState from "./AuthLoadingState.jsx";
 import {
   MENTOR_ONBOARDING_PATH,
   PLAN_SELECTION_PATH,
@@ -16,9 +17,10 @@ export default function RequirePlanGuard({ children }) {
 
   if (!ready) {
     return (
-      <div className="dash-loading">
-        <p>Loading your Prelude dashboard…</p>
-      </div>
+      <AuthLoadingState
+        title="Loading your Prelude dashboard"
+        message="We are restoring your account, plan, and onboarding state."
+      />
     );
   }
 
@@ -28,9 +30,10 @@ export default function RequirePlanGuard({ children }) {
 
   if (loginVerificationLoading) {
     return (
-      <div className="dash-loading">
-        <p>Checking your trusted device…</p>
-      </div>
+      <AuthLoadingState
+        title="Checking this trusted device"
+        message="Prelude is confirming whether this browser can skip login verification."
+      />
     );
   }
 
