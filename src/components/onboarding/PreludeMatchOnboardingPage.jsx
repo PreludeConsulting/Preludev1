@@ -7,6 +7,7 @@ import { roleFromUser } from "../../lib/dashboardRoutes.js";
 import {
   dashboardPathForRole,
   MATCH_ONBOARDING_PATH,
+  PLAN_SELECTION_PATH,
   PARENT_ONBOARDING_PATH,
   preludeMatchPathForRole,
   userNeedsMatchOnboarding,
@@ -223,6 +224,7 @@ export default function PreludeMatchOnboardingPage() {
     <main className={`pm-onboarding-page${showVerifyBanner ? " pm-onboarding-page--verify-banner" : ""}`}>
       <div className="pm-onboarding-page__inner">
         <AppLink href="/" className="pm-onboarding-page__back">← Back to Prelude</AppLink>
+        <AppLink href={PLAN_SELECTION_PATH} className="onboarding-flow__home-link">← Back to plan selection</AppLink>
         <header className="pm-onboarding-page__head">
           <p className="plan-select-page__eyebrow">Step 2 of 2</p>
           <h1 className="pm-onboarding-page__title">Prelude Match</h1>

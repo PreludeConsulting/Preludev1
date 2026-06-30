@@ -1,5 +1,5 @@
 /**
- * Account deletion re-authentication (OAuth redirect resume).
+ * Account deletion re-authentication (OAuth redirect resume) and local cache cleanup.
  */
 
 const PENDING_DELETION_KEY = "prelude_pending_account_deletion";
@@ -50,28 +50,43 @@ export function clearPendingOAuthAccountDeletion() {
   }
 }
 
-export function clearLocalUserData(userId) {
-  if (typeof window === "undefined" || !userId) return;
-  const prefixes = [
-    "prelude_plan_",
-    "prelude_parent_invites_",
-    "prelude_parent_guardian_email_",
-    "prelude_parent_invite_done_",
-    "prelude_chat_messages_",
-    "prelude_chat_threads_",
-    "prelude_dashboard_prefs"
-  ];
+export function clearLocalUserData(userId, email = "") {
+  if (typeof window === "undefined") return;
 
+  const normalizedEmail = (email || "").trim().toLowerCase();
+
+  try {
+    if (userId) {
+      window.localStorage.removeItem(`prelude_plan_${userId}`);
+      window.localStorage.removeItem(`prelude_onboarding_draft_${userId}`);
+      window.localStorage.removeItem(`prelude_parent_invite_done_${userId}`);
+      window.localStorage.removeItem(`prelude_parent_invites_${userId}`);
+      window.localStorage.removeItem(`prelude_parent_guardian_email_${userId}`);
+      window.localStorage.removeItem(`prelude_dash_store_${userId}`);
+      window.sessionStorage.removeItem(`prelude_parent_reminder_dismissed_${userId}`);
+    }
+    if (normalizedEmail) {
+      window.localStorage.removeItem(`prelude-progress-rewards-${normalizedEmail}`);
+      window.localStorage.removeItem(`prelude-reward-shop-${normalizedEmail}`);
+      window.localStorage.removeItem(`prelude-gamification-${normalizedEmail}`);
+    }
+    window.sessionStorage.removeItem("prelude_pending_parent_invite");
+    window.sessionStorage.removeItem("prelude_pending_parent_email_connect");
+    clearPendingOAuthAccountDeletion();
+  } catch {
+    /* ignore */
+  }
+}
+
+export function clearSupabaseAuthStorage() {
+  if (typeof window === "undefined") return;
   try {
     for (let i = window.localStorage.length - 1; i >= 0; i -= 1) {
       const key = window.localStorage.key(i);
-      if (!key) continue;
-      if (key === `prelude_plan_${userId}`) window.localStorage.removeItem(key);
-      if (prefixes.some((prefix) => key.startsWith(prefix))) {
-        /* keep shared prefs; only remove user-scoped keys above */
+      if (key && /^sb-.*-auth-token$/.test(key)) {
+        window.localStorage.removeItem(key);
       }
     }
-    window.localStorage.removeItem(`prelude_plan_${userId}`);
   } catch {
     /* ignore */
   }

@@ -11,7 +11,7 @@ import PreludeMatchOnboardingPage from "./components/onboarding/PreludeMatchOnbo
 import ParentInviteOnboardingPage from "./components/onboarding/ParentInviteOnboardingPage.jsx";
 import MentorQuestionnaireOnboardingPage from "./components/onboarding/MentorQuestionnaireOnboardingPage.jsx";
 import RequirePlanGuard from "./components/RequirePlanGuard.jsx";
-import RequireLoginVerification from "./components/RequireLoginVerification.jsx";
+import RequireOnboardingAccess from "./components/onboarding/RequireOnboardingAccess.jsx";
 import SecuritySettingsRedirect from "./components/SecuritySettingsRedirect.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
@@ -41,6 +41,7 @@ import "./dashboard/progress-rewards.css";
 import "./dashboard/constellation.css";
 import "./dashboard/prelude-chat.css";
 import "./landing-ui.css";
+import "./styles/onboarding-flow.css";
 import "./components/interaction/interaction.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -63,11 +64,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/verify-login" element={<VerifyLoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/settings/security" element={<SecuritySettingsRedirect />} />
-            <Route path="/onboarding/role" element={<RequireLoginVerification><RoleSelectionOnboardingPage /></RequireLoginVerification>} />
-            <Route path="/onboarding/plan" element={<RequireLoginVerification><PlanSelectionPage /></RequireLoginVerification>} />
-            <Route path="/onboarding/match" element={<RequireLoginVerification><PreludeMatchOnboardingPage /></RequireLoginVerification>} />
-            <Route path="/onboarding/parent" element={<RequireLoginVerification><ParentInviteOnboardingPage /></RequireLoginVerification>} />
-            <Route path="/onboarding/mentor" element={<RequireLoginVerification><MentorQuestionnaireOnboardingPage /></RequireLoginVerification>} />
+            <Route path="/onboarding/role" element={<RequireOnboardingAccess><RoleSelectionOnboardingPage /></RequireOnboardingAccess>} />
+            <Route path="/onboarding/plan" element={<RequireOnboardingAccess><PlanSelectionPage /></RequireOnboardingAccess>} />
+            <Route path="/onboarding/match" element={<RequireOnboardingAccess><PreludeMatchOnboardingPage /></RequireOnboardingAccess>} />
+            <Route path="/onboarding/parent" element={<RequireOnboardingAccess><ParentInviteOnboardingPage /></RequireOnboardingAccess>} />
+            <Route path="/onboarding/mentor" element={<RequireOnboardingAccess><MentorQuestionnaireOnboardingPage /></RequireOnboardingAccess>} />
             <Route
               path="/dashboard/*"
               element={

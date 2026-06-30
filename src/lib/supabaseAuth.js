@@ -13,6 +13,7 @@ import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
 import {
   clearLocalUserData,
   clearPendingOAuthAccountDeletion,
+  clearSupabaseAuthStorage,
   readPendingOAuthAccountDeletion,
   storePendingOAuthAccountDeletion
 } from "./accountDeletionFlow.js";
@@ -154,6 +155,15 @@ export function friendlyAuthError(error) {
   if (message.includes("failed to fetch")) {
     return "Couldn't reach Supabase. Check your connection and VITE_SUPABASE_URL.";
   }
+  if (message.includes("please complete account role selection")) {
+    return "We couldn't update your profile yet. Please choose your account role and try again.";
+  }
+  if (message.includes("duplicate key") || message.includes("unique constraint")) {
+    return "Your account setup could not be restored, so we restarted it safely.";
+  }
+  if (message.includes("profile") && message.includes("permission")) {
+    return "We couldn't create your profile. Please refresh or try again.";
+  }
   const fallback = error.message || "Something went wrong. Please try again.";
   if (import.meta.env.PROD) return "Something went wrong. Please try again.";
   return fallback;
@@ -171,7 +181,7 @@ function friendlyPasswordSignInError(error) {
 
 export function friendlyProviderError(rawError = "") {
   const message = String(rawError || "").toLowerCase();
-  if (!message) return "Authentication could not be completed. Please try again.";
+  if (!message) return "We couldn't finish signing you in. Please try again.";
   if (message.includes("access_denied") || message.includes("denied") || message.includes("cancel")) {
     return "Google sign-in was canceled.";
   }
@@ -184,7 +194,7 @@ export function friendlyProviderError(rawError = "") {
   if (message.includes("redirect")) {
     return "This auth redirect is not allowed yet. Check the Supabase redirect URL allow list.";
   }
-  return import.meta.env.PROD ? "Authentication could not be completed. Please try again." : rawError;
+  return import.meta.env.PROD ? "We couldn't finish signing you in. Please try again." : rawError;
 }
 
 export async function signUp({ email, password, fullName, role, captchaToken }) {
@@ -443,8 +453,9 @@ async function executeSupabaseAccountDeletion(email) {
     /* email is best-effort for Supabase path */
   }
 
-  clearLocalUserData(user.id);
+  clearLocalUserData(user.id, user.email);
   clearPendingOAuthAccountDeletion();
+  clearSupabaseAuthStorage();
   await supabase.auth.signOut();
   return { message: "Your account has been permanently deleted." };
 }
@@ -529,17 +540,58 @@ export async function getProfile(userId) {
   return { profile: data, error: null };
 }
 
+async function ensureDependentRecords(userId, role = "student") {
+  const supabase = getSupabase();
+  if (!supabase || !userId) return { error: null };
+
+  const { data: onboardingRow } = await supabase
+    .from("onboarding_progress")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const tasks = [supabase.from("user_settings").upsert({ user_id: userId }, { onConflict: "user_id" })];
+
+  if (!onboardingRow) {
+    tasks.push(
+      supabase.from("onboarding_progress").insert({
+        user_id: userId,
+        onboarding_status: "needs_plan",
+        updated_at: new Date().toISOString()
+      })
+    );
+  }
+
+  if (role === "student") {
+    tasks.push(supabase.from("student_profiles").upsert({ user_id: userId }, { onConflict: "user_id" }));
+  } else if (role === "mentor") {
+    tasks.push(supabase.from("mentor_profiles").upsert({ user_id: userId }, { onConflict: "user_id" }));
+  }
+
+  const results = await Promise.all(tasks);
+  const blocking = results.find((result) => {
+    const message = result.error?.message || "";
+    return result.error && !/relation|schema cache|does not exist|duplicate key/i.test(message);
+  });
+  if (blocking?.error) {
+    return { error: friendlyError(blocking.error) };
+  }
+  return { error: null };
+}
+
 export async function ensureUserProfile(user, overrides = {}) {
   const supabase = getSupabase();
   if (!supabase || !user?.id) return { profile: null, error: "Supabase client unavailable." };
 
+  const metadata = safeOAuthMetadata(user);
+  const role = SELECTABLE_ROLES.includes(overrides.role) ? overrides.role : null;
   const existing = await getProfile(user.id);
+
   if (existing.profile) {
-    const metadata = safeOAuthMetadata(user);
     const existingAvatar = isOAuthAvatarUrl(existing.profile.avatar_url) ? null : existing.profile.avatar_url;
     const update = {
-      email: existing.profile.email || overrides.email || metadata.email || null,
-      avatar_url: existingAvatar || overrides.avatarUrl || null,
+      email: metadata.email || overrides.email || existing.profile.email || null,
+      avatar_url: existingAvatar || overrides.avatarUrl || metadata.avatarUrl || existing.profile.avatar_url || null,
       full_name: existing.profile.full_name || overrides.fullName || metadata.fullName || null,
       updated_at: new Date().toISOString()
     };
@@ -549,18 +601,20 @@ export async function ensureUserProfile(user, overrides = {}) {
       .eq("id", user.id)
       .select("*")
       .maybeSingle();
-    if (error) return { profile: existing.profile, error: friendlyError(error) };
+    if (error) {
+      authDebug("profile_update_failed", { userId: user.id, message: error.message });
+      return { profile: existing.profile, error: friendlyError(error) };
+    }
+    await ensureDependentRecords(user.id, data?.role || existing.profile.role || "student");
     return { profile: data || existing.profile, error: null };
   }
 
-  const metadata = safeOAuthMetadata(user);
-  const role = SELECTABLE_ROLES.includes(overrides.role) ? overrides.role : "student";
   const payload = {
     id: user.id,
     email: overrides.email || metadata.email || null,
     full_name: overrides.fullName || metadata.fullName || null,
-    avatar_url: overrides.avatarUrl || null,
-    role,
+    avatar_url: overrides.avatarUrl || metadata.avatarUrl || null,
+    role: role || "student",
     role_selection_complete: Boolean(overrides.roleSelectionComplete)
   };
   const { data, error } = await supabase
@@ -568,7 +622,11 @@ export async function ensureUserProfile(user, overrides = {}) {
     .upsert(payload, { onConflict: "id" })
     .select("*")
     .maybeSingle();
-  if (error) return { profile: null, error: friendlyError(error) };
+  if (error) {
+    authDebug("profile_upsert_failed", { userId: user.id, message: error.message });
+    return { profile: null, error: "We couldn't create your profile. Please refresh or try again." };
+  }
+  await ensureDependentRecords(user.id, data?.role || payload.role);
   return { profile: data, error: null };
 }
 

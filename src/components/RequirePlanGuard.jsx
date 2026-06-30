@@ -2,15 +2,11 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import AuthLoadingState from "./AuthLoadingState.jsx";
 import {
-  MENTOR_ONBOARDING_PATH,
-  PLAN_SELECTION_PATH,
-  ROLE_SELECTION_PATH,
-  userNeedsRoleSelection,
-  userNeedsMentorOnboarding,
-  userNeedsPlanSelection
+  canAccessDashboard,
+  postAuthDestination
 } from "../lib/onboardingRoutes.js";
 
-/** Requires login + plan. Match onboarding is enforced after login, not on every dashboard page. */
+/** Requires login + completed onboarding before dashboard access. */
 export default function RequirePlanGuard({ children }) {
   const { user, ready, verificationRequired } = useAuth();
   const location = useLocation();
@@ -32,16 +28,8 @@ export default function RequirePlanGuard({ children }) {
     return <Navigate to={`/verify-login?next=${encodeURIComponent(location.pathname)}`} replace />;
   }
 
-  if (userNeedsRoleSelection(user)) {
-    return <Navigate to={ROLE_SELECTION_PATH} replace />;
-  }
-
-  if (userNeedsPlanSelection(user)) {
-    return <Navigate to={PLAN_SELECTION_PATH} replace />;
-  }
-
-  if (userNeedsMentorOnboarding(user)) {
-    return <Navigate to={MENTOR_ONBOARDING_PATH} replace />;
+  if (!canAccessDashboard(user)) {
+    return <Navigate to={postAuthDestination(user)} replace />;
   }
 
   return children;

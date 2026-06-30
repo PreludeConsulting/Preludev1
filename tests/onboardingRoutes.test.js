@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MENTOR_ONBOARDING_PATH,
+  ONBOARDING_STATUS,
   PLAN_SELECTION_PATH,
   ROLE_SELECTION_PATH,
   canAccessDashboard,
@@ -72,5 +73,18 @@ describe("onboarding route decisions", () => {
 
     expect(userNeedsPlanSelection(user)).toBe(true);
     expect(postAuthDestination(user)).toBe(PLAN_SELECTION_PATH);
+  });
+
+  it("blocks dashboard access until match and parent steps are complete", () => {
+    const user = supabaseUser({
+      role: "student",
+      planSelected: true,
+      onboardingStatus: ONBOARDING_STATUS.NEEDS_MATCH,
+      matchOnboardingComplete: false,
+      parentInviteStepComplete: false
+    });
+
+    expect(canAccessDashboard(user)).toBe(false);
+    expect(postAuthDestination(user)).toBe("/onboarding/match");
   });
 });

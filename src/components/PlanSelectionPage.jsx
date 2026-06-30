@@ -1,10 +1,18 @@
 import { CheckCircle, ChevronRight, Sparkles, WalletCards, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { MATCH_ONBOARDING_PATH, PLAN_SELECTION_PATH, postAuthDestination, userNeedsPlanSelection } from "../lib/onboardingRoutes.js";
+import {
+  MATCH_ONBOARDING_PATH,
+  PLAN_SELECTION_PATH,
+  isValidPlanId,
+  postAuthDestination,
+  userNeedsPlanSelection
+} from "../lib/onboardingRoutes.js";
+import { readCachedPlan } from "../lib/supabaseAuth.js";
 import { getPricingPlans } from "../lib/plans.js";
-import AppLink from "./AppLink.jsx";
+import { readOnboardingDraft, writeOnboardingDraft } from "../lib/onboardingFlow.js";
+import OnboardingShell from "./onboarding/OnboardingShell.jsx";
 
 function tierLabel(index) {
   if (index === 0) return "Essential";
@@ -140,7 +148,7 @@ function PlanCardStack({ plans, open, selectedPlanId, loadingPlan, onSelect }) {
   );
 }
 
-function PlanDetails({ plan, loading, error, onChoose }) {
+function PlanDetails({ plan, loading, error }) {
   return (
     <section
       key={plan.id}
@@ -183,9 +191,7 @@ function PlanDetails({ plan, loading, error, onChoose }) {
         </div>
       ) : null}
 
-      <button type="button" className="plan-wallet-details__cta" onClick={() => onChoose(plan.id)} disabled={Boolean(loading)}>
-        {loading ? "Saving…" : `Choose ${plan.name}`}
-      </button>
+      {loading ? <p className="plan-wallet-details__saving">Saving your plan…</p> : null}
     </section>
   );
 }
@@ -194,21 +200,32 @@ export default function PlanSelectionPage() {
   const navigate = useNavigate();
   const { user, ready, saveUserPlan, refreshUser } = useAuth();
   const plans = getPricingPlans();
-  const initialPlanId = useMemo(() => plans.find((plan) => plan.isRecommended)?.id || plans[0]?.id, [plans]);
-  const [walletOpen, setWalletOpen] = useState(false);
-  const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
+  const recommendedPlanId = useMemo(() => plans.find((plan) => plan.isRecommended)?.id || plans[0]?.id, [plans]);
+  const draft = useMemo(() => (user?.id ? readOnboardingDraft(user.id) : {}), [user?.id]);
+  const cachedPlan = useMemo(() => (user?.id ? readCachedPlan(user.id) : null), [user?.id]);
+  const restoredPlanId = isValidPlanId(draft.selectedPlanId)
+    ? draft.selectedPlanId
+    : isValidPlanId(cachedPlan)
+      ? cachedPlan
+      : recommendedPlanId;
+
+  const [walletOpen, setWalletOpen] = useState(Boolean(draft.walletOpen));
+  const [selectedPlanId, setSelectedPlanId] = useState(restoredPlanId);
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [error, setError] = useState("");
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) || plans[0];
+  const hasOpenedWalletRef = useRef(Boolean(draft.walletOpen));
+
+  useEffect(() => {
+    if (!user?.id || hasOpenedWalletRef.current) return;
+    hasOpenedWalletRef.current = true;
+    setWalletOpen(true);
+    writeOnboardingDraft(user.id, { walletOpen: true, selectedPlanId: restoredPlanId });
+  }, [user?.id, restoredPlanId]);
 
   if (!ready) {
     return (
-      <main className="plan-select-page plan-select-page--loading">
-        <div className="plan-select-loading" aria-live="polite">
-          <span className="plan-select-loading__mark" aria-hidden="true" />
-          <span>Preparing your Prelude plan wallet…</span>
-        </div>
-      </main>
+      <OnboardingShell user={user} loading title="Choose your plan" subtitle="Preparing your Prelude plan wallet…" hideContinue />
     );
   }
 
@@ -220,28 +237,41 @@ export default function PlanSelectionPage() {
     return <Navigate to={postAuthDestination(user)} replace />;
   }
 
+  function persistDraft(patch) {
+    if (!user?.id) return;
+    writeOnboardingDraft(user.id, patch);
+  }
+
   function handleOpenWallet() {
     if (walletOpen) return;
     setWalletOpen(true);
+    persistDraft({ walletOpen: true, selectedPlanId });
   }
 
   function handleCloseWallet() {
     if (loadingPlan) return;
     setWalletOpen(false);
+    persistDraft({ walletOpen: false, selectedPlanId });
   }
 
   function handleSelectPlan(planId) {
     setSelectedPlanId(planId);
     setError("");
     if (!walletOpen) setWalletOpen(true);
+    persistDraft({ walletOpen: true, selectedPlanId: planId });
   }
 
-  async function handleChoosePlan(planId) {
+  async function handleContinue() {
+    if (!isValidPlanId(selectedPlanId)) {
+      setError("Please select a valid Prelude plan before continuing.");
+      return;
+    }
     setError("");
-    setLoadingPlan(planId);
+    setLoadingPlan(selectedPlanId);
     try {
-      await saveUserPlan(planId);
+      await saveUserPlan(selectedPlanId);
       await refreshUser();
+      persistDraft({ selectedPlanId, walletOpen: true, planConfirmed: true });
       navigate(MATCH_ONBOARDING_PATH, { replace: true });
     } catch (err) {
       setError(err.message || "Could not save your plan. Please try again.");
@@ -251,52 +281,44 @@ export default function PlanSelectionPage() {
   }
 
   return (
-    <main className={`plan-select-page ${walletOpen ? "plan-select-page--wallet-open" : ""}`}>
-      <div className="plan-select-page__inner">
-        <AppLink href="/" className="plan-select-page__back">← Back to Prelude</AppLink>
-        <header className="plan-select-page__head">
-          <p className="plan-select-page__eyebrow">Step 1 of 2</p>
-          <h1 className="plan-select-page__title">Choose your Prelude plan</h1>
-          <p className="plan-select-page__subtitle">
-            Pick the level of mentorship and support that fits your goals. You can upgrade later — payment checkout will be added when billing is fully connected.
-          </p>
-        </header>
+    <OnboardingShell
+      user={user}
+      title="Choose your Prelude plan"
+      subtitle="Open the wallet, compare the three tiers, and pick the mentorship level that fits your goals."
+      eyebrow="Plan selection"
+      onContinue={handleContinue}
+      continueDisabled={!walletOpen || !isValidPlanId(selectedPlanId)}
+      continueLoading={Boolean(loadingPlan)}
+      footerNote="Billing is not charged during this step. Your selection is saved to your profile so Prelude can personalize your dashboard."
+      className={walletOpen ? "plan-select-page--wallet-open" : ""}
+    >
+      {error ? <div className="onboarding-flow__error" role="alert">{error}</div> : null}
 
-        <div className="plan-wallet-experience">
-          <div className="plan-wallet-experience__stage">
-            <WalletShell open={walletOpen} onOpen={handleOpenWallet} onClose={handleCloseWallet}>
-              <PlanCardStack
-                plans={plans}
-                open={walletOpen}
-                selectedPlanId={selectedPlan.id}
-                loadingPlan={loadingPlan}
-                onSelect={handleSelectPlan}
-              />
-            </WalletShell>
-          </div>
-
-          <div className="plan-wallet-experience__details" aria-live="polite">
-            {walletOpen ? (
-              <PlanDetails
-                plan={selectedPlan}
-                loading={loadingPlan === selectedPlan.id}
-                error={error}
-                onChoose={handleChoosePlan}
-              />
-            ) : (
-              <section className="plan-wallet-placeholder" aria-label="Plan wallet instructions">
-                <Sparkles aria-hidden="true" />
-                <h2>Open the wallet to compare plans</h2>
-                <p>Reveal the three Prelude tiers, then choose any card to bring its complete details forward.</p>
-              </section>
-            )}
-          </div>
+      <div className="plan-wallet-experience">
+        <div className="plan-wallet-experience__stage">
+          <WalletShell open={walletOpen} onOpen={handleOpenWallet} onClose={handleCloseWallet}>
+            <PlanCardStack
+              plans={plans}
+              open={walletOpen}
+              selectedPlanId={selectedPlan.id}
+              loadingPlan={loadingPlan}
+              onSelect={handleSelectPlan}
+            />
+          </WalletShell>
         </div>
 
-        <p className="plan-select-page__note">
-          Billing is not charged during this step. Your selection is saved to your profile so Prelude can personalize your dashboard.
-        </p>
+        <div className="plan-wallet-experience__details" aria-live="polite">
+          {walletOpen ? (
+            <PlanDetails plan={selectedPlan} loading={loadingPlan === selectedPlan.id} error={error} />
+          ) : (
+            <section className="plan-wallet-placeholder" aria-label="Plan wallet instructions">
+              <Sparkles aria-hidden="true" />
+              <h2>Open the wallet to compare plans</h2>
+              <p>Reveal the three Prelude tiers, then choose any card to bring its complete details forward.</p>
+            </section>
+          )}
+        </div>
       </div>
-    </main>
+    </OnboardingShell>
   );
 }

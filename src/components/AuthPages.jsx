@@ -835,6 +835,15 @@ export function AuthCallbackPage() {
 
   useEffect(() => {
     let active = true;
+    const timeoutId = window.setTimeout(() => {
+      if (!active) return;
+      setState({
+        loading: false,
+        error: "We couldn't finish signing you in. Please try again.",
+        message: ""
+      });
+    }, 20000);
+
     if (callbackUrl.search || callbackUrl.hash) {
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -848,6 +857,7 @@ export function AuthCallbackPage() {
     callbackPromise.current
       .then(async ({ user: nextUser, error }) => {
         if (!active) return;
+        window.clearTimeout(timeoutId);
         if (error) {
           setState({ loading: false, error: friendlyAuthError(error, "signin"), message: "" });
           return;
@@ -867,10 +877,14 @@ export function AuthCallbackPage() {
         navigate(destination, { replace: true });
       })
       .catch((err) => {
-        if (active) setState({ loading: false, error: friendlyAuthError(err.message, "signin"), message: "" });
+        if (active) {
+          window.clearTimeout(timeoutId);
+          setState({ loading: false, error: friendlyAuthError(err.message, "signin"), message: "" });
+        }
       });
     return () => {
       active = false;
+      window.clearTimeout(timeoutId);
     };
   }, [beginLoginVerification, callbackUrl.hash, callbackUrl.search, navigate, nextPath, refreshUser]);
 

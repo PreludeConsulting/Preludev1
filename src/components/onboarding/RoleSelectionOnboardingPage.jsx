@@ -1,9 +1,9 @@
 import { GraduationCap, HeartHandshake, Users } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import AppLink from "../AppLink.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { postAuthDestination, ROLE_SELECTION_PATH, userNeedsRoleSelection } from "../../lib/onboardingRoutes.js";
+import OnboardingShell from "./OnboardingShell.jsx";
 
 const ROLE_OPTIONS = [
   {
@@ -33,7 +33,9 @@ export default function RoleSelectionOnboardingPage() {
   const [error, setError] = useState("");
 
   if (!ready) {
-    return <main className="pm-onboarding-page"><p className="text-muted-foreground">Loading...</p></main>;
+    return (
+      <OnboardingShell user={user} loading title="Choose your role" subtitle="Loading your account setup…" hideContinue />
+    );
   }
 
   if (!user) {
@@ -61,40 +63,36 @@ export default function RoleSelectionOnboardingPage() {
   }
 
   return (
-    <main className="pm-onboarding-page role-onboarding">
-      <div className="pm-onboarding-page__inner">
-        <AppLink href="/" className="pm-onboarding-page__back">← Back to Prelude</AppLink>
-        <header className="pm-onboarding-page__head">
-          <p className="plan-select-page__eyebrow">First login</p>
-          <h1 className="pm-onboarding-page__title">Choose your Prelude role</h1>
-          <p className="pm-onboarding-page__sub">
-            We use this once to send you to the right onboarding path and dashboard.
-          </p>
-        </header>
+    <OnboardingShell
+      user={user}
+      title="Choose your Prelude role"
+      subtitle="We use this once to send you to the right onboarding path and dashboard."
+      eyebrow="Account setup"
+      hideContinue
+      footerNote="You can update profile details later in Settings."
+    >
+      {error ? <div className="onboarding-flow__error" role="alert">{error}</div> : null}
 
-        {error ? <div className="plan-select-page__error" role="alert">{error}</div> : null}
-
-        <div className="role-onboarding__grid">
-          {ROLE_OPTIONS.map(({ role, title, description, Icon }) => (
-            <button
-              key={role}
-              type="button"
-              className="role-onboarding__card"
-              disabled={Boolean(savingRole)}
-              onClick={() => chooseRole(role)}
-            >
-              <span className="role-onboarding__icon" aria-hidden="true">
-                <Icon className="h-6 w-6" />
-              </span>
-              <span className="role-onboarding__title">{title}</span>
-              <span className="role-onboarding__description">{description}</span>
-              <span className="role-onboarding__action">
-                {savingRole === role ? "Saving..." : `Continue as ${title}`}
-              </span>
-            </button>
-          ))}
-        </div>
+      <div className="role-onboarding__grid">
+        {ROLE_OPTIONS.map(({ role, title, description, Icon }) => (
+          <button
+            key={role}
+            type="button"
+            className="role-onboarding__card"
+            disabled={Boolean(savingRole)}
+            onClick={() => chooseRole(role)}
+          >
+            <span className="role-onboarding__icon" aria-hidden="true">
+              <Icon className="h-6 w-6" />
+            </span>
+            <span className="role-onboarding__title">{title}</span>
+            <span className="role-onboarding__description">{description}</span>
+            <span className="role-onboarding__action">
+              {savingRole === role ? "Saving..." : `Continue as ${title}`}
+            </span>
+          </button>
+        ))}
       </div>
-    </main>
+    </OnboardingShell>
   );
 }

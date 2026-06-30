@@ -8,7 +8,7 @@ import {
   storePendingParentEmailConnect,
   storePendingParentInvite
 } from "../lib/parentLinks.js";
-import { readPendingOAuthAccountDeletion } from "../lib/accountDeletionFlow.js";
+import { clearLocalUserData, clearSupabaseAuthStorage, readPendingOAuthAccountDeletion } from "../lib/accountDeletionFlow.js";
 import { resumePendingOAuthAccountDeletion } from "../lib/pendingAccountDeletion.js";
 import { getDevBypassUser, getDemoSessionUser, isDevAuthBypassEnabled } from "../lib/devAuthBypass.js";
 import { getPlan, normalizePlanId } from "../lib/plans.js";
@@ -472,10 +472,17 @@ export function AuthProvider({ children }) {
   }, [useSupabase, user]);
 
   const finishAccountDeletion = useCallback(() => {
+    const deletedId = user?.id;
+    const deletedEmail = user?.email;
+    if (deletedId || deletedEmail) {
+      clearLocalUserData(deletedId, deletedEmail);
+      clearSupabaseAuthStorage();
+    }
     setUser(null);
+    setLoginVerified(false);
     closeModals();
     navigate("/", { replace: true });
-  }, [navigate, closeModals]);
+  }, [navigate, closeModals, user?.email, user?.id]);
 
   const refreshUser = useCallback(async () => {
     if (useSupabase) {
