@@ -622,7 +622,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   );
 
   const saveProfile = useCallback(
-    async (fields) => {
+    async (fields, options = {}) => {
       if (!user) return null;
 
       const persistLocalProfile = (nextProfile) => {
@@ -632,6 +632,10 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         patchLocalDashboardStore(user.id, { profileOverrides: normalized });
         return normalized;
       };
+
+      if (options.localOnly) {
+        return persistLocalProfile(buildProfileDisplayUpdate(profile, fields));
+      }
 
       if (useSupabase) {
         const { profile: row, error: profileErr } = await updateSupabaseProfile(user.id, fields);

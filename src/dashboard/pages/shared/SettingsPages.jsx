@@ -168,11 +168,11 @@ function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveP
       const { url, error } = await uploadAvatar(user.id, file);
       if (error) throw new Error(error);
       setForm((current) => ({ ...current, avatarUrl: url || "" }));
-      await saveProfile({ avatarUrl: url || "" });
+      await saveProfile({ avatarUrl: url || "" }, { localOnly: true });
       setBrokenAvatar(false);
       setAvatarState({ status: "saved", message: "Profile photo updated." });
-    } catch {
-      setAvatarState({ status: "error", message: "We could not update your photo. Try another image." });
+    } catch (error) {
+      setAvatarState({ status: "error", message: error?.message || "We could not update your photo. Try another image." });
     } finally {
       event.target.value = "";
     }
@@ -189,11 +189,11 @@ function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveP
       const { error } = await removeAvatar(user.id);
       if (error) throw new Error(error);
       setForm((current) => ({ ...current, avatarUrl: "" }));
-      await saveProfile({ avatarUrl: null });
+      await saveProfile({ avatarUrl: null }, { localOnly: true });
       setBrokenAvatar(false);
       setAvatarState({ status: "saved", message: "Profile photo removed." });
-    } catch {
-      setAvatarState({ status: "error", message: "We could not remove your photo. Try again." });
+    } catch (error) {
+      setAvatarState({ status: "error", message: error?.message || "We could not remove your photo. Try again." });
     }
   }
 
