@@ -33,24 +33,64 @@ export function AuthProvider({ children }) {
   const [authError, setAuthError] = useState(null);
   const [personalizedAiRequest, setPersonalizedAiRequest] = useState(0);
   const oauthDeletionResumeRef = useRef(false);
+  const initialAuthCompleteRef = useRef(false);
+  const verificationRequestRef = useRef(null);
+  const authStateRefreshRef = useRef(null);
 
-  const refreshLoginVerification = useCallback(async () => {
+  const refreshLoginVerification = useCallback(async (options = {}) => {
+    const silent = Boolean(options.silent);
     if (!useSupabase) {
       setLoginVerified(true);
       return { verified: true };
     }
-    setLoginVerificationLoading(true);
-    try {
-      const result = await checkLoginVerification();
-      setLoginVerified(Boolean(result.verified));
-      return result;
-    } catch (error) {
-      setLoginVerified(false);
-      return { verified: false, error: error.message };
-    } finally {
-      setLoginVerificationLoading(false);
-    }
+    if (verificationRequestRef.current) return verificationRequestRef.current;
+
+    if (!silent) setLoginVerificationLoading(true);
+    verificationRequestRef.current = (async () => {
+      try {
+        const result = await checkLoginVerification();
+        setLoginVerified(Boolean(result.verified));
+        return result;
+      } catch (error) {
+        if (!silent) setLoginVerified(false);
+        return { verified: false, error: error.message };
+      } finally {
+        if (!silent) setLoginVerificationLoading(false);
+        verificationRequestRef.current = null;
+      }
+    })();
+
+    return verificationRequestRef.current;
   }, [useSupabase]);
+
+  const refreshSupabaseUserSilently = useCallback(async () => {
+    if (authStateRefreshRef.current) return authStateRefreshRef.current;
+    authStateRefreshRef.current = (async () => {
+      const { resolveSupabaseAppUser } = await loadSupabaseAuth();
+      const next = await resolveSupabaseAppUser();
+      setUser((current) => next || current);
+      if (next) {
+        const verification = await refreshLoginVerification({ silent: true });
+        setLoginVerified((current) => verification.error ? current : Boolean(verification.verified));
+      }
+      return next;
+    })().finally(() => {
+      authStateRefreshRef.current = null;
+    });
+    return authStateRefreshRef.current;
+  }, [refreshLoginVerification]);
+
+  const clearAuthenticatedSession = useCallback(() => {
+    setUser(null);
+    setLoginVerified(false);
+    if (!initialAuthCompleteRef.current) setLoginVerificationLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) {
+      initialAuthCompleteRef.current = false;
+    }
+  }, [ready]);
 
   const beginLoginVerification = useCallback(async () => {
     if (!useSupabase) {
@@ -74,6 +114,7 @@ export function AuthProvider({ children }) {
           if (!cancelled) {
             setUser(getDevBypassUser());
             setLoginVerified(true);
+            initialAuthCompleteRef.current = true;
           }
           return;
         }
@@ -100,21 +141,16 @@ export function AuthProvider({ children }) {
           }
 
           try {
-            const { data } = onAuthStateChange(async (_event, session) => {
+            const { data } = onAuthStateChange(async (event, session) => {
               if (cancelled) return;
               if (!session) {
-                setUser(null);
-                setLoginVerified(false);
+                if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+                  clearAuthenticatedSession();
+                }
                 return;
               }
               try {
-                const { resolveSupabaseAppUser: resolveUser } = await loadSupabaseAuth();
-                const next = await resolveUser();
-                if (!cancelled) {
-                  setUser(next);
-                  const verification = await refreshLoginVerification();
-                  if (!cancelled) setLoginVerified(Boolean(verification.verified));
-                }
+                await refreshSupabaseUserSilently();
               } catch (err) {
                 console.warn("[prelude-auth] Supabase auth state update failed:", err?.message || err);
               }
@@ -145,7 +181,10 @@ export function AuthProvider({ children }) {
           setLoginVerified(false);
         }
       } finally {
-        if (!cancelled) setReady(true);
+        if (!cancelled) {
+          initialAuthCompleteRef.current = true;
+          setReady(true);
+        }
       }
     }
 
@@ -154,7 +193,7 @@ export function AuthProvider({ children }) {
       cancelled = true;
       subscription?.unsubscribe();
     };
-  }, [refreshLoginVerification, useSupabase]);
+  }, [clearAuthenticatedSession, refreshLoginVerification, refreshSupabaseUserSilently, useSupabase]);
 
   const openSignIn = useCallback(() => {
     setAuthError(null);

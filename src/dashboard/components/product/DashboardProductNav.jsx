@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, Settings } from "lucide-react";
+import { Bell, ChevronDown, CircleHelp, CreditCard, LayoutDashboard, LogOut, Settings } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import PreludeLogo from "../../../components/PreludeLogo.jsx";
@@ -11,7 +11,7 @@ import UnreadCountBadge, { useUnreadBadgeDismiss } from "../chat/UnreadCountBadg
 import { Avatar } from "../ui/index.jsx";
 
 export default function DashboardProductNav({ navItems, basePath }) {
-  const { user, signOut, openAccount } = useAuth();
+  const { user, signOut, planDetails } = useAuth();
   const { notifications, markNotificationsRead } = useDashboardData();
   const chat = usePreludeChatContextOptional();
   const location = useLocation();
@@ -19,8 +19,10 @@ export default function DashboardProductNav({ navItems, basePath }) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notificationsRef = useRef(null);
   const profileRef = useRef(null);
+  const profileTriggerRef = useRef(null);
   const tabsRef = useRef(null);
   const roleLabel = dashboardRoleLabel(user?.role);
+  const planName = planDetails?.name || user?.planName || "Basic";
   const unreadCount = useMemo(
     () => notifications.filter((item) => item.unread).length,
     [notifications]
@@ -38,8 +40,13 @@ export default function DashboardProductNav({ navItems, basePath }) {
 
     function onKeyDown(event) {
       if (event.key === "Escape") {
+        const wasProfileOpen = profileOpen;
         setProfileOpen(false);
         setNotificationsOpen(false);
+        if (wasProfileOpen) {
+          event.preventDefault();
+          window.requestAnimationFrame(() => profileTriggerRef.current?.focus());
+        }
       }
     }
 
@@ -47,8 +54,12 @@ export default function DashboardProductNav({ navItems, basePath }) {
       const inProfile = profileRef.current?.contains(event.target);
       const inNotifications = notificationsRef.current?.contains(event.target);
       if (!inProfile && !inNotifications) {
+        const wasProfileOpen = profileOpen;
         setProfileOpen(false);
         setNotificationsOpen(false);
+        if (wasProfileOpen) {
+          window.requestAnimationFrame(() => profileTriggerRef.current?.focus());
+        }
       }
     }
 
@@ -59,6 +70,13 @@ export default function DashboardProductNav({ navItems, basePath }) {
       document.removeEventListener("mousedown", onPointerDown);
     };
   }, [profileOpen, notificationsOpen]);
+
+  function closeProfileMenu({ restoreFocus = true } = {}) {
+    setProfileOpen(false);
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => profileTriggerRef.current?.focus());
+    }
+  }
 
   useEffect(() => {
     const activeTab = tabsRef.current?.querySelector(".dash-product-nav__tab--active");
@@ -175,6 +193,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
         </div>
         <div className="dash-product-nav__profile" ref={profileRef}>
           <button
+            ref={profileTriggerRef}
             type="button"
             className="dash-product-nav__profile-btn"
             onClick={toggleProfile}
@@ -183,7 +202,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
             aria-label="Account menu"
           >
             <Avatar name={user?.name} />
-            <div className="dash-product-nav__profile-text hidden sm:block">
+            <div className="dash-product-nav__profile-text">
               <p className="dash-product-nav__name">{user?.name}</p>
               <p className="dash-product-nav__role">{roleLabel}</p>
             </div>
@@ -192,41 +211,67 @@ export default function DashboardProductNav({ navItems, basePath }) {
               aria-hidden="true"
             />
           </button>
-          {profileOpen ? (
-            <div className="dash-product-nav__menu-panel dash-product-nav__profile-menu" role="menu">
-              <NavLink
-                to={`${basePath}/settings`}
-                className="dash-product-nav__menu-item"
-                role="menuitem"
-                onClick={() => setProfileOpen(false)}
-              >
-                <Settings className="h-4 w-4" aria-hidden="true" />
-                <span>Profile & settings</span>
-              </NavLink>
-              <button
-                type="button"
-                className="dash-product-nav__menu-item"
-                role="menuitem"
-                onClick={() => {
-                  setProfileOpen(false);
-                  openAccount();
-                }}
-              >
-                <span>Account & plan</span>
-              </button>
-              <button
-                type="button"
-                className="dash-product-nav__menu-item"
-                role="menuitem"
-                onClick={() => {
-                  setProfileOpen(false);
-                  signOut();
-                }}
-              >
-                <span>Sign out</span>
-              </button>
+          <div
+            className={cn("dash-product-nav__menu-panel dash-product-nav__profile-menu", profileOpen && "dash-product-nav__profile-menu--open")}
+            role="menu"
+            aria-hidden={!profileOpen}
+          >
+            <div className="dash-product-nav__account-summary">
+              <strong>{user?.name || "Account"}</strong>
+              <span>{user?.email || "Signed in"}</span>
+              <span>{planName} plan</span>
             </div>
-          ) : null}
+            <div className="dash-product-nav__menu-divider" role="separator" />
+            <NavLink
+              to={`${basePath}/overview`}
+              className="dash-product-nav__menu-item"
+              role="menuitem"
+              onClick={() => closeProfileMenu({ restoreFocus: false })}
+            >
+              <LayoutDashboard className="dash-product-nav__menu-icon" aria-hidden="true" />
+              <span>Dashboard</span>
+            </NavLink>
+            <NavLink
+              to={`${basePath}/settings`}
+              className="dash-product-nav__menu-item"
+              role="menuitem"
+              onClick={() => closeProfileMenu({ restoreFocus: false })}
+            >
+              <Settings className="dash-product-nav__menu-icon" aria-hidden="true" />
+              <span>Settings</span>
+            </NavLink>
+            <NavLink
+              to={`${basePath}/billing`}
+              className="dash-product-nav__menu-item"
+              role="menuitem"
+              onClick={() => closeProfileMenu({ restoreFocus: false })}
+            >
+              <CreditCard className="dash-product-nav__menu-icon" aria-hidden="true" />
+              <span>Plans and Billing</span>
+            </NavLink>
+            <NavLink
+              to={`${basePath}/help`}
+              className="dash-product-nav__menu-item"
+              role="menuitem"
+              onClick={() => closeProfileMenu({ restoreFocus: false })}
+            >
+              <CircleHelp className="dash-product-nav__menu-icon" aria-hidden="true" />
+              <span>Help and Support</span>
+            </NavLink>
+            <div className="dash-product-nav__menu-divider" role="separator" />
+            <button
+              type="button"
+              className="dash-product-nav__menu-item dash-product-nav__menu-item--danger"
+              role="menuitem"
+              onClick={() => {
+                closeProfileMenu({ restoreFocus: false });
+                signOut();
+              }}
+            >
+              <LogOut className="dash-product-nav__menu-icon" aria-hidden="true" />
+              <span>Log Out</span>
+            </button>
+          </div>
         </div>
       </div>
     </header>

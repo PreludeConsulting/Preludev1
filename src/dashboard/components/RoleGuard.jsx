@@ -4,7 +4,7 @@ import AuthLoadingState from "../../components/AuthLoadingState.jsx";
 import { canAccessDashboardRole, dashboardHomeForRole } from "../../lib/dashboardRoutes.js";
 
 export default function RoleGuard({ role, children }) {
-  const { user, ready, verificationRequired, loginVerificationLoading } = useAuth();
+  const { user, ready, verificationRequired } = useAuth();
 
   if (!ready) {
     return (
@@ -17,15 +17,6 @@ export default function RoleGuard({ role, children }) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
-  }
-
-  if (loginVerificationLoading) {
-    return (
-      <AuthLoadingState
-        title="Checking this trusted device"
-        message="Prelude is confirming whether this browser can skip login verification."
-      />
-    );
   }
 
   if (verificationRequired) {

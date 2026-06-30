@@ -12,7 +12,7 @@ import {
 
 /** Requires login + plan. Match onboarding is enforced after login, not on every dashboard page. */
 export default function RequirePlanGuard({ children }) {
-  const { user, ready, verificationRequired, loginVerificationLoading } = useAuth();
+  const { user, ready, verificationRequired } = useAuth();
   const location = useLocation();
 
   if (!ready) {
@@ -26,15 +26,6 @@ export default function RequirePlanGuard({ children }) {
 
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
-  }
-
-  if (loginVerificationLoading) {
-    return (
-      <AuthLoadingState
-        title="Checking this trusted device"
-        message="Prelude is confirming whether this browser can skip login verification."
-      />
-    );
   }
 
   if (verificationRequired) {

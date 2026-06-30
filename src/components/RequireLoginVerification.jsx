@@ -3,10 +3,10 @@ import { useAuth } from "../context/AuthContext.jsx";
 import AuthLoadingState from "./AuthLoadingState.jsx";
 
 export default function RequireLoginVerification({ children }) {
-  const { user, ready, verificationRequired, loginVerificationLoading } = useAuth();
+  const { user, ready, verificationRequired } = useAuth();
   const location = useLocation();
 
-  if (!ready || loginVerificationLoading) {
+  if (!ready) {
     return (
       <AuthLoadingState
         title="Checking your Prelude session"
