@@ -2,7 +2,7 @@
 
 .dash-msg-fab {
   position: fixed;
-  left: clamp(1rem, 2.5vw, 1.5rem);
+  right: clamp(1rem, 2.5vw, 1.5rem);
   bottom: clamp(1rem, 2.5vw, 1.5rem);
   z-index: 480;
   pointer-events: none;
@@ -54,7 +54,7 @@
 .dash-msg-fab--open .dash-msg-fab__toggle {
   position: absolute;
   bottom: 0;
-  left: 0;
+  right: 0;
   opacity: 0;
   transform: scale(0.35);
   pointer-events: none;
@@ -73,7 +73,7 @@
   background: #ffffff;
   box-shadow: var(--shadow-elevated);
   overflow: hidden;
-  transform-origin: left bottom;
+  transform-origin: right bottom;
   transform: scale(0.14);
   opacity: 0;
   visibility: hidden;
@@ -540,8 +540,8 @@
 
 @media (max-width: 640px) {
   .dash-msg-fab {
-    left: 0.85rem;
-    bottom: 0.85rem;
+    right: max(0.85rem, env(safe-area-inset-right));
+    bottom: calc(max(0.85rem, env(safe-area-inset-bottom)) + 3.5rem);
   }
 
   .dash-msg-fab--open .dash-msg-fab__anchor {
@@ -551,6 +551,10 @@
 
   .dash-msg-fab-bubble {
     max-width: 92%;
+  }
+
+  .dash-msg-fab--settings:not(.dash-msg-fab--open) {
+    display: none;
   }
 }
 

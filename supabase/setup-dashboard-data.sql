@@ -17,10 +17,14 @@ create table if not exists public.profiles (
   full_name         text,
   email             text,
   avatar_url        text,
+  preferred_name    text,
   role              text not null default 'student' check (role in ('student', 'mentor', 'parent', 'admin')),
   role_selection_complete boolean not null default false,
   school            text,
   grade_level       text,
+  time_zone         text,
+  language          text,
+  location_city_state text,
   plan_id           text check (plan_id is null or plan_id in ('basic', 'plus', 'pro')),
   bio               text,
   academic_goals    text,
@@ -38,6 +42,7 @@ create table if not exists public.profiles (
 
 alter table public.profiles add column if not exists email text;
 alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists preferred_name text;
 alter table public.profiles add column if not exists role_selection_complete boolean;
 alter table public.profiles add column if not exists bio text;
 alter table public.profiles add column if not exists academic_goals text;
@@ -51,6 +56,9 @@ alter table public.profiles add column if not exists act text;
 alter table public.profiles add column if not exists target_majors jsonb not null default '[]'::jsonb;
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
 alter table public.profiles add column if not exists plan_id text check (plan_id is null or plan_id in ('basic', 'plus', 'pro'));
+alter table public.profiles add column if not exists time_zone text;
+alter table public.profiles add column if not exists language text;
+alter table public.profiles add column if not exists location_city_state text;
 
 update public.profiles
 set role_selection_complete = true
@@ -274,6 +282,9 @@ create table if not exists public.user_settings (
   deadline_reminders   boolean not null default true,
   progress_reminders   boolean not null default true,
   reward_updates       boolean not null default true,
+  essay_comments       boolean not null default true,
+  college_application_updates boolean not null default true,
+  scholarship_reminders boolean not null default true,
   parent_summaries     boolean not null default false,
   notification_sounds  boolean not null default true,
   interface_sounds     boolean not null default true,
@@ -300,6 +311,9 @@ alter table public.user_settings
   add column if not exists deadline_reminders boolean not null default true,
   add column if not exists progress_reminders boolean not null default true,
   add column if not exists reward_updates boolean not null default true,
+  add column if not exists essay_comments boolean not null default true,
+  add column if not exists college_application_updates boolean not null default true,
+  add column if not exists scholarship_reminders boolean not null default true,
   add column if not exists parent_summaries boolean not null default false,
   add column if not exists notification_sounds boolean not null default true,
   add column if not exists interface_sounds boolean not null default true,

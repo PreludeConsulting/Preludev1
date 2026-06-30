@@ -13,10 +13,14 @@ create table if not exists public.profiles (
   full_name    text,
   email        text,
   avatar_url   text,
+  preferred_name text,
   role         text not null default 'student' check (role in ('student', 'mentor', 'parent', 'admin')),
   role_selection_complete boolean not null default false,
   school       text,
   grade_level  text,
+  time_zone    text,
+  language     text,
+  location_city_state text,
   plan_id      text check (plan_id is null or plan_id in ('basic', 'plus', 'pro')),
   created_at   timestamptz not null default now()
 );
@@ -27,6 +31,10 @@ comment on table public.profiles is 'Public profile data linked 1:1 to auth.user
 alter table public.profiles add column if not exists plan_id text check (plan_id is null or plan_id in ('basic', 'plus', 'pro'));
 alter table public.profiles add column if not exists email text;
 alter table public.profiles add column if not exists avatar_url text;
+alter table public.profiles add column if not exists preferred_name text;
+alter table public.profiles add column if not exists time_zone text;
+alter table public.profiles add column if not exists language text;
+alter table public.profiles add column if not exists location_city_state text;
 alter table public.profiles add column if not exists role_selection_complete boolean;
 update public.profiles
 set role_selection_complete = true

@@ -56,6 +56,10 @@ export function mapProfileRow(row, email) {
     email: row.email || email,
     fullName: row.full_name,
     avatarUrl: row.avatar_url,
+    preferredName: row.preferred_name,
+    timeZone: row.time_zone,
+    language: row.language,
+    locationCityState: row.location_city_state,
     role: row.role
   };
 }
@@ -71,8 +75,12 @@ export async function updateMyProfile(userId, fields) {
 
   const payload = { updated_at: new Date().toISOString() };
   if (fields.fullName !== undefined) payload.full_name = fields.fullName;
+  if (fields.preferredName !== undefined) payload.preferred_name = fields.preferredName;
   if (fields.school !== undefined) payload.school = fields.school;
   if (fields.gradeLevel !== undefined) payload.grade_level = fields.gradeLevel;
+  if (fields.timeZone !== undefined) payload.time_zone = fields.timeZone;
+  if (fields.language !== undefined) payload.language = fields.language;
+  if (fields.locationCityState !== undefined) payload.location_city_state = fields.locationCityState;
   if (fields.bio !== undefined) payload.bio = fields.bio;
   if (fields.academicGoals !== undefined) payload.academic_goals = fields.academicGoals;
   if (fields.collegeInterests !== undefined) payload.college_interests = fields.collegeInterests;

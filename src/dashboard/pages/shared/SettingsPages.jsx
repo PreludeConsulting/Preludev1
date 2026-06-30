@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bell,
   Calendar,
+  Camera,
   ChevronRight,
   HelpCircle,
   Link2,
@@ -18,6 +19,7 @@ import { useAuth } from "../../../context/AuthContext.jsx";
 import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { getDemoLinkedChildren, listLinkedChildren } from "../../../lib/parentLinks.js";
 import { shouldUseDemoFixtures } from "../../../lib/devAuthBypass.js";
+import { removeAvatar, uploadAvatar, validateAvatarFile } from "../../../lib/supabaseStorage.js";
 import IntegrationConnect from "../../components/IntegrationConnect.jsx";
 import SettingsPageShell from "../../components/settings/SettingsPageShell.jsx";
 import SecuritySettingsPanel from "../../components/settings/SecuritySettingsPanel.jsx";
@@ -25,6 +27,275 @@ import { SaveRow, SettingSelect, SettingToggle } from "../../components/settings
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { loadPreferences, savePreferences } from "../../lib/dashboardPreferences.js";
 import { SecondaryButton, SectionCard } from "../../components/ui/index.jsx";
+
+const LANGUAGE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "es", label: "Spanish" },
+  { value: "fr", label: "French" },
+  { value: "zh", label: "Chinese" }
+];
+
+const TIME_ZONE_OPTIONS = [
+  { value: "America/New_York", label: "Eastern Time" },
+  { value: "America/Chicago", label: "Central Time" },
+  { value: "America/Denver", label: "Mountain Time" },
+  { value: "America/Los_Angeles", label: "Pacific Time" },
+  { value: "America/Phoenix", label: "Arizona Time" },
+  { value: "Pacific/Honolulu", label: "Hawaii Time" }
+];
+
+function cleanText(value) {
+  return String(value || "").trim();
+}
+
+function accountFormFromUser(user, profile, fallbackRole) {
+  return {
+    fullName: profile?.fullName || user?.name || "",
+    preferredName: profile?.preferredName || "",
+    school: profile?.school || "",
+    graduationYear: profile?.graduationYear || "",
+    gradeLevel: profile?.grade || "",
+    timeZone: profile?.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York",
+    language: profile?.language || "en",
+    locationCityState: profile?.locationCityState || "",
+    email: profile?.email || user?.email || "",
+    role: profile?.role || user?.role || fallbackRole,
+    avatarUrl: profile?.avatarUrl || user?.avatarUrl || ""
+  };
+}
+
+function validateAccountForm(form) {
+  const errors = {};
+  if (!cleanText(form.fullName)) errors.fullName = "Enter your full name.";
+  const year = cleanText(form.graduationYear);
+  if (year && (!/^\d{4}$/.test(year) || Number(year) < 2020 || Number(year) > 2045)) {
+    errors.graduationYear = "Use a four-digit year between 2020 and 2045.";
+  }
+  if (cleanText(form.locationCityState) && !/^[a-zA-Z\s.'-]+,\s*[a-zA-Z]{2,}$/.test(cleanText(form.locationCityState))) {
+    errors.locationCityState = "Use city and state, for example Atlanta, GA.";
+  }
+  return errors;
+}
+
+function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveProfile }) {
+  const initialForm = useMemo(() => accountFormFromUser(user, profile, roleLabel.toLowerCase()), [user, profile, roleLabel]);
+  const [form, setForm] = useState(initialForm);
+  const [errors, setErrors] = useState({});
+  const [state, setState] = useState({ status: "idle", message: "" });
+  const [avatarState, setAvatarState] = useState({ status: "idle", message: "" });
+  const [brokenAvatar, setBrokenAvatar] = useState(false);
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    setForm(initialForm);
+    setErrors({});
+    setBrokenAvatar(false);
+  }, [initialForm]);
+
+  const dirty = JSON.stringify(form) !== JSON.stringify(initialForm);
+  const displayName = form.preferredName || form.fullName || user?.name || "Prelude";
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "P";
+
+  useEffect(() => {
+    function beforeUnload(event) {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [dirty]);
+
+  function updateField(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+    setErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    const nextErrors = validateAccountForm(form);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
+      setState({ status: "error", message: "Fix the highlighted fields before saving." });
+      return;
+    }
+    setState({ status: "saving", message: "" });
+    try {
+      const payload = {
+        fullName: cleanText(form.fullName),
+        preferredName: cleanText(form.preferredName),
+        school: cleanText(form.school),
+        graduationYear: cleanText(form.graduationYear),
+        gradeLevel: cleanText(form.gradeLevel),
+        timeZone: form.timeZone,
+        language: form.language,
+        locationCityState: cleanText(form.locationCityState)
+      };
+      await saveProfile(payload);
+      setState({ status: "saved", message: "Account settings saved." });
+      window.setTimeout(() => setState((current) => current.status === "saved" ? { status: "idle", message: "" } : current), 2400);
+    } catch {
+      setState({ status: "error", message: "We could not save those settings. Try again." });
+    }
+  }
+
+  async function handleAvatarFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const validation = validateAvatarFile(file);
+    if (validation) {
+      setAvatarState({ status: "error", message: validation });
+      event.target.value = "";
+      return;
+    }
+    if (!useSupabaseData) {
+      setAvatarState({ status: "error", message: "Profile photo upload requires a signed-in Supabase session." });
+      event.target.value = "";
+      return;
+    }
+    setAvatarState({ status: "saving", message: "" });
+    try {
+      const { url, error } = await uploadAvatar(user.id, file);
+      if (error) throw new Error(error);
+      setForm((current) => ({ ...current, avatarUrl: url || "" }));
+      await saveProfile({ avatarUrl: url || "" });
+      setBrokenAvatar(false);
+      setAvatarState({ status: "saved", message: "Profile photo updated." });
+    } catch {
+      setAvatarState({ status: "error", message: "We could not update your photo. Try another image." });
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    if (!form.avatarUrl) return;
+    if (!useSupabaseData) {
+      setAvatarState({ status: "error", message: "Profile photo removal requires a signed-in Supabase session." });
+      return;
+    }
+    setAvatarState({ status: "saving", message: "" });
+    try {
+      const { error } = await removeAvatar(user.id);
+      if (error) throw new Error(error);
+      setForm((current) => ({ ...current, avatarUrl: "" }));
+      await saveProfile({ avatarUrl: null });
+      setBrokenAvatar(false);
+      setAvatarState({ status: "saved", message: "Profile photo removed." });
+    } catch {
+      setAvatarState({ status: "error", message: "We could not remove your photo. Try again." });
+    }
+  }
+
+  return (
+    <SectionCard title="Account settings" className="dash-panel">
+      <div className="dash-account-settings">
+        <div className="dash-avatar-editor">
+          <div className="dash-avatar-editor__preview" aria-label="Profile photo preview">
+            {form.avatarUrl && !brokenAvatar ? (
+              <img src={form.avatarUrl} alt="" onError={() => setBrokenAvatar(true)} />
+            ) : (
+              <span aria-hidden="true">{initials}</span>
+            )}
+          </div>
+          <div className="dash-avatar-editor__actions">
+            <input ref={fileRef} className="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleAvatarFile} />
+            <SecondaryButton type="button" className="dash-btn--sm" onClick={() => fileRef.current?.click()} disabled={avatarState.status === "saving"}>
+              <Camera className="h-4 w-4" aria-hidden="true" /> {form.avatarUrl ? "Replace photo" : "Upload photo"}
+            </SecondaryButton>
+            {form.avatarUrl ? (
+              <SecondaryButton type="button" className="dash-btn--sm" onClick={handleRemoveAvatar} disabled={avatarState.status === "saving"}>
+                Remove
+              </SecondaryButton>
+            ) : null}
+            <p className="dash-setting-row__desc">JPG, PNG, WebP, or GIF. Max 5 MB.</p>
+            {avatarState.status === "saving" ? <span className="dash-save-state" role="status">Updating photo…</span> : null}
+            {avatarState.status === "saved" ? <span className="dash-save-state dash-save-state--ok" role="status">{avatarState.message}</span> : null}
+            {avatarState.status === "error" ? <span className="dash-save-state dash-save-state--error" role="alert">{avatarState.message}</span> : null}
+          </div>
+        </div>
+
+        <div className="dash-form-grid dash-form-grid--settings">
+          <label className="dash-field">
+            <span>Full name</span>
+            <input className="dash-input" value={form.fullName} onChange={(event) => updateField("fullName", event.target.value)} aria-invalid={Boolean(errors.fullName)} />
+            {errors.fullName ? <em>{errors.fullName}</em> : null}
+          </label>
+          <label className="dash-field">
+            <span>Preferred name</span>
+            <input className="dash-input" value={form.preferredName} onChange={(event) => updateField("preferredName", event.target.value)} />
+          </label>
+          <label className="dash-field">
+            <span>Email</span>
+            <input className="dash-input" value={form.email} readOnly aria-readonly="true" />
+          </label>
+          <label className="dash-field">
+            <span>Role</span>
+            <input className="dash-input" value={roleLabel} readOnly aria-readonly="true" />
+          </label>
+          <label className="dash-field">
+            <span>School</span>
+            <input className="dash-input" value={form.school} onChange={(event) => updateField("school", event.target.value)} />
+          </label>
+          <label className="dash-field">
+            <span>Graduation year</span>
+            <input className="dash-input" inputMode="numeric" value={form.graduationYear} onChange={(event) => updateField("graduationYear", event.target.value)} aria-invalid={Boolean(errors.graduationYear)} />
+            {errors.graduationYear ? <em>{errors.graduationYear}</em> : null}
+          </label>
+          <label className="dash-field">
+            <span>Grade level</span>
+            <select className="dash-select" value={form.gradeLevel} onChange={(event) => updateField("gradeLevel", event.target.value)}>
+              <option value="">Not set</option>
+              <option value="9th">9th grade</option>
+              <option value="10th">10th grade</option>
+              <option value="11th">11th grade</option>
+              <option value="12th">12th grade</option>
+              <option value="College">College</option>
+              <option value="Guardian">Guardian</option>
+            </select>
+          </label>
+          <label className="dash-field">
+            <span>Time zone</span>
+            <select className="dash-select" value={form.timeZone} onChange={(event) => updateField("timeZone", event.target.value)}>
+              {TIME_ZONE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="dash-field">
+            <span>Language</span>
+            <select className="dash-select" value={form.language} onChange={(event) => updateField("language", event.target.value)}>
+              {LANGUAGE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <label className="dash-field">
+            <span>City, state</span>
+            <input className="dash-input" placeholder="Atlanta, GA" value={form.locationCityState} onChange={(event) => updateField("locationCityState", event.target.value)} aria-invalid={Boolean(errors.locationCityState)} />
+            {errors.locationCityState ? <em>{errors.locationCityState}</em> : null}
+          </label>
+        </div>
+
+        <div className="dash-form-actions">
+          {dirty ? <span className="dash-save-state" role="status">Unsaved changes</span> : null}
+          {state.status === "saved" ? <span className="dash-save-state dash-save-state--ok" role="status">{state.message}</span> : null}
+          {state.status === "error" ? <span className="dash-save-state dash-save-state--error" role="alert">{state.message}</span> : null}
+          <SecondaryButton type="button" className="dash-btn--sm" onClick={() => setForm(initialForm)} disabled={!dirty || state.status === "saving"}>Cancel</SecondaryButton>
+          <button type="button" className="dash-btn dash-btn--primary dash-btn--sm" onClick={handleSave} disabled={!dirty || state.status === "saving"}>
+            {state.status === "saving" ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
 
 const STUDENT_SETTINGS_TABS = [
   { id: "profile", label: "Profile", icon: User, description: "Your account details" },
@@ -65,8 +336,10 @@ export function StudentSettingsPage() {
     connectZoomAccount,
     disconnectZoomAccount,
     savePreferences: savePrefsToBackend,
+    saveProfile,
     useSupabaseData,
-    preferences: loadedPreferences
+    preferences: loadedPreferences,
+    profile
   } = useDashboardData();
   const [tab, setTab] = useState("profile");
   const [prefs, setPrefs] = useState(() => loadPreferences());
@@ -94,18 +367,18 @@ export function StudentSettingsPage() {
 
   async function saveSection(section) {
     setSaveState({ section, status: "saving", message: "" });
-    savePreferences(prefs);
     try {
       if (useSupabaseData) {
         await savePrefsToBackend(prefs);
       }
+      savePreferences(prefs);
       setSaveState({ section, status: "saved", message: "" });
       window.setTimeout(() => setSaveState((current) => current?.section === section ? null : current), 2600);
     } catch (error) {
       setSaveState({
         section,
         status: "error",
-        message: error?.message ? `Saved locally, but sync failed: ${error.message}` : "Saved locally, but sync failed. Try again."
+        message: "We could not save those settings. Try again."
       });
     }
   }
@@ -122,8 +395,15 @@ export function StudentSettingsPage() {
     >
       {tab === "profile" ? (
         <>
+          <AccountSettingsPanel
+            user={user}
+            profile={profile}
+            roleLabel={roleLabel}
+            useSupabaseData={useSupabaseData}
+            saveProfile={saveProfile}
+          />
           <SectionCard
-            title="Profile information"
+            title="Academic profile"
             className="dash-panel"
             action={
               <Link to={`${STUDENT_DASHBOARD_BASE}/profile-stats`} className="dash-btn dash-btn--secondary dash-btn--sm">
@@ -131,13 +411,7 @@ export function StudentSettingsPage() {
               </Link>
             }
           >
-            <dl className="dash-kv">
-              <div><dt>Name</dt><dd>{user?.name || "—"}</dd></div>
-              <div><dt>Email</dt><dd>{user?.email || "—"}</dd></div>
-              <div><dt>Role</dt><dd>{roleLabel}</dd></div>
-              <div><dt>Plan</dt><dd>{planName}</dd></div>
-            </dl>
-            <p className="dash-muted">Manage academic details, intended majors, and college goals on your profile page.</p>
+            <p className="dash-muted">Manage GPA, test scores, intended majors, college goals, activities, and essays from your academic profile.</p>
           </SectionCard>
         </>
       ) : null}
@@ -152,6 +426,9 @@ export function StudentSettingsPage() {
           <SettingToggle id="deadlineReminders" label="Deadline reminders" description="Admissions, scholarship, and task deadline reminders." checked={prefs.deadlineReminders} onChange={(v) => setPref("deadlineReminders", v)} />
           <SettingToggle id="progressReminders" label="Progress reminders" description="Light nudges when a planning area has stalled." checked={prefs.progressReminders} onChange={(v) => setPref("progressReminders", v)} />
           <SettingToggle id="rewardUpdates" label="Reward updates" description="Reward unlocks, redemptions, and milestone updates." checked={prefs.rewardUpdates} onChange={(v) => setPref("rewardUpdates", v)} />
+          <SettingToggle id="essayComments" label="Essay comments" description="Notes and feedback added to essay drafts." checked={prefs.essayComments} onChange={(v) => setPref("essayComments", v)} />
+          <SettingToggle id="collegeApplicationUpdates" label="College application updates" description="Status changes, decisions, and application checklist reminders." checked={prefs.collegeApplicationUpdates} onChange={(v) => setPref("collegeApplicationUpdates", v)} />
+          <SettingToggle id="scholarshipReminders" label="Scholarship reminders" description="Scholarship deadlines and result updates." checked={prefs.scholarshipReminders} onChange={(v) => setPref("scholarshipReminders", v)} />
           <SettingToggle id="weeklyDigest" label="Progress digest" description="A summary of deadlines and progress." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />
           <SettingSelect
             id="digestFrequency"
@@ -369,7 +646,10 @@ export function MentorSettingsPage() {
     connectGoogle,
     disconnectGoogle,
     connectZoomAccount,
-    disconnectZoomAccount
+    disconnectZoomAccount,
+    saveProfile,
+    useSupabaseData,
+    profile
   } = useDashboardData();
   const [tab, setTab] = useState("profile");
 
@@ -386,15 +666,13 @@ export function MentorSettingsPage() {
       onOpenAccount={openAccount}
     >
       {tab === "profile" ? (
-        <SectionCard title="Mentor profile" className="dash-panel">
-          <dl className="dash-kv">
-            <div><dt>Name</dt><dd>{user?.name || "—"}</dd></div>
-            <div><dt>Email</dt><dd>{user?.email || "—"}</dd></div>
-            <div><dt>Role</dt><dd>Mentor</dd></div>
-            <div><dt>Plan</dt><dd>{planName}</dd></div>
-          </dl>
-          <p className="dash-muted">Full mentor profile editing is coming soon. Contact support if you need to update your university or bio.</p>
-        </SectionCard>
+        <AccountSettingsPanel
+          user={user}
+          profile={profile}
+          roleLabel="Mentor"
+          useSupabaseData={useSupabaseData}
+          saveProfile={saveProfile}
+        />
       ) : null}
 
       {tab === "integrations" ? (
@@ -417,36 +695,6 @@ export function MentorSettingsPage() {
       ) : null}
 
       {tab === "security" ? <SecuritySettingsPanel user={user} onOpenAccount={openAccount} /> : null}
-
-      {tab === "privacy" ? (
-        <SectionCard title="Privacy &amp; data" className="dash-panel">
-          <SettingSelect
-            id="parentProfileVisibility"
-            label="Profile visibility"
-            description="Control visibility for your parent account details."
-            value={prefs.profileVisibility}
-            onChange={(v) => setPref("profileVisibility", v)}
-            options={[
-              { value: "mentors_only", label: "Assigned mentors only" },
-              { value: "parents_and_mentors", label: "Family and assigned mentors" },
-              { value: "private", label: "Private" }
-            ]}
-          />
-          <div className="dash-setting-row">
-            <div className="dash-setting-row__text">
-              <span className="dash-setting-row__label">Download account data</span>
-              <p className="dash-setting-row__desc">Request an export of your parent account settings, linked-child summaries, notifications, and billing metadata.</p>
-              {prefs.dataExportRequestedAt ? (
-                <p className="dash-muted">Requested {new Date(prefs.dataExportRequestedAt).toLocaleString()}.</p>
-              ) : null}
-            </div>
-            <SecondaryButton type="button" className="dash-btn--sm" onClick={() => setPref("dataExportRequestedAt", new Date().toISOString())}>
-              Request export
-            </SecondaryButton>
-          </div>
-          <SaveRow section="privacy" saveState={saveState} onSave={saveSection} />
-        </SectionCard>
-      ) : null}
 
       {tab === "support" ? (
         <SectionCard title="Support" className="dash-panel">
@@ -471,9 +719,11 @@ export function ParentSettingsPage() {
     disconnectGoogle,
     connectZoomAccount,
     disconnectZoomAccount,
+    saveProfile,
     savePreferences: savePrefsToBackend,
     useSupabaseData,
-    preferences: loadedPreferences
+    preferences: loadedPreferences,
+    profile
   } = useDashboardData();
   const [tab, setTab] = useState("profile");
   const [prefs, setPrefs] = useState(() => loadPreferences());
@@ -529,18 +779,18 @@ export function ParentSettingsPage() {
 
   async function saveSection(section) {
     setSaveState({ section, status: "saving", message: "" });
-    savePreferences(prefs);
     try {
       if (useSupabaseData) {
         await savePrefsToBackend(prefs);
       }
+      savePreferences(prefs);
       setSaveState({ section, status: "saved", message: "" });
       window.setTimeout(() => setSaveState((current) => current?.section === section ? null : current), 2600);
     } catch (error) {
       setSaveState({
         section,
         status: "error",
-        message: error?.message ? `Saved locally, but sync failed: ${error.message}` : "Saved locally, but sync failed. Try again."
+        message: "We could not save those settings. Try again."
       });
     }
   }
@@ -557,17 +807,13 @@ export function ParentSettingsPage() {
     >
       {tab === "profile" ? (
         <>
-          <SectionCard title="Profile information" className="dash-panel">
-            <dl className="dash-kv">
-              <div><dt>Name</dt><dd>{user?.name || "—"}</dd></div>
-              <div><dt>Email</dt><dd>{user?.email || "—"}</dd></div>
-              <div><dt>Role</dt><dd>{roleLabel}</dd></div>
-              <div><dt>Plan</dt><dd>{planName}</dd></div>
-            </dl>
-            <p className="dash-muted">
-              Your parent account lets you follow your children&apos;s college journey, view calendars, and message their mentors.
-            </p>
-          </SectionCard>
+          <AccountSettingsPanel
+            user={user}
+            profile={profile}
+            roleLabel={roleLabel}
+            useSupabaseData={useSupabaseData}
+            saveProfile={saveProfile}
+          />
 
           <SectionCard
             title="Linked children"
@@ -614,8 +860,37 @@ export function ParentSettingsPage() {
           <SettingToggle id="interfaceSounds" label="Interface sounds" description="Play subtle sounds for clicks, messages, calendar actions, and rewards." checked={prefs.interfaceSounds} onChange={(v) => setPref("interfaceSounds", v)} />
           <SettingToggle id="notificationSounds" label="In-app notification sounds" description="Play a short sound for live alerts and messages." checked={prefs.notificationSounds} onChange={(v) => setPref("notificationSounds", v)} />
           <SettingToggle id="mentorMessages" label="Mentor message alerts" description="Notify me when a mentor messages me about my children." checked={prefs.mentorMessages} onChange={(v) => setPref("mentorMessages", v)} />
+          <SettingToggle id="deadlineReminders" label="Deadline reminders" description="Admissions, scholarship, and task deadline reminders for linked students." checked={prefs.deadlineReminders} onChange={(v) => setPref("deadlineReminders", v)} />
+          <SettingToggle id="progressReminders" label="Progress reminders" description="Light nudges when a linked student planning area has stalled." checked={prefs.progressReminders} onChange={(v) => setPref("progressReminders", v)} />
+          <SettingToggle id="rewardUpdates" label="Reward updates" description="Reward unlocks, redemptions, and milestone updates for linked students." checked={prefs.rewardUpdates} onChange={(v) => setPref("rewardUpdates", v)} />
+          <SettingToggle id="essayComments" label="Essay comments" description="Notes and feedback added to student essay drafts." checked={prefs.essayComments} onChange={(v) => setPref("essayComments", v)} />
+          <SettingToggle id="collegeApplicationUpdates" label="College application updates" description="Status changes, decisions, and application checklist reminders." checked={prefs.collegeApplicationUpdates} onChange={(v) => setPref("collegeApplicationUpdates", v)} />
+          <SettingToggle id="scholarshipReminders" label="Scholarship reminders" description="Scholarship deadlines and result updates." checked={prefs.scholarshipReminders} onChange={(v) => setPref("scholarshipReminders", v)} />
           <SettingToggle id="weeklyDigest" label="Weekly progress digest" description="A summary of deadlines and progress for your linked children." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />
+          <SettingSelect
+            id="digestFrequency"
+            label="Digest frequency"
+            value={prefs.digestFrequency}
+            onChange={(v) => setPref("digestFrequency", v)}
+            options={[
+              { value: "daily", label: "Daily" },
+              { value: "weekly", label: "Weekly" },
+              { value: "never", label: "Never" }
+            ]}
+          />
           <SettingToggle id="productTips" label="Tips for parents" description="Occasional admissions tips and family resources from Prelude." checked={prefs.productTips} onChange={(v) => setPref("productTips", v)} />
+          <SettingToggle id="quietHoursEnabled" label="Quiet hours" description="Pause non-urgent notifications during your chosen hours." checked={prefs.quietHoursEnabled} onChange={(v) => setPref("quietHoursEnabled", v)} />
+          <div className="dash-setting-row dash-setting-row--stacked">
+            <div className="dash-setting-row__text">
+              <span className="dash-setting-row__label">Quiet hours window</span>
+              <p className="dash-setting-row__desc">Urgent security messages are still delivered.</p>
+            </div>
+            <div className="dash-setting-row__inline">
+              <input className="dash-input" type="time" value={prefs.quietHoursStart} onChange={(e) => setPref("quietHoursStart", e.target.value)} aria-label="Quiet hours start" />
+              <span>to</span>
+              <input className="dash-input" type="time" value={prefs.quietHoursEnd} onChange={(e) => setPref("quietHoursEnd", e.target.value)} aria-label="Quiet hours end" />
+            </div>
+          </div>
           <SaveRow section="notifications" saveState={saveState} onSave={saveSection} />
         </SectionCard>
       ) : null}
@@ -665,6 +940,18 @@ export function ParentSettingsPage() {
       {tab === "display" ? (
         <SectionCard title="Display &amp; accessibility" className="dash-panel">
           <SettingSelect
+            id="theme"
+            label="Theme"
+            description="Use system mode unless you prefer a fixed display theme."
+            value={prefs.theme}
+            onChange={(v) => setPref("theme", v)}
+            options={[
+              { value: "system", label: "System" },
+              { value: "light", label: "Light" },
+              { value: "dark", label: "Dark" }
+            ]}
+          />
+          <SettingSelect
             id="density"
             label="Layout density"
             description="Comfortable adds more spacing; compact fits more on screen."
@@ -681,6 +968,20 @@ export function ParentSettingsPage() {
             description="Minimize animations across the dashboard."
             checked={prefs.reduceMotion}
             onChange={(v) => setPref("reduceMotion", v)}
+          />
+          <SettingToggle
+            id="interfaceSounds"
+            label="Interface sounds"
+            description="Play subtle sounds for clicks, messages, calendar actions, and rewards."
+            checked={prefs.interfaceSounds}
+            onChange={(v) => setPref("interfaceSounds", v)}
+          />
+          <SettingToggle
+            id="hapticFeedback"
+            label="Haptic feedback"
+            description="Use subtle vibration on supported mobile devices for confirmations."
+            checked={prefs.hapticFeedback}
+            onChange={(v) => setPref("hapticFeedback", v)}
           />
           <SaveRow section="display" saveState={saveState} onSave={saveSection} />
         </SectionCard>

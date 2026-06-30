@@ -20,6 +20,9 @@ export const DEFAULT_PREFERENCES = {
   deadlineReminders: true,
   progressReminders: true,
   rewardUpdates: true,
+  essayComments: true,
+  collegeApplicationUpdates: true,
+  scholarshipReminders: true,
   parentSummaries: false,
   notificationSounds: true,
   interfaceSounds: true,
@@ -73,4 +76,6 @@ export function applyPreferences(prefs = loadPreferences()) {
   const root = document.documentElement;
   root.dataset.dashDensity = prefs.density === "compact" ? "compact" : "comfortable";
   root.dataset.dashMotion = prefs.reduceMotion ? "reduced" : "full";
+  root.dataset.dashTheme = prefs.theme === "dark" || prefs.theme === "light" ? prefs.theme : "system";
+  root.style.colorScheme = prefs.theme === "dark" ? "dark" : "light";
 }

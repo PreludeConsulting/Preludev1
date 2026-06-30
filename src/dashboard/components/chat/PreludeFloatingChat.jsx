@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
 import { ImagePlus, MessageCircle, Pencil, Send, X } from "lucide-react";
 import { Avatar } from "../ui/index.jsx";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
@@ -291,6 +292,7 @@ function ChatPanel({
 }
 
 export default function PreludeFloatingChat() {
+  const location = useLocation();
   const {
     enabled,
     open,
@@ -313,6 +315,7 @@ export default function PreludeFloatingChat() {
     unreadTotal
   } = usePreludeChatContext();
   const { showBadge, badgeCount, dismissing, dismissBadge } = useUnreadBadgeDismiss(unreadTotal);
+  const settingsPage = /\/settings\/?$/.test(location.pathname);
 
   useEffect(() => {
     if (open && activeThreadId) {
@@ -323,7 +326,7 @@ export default function PreludeFloatingChat() {
   if (!enabled) return null;
 
   const node = (
-    <div className={`dash-msg-fab${open ? " dash-msg-fab--open" : ""}`}>
+    <div className={`dash-msg-fab${open ? " dash-msg-fab--open" : ""}${settingsPage ? " dash-msg-fab--settings" : ""}`}>
       <div className="dash-msg-fab__anchor">
         <button
           type="button"
