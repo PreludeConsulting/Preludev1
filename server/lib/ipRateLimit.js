@@ -1,9 +1,17 @@
-import { createHash } from "node:crypto";
-
 const buckets = new Map();
 
 function bucketKey(route, ip) {
   return `${route}:${ip}`;
+}
+
+/** FNV-1a — sync, no Node builtins; safe for Cloudflare Workers and Node. */
+function hashString(value) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 export function getClientIp(req) {
@@ -13,7 +21,7 @@ export function getClientIp(req) {
 export function hashClientIp(req, secret = "") {
   const ip = getClientIp(req);
   if (!secret) return ip;
-  return createHash("sha256").update(`${ip}:${secret}`).digest("hex").slice(0, 24);
+  return hashString(`${ip}:${secret}`);
 }
 
 /**

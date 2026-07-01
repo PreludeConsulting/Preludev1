@@ -18,11 +18,16 @@ function json(payload, status = 200, headers = {}) {
 function requestFromContext(context) {
   const request = context.request;
   const url = new URL(request.url);
+  const clientIp =
+    request.headers.get("CF-Connecting-IP") ||
+    request.headers.get("x-forwarded-for") ||
+    "";
   return {
     headers: {
       host: url.host,
       "x-forwarded-host": request.headers.get("x-forwarded-host") || url.host,
-      "x-forwarded-proto": request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "")
+      "x-forwarded-proto": request.headers.get("x-forwarded-proto") || url.protocol.replace(":", ""),
+      "x-forwarded-for": clientIp
     }
   };
 }
