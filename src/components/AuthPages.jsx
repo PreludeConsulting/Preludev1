@@ -31,7 +31,7 @@ import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerifica
 export { default as ResetPasswordPage } from "./auth/ResetPasswordPage.jsx";
 
 const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
-const RESEND_COOLDOWN_SECONDS = 60;
+const RESEND_COOLDOWN_SECONDS = 30;
 
 function validateSignupPassword(password, supabaseAuth) {
   if (supabaseAuth) {
@@ -770,7 +770,7 @@ export function VerifyLoginPage() {
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [challengeId, setChallengeId] = useState(searchParams.get("challenge") || "");
   const [trustDevice, setTrustDevice] = useState(true);
-  const [cooldown, setCooldown] = useState(60);
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
   const [status, setStatus] = useState("waiting");
   const [message, setMessage] = useState("We sent a six-digit code to your email.");
   const [error, setError] = useState("");
@@ -840,7 +840,7 @@ export function VerifyLoginPage() {
       setChallengeId(result.challengeId || "");
       setDigits(["", "", "", "", "", ""]);
       setSubmittedCode("");
-      setCooldown(Number(result.retryAfter || 60));
+      setCooldown(Number(result.retryAfter || RESEND_COOLDOWN_SECONDS));
       setMessage(result.emailSent ? "A new verification code was sent." : "Prelude could not confirm email delivery. Please try again.");
       setStatus("waiting");
       window.requestAnimationFrame(() => inputRefs.current[0]?.focus());

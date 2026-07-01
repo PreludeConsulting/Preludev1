@@ -71,7 +71,14 @@ export async function assignMentorAsAdmin(studentId, mentorId) {
 }
 
 export async function checkMatchingTeamAccess() {
-  return mentorSelectionApi("/api/admin/mentor-review/access");
+  const payload = await mentorSelectionApi("/api/admin/mentor-review/access");
+  if (payload?.allowed !== true) {
+    const error = new Error("Matching Team access required.");
+    error.status = 403;
+    error.payload = payload;
+    throw error;
+  }
+  return payload;
 }
 
 export async function loadMatchingTeamQueue() {
