@@ -35,6 +35,17 @@ export function buildPasswordResetEmailUrl(baseUrl, properties = {}) {
   return url.toString();
 }
 
+export function buildSignupVerificationEmailUrl(baseUrl, properties = {}) {
+  const origin = String(baseUrl || "").replace(/\/$/, "");
+  const token = extractRecoveryToken(properties);
+  if (!origin || !token) return null;
+
+  const url = new URL(`${origin}/verify-email`);
+  url.searchParams.set("token_hash", token);
+  url.searchParams.set("type", "signup");
+  return url.toString();
+}
+
 function parseHashParams(hash = "") {
   return new URLSearchParams(String(hash || "").replace(/^#/, ""));
 }

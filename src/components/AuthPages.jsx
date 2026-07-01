@@ -341,7 +341,7 @@ export function RegisterPage() {
         setConfirmationEmail(form.email.trim());
         setMessage(
           result?.message ||
-            "Account created. We sent a confirmation link to your email. Please verify your address before logging in."
+            "We sent a confirmation link to your email. Please verify your address before logging in."
         );
         return;
       }

@@ -1,18 +1,23 @@
 /**
- * Runs before the React bundle so Supabase recovery params on "/" reach /reset-password.
- * Kept in /public so it ships as a static asset (works even when inline scripts are restricted).
+ * Routes Supabase auth email params on "/" to the correct verification/reset pages.
  */
 (function () {
   try {
     var pathname = window.location.pathname || "/";
-    if (pathname === "/reset-password") return;
-
     var search = window.location.search || "";
     var hash = window.location.hash || "";
     var params = new URLSearchParams(search);
     var hashParams = new URLSearchParams(hash.replace(/^#/, ""));
     var type = (params.get("type") || hashParams.get("type") || "").toLowerCase();
     var tokenHash = params.get("token_hash") || hashParams.get("token_hash");
+
+    if (pathname !== "/verify-email" && tokenHash && (type === "signup" || type === "email")) {
+      window.location.replace("/verify-email" + search);
+      return;
+    }
+
+    if (pathname === "/reset-password") return;
+
     var isRecovery =
       type === "recovery" ||
       params.get("error_code") === "otp_expired" ||

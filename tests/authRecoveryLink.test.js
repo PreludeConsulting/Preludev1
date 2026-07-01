@@ -2,12 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   bootstrapAuthRecoveryRedirect,
   buildPasswordResetEmailUrl,
+  buildSignupVerificationEmailUrl,
   extractRecoveryToken,
   normalizeGenerateLinkProperties,
   resolveAuthLandingRedirect
 } from "../shared/authRecoveryLink.js";
 
 describe("auth recovery links", () => {
+  it("builds direct verify-email URLs with token_hash", () => {
+    const url = buildSignupVerificationEmailUrl("https://preludeconsultingllc.com", {
+      hashed_token: "abc123hash"
+    });
+    expect(url).toBe("https://preludeconsultingllc.com/verify-email?token_hash=abc123hash&type=signup");
+  });
+
   it("builds direct reset-password URLs with token_hash", () => {
     const url = buildPasswordResetEmailUrl("https://preludeconsultingllc.com", {
       hashed_token: "abc123hash",

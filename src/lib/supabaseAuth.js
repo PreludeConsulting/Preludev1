@@ -24,6 +24,10 @@ import {
   SAME_PASSWORD_RESET_MESSAGE
 } from "../../shared/passwordSameness.js";
 import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConstants.js";
+import {
+  SIGNUP_VERIFICATION_GENERIC_MESSAGE,
+  SIGNUP_VERIFICATION_SENT_MESSAGE
+} from "../../shared/signupVerificationConstants.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
 const OAUTH_PROVIDERS = ["google"];
@@ -247,6 +251,13 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
   if (error) return { user: null, error: friendlyError(error), rawError: error.message, needsEmailConfirmation: false };
 
   const needsEmailConfirmation = Boolean(data?.user && !data?.session);
+  if (needsEmailConfirmation) {
+    const delivery = await requestSignupVerificationEmail(normalizedEmail, captchaToken);
+    authDebug("signup_verification_email_requested", {
+      email: normalizedEmail,
+      delivered: !delivery.error
+    });
+  }
   let profile = null;
   if (data?.session?.user) {
     const result = await ensureUserProfile(data.session.user, {
@@ -262,8 +273,42 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
     user,
     userId: data?.user?.id || null,
     error: null,
-    needsEmailConfirmation
+    needsEmailConfirmation,
+    verificationEmailSent: needsEmailConfirmation
   };
+}
+
+async function requestSignupVerificationEmail(email, captchaToken) {
+  try {
+    const response = await withAuthTimeout(
+      fetch(appPath("/api/auth/send-signup-verification"), {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          email: normalizeEmail(email),
+          captchaToken: captchaToken || undefined
+        })
+      })
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        error: friendlyError({
+          message: payload.message || "Could not send verification email."
+        })
+      };
+    }
+    return {
+      error: null,
+      message: payload.message || SIGNUP_VERIFICATION_GENERIC_MESSAGE
+    };
+  } catch (error) {
+    return { error: friendlyError(error) };
+  }
 }
 
 export async function signInWithOAuth(provider = "google", options = {}) {
@@ -453,22 +498,16 @@ export async function resendSignupConfirmation(email) {
   if (!isSupabaseConfigured()) {
     throw new Error(getSupabaseConfigError() || "Supabase is not configured for this deployment.");
   }
-  const supabase = getSupabase();
-  if (!supabase) throw new Error("Supabase client unavailable.");
 
   const normalizedEmail = normalizeEmail(email);
-  const emailRedirectTo = fullUrl("/verify-email");
-  authDebug("resend_confirmation_started", { email: normalizedEmail, emailRedirectTo });
-  const { error } = await withAuthTimeout(
-    supabase.auth.resend({
-      type: "signup",
-      email: normalizedEmail,
-      options: { emailRedirectTo }
-    })
-  );
-  authDebug("resend_confirmation_response_received", { email: normalizedEmail, error: error?.message || null });
-  if (error) throw new Error(friendlyError(error));
-  return { message: "Verification email sent. Check your inbox." };
+  authDebug("resend_confirmation_started", { email: normalizedEmail });
+  const result = await requestSignupVerificationEmail(normalizedEmail);
+  authDebug("resend_confirmation_response_received", {
+    email: normalizedEmail,
+    error: result.error || null
+  });
+  if (result.error) throw new Error(result.error);
+  return { message: SIGNUP_VERIFICATION_SENT_MESSAGE };
 }
 
 function createEphemeralSupabaseClient() {
