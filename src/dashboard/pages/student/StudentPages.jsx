@@ -185,6 +185,14 @@ export function StudentAI() {
   );
 }
 
+export function StudentColleges() {
+  return (
+    <div className="dash-page dash-page--colleges">
+      <CollegesExplore />
+    </div>
+  );
+}
+
 const GPA_SCALE_OPTIONS = ["/4.00", "/5.00"];
 const GRADE_LEVEL_OPTIONS = ["9th grade", "10th grade", "11th grade", "12th grade", "Gap year"];
 const PROFILE_EDITOR_SECTIONS = [

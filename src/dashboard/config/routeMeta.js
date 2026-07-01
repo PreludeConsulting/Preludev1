@@ -1,5 +1,6 @@
 export const STUDENT_ROUTE_META = {
   overview: { title: "Overview", subtitle: "" },
+  colleges: { title: "Colleges", subtitle: "Build and compare your college list." },
   calendar: { title: "Meetings", subtitle: "Your admissions calendar with live mentor updates." },
   ai: { title: "Prelude AI", subtitle: "Guidance for your college application journey." },
   workspace: { title: "Application Workspace", subtitle: "Essays, deadlines, colleges, scholarships, and tasks." },

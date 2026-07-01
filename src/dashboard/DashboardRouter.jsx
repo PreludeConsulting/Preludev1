@@ -11,6 +11,7 @@ import StudentGamificationShell from "./components/StudentGamificationShell.jsx"
 import {
   StudentAI,
   StudentCalendar,
+  StudentColleges,
   StudentMentor,
   StudentMessages,
   StudentOverview,
@@ -67,6 +68,7 @@ function StudentRoutes() {
           <Route element={<DashboardLayout productNav={PRODUCT_STUDENT_NAV} basePath={STUDENT_DASHBOARD_BASE} routeMeta={STUDENT_ROUTE_META} />}>
             <Route path="overview" element={<StudentOverview />} />
             <Route path="calendar" element={<StudentCalendar />} />
+            <Route path="colleges" element={<StudentColleges />} />
             <Route path="ai" element={<StudentAI />} />
             <Route path="workspace" element={<StudentWorkspace />} />
             <Route path="mentor" element={<StudentMentor />} />
