@@ -8,6 +8,7 @@ import {
   passwordsMatch,
   validatePasswordForAuth
 } from "../../../shared/passwordValidation.js";
+import { SAME_PASSWORD_RESET_MESSAGE } from "../../../shared/passwordSameness.js";
 import AuthLayout from "./AuthLayout.jsx";
 import {
   AuthBanner,
@@ -103,8 +104,16 @@ export default function ResetPasswordPage() {
     setLoading(true);
     try {
       if (supabaseAuth) {
-        const { completePasswordReset } = await import("../../lib/supabaseAuth.js");
-        const { error: updateError } = await completePasswordReset(password);
+        const { completePasswordReset, assertNewPasswordDiffersFromCurrent } = await import("../../lib/supabaseAuth.js");
+        if (accountEmail) {
+          const { error: samenessError } = await assertNewPasswordDiffersFromCurrent(accountEmail, password);
+          if (samenessError) {
+            setFieldErrors({ password: SAME_PASSWORD_RESET_MESSAGE });
+            focusField(passwordRef);
+            return;
+          }
+        }
+        const { error: updateError } = await completePasswordReset(password, { email: accountEmail });
         if (updateError) throw new Error(updateError);
         setPhase("success");
         window.setTimeout(() => navigate("/login?reset=success", { replace: true }), 2200);
@@ -197,7 +206,7 @@ export default function ResetPasswordPage() {
                 if (fieldErrors.password) setFieldErrors((current) => ({ ...current, password: "" }));
               }}
               error={fieldErrors.password}
-              hint="Use at least 8 characters with upper and lowercase letters and a number."
+              hint="Use at least 8 characters with upper and lowercase letters and a number or special character."
               required
               minLength={supabaseAuth ? 8 : 12}
             />

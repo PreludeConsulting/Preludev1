@@ -19,6 +19,11 @@ import {
 } from "./accountDeletionFlow.js";
 import { primaryOAuthProvider } from "./authSignInMethod.js";
 import { isOAuthAvatarUrl } from "./avatar.js";
+import {
+  interpretPasswordSamenessCheck,
+  SAME_PASSWORD_RESET_MESSAGE
+} from "../../shared/passwordSameness.js";
+import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConstants.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
 const OAUTH_PROVIDERS = ["google"];
@@ -381,7 +386,7 @@ export async function resetPassword(email, captchaToken, options = {}) {
     );
     const payload = await response.json().catch(() => ({}));
     if (response.ok) {
-      return { error: null, message: payload.message || "If an account exists for this email, a reset link has been sent." };
+      return { error: null, message: payload.message || PASSWORD_RESET_GENERIC_MESSAGE };
     }
     if (payload.error !== "password_reset_unavailable") {
       return { error: friendlyError({ message: payload.message || "Could not send password reset email." }) };
@@ -402,7 +407,38 @@ export async function resetPassword(email, captchaToken, options = {}) {
     })
   );
   if (error) return { error: friendlyError(error) };
-  return { error: null, message: "If an account exists for this email, a reset link has been sent." };
+  return { error: null, message: PASSWORD_RESET_GENERIC_MESSAGE };
+}
+
+/**
+ * During recovery, probe whether the candidate password already works for this account.
+ * Uses an ephemeral client so the recovery session is not disturbed.
+ */
+export async function assertNewPasswordDiffersFromCurrent(email, newPassword) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || !newPassword) return { error: null };
+
+  const tempClient = createEphemeralSupabaseClient();
+  if (!tempClient) return { error: null };
+
+  const { data, error } = await withAuthTimeout(
+    tempClient.auth.signInWithPassword({ email: normalizedEmail, password: newPassword })
+  );
+
+  const interpretation = interpretPasswordSamenessCheck({
+    hasSession: Boolean(data?.session),
+    errorMessage: error?.message
+  });
+
+  if (data?.session) {
+    await tempClient.auth.signOut();
+  }
+
+  if (interpretation.sameAsCurrent) {
+    return { error: SAME_PASSWORD_RESET_MESSAGE };
+  }
+
+  return { error: null };
 }
 
 export async function resendSignupConfirmation(email) {
@@ -576,7 +612,11 @@ export async function updatePassword(newPassword) {
 }
 
 /** Set a new password from a recovery session, then end the temporary session. */
-export async function completePasswordReset(newPassword) {
+export async function completePasswordReset(newPassword, options = {}) {
+  const email = options.email || (await getCurrentSession()).session?.user?.email;
+  const { error: samenessError } = await assertNewPasswordDiffersFromCurrent(email, newPassword);
+  if (samenessError) return { error: samenessError };
+
   const { error: updateError } = await updatePassword(newPassword);
   if (updateError) return { error: updateError };
   await logOut();

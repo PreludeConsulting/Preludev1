@@ -3,6 +3,8 @@
  * Supabase Auth uses its own email flow — see SUPABASE_AUTH_SETUP.md.
  */
 
+import { PASSWORD_RESET_LINK_EXPIRY_MINUTES } from "../../shared/passwordResetConstants.js";
+
 export function isProductionEnv() {
   return process.env.NODE_ENV === "production";
 }
@@ -60,18 +62,21 @@ function escapeHref(url) {
   return String(url).replace(/"/g, "&quot;");
 }
 
-function buildAuthEmailHtml({ kind, url }) {
+export function buildAuthEmailHtml({ kind, url, expiryMinutes = PASSWORD_RESET_LINK_EXPIRY_MINUTES }) {
   const safeUrl = escapeHtml(url);
   const hrefUrl = escapeHref(url);
   const isVerify = kind === "verify-email";
   const heading = isVerify ? "Verify your email" : "Reset your password";
   const intro = isVerify
     ? "Thanks for joining Prelude. Confirm your email address to secure your account and prove your identity."
-    : "We received a request to reset your Prelude password. Click below to choose a new password.";
+    : "We received a request to reset your Prelude password. Click the button below to choose a new password.";
   const buttonLabel = isVerify ? "Verify email address" : "Reset password";
   const footer = isVerify
     ? "If you did not create a Prelude account, you can safely ignore this email."
-    : "If you did not request a password reset, you can safely ignore this email.";
+    : "If you did not request a password reset, you can safely ignore this email. Your password will not change unless you complete the reset form.";
+  const expiryNote = isVerify
+    ? ""
+    : `<p style="margin:0 0 24px;font-size:13px;line-height:1.5;color:#6b645c;">This link expires in about ${expiryMinutes} minutes and can only be used once.</p>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -84,6 +89,7 @@ function buildAuthEmailHtml({ kind, url }) {
           <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#8a7f72;">Prelude</p>
           <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;font-weight:600;">${heading}</h1>
           <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#4a4540;">${intro}</p>
+          ${expiryNote}
           <p style="margin:0 0 28px;">
             <a href="${hrefUrl}" style="display:inline-block;background:#1f4d3a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 24px;border-radius:999px;">${buttonLabel}</a>
           </p>

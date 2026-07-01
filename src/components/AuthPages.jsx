@@ -24,6 +24,7 @@ import {
   PasswordRequirements
 } from "./auth/AuthForm.jsx";
 import { friendlyAuthError, isValidEmail } from "./auth/authErrors.js";
+import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConstants.js";
 import { isTurnstileRequired } from "../lib/turnstile.js";
 import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
 import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerification.js";
@@ -527,7 +528,7 @@ export function ForgotPasswordPage() {
         const { resetPassword: supabaseReset } = await import("../lib/supabaseAuth.js");
         const { error: resetError } = await supabaseReset(email.trim(), captchaToken);
         if (resetError) throw new Error(resetError);
-        setMessage("If an account exists for this email, a reset link has been sent.");
+        setMessage(PASSWORD_RESET_GENERIC_MESSAGE);
         return;
       }
       const result = await requestPasswordReset(email);

@@ -3,6 +3,11 @@ import {
   resolvePasswordResetEmail,
   sendSupabasePasswordResetEmail
 } from "../../server/lib/supabasePasswordReset.js";
+import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConstants.js";
+import { enforceIpRateLimit } from "../../server/lib/ipRateLimit.js";
+
+const RESET_REQUEST_LIMIT = 5;
+const RESET_REQUEST_WINDOW_SECONDS = 60 * 60;
 
 function json(payload, status = 200, headers = {}) {
   const responseHeaders = headers instanceof Headers ? headers : new Headers(headers);
@@ -53,6 +58,27 @@ export async function handleRequestPasswordReset(context) {
     return json({ error: "validation_error", message: "Enter a valid email address." }, 400);
   }
 
+  const rateLimitError = enforceIpRateLimit(
+    requestFromContext(context),
+    "/api/auth/request-password-reset",
+    RESET_REQUEST_LIMIT,
+    RESET_REQUEST_WINDOW_SECONDS,
+    env
+  );
+  if (rateLimitError) {
+    const headers = rateLimitError.retryAfterSeconds
+      ? { "Retry-After": String(rateLimitError.retryAfterSeconds) }
+      : {};
+    return json(
+      {
+        error: rateLimitError.code,
+        message: rateLimitError.message
+      },
+      rateLimitError.statusCode,
+      headers
+    );
+  }
+
   try {
     const accessToken = context.request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
     const targetEmail = await resolvePasswordResetEmail({
@@ -77,7 +103,7 @@ export async function handleRequestPasswordReset(context) {
     }
 
     return json({
-      message: "If an account exists for this email, a reset link has been sent.",
+      message: PASSWORD_RESET_GENERIC_MESSAGE,
       emailSent: Boolean(delivery.delivered)
     });
   } catch (error) {

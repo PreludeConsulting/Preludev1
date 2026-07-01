@@ -2,6 +2,10 @@ export function normalizePassword(value) {
   return String(value || "");
 }
 
+function hasNumberOrSymbol(password) {
+  return /[0-9]/.test(password) || /[^A-Za-z0-9]/.test(password);
+}
+
 export function getPasswordRequirements(supabaseAuth, mode = "signup") {
   if (supabaseAuth) {
     if (mode === "reset") {
@@ -9,7 +13,11 @@ export function getPasswordRequirements(supabaseAuth, mode = "signup") {
         { id: "length", label: "At least 8 characters", test: (password) => password.length >= 8 },
         { id: "lower", label: "One lowercase letter", test: (password) => /[a-z]/.test(password) },
         { id: "upper", label: "One uppercase letter", test: (password) => /[A-Z]/.test(password) },
-        { id: "number", label: "One number", test: (password) => /[0-9]/.test(password) }
+        {
+          id: "numberOrSymbol",
+          label: "One number or special character",
+          test: hasNumberOrSymbol
+        }
       ];
     }
     return [{ id: "length", label: "At least 6 characters", test: (password) => password.length >= 6 }];

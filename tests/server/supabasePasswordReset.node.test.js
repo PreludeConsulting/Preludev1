@@ -2,6 +2,8 @@
 
 import assert from "node:assert/strict";
 import { createSupabasePasswordResetMiddleware } from "../../server/supabasePasswordResetApi.js";
+import { resetIpRateLimitBuckets } from "../../server/lib/ipRateLimit.js";
+import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConstants.js";
 
 function mockReq(url, method = "GET", body = null, headers = {}) {
   const payload = body ? JSON.stringify(body) : "";
@@ -51,6 +53,8 @@ async function invoke(middleware, url, method = "GET", body = null, headers = {}
 }
 
 async function main() {
+  resetIpRateLimitBuckets();
+
   const middleware = createSupabasePasswordResetMiddleware({
     NODE_ENV: "test",
     SUPABASE_URL: "https://example.supabase.co",
@@ -69,6 +73,29 @@ async function main() {
   });
   assert.equal(invalidEmail.status, 400);
   assert.equal(invalidEmail.json.error, "validation_error");
+
+  resetIpRateLimitBuckets();
+  const rateLimitedMiddleware = createSupabasePasswordResetMiddleware({
+    NODE_ENV: "test",
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    RATE_LIMIT_SECRET: "test-secret"
+  });
+
+  for (let index = 0; index < 5; index += 1) {
+    const attempt = await invoke(rateLimitedMiddleware, "/api/auth/request-password-reset", "POST", {
+      email: `student${index}@example.com`
+    });
+    assert.notEqual(attempt.status, 429, `request ${index + 1} should not be rate limited yet`);
+  }
+
+  const blocked = await invoke(rateLimitedMiddleware, "/api/auth/request-password-reset", "POST", {
+    email: "student6@example.com"
+  });
+  assert.equal(blocked.status, 429);
+  assert.equal(blocked.json.error, "rate_limit_exceeded");
+
+  assert.equal(PASSWORD_RESET_GENERIC_MESSAGE, "If an account exists with this email, a password reset link has been sent.");
 
   console.log("supabasePasswordReset API tests passed");
 }

@@ -15,6 +15,8 @@ describe("password validation", () => {
     expect(validatePasswordForAuth("short1", true, "signup")).toBe("");
     expect(validatePasswordForAuth("short1", true, "reset")).toMatch(/requirements/i);
     expect(validatePasswordForAuth("StrongPass1", true, "reset")).toBe("");
+    expect(validatePasswordForAuth("StrongPass!", true, "reset")).toBe("");
+    expect(validatePasswordForAuth("StrongPass", true, "reset")).toMatch(/number or special/i);
   });
 
   it("tracks password match state", () => {

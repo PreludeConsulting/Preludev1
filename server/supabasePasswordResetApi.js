@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { PASSWORD_RESET_GENERIC_MESSAGE } from "../shared/passwordResetConstants.js";
 import { readJsonBody, sendJson } from "./http.js";
+import { enforceIpRateLimit } from "./lib/ipRateLimit.js";
 import {
   createSupabaseAdmin,
   resolvePasswordResetEmail,
@@ -11,7 +13,8 @@ const requestPasswordResetSchema = z.object({
   captchaToken: z.string().trim().min(1).optional()
 });
 
-const GENERIC_RESET_MESSAGE = "If an account exists for this email, a reset link has been sent.";
+const RESET_REQUEST_LIMIT = 5;
+const RESET_REQUEST_WINDOW_SECONDS = 60 * 60;
 
 function getAccessToken(req) {
   return req.headers.authorization?.replace(/^Bearer\s+/i, "") || "";
@@ -27,6 +30,27 @@ async function handleRequestPasswordReset(req, res, env = process.env) {
       error: "password_reset_unavailable",
       message: "Password reset is not configured yet. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
     });
+  }
+
+  const rateLimitError = enforceIpRateLimit(
+    req,
+    "/api/auth/request-password-reset",
+    RESET_REQUEST_LIMIT,
+    RESET_REQUEST_WINDOW_SECONDS,
+    env
+  );
+  if (rateLimitError) {
+    return sendJson(
+      res,
+      rateLimitError.statusCode,
+      {
+        error: rateLimitError.code,
+        message: rateLimitError.message
+      },
+      rateLimitError.retryAfterSeconds
+        ? { "Retry-After": String(rateLimitError.retryAfterSeconds) }
+        : undefined
+    );
   }
 
   const payload = requestPasswordResetSchema.parse(await readJsonBody(req));
@@ -55,7 +79,7 @@ async function handleRequestPasswordReset(req, res, env = process.env) {
   }
 
   return sendJson(res, 200, {
-    message: GENERIC_RESET_MESSAGE,
+    message: PASSWORD_RESET_GENERIC_MESSAGE,
     emailSent: Boolean(delivery.delivered)
   });
 }
