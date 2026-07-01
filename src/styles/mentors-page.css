@@ -1,0 +1,552 @@
+/* Mentors page — premium stamp-deck showcase (omou-inspired, Prelude branded) */
+
+.mentors-page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: clip;
+  padding: clamp(6.5rem, 11vw, 8.5rem) 0 clamp(3.5rem, 7vw, 5.5rem);
+}
+
+.mentors-page__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 0%, rgb(120 106 255 / 0.06), transparent 42%),
+    linear-gradient(180deg, #faf9f7 0%, #f8f6fc 42%, #f3f0fa 100%);
+}
+
+.mentors-page__inner {
+  position: relative;
+  z-index: 1;
+  width: min(100%, var(--content-width));
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 4vw, 4rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(3rem, 6vw, 4.5rem);
+}
+
+.mentors-page__showcase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: min(100%, 44rem);
+  gap: clamp(0.75rem, 1.8vw, 1.15rem);
+  overflow: visible;
+}
+
+.mentors-page__eyebrow {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground) / 0.72);
+}
+
+.mentors-page__deck-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  overflow: visible;
+  padding-block: 0;
+  margin-bottom: -0.15rem;
+}
+
+/* Stamp deck — compact centered stack by default, fans on hover */
+.mentors-stamp-deck {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(7.75rem, 15vw, 10rem);
+  height: clamp(13rem, 26vw, 16.5rem);
+  margin-inline: auto;
+  overflow: visible;
+  transition:
+    width 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mentors-stamp-deck.is-expanded {
+  width: min(100%, 58rem);
+  height: clamp(16.5rem, 32vw, 21rem);
+  transition:
+    width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mentors-page__title {
+  margin: 0;
+  max-width: 16ch;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(2.15rem, 4.8vw, 3.25rem);
+  font-weight: 500;
+  line-height: 1.14;
+  letter-spacing: -0.02em;
+  color: hsl(var(--foreground));
+}
+
+.mentors-page__title-line {
+  display: block;
+}
+
+.mentors-page__title-accent {
+  color: hsl(var(--primary));
+  font-style: italic;
+}
+
+.mentors-page__subtitle {
+  margin: 0;
+  max-width: 36rem;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(0.98rem, 1.8vw, 1.08rem);
+  font-weight: 400;
+  line-height: 1.65;
+  color: hsl(var(--muted-foreground));
+}
+
+.mentors-page__cta {
+  text-decoration: none;
+}
+
+.mentors-stamp {
+  grid-area: 1 / 1;
+  position: relative;
+  z-index: 1;
+  width: clamp(7.75rem, 15vw, 10rem);
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  will-change: transform;
+}
+
+.mentors-stamp-deck:not(.is-expanded) .mentors-stamp {
+  pointer-events: none;
+}
+
+.mentors-stamp-deck:not(.is-expanded) .mentors-stamp.is-front {
+  pointer-events: auto;
+}
+
+.mentors-stamp-deck.is-expanded .mentors-stamp {
+  pointer-events: auto;
+}
+
+.mentors-stamp.is-hovered .mentors-stamp__frame {
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.95) inset,
+    0 22px 44px hsl(var(--primary) / 0.16),
+    0 8px 18px hsl(var(--foreground) / 0.08);
+}
+
+.mentors-stamp:not(.is-front) .mentors-stamp__frame {
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.85) inset,
+    0 8px 20px hsl(var(--primary) / 0.07),
+    0 2px 8px hsl(var(--foreground) / 0.05);
+}
+
+.mentors-stamp-deck.is-expanded .mentors-stamp .mentors-stamp__frame {
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9) inset,
+    0 16px 36px hsl(var(--primary) / 0.1),
+    0 4px 12px hsl(var(--foreground) / 0.06);
+}
+
+.mentors-stamp:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 4px;
+  border-radius: 0.5rem;
+}
+
+.mentors-stamp__edge {
+  position: absolute;
+  inset: -6px;
+  border-radius: 5px;
+  border: 1px dashed hsl(var(--foreground) / 0.16);
+  background: rgb(255 255 255 / 0.35);
+  pointer-events: none;
+}
+
+.mentors-stamp__edge--large {
+  inset: -8px;
+}
+
+.mentors-stamp__frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.55rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.98), rgb(250 248 255 / 0.96)),
+    #ffffff;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9) inset,
+    0 16px 36px hsl(var(--primary) / 0.1),
+    0 4px 12px hsl(var(--foreground) / 0.06);
+}
+
+.mentors-stamp__photo {
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px solid hsl(var(--foreground) / 0.06);
+  background: linear-gradient(180deg, #f5f2ff 0%, #ebe6ff 100%);
+}
+
+.mentors-stamp__photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mentors-stamp__meta {
+  display: grid;
+  gap: 0.1rem;
+  padding-inline: 0.15rem 0.1rem;
+  min-width: 0;
+}
+
+.mentors-stamp__name {
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(0.72rem, 1.1vw, 0.82rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mentors-stamp__school {
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(0.62rem, 0.95vw, 0.72rem);
+  font-weight: 500;
+  line-height: 1.2;
+  color: hsl(var(--primary) / 0.82);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mentors-stamp__tag {
+  display: inline-flex;
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  padding: 0.14rem 0.42rem;
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.08);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+
+/* Mentor detail modal */
+.mentor-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 2rem);
+  background: rgb(250 249 247 / 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.mentor-modal {
+  position: relative;
+  display: grid;
+  gap: clamp(1.25rem, 3vw, 2rem);
+  width: min(100%, 34rem);
+  max-height: min(92vh, 52rem);
+  overflow-y: auto;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 1.25rem;
+  background: rgb(255 255 255 / 0.96);
+  box-shadow:
+    0 24px 64px hsl(var(--primary) / 0.12),
+    0 8px 24px hsl(var(--foreground) / 0.08);
+}
+
+.mentor-modal__close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 999px;
+  background: #ffffff;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: background var(--transition-standard), border-color var(--transition-standard);
+}
+
+.mentor-modal__close:hover {
+  background: hsl(var(--primary) / 0.06);
+  border-color: hsl(var(--primary) / 0.2);
+}
+
+.mentor-modal__stamp {
+  position: relative;
+  width: min(100%, 18rem);
+  margin-inline: auto;
+}
+
+.mentor-modal__frame {
+  position: relative;
+  display: block;
+  padding: 0.65rem;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 4px;
+  background: linear-gradient(180deg, #ffffff, #f8f5ff);
+  box-shadow: 0 20px 48px hsl(var(--primary) / 0.14);
+}
+
+.mentor-modal__frame img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border: 1px solid hsl(var(--foreground) / 0.06);
+}
+
+.mentor-modal__caption {
+  display: grid;
+  gap: 0.55rem;
+  text-align: center;
+}
+
+.mentor-modal__eyebrow {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+
+.mentor-modal__name {
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(1.75rem, 4vw, 2.15rem);
+  font-weight: 500;
+  line-height: 1.1;
+  color: hsl(var(--foreground));
+}
+
+.mentor-modal__school {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: hsl(var(--primary) / 0.85);
+}
+
+.mentor-modal__bio {
+  margin: 0.25rem auto 0;
+  max-width: 28rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+
+.mentor-modal__specialties {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem;
+  margin: 0.35rem 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.mentor-modal__specialties li {
+  padding: 0.28rem 0.65rem;
+  border: 1px solid hsl(var(--primary) / 0.14);
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.05);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+
+.mentor-modal__cta {
+  justify-self: center;
+  margin-top: 0.35rem;
+  text-decoration: none;
+}
+
+/* Testimonial marquee */
+.mentors-page__reviews {
+  width: 100%;
+  max-width: 56rem;
+  padding-block: 0.25rem;
+  opacity: 0.92;
+}
+
+.mentors-page__reviews-viewport {
+  overflow: hidden;
+  width: 100%;
+  contain: layout paint;
+  isolation: isolate;
+  transform: translateZ(0);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
+}
+
+.mentors-page__reviews-track {
+  display: flex;
+  width: max-content;
+  gap: 0.85rem;
+  animation: mentors-reviews-scroll 58s linear infinite;
+}
+
+.mentors-page__reviews-viewport:hover .mentors-page__reviews-track,
+.mentors-page__reviews-viewport:focus-within .mentors-page__reviews-track {
+  animation-play-state: paused;
+}
+
+@keyframes mentors-reviews-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.mentors-page__review-card {
+  flex: 0 0 clamp(14rem, 24vw, 17.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid hsl(var(--foreground) / 0.06);
+  border-radius: var(--radius-card);
+  background: #ffffff;
+  box-shadow: 0 8px 24px hsl(var(--primary) / 0.06);
+  text-align: left;
+}
+
+.mentors-page__review-accent {
+  display: block;
+  width: 1.5rem;
+  height: 2px;
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.38);
+}
+
+.mentors-page__review-header {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.mentors-page__review-name {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.mentors-page__review-label {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: hsl(var(--primary) / 0.8);
+}
+
+.mentors-page__review-quote {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.48;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Tablet / mobile — keep compact stack, tap to open modal */
+@media (max-width: 900px) {
+  .mentors-stamp-deck,
+  .mentors-stamp-deck.is-expanded {
+    width: clamp(7.25rem, 42vw, 9.5rem);
+    height: clamp(12rem, 56vw, 15rem);
+  }
+
+  .mentors-stamp {
+    width: clamp(7.25rem, 42vw, 9.5rem);
+  }
+
+  .mentors-page__title {
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .mentors-page {
+    padding-top: 6.25rem;
+  }
+
+  .mentors-page__showcase {
+    gap: 1.35rem;
+  }
+
+  .mentors-page__deck-wrap {
+    padding-block: clamp(0.75rem, 4vw, 1.5rem);
+  }
+
+  .mentor-modal {
+    width: min(100%, 22rem);
+    padding: 1.1rem;
+  }
+
+  .mentors-page__review-card {
+    flex-basis: min(76vw, 16rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mentors-stamp-deck {
+    transition: none;
+  }
+
+  .mentors-page__reviews-track {
+    animation: none;
+  }
+
+  .mentors-page__reviews-viewport {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .mentors-page__reviews-viewport::-webkit-scrollbar {
+    display: none;
+  }
+}
