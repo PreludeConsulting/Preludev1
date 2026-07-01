@@ -87,16 +87,7 @@ export default function PreludeMatchOnboardingPage() {
       }
       setPhase("result");
     } catch (err) {
-      if (user.matchOnboardingComplete) {
-        const demoMatches = rankDemoMatchedMentors(user.questionnaireAnswers || answers);
-        setMatchedMentors(demoMatches);
-        setMatchedMentorCount(user.matchedMentorCount ?? demoMatches.length);
-        setSelectedMentorId(user.selectedMentorId || null);
-        setSelectionComplete(Boolean(user.mentorSelectionComplete));
-        setPhase("result");
-      } else {
-        setError(err.message || "Could not load your mentor matches.");
-      }
+      setError(err.message || "Could not load your mentor matches.");
     } finally {
       setLoadingResult(false);
     }
@@ -180,7 +171,10 @@ export default function PreludeMatchOnboardingPage() {
       }
       await refreshUser();
       setProgress(100);
-      await loadResultState();
+      setPhase("result");
+      if (user.authProvider === "supabase") {
+        await loadResultState();
+      }
     } catch (err) {
       setError(err.message || "Could not save your responses.");
       setPhase("questions");
@@ -242,8 +236,10 @@ export default function PreludeMatchOnboardingPage() {
   return (
     <main className={`pm-onboarding-page${showVerifyBanner ? " pm-onboarding-page--verify-banner" : ""}`}>
       <div className="pm-onboarding-page__inner">
-        <AppLink href="/" className="pm-onboarding-page__back">← Back to Prelude</AppLink>
-        <AppLink href={PLAN_SELECTION_PATH} className="onboarding-flow__home-link">← Back to plan selection</AppLink>
+        <nav className="pm-onboarding-page__nav" aria-label="Onboarding navigation">
+          <AppLink href="/" className="pm-onboarding-page__back">← Back to Prelude</AppLink>
+          <AppLink href={PLAN_SELECTION_PATH} className="pm-onboarding-page__back">← Back to plan selection</AppLink>
+        </nav>
         <header className="pm-onboarding-page__head">
           <p className="plan-select-page__eyebrow">Step 2 of 2</p>
           <h1 className="pm-onboarding-page__title">Prelude Match</h1>

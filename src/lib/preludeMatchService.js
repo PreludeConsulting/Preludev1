@@ -5,8 +5,8 @@
 import { PRELUDE_MATCH_MENTORS } from "../data/preludeMatchMentors.js";
 import { getSupabase } from "./supabase.js";
 import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
-import { getMentorMatchingProfile, rankSupabaseMentorsForStudent } from "./mentorQuestionnaireService.js";
-import { filterMatchedMentors, MIN_MATCH_SCORE } from "../../shared/mentorSelectionLogic.js";
+import { getMentorMatchingProfile, mapMentorMatchingProfile, rankSupabaseMentorsForStudent } from "./mentorQuestionnaireService.js";
+import { filterMatchedMentors, MIN_MATCH_SCORE, resolveMentorSelection } from "../../shared/mentorSelectionLogic.js";
 
 const MENTOR_CATALOG = PRELUDE_MATCH_MENTORS.map((m) => ({
   ...m,
@@ -184,6 +184,140 @@ export async function requestMentorMatch(userId, mentorId) {
   });
 
   return { error: error?.message || null };
+}
+
+function mapMentorSelectionState(onboarding, mentors = []) {
+  const matchedIds = onboarding?.matched_mentor_ids || [];
+  return {
+    matchedMentorCount: onboarding?.matched_mentor_count ?? matchedIds.length,
+    matchedMentorIds: matchedIds,
+    mentors,
+    selectedMentorId: onboarding?.selected_mentor_id || null,
+    mentorSelectionMethod: onboarding?.mentor_selection_method || null,
+    mentorAssignmentStatus: onboarding?.mentor_assignment_status || null,
+    adminReviewRequired: Boolean(onboarding?.admin_review_required),
+    mentorSelectionComplete: Boolean(onboarding?.mentor_assignment_status),
+    selectionTimestamp: onboarding?.mentor_selection_timestamp || null,
+    preludeMatchCompleted: Boolean(onboarding?.prelude_match_completed ?? onboarding?.mentor_matching_complete)
+  };
+}
+
+async function loadMatchedMentorCards(userId, matchedIds = []) {
+  if (!matchedIds.length) return [];
+  const supabase = getSupabase();
+  const [{ data: rows }, { data: scores }] = await Promise.all([
+    supabase.from("mentor_matching_profiles").select("*").in("mentor_user_id", matchedIds),
+    supabase
+      .from("mentor_match_scores")
+      .select("mentor_user_id, score, reasons")
+      .eq("student_user_id", userId)
+      .in("mentor_user_id", matchedIds)
+  ]);
+  const scoreById = Object.fromEntries((scores || []).map((entry) => [entry.mentor_user_id, entry]));
+  return matchedIds
+    .map((id) => {
+      const row = (rows || []).find((entry) => entry.mentor_user_id === id);
+      if (!row) return null;
+      const scoreRow = scoreById[id];
+      return mapMentorMatchingProfile(row, scoreRow?.score ?? null, scoreRow?.reasons || []);
+    })
+    .filter(Boolean);
+}
+
+export async function loadMentorSelectionStateDirect(userId) {
+  const { onboarding, error } = await loadOnboardingProgress(userId);
+  if (error) throw new Error(error);
+  if (!onboarding?.mentor_matching_complete) {
+    throw new Error("Complete the PreludeMatch quiz first.");
+  }
+  const matchedIds = onboarding.matched_mentor_ids || [];
+  const mentors = await loadMatchedMentorCards(userId, matchedIds);
+  return mapMentorSelectionState(onboarding, mentors);
+}
+
+async function assignSelectedMentorMatch(userId, mentorId, notes) {
+  const mentor = await getSuggestedMentor(mentorId);
+  if (!mentor) return;
+  await getSupabase().from("mentor_matches").delete().eq("user_id", userId).in("status", ["assigned", "saved", "pending"]);
+  await getSupabase().from("mentor_matches").insert({
+    user_id: userId,
+    student_id: userId,
+    mentor_id: mentor.source === "supabase" ? mentor.id : null,
+    mentor_name: mentor.name,
+    mentor_email: null,
+    mentor_college: mentor.school || mentor.university,
+    mentor_major: mentor.major,
+    expertise: mentor.tags || [],
+    availability: mentor.availability,
+    status: "assigned",
+    notes
+  });
+}
+
+export async function saveMentorSelectionDirect(userId, { selectedMentorId = null } = {}) {
+  const { onboarding, error: loadError } = await loadOnboardingProgress(userId);
+  if (loadError) throw new Error(loadError);
+  if (!onboarding?.mentor_matching_complete) {
+    throw new Error("Complete the PreludeMatch quiz first.");
+  }
+  if (onboarding.mentor_assignment_status) {
+    return {
+      alreadyComplete: true,
+      ...mapMentorSelectionState(onboarding)
+    };
+  }
+
+  const matchedIds = onboarding.matched_mentor_ids || [];
+  const matchedCount = onboarding.matched_mentor_count ?? matchedIds.length;
+  const resolved = resolveMentorSelection({
+    matchedMentorIds: matchedIds,
+    matchedMentorCount: matchedCount,
+    selectedMentorId: selectedMentorId ?? null
+  });
+  if (!resolved.ok) {
+    const error = new Error(resolved.message);
+    error.code = resolved.error;
+    throw error;
+  }
+
+  const updatePayload = {
+    selected_mentor_id: resolved.selectedMentorId,
+    suggested_mentor_id: resolved.selectedMentorId || onboarding.suggested_mentor_id,
+    mentor_selection_method: resolved.mentorSelectionMethod,
+    mentor_assignment_status: resolved.mentorAssignmentStatus,
+    admin_review_required: resolved.adminReviewRequired,
+    mentor_selection_timestamp: resolved.selectionTimestamp,
+    prelude_match_completed: true,
+    match_decision: resolved.selectedMentorId ? "accepted" : null,
+    updated_at: resolved.selectionTimestamp
+  };
+
+  const { data: updated, error: saveError } = await getSupabase()
+    .from("onboarding_progress")
+    .update(updatePayload)
+    .eq("user_id", userId)
+    .select()
+    .maybeSingle();
+  if (saveError) throw new Error(saveError.message);
+
+  if (resolved.selectedMentorId) {
+    await assignSelectedMentorMatch(
+      userId,
+      resolved.selectedMentorId,
+      "Selected by student during PreludeMatch onboarding."
+    );
+  }
+
+  return {
+    selectedMentorId: resolved.selectedMentorId,
+    mentorSelectionMethod: resolved.mentorSelectionMethod,
+    mentorAssignmentStatus: resolved.mentorAssignmentStatus,
+    adminReviewRequired: resolved.adminReviewRequired,
+    matchedMentorCount: resolved.matchedMentorCount,
+    matchedMentorIds: resolved.matchedMentorIds,
+    rejectedClientSelection: Boolean(resolved.rejectedClientSelection),
+    onboarding: updated
+  };
 }
 
 export function mapOnboardingToUserFields(onboarding, hasAssignedMentor) {

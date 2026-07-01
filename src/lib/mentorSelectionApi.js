@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase.js";
+import { loadMentorSelectionStateDirect, saveMentorSelectionDirect } from "./preludeMatchService.js";
 
 async function getAccessToken() {
   const supabase = getSupabase();
@@ -10,11 +11,11 @@ async function getAccessToken() {
   if (error || !session?.access_token) {
     throw new Error("You must be signed in to continue.");
   }
-  return session.access_token;
+  return { token: session.access_token, userId: session.user.id };
 }
 
 async function mentorSelectionApi(path, options = {}) {
-  const token = await getAccessToken();
+  const { token } = await getAccessToken();
   const headers = {
     Accept: "application/json",
     Authorization: `Bearer ${token}`,
@@ -38,14 +39,24 @@ async function mentorSelectionApi(path, options = {}) {
 }
 
 export async function loadMentorSelectionState() {
-  return mentorSelectionApi("/api/onboarding/mentor-selection");
+  try {
+    return await mentorSelectionApi("/api/onboarding/mentor-selection");
+  } catch {
+    const { userId } = await getAccessToken();
+    return loadMentorSelectionStateDirect(userId);
+  }
 }
 
 export async function saveMentorSelection({ selectedMentorId = null } = {}) {
-  return mentorSelectionApi("/api/onboarding/mentor-selection", {
-    method: "POST",
-    body: JSON.stringify({ selectedMentorId })
-  });
+  try {
+    return await mentorSelectionApi("/api/onboarding/mentor-selection", {
+      method: "POST",
+      body: JSON.stringify({ selectedMentorId })
+    });
+  } catch {
+    const { userId } = await getAccessToken();
+    return saveMentorSelectionDirect(userId, { selectedMentorId });
+  }
 }
 
 export async function loadAdminMentorReviewQueue() {
