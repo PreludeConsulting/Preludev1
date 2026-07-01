@@ -96,10 +96,10 @@ export function deriveOnboardingStatus(user, onboarding, hasAcceptedMentor = fal
       ? ONBOARDING_STATUS.ONBOARDING_COMPLETED
       : ONBOARDING_STATUS.MATCH_COMPLETED;
   }
-  if (onboarding?.match_decision === "declined" || onboarding?.suggested_mentor_id) {
+  if (onboarding?.match_decision === "declined" || onboarding?.suggested_mentor_id || onboarding?.prelude_match_completed) {
     return ONBOARDING_STATUS.MATCH_COMPLETED;
   }
-  return ONBOARDING_STATUS.NEEDS_MATCH;
+  return ONBOARDING_STATUS.MATCH_COMPLETED;
 }
 
 export function userNeedsPlanSelection(user) {
@@ -131,9 +131,7 @@ export function userNeedsMatchOnboarding(user) {
 }
 
 export function userNeedsMatchDecision(user) {
-  if (!user || roleFromUser(user) !== "student") return false;
-  if (!user.matchOnboardingComplete) return false;
-  return !user.mentorSelectionComplete;
+  return false;
 }
 
 export function userNeedsMentorOnboarding(user) {

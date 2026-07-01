@@ -89,7 +89,7 @@ describe("onboarding route decisions", () => {
     expect(postAuthDestination(user)).toBe("/onboarding/match");
   });
 
-  it("requires mentor selection after PreludeMatch when quiz is complete", () => {
+  it("allows dashboard access after PreludeMatch while match is pending review", () => {
     const user = supabaseUser({
       role: "student",
       planSelected: true,
@@ -97,7 +97,8 @@ describe("onboarding route decisions", () => {
       mentorSelectionComplete: false
     });
 
-    expect(userNeedsMatchDecision(user)).toBe(true);
-    expect(postAuthDestination(user)).toBe("/onboarding/match?step=result");
+    expect(userNeedsMatchDecision(user)).toBe(false);
+    expect(postAuthDestination(user)).toBe("/dashboard/student/overview");
+    expect(canAccessDashboard(user)).toBe(true);
   });
 });

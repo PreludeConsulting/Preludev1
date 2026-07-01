@@ -28,14 +28,13 @@ import PreludeMatchBoot from "../hero/PreludeMatchBoot.jsx";
 import PreludeMatchIntro from "../hero/PreludeMatchIntro.jsx";
 import PreludeMatchLoading from "../hero/PreludeMatchLoading.jsx";
 import PreludeMatchQuestionFlow from "../hero/PreludeMatchQuestionFlow.jsx";
+import PreludePigAvatar from "../hero/PreludePigAvatar.jsx";
 import EmailVerificationBanner from "../EmailVerificationBanner.jsx";
 
-export function MatchPendingPanel({ loading = false, onBackToPrelude }) {
+export function MatchPendingPanel({ loading = false, onReturnToDashboard }) {
   return (
     <div className="pm-match-pending">
-      <div className="pm-match-pending__icon" aria-hidden="true">
-        <span />
-      </div>
+      <PreludePigAvatar size="lg" variant="intro" animate className="pm-match-pending__mascot" />
       <header className="pm-match-pending__head">
         <h2 className="pm-results__title">Your mentor match is being processed</h2>
         <p className="pm-results__sub">
@@ -45,8 +44,8 @@ export function MatchPendingPanel({ loading = false, onBackToPrelude }) {
       </header>
       <p className="pm-match-pending__note">We'll reach out as soon as your match is ready.</p>
       <div className="pm-match-result__actions">
-        <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onBackToPrelude}>
-          Back to Prelude
+        <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onReturnToDashboard}>
+          Return to dashboard
         </button>
       </div>
     </div>
@@ -263,7 +262,10 @@ export default function PreludeMatchOnboardingPage() {
 
               {showResultPanel ? (
                 <motion.div key="result" className="pm-card__panel pm-card__panel--results">
-                  <MatchPendingPanel loading={saving} onBackToPrelude={() => navigate("/", { replace: true })} />
+                  <MatchPendingPanel
+                    loading={saving}
+                    onReturnToDashboard={() => navigate(dashboardPathForRole(user.role), { replace: true })}
+                  />
                 </motion.div>
               ) : null}
             </AnimatePresence>

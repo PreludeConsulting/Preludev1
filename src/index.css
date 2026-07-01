@@ -4220,26 +4220,11 @@ html[lang="es"] .shopify-hero__headline-line {
   padding: 0.25rem 0.1rem;
 }
 
-.pm-match-pending__icon {
+.pm-match-pending__mascot {
+  width: 4.75rem;
+  height: 4.75rem;
   display: grid;
   place-items: center;
-  width: 4rem;
-  height: 4rem;
-  border-radius: 999px;
-  border: 1px solid hsl(var(--primary) / 0.16);
-  background:
-    radial-gradient(circle at 35% 25%, #ffffff 0 22%, transparent 23%),
-    linear-gradient(145deg, hsl(var(--primary) / 0.16), hsl(var(--primary) / 0.06));
-  box-shadow: 0 14px 32px hsl(var(--primary) / 0.12);
-}
-
-.pm-match-pending__icon span {
-  display: block;
-  width: 1.7rem;
-  height: 1.7rem;
-  border-radius: 999px;
-  border: 0.28rem solid hsl(var(--primary) / 0.18);
-  border-top-color: hsl(var(--primary));
 }
 
 .pm-match-pending__head {
