@@ -1,6 +1,6 @@
 import { CheckCircle2, KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { resetPassword } from "../../lib/auth.js";
 import { isSupabaseConfigured } from "../../lib/supabaseConfig.js";
 import {
@@ -26,10 +26,11 @@ function focusField(ref) {
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const supabaseAuth = isSupabaseConfigured();
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(location.search);
   const [token] = useState(params.get("token") || "");
-  const recoveryUrl = useMemo(() => ({ search: window.location.search, hash: window.location.hash }), []);
+  const recoveryUrl = useMemo(() => ({ search: location.search, hash: location.hash }), [location.hash, location.search]);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formError, setFormError] = useState("");
@@ -45,7 +46,7 @@ export default function ResetPasswordPage() {
     let unsubscribe = () => {};
 
     if (recoveryUrl.search || recoveryUrl.hash) {
-      window.history.replaceState({}, "", window.location.pathname);
+      window.history.replaceState({}, "", location.pathname);
     }
 
     import("../../lib/supabaseAuth.js").then(({ initializePasswordRecovery, onAuthStateChange }) => {
@@ -78,7 +79,7 @@ export default function ResetPasswordPage() {
       active = false;
       unsubscribe();
     };
-  }, [recoveryUrl.hash, recoveryUrl.search, supabaseAuth]);
+  }, [location.pathname, recoveryUrl.hash, recoveryUrl.search, supabaseAuth]);
 
   const passwordValid = !validatePasswordForAuth(password, supabaseAuth, "reset");
   const confirmValid = Boolean(confirmPassword) && passwordsMatch(password, confirmPassword);

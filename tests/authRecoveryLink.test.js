@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bootstrapAuthRecoveryRedirect,
   buildPasswordResetEmailUrl,
   resolveAuthLandingRedirect
 } from "../shared/authRecoveryLink.js";
@@ -16,6 +17,22 @@ describe("auth recovery links", () => {
   it("falls back to action_link when hashed_token is missing", () => {
     const action = "https://project.supabase.co/auth/v1/verify?token=legacy";
     expect(buildPasswordResetEmailUrl("https://preludeconsultingllc.com", { action_link: action })).toBe(action);
+  });
+
+  it("routes homepage search token_hash recovery params to reset-password", () => {
+    expect(
+      resolveAuthLandingRedirect({
+        pathname: "/",
+        search: "?token_hash=abc123hash&type=recovery"
+      })
+    ).toBe("/reset-password?token_hash=abc123hash&type=recovery");
+  });
+
+  it("bootstraps recovery redirects before React loads", () => {
+    expect(
+      bootstrapAuthRecoveryRedirect("/", "?token_hash=abc123hash&type=recovery", "")
+    ).toBe("/reset-password?token_hash=abc123hash&type=recovery");
+    expect(bootstrapAuthRecoveryRedirect("/reset-password", "?token_hash=abc&type=recovery", "")).toBeNull();
   });
 
   it("routes homepage hash otp errors to reset-password", () => {

@@ -56,8 +56,13 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+function escapeHref(url) {
+  return String(url).replace(/"/g, "&quot;");
+}
+
 function buildAuthEmailHtml({ kind, url }) {
   const safeUrl = escapeHtml(url);
+  const hrefUrl = escapeHref(url);
   const isVerify = kind === "verify-email";
   const heading = isVerify ? "Verify your email" : "Reset your password";
   const intro = isVerify
@@ -80,10 +85,10 @@ function buildAuthEmailHtml({ kind, url }) {
           <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;font-weight:600;">${heading}</h1>
           <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#4a4540;">${intro}</p>
           <p style="margin:0 0 28px;">
-            <a href="${safeUrl}" style="display:inline-block;background:#1f4d3a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 24px;border-radius:999px;">${buttonLabel}</a>
+            <a href="${hrefUrl}" style="display:inline-block;background:#1f4d3a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 24px;border-radius:999px;">${buttonLabel}</a>
           </p>
           <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#6b645c;">Or copy this link into your browser:</p>
-          <p style="margin:0 0 24px;font-size:13px;line-height:1.5;word-break:break-all;color:#1f4d3a;">${safeUrl}</p>
+          <p style="margin:0 0 24px;font-size:13px;line-height:1.5;word-break:break-all;color:#1f4d3a;"><a href="${hrefUrl}" style="color:#1f4d3a;text-decoration:underline;">${safeUrl}</a></p>
           <p style="margin:0;font-size:12px;line-height:1.5;color:#8a7f72;">${footer}</p>
         </td></tr>
       </table>

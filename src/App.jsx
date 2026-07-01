@@ -28,6 +28,11 @@ function AppContent() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const type = (params.get("type") || "").toLowerCase();
+    if (params.get("token_hash") && type === "recovery") {
+      navigate(`/reset-password${window.location.search}`, { replace: true });
+      return;
+    }
     if (!params.has("code") && !params.has("error") && !params.has("error_description")) return;
     navigate(`/auth/callback${window.location.search}`, { replace: true });
   }, [navigate]);
