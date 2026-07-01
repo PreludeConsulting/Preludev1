@@ -112,32 +112,21 @@ export async function loadOnboardingProgress(userId) {
 }
 
 export async function saveMatchQuestionnaire(userId, answers) {
-  const {
-    matchedMentors = [],
-    matchedMentorIds = [],
-    matchedMentorCount = 0,
-    error: matchError
-  } = await resolveStudentMentorMatches(userId, answers);
-  const mentors = matchedMentors;
-  const ids = matchedMentorIds;
-  const count = effectiveMatchedMentorCount(matchedMentorCount, ids, mentors.length);
-  const suggested = mentors[0] || pickSuggestedMentor(answers);
-
   const payload = {
     user_id: userId,
     questionnaire_answers: answers,
     mentor_matching_started: true,
     mentor_matching_complete: true,
     prelude_match_completed: true,
-    suggested_mentor_id: suggested?.id || null,
-    matched_mentor_ids: ids,
-    matched_mentor_count: count,
+    suggested_mentor_id: null,
+    matched_mentor_ids: [],
+    matched_mentor_count: 0,
     onboarding_status: ONBOARDING_STATUS.MATCH_COMPLETED,
     match_decision: null,
     selected_mentor_id: null,
     mentor_selection_method: null,
     mentor_assignment_status: null,
-    admin_review_required: false,
+    admin_review_required: true,
     updated_at: new Date().toISOString()
   };
   const { data, error } = await getSupabase()
@@ -147,11 +136,11 @@ export async function saveMatchQuestionnaire(userId, answers) {
     .maybeSingle();
   return {
     onboarding: data,
-    suggestedMentor: suggested,
-    matchedMentors: mentors,
-    matchedMentorCount: count,
-    matchedMentorIds: ids,
-    error: error?.message || matchError || null
+    suggestedMentor: null,
+    matchedMentors: [],
+    matchedMentorCount: 0,
+    matchedMentorIds: [],
+    error: error?.message || null
   };
 }
 
@@ -264,25 +253,6 @@ async function loadMatchedMentorCards(userId, matchedIds = []) {
     .filter(Boolean);
 }
 
-async function persistMentorMatchResults(userId, onboarding, rematch) {
-  const matchedIds = rematch.matchedMentorIds || [];
-  const mentors = rematch.matchedMentors || [];
-  const count = effectiveMatchedMentorCount(rematch.matchedMentorCount, matchedIds, mentors.length);
-  const now = new Date().toISOString();
-  const { data: updated, error: saveError } = await getSupabase()
-    .from("onboarding_progress")
-    .update({
-      matched_mentor_ids: matchedIds,
-      matched_mentor_count: count,
-      suggested_mentor_id: mentors[0]?.id || onboarding.suggested_mentor_id,
-      updated_at: now
-    })
-    .eq("user_id", userId)
-    .select()
-    .maybeSingle();
-  return { onboarding: updated || onboarding, matchedIds, mentors, count, saveError };
-}
-
 export async function loadMentorSelectionStateDirect(userId) {
   let { onboarding, error } = await loadOnboardingProgress(userId);
   if (error) throw new Error(error);
@@ -292,27 +262,10 @@ export async function loadMentorSelectionStateDirect(userId) {
 
   let matchedIds = onboarding.matched_mentor_ids || [];
   let mentors = await loadMatchedMentorCards(userId, matchedIds);
-  const answers = onboarding.questionnaire_answers || {};
-  const hasAnswers = Object.keys(answers).length > 0;
 
   if (!mentors.length && onboarding.suggested_mentor_id && !matchedIds.length) {
     matchedIds = [onboarding.suggested_mentor_id];
     mentors = await loadMatchedMentorCards(userId, matchedIds);
-  }
-
-  const storedCount = effectiveMatchedMentorCount(onboarding.matched_mentor_count, matchedIds, mentors.length);
-  const needsRematch =
-    hasAnswers &&
-    (!matchedIds.length || !mentors.length || (storedCount === 0 && !mentors.length));
-
-  if (needsRematch) {
-    const rematch = await resolveStudentMentorMatches(userId, answers);
-    if (rematch.matchedMentors?.length) {
-      const persisted = await persistMentorMatchResults(userId, onboarding, rematch);
-      onboarding = persisted.onboarding;
-      matchedIds = persisted.matchedIds;
-      mentors = persisted.mentors;
-    }
   }
 
   if (matchedIds.length && !mentors.length) {

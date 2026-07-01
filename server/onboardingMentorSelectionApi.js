@@ -6,7 +6,6 @@ import {
   effectiveMatchedMentorCount,
   resolveMentorSelection
 } from "../shared/mentorSelectionLogic.js";
-import { fetchAndRankMentorsForStudent } from "../shared/mentorMatching.js";
 import { readJsonBody, sendJson } from "./http.js";
 
 function initialsFor(name) {
@@ -151,59 +150,16 @@ async function loadMentorCards(supabase, studentUserId, matchedIds = []) {
     .filter(Boolean);
 }
 
-async function refreshMentorMatchesIfNeeded(supabase, user, onboarding) {
-  let matchedIds = onboarding.matched_mentor_ids || [];
-  let mentors = await loadMentorCards(supabase, user.id, matchedIds);
-  const answers = onboarding.questionnaire_answers || {};
-  const hasAnswers = Object.keys(answers).length > 0;
-
-  if (!mentors.length && onboarding.suggested_mentor_id && !matchedIds.length) {
-    matchedIds = [onboarding.suggested_mentor_id];
-    mentors = await loadMentorCards(supabase, user.id, matchedIds);
-  }
-
-  const storedCount = effectiveMatchedMentorCount(onboarding.matched_mentor_count, matchedIds, mentors.length);
-  const needsRematch =
-    hasAnswers && (!matchedIds.length || !mentors.length || (storedCount === 0 && !mentors.length));
-
-  if (needsRematch) {
-    const rematch = await fetchAndRankMentorsForStudent(supabase, user.id, answers);
-    if (rematch.matchedMentors?.length) {
-      matchedIds = rematch.matchedMentorIds;
-      mentors = rematch.matchedMentors;
-      const count = effectiveMatchedMentorCount(rematch.matchedMentorCount, matchedIds, mentors.length);
-      const now = new Date().toISOString();
-      const { data: updated } = await supabase
-        .from("onboarding_progress")
-        .update({
-          matched_mentor_ids: matchedIds,
-          matched_mentor_count: count,
-          suggested_mentor_id: mentors[0]?.id || onboarding.suggested_mentor_id,
-          updated_at: now
-        })
-        .eq("user_id", user.id)
-        .select()
-        .maybeSingle();
-      if (updated) onboarding = updated;
-    }
-  }
-
-  if (matchedIds.length && !mentors.length) {
-    mentors = await loadMentorCards(supabase, user.id, matchedIds);
-  }
-
-  return { onboarding, matchedIds, mentors };
-}
-
 async function handleGetMentorSelection(req, res) {
   const { supabase, user } = await requireSupabaseUser(req);
-  const { data: initialOnboarding, error } = await supabase.from("onboarding_progress").select("*").eq("user_id", user.id).maybeSingle();
+  const { data: onboarding, error } = await supabase.from("onboarding_progress").select("*").eq("user_id", user.id).maybeSingle();
   if (error) return sendJson(res, 500, { error: "load_failed", message: "Could not load mentor match state." });
-  if (!initialOnboarding?.mentor_matching_complete) {
+  if (!onboarding?.mentor_matching_complete) {
     return sendJson(res, 404, { error: "not_ready", message: "Complete the PreludeMatch quiz first." });
   }
 
-  const { onboarding, matchedIds, mentors } = await refreshMentorMatchesIfNeeded(supabase, user, initialOnboarding);
+  const matchedIds = onboarding.matched_mentor_ids || [];
+  const mentors = await loadMentorCards(supabase, user.id, matchedIds);
 
   return sendJson(res, 200, {
     matchedMentorCount: effectiveMatchedMentorCount(onboarding.matched_mentor_count, matchedIds, mentors.length),

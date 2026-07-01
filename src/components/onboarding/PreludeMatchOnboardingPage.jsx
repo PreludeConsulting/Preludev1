@@ -8,19 +8,14 @@ import {
   dashboardPathForRole,
   MATCH_ONBOARDING_PATH,
   PLAN_SELECTION_PATH,
-  PARENT_ONBOARDING_PATH,
   postAuthDestination,
   userNeedsMatchOnboarding,
   userNeedsMatchDecision,
   userNeedsPlanSelection
 } from "../../lib/onboardingRoutes.js";
 import {
-  pickSuggestedMentor,
-  rankDemoMatchedMentors,
   saveMatchQuestionnaire
 } from "../../lib/preludeMatchService.js";
-import { loadMentorSelectionState, saveMentorSelection } from "../../lib/mentorSelectionApi.js";
-import { effectiveMatchedMentorCount } from "../../../shared/mentorSelectionLogic.js";
 import {
   computeQuestionProgress,
   getQuestionIndex,
@@ -33,8 +28,30 @@ import PreludeMatchBoot from "../hero/PreludeMatchBoot.jsx";
 import PreludeMatchIntro from "../hero/PreludeMatchIntro.jsx";
 import PreludeMatchLoading from "../hero/PreludeMatchLoading.jsx";
 import PreludeMatchQuestionFlow from "../hero/PreludeMatchQuestionFlow.jsx";
-import MentorMatchSelectionPanel from "./MentorMatchSelectionPanel.jsx";
 import EmailVerificationBanner from "../EmailVerificationBanner.jsx";
+
+export function MatchPendingPanel({ loading = false, onBackToPrelude }) {
+  return (
+    <div className="pm-match-pending">
+      <div className="pm-match-pending__icon" aria-hidden="true">
+        <span />
+      </div>
+      <header className="pm-match-pending__head">
+        <h2 className="pm-results__title">Your mentor match is being processed</h2>
+        <p className="pm-results__sub">
+          Thanks for completing the PreludeMatch questionnaire. Our team is reviewing your goals and preferences so we
+          can find the best mentor for you. You'll receive an email soon with your recommended match.
+        </p>
+      </header>
+      <p className="pm-match-pending__note">We'll reach out as soon as your match is ready.</p>
+      <div className="pm-match-result__actions">
+        <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onBackToPrelude}>
+          Back to Prelude
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function PreludeMatchOnboardingPage() {
   const reducedMotion = useReducedMotion();
@@ -48,12 +65,7 @@ export default function PreludeMatchOnboardingPage() {
   const [currentQuestionId, setCurrentQuestionId] = useState(null);
   const [pigMotion, setPigMotion] = useState("none");
   const [progress, setProgress] = useState(0);
-  const [matchedMentors, setMatchedMentors] = useState([]);
-  const [matchedMentorCount, setMatchedMentorCount] = useState(0);
-  const [selectedMentorId, setSelectedMentorId] = useState(user?.selectedMentorId || null);
-  const [selectionComplete, setSelectionComplete] = useState(Boolean(user?.mentorSelectionComplete));
   const [saving, setSaving] = useState(false);
-  const [loadingResult, setLoadingResult] = useState(false);
   const [error, setError] = useState("");
 
   const visibleQuestions = useMemo(
@@ -71,34 +83,9 @@ export default function PreludeMatchOnboardingPage() {
 
   const loadResultState = useCallback(async () => {
     if (!user) return;
-    setLoadingResult(true);
     setError("");
-    try {
-      if (user.authProvider === "supabase") {
-        const state = await loadMentorSelectionState();
-        const mentors = state.mentors || [];
-        const count = effectiveMatchedMentorCount(
-          state.matchedMentorCount ?? 0,
-          state.matchedMentorIds || mentors.map((mentor) => mentor.id),
-          mentors.length
-        );
-        setMatchedMentors(mentors);
-        setMatchedMentorCount(count);
-        setSelectedMentorId(state.selectedMentorId || null);
-        setSelectionComplete(Boolean(state.mentorSelectionComplete));
-      } else {
-        const demoMatches = rankDemoMatchedMentors(user.questionnaireAnswers || answers);
-        setMatchedMentors(demoMatches);
-        setMatchedMentorCount(demoMatches.length);
-        setSelectionComplete(Boolean(user.mentorSelectionComplete));
-      }
-      setPhase("result");
-    } catch (err) {
-      setError(err.message || "Could not load your mentor matches.");
-    } finally {
-      setLoadingResult(false);
-    }
-  }, [user, answers]);
+    setPhase("result");
+  }, [user]);
 
   useEffect(() => {
     if (!user?.matchOnboardingComplete && !forceResult) return;
@@ -163,25 +150,12 @@ export default function PreludeMatchOnboardingPage() {
     setError("");
     try {
       if (user.authProvider === "supabase") {
-        const {
-          matchedMentors: mentors = [],
-          matchedMentorCount: count = 0,
-          error: err
-        } = await saveMatchQuestionnaire(user.id, finalAnswers);
+        const { error: err } = await saveMatchQuestionnaire(user.id, finalAnswers);
         if (err) throw new Error(err);
-        setMatchedMentors(mentors);
-        setMatchedMentorCount(count);
-      } else {
-        const demoMatches = rankDemoMatchedMentors(finalAnswers);
-        setMatchedMentors(demoMatches);
-        setMatchedMentorCount(demoMatches.length);
       }
       await refreshUser();
       setProgress(100);
       setPhase("result");
-      if (user.authProvider === "supabase") {
-        await loadResultState();
-      }
     } catch (err) {
       setError(err.message || "Could not save your responses.");
       setPhase("questions");
@@ -212,42 +186,12 @@ export default function PreludeMatchOnboardingPage() {
     setProgress(computeQuestionProgress(idx - 1, visible.length));
   }
 
-  async function handleMentorContinue() {
-    if (selectionComplete) {
-      navigate(PARENT_ONBOARDING_PATH, { replace: true });
-      return;
-    }
-
-    const displayCount = effectiveMatchedMentorCount(
-      matchedMentorCount,
-      matchedMentors.map((mentor) => mentor.id),
-      matchedMentors.length
-    );
-    if (displayCount !== 1 && displayCount !== 2) {
-      setError("");
-    }
-
-    setSaving(true);
-    setError("");
-    try {
-      if (user.authProvider === "supabase") {
-        await saveMentorSelection({ selectedMentorId: selectedMentorId || null });
-      }
-      await refreshUser();
-      navigate(PARENT_ONBOARDING_PATH, { replace: true });
-    } catch (err) {
-      setError(err.message || "Could not save your mentor selection.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   const isLastQuestion =
     currentQuestion &&
     getQuestionIndex(visibleQuestions, currentQuestion.id) === visibleQuestions.length - 1;
 
   const showVerifyBanner = !user.emailVerified && phase === "result";
-  const showResultPanel = phase === "result" && !loadingResult;
+  const showResultPanel = phase === "result";
 
   return (
     <main className={`pm-onboarding-page${showVerifyBanner ? " pm-onboarding-page--verify-banner" : ""}`}>
@@ -260,7 +204,7 @@ export default function PreludeMatchOnboardingPage() {
           <p className="plan-select-page__eyebrow">Step 2 of 2</p>
           <h1 className="pm-onboarding-page__title">Prelude Match</h1>
           <p className="pm-onboarding-page__sub">
-            Tell us about your goals — we will recommend mentors tailored to your preferences.
+            Tell us about your goals. Our team will review your answers and follow up with your mentor match.
           </p>
         </header>
 
@@ -319,21 +263,7 @@ export default function PreludeMatchOnboardingPage() {
 
               {showResultPanel ? (
                 <motion.div key="result" className="pm-card__panel pm-card__panel--results">
-                  <MentorMatchSelectionPanel
-                    mentors={matchedMentors}
-                    matchedMentorCount={matchedMentorCount}
-                    selectedMentorId={selectedMentorId}
-                    loading={saving}
-                    selectionComplete={selectionComplete}
-                    onSelectMentor={setSelectedMentorId}
-                    onContinue={handleMentorContinue}
-                  />
-                </motion.div>
-              ) : null}
-
-              {phase === "result" && loadingResult ? (
-                <motion.div key="result-loading" className="pm-card__panel">
-                  <p className="pm-intro__body">Loading your mentor matches…</p>
+                  <MatchPendingPanel loading={saving} onBackToPrelude={() => navigate("/", { replace: true })} />
                 </motion.div>
               ) : null}
             </AnimatePresence>
