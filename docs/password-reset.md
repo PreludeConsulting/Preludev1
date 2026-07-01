@@ -47,13 +47,13 @@ Prelude implements a secure, anti-enumeration password recovery flow for both **
 
 ## Email links (Supabase)
 
-Prelude **does not** use Supabase’s raw `action_link` in emails. Instead, `buildPasswordResetEmailUrl` constructs:
+Prelude **does not** use Supabase’s raw `action_link` in emails. `buildPasswordResetEmailUrl` always emits a direct app link:
 
 ```
 https://<PUBLIC_APP_URL>/reset-password?token_hash=<hash>&type=recovery
 ```
 
-This avoids email-client link prefetch consuming the OTP and keeps users on the Prelude reset page.
+If Supabase still redirects a recovery session to `/?token_hash=...&type=recovery`, `public/auth-recovery-redirect.js` (loaded before React) and `AuthLandingRedirect` forward the user to `/reset-password` with the same query string.
 
 ## Required environment variables (production)
 

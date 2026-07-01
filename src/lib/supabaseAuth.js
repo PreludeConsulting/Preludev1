@@ -398,6 +398,14 @@ export async function resetPassword(email, captchaToken, options = {}) {
     authDebug("password_reset_api_unavailable", { message: error?.message || "request_failed" });
   }
 
+  if (import.meta.env.PROD) {
+    return {
+      error: friendlyError({
+        message: "We couldn't send a password reset email right now. Please try again in a moment."
+      })
+    };
+  }
+
   const redirectTo = fullUrl("/reset-password");
   authDebug("password_reset_fallback_to_supabase", { email: normalizedEmail, redirectTo });
   const { error } = await withAuthTimeout(

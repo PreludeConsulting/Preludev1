@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   bootstrapAuthRecoveryRedirect,
   buildPasswordResetEmailUrl,
+  extractRecoveryToken,
+  normalizeGenerateLinkProperties,
   resolveAuthLandingRedirect
 } from "../shared/authRecoveryLink.js";
 
@@ -14,9 +16,29 @@ describe("auth recovery links", () => {
     expect(url).toBe("https://preludeconsultingllc.com/reset-password?token_hash=abc123hash&type=recovery");
   });
 
-  it("falls back to action_link when hashed_token is missing", () => {
+  it("extracts token from action_link when hashed_token is missing", () => {
+    const action =
+      "https://project.supabase.co/auth/v1/verify?token=legacyhash&type=recovery&redirect_to=https%3A%2F%2Fpreludeconsultingllc.com";
+    expect(extractRecoveryToken({ action_link: action })).toBe("legacyhash");
+    expect(buildPasswordResetEmailUrl("https://preludeconsultingllc.com", { action_link: action })).toBe(
+      "https://preludeconsultingllc.com/reset-password?token_hash=legacyhash&type=recovery"
+    );
+  });
+
+  it("never returns raw Supabase action_link URLs in emails", () => {
     const action = "https://project.supabase.co/auth/v1/verify?token=legacy";
-    expect(buildPasswordResetEmailUrl("https://preludeconsultingllc.com", { action_link: action })).toBe(action);
+    expect(buildPasswordResetEmailUrl("https://preludeconsultingllc.com", { action_link: action })).toBe(
+      "https://preludeconsultingllc.com/reset-password?token_hash=legacy&type=recovery"
+    );
+  });
+
+  it("normalizes generateLink payloads from Supabase admin", () => {
+    expect(
+      normalizeGenerateLinkProperties({
+        properties: { hashed_token: "nested" },
+        user: { id: "user-1" }
+      }).hashed_token
+    ).toBe("nested");
   });
 
   it("routes homepage search token_hash recovery params to reset-password", () => {

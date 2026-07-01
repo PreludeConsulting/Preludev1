@@ -12,28 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Barlow:wght@300;400;500;600;700;800&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Inter:wght@500;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <script>
-    (function () {
-      try {
-        var search = window.location.search || "";
-        var hash = window.location.hash || "";
-        var params = new URLSearchParams(search);
-        var hashParams = new URLSearchParams(hash.replace(/^#/, ""));
-        var isRecovery =
-          (params.get("type") || hashParams.get("type") || "").toLowerCase() === "recovery" ||
-          (params.get("error_code") || hashParams.get("error_code")) === "otp_expired";
-        if (window.location.pathname !== "/reset-password" && isRecovery) {
-          if (params.get("token_hash") || params.get("code") || params.get("error") || params.get("error_code")) {
-            window.location.replace("/reset-password" + search);
-            return;
-          }
-          if (hashParams.get("token_hash") || hashParams.get("access_token") || hashParams.get("error")) {
-            window.location.replace("/reset-password" + search + hash);
-          }
-        }
-      } catch (error) {}
-    })();
-  </script>
+  <script src="/auth-recovery-redirect.js"></script>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
 </body>

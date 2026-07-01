@@ -3,16 +3,36 @@
  * instead of Supabase action_link (avoids prefetch consuming OTP + wrong-site redirects).
  */
 
+export function normalizeGenerateLinkProperties(data) {
+  if (!data || typeof data !== "object") return {};
+  const properties = data.properties && typeof data.properties === "object" ? data.properties : {};
+  return { ...properties, ...data };
+}
+
+export function extractRecoveryToken(properties = {}) {
+  const direct = properties.hashed_token || properties.hashedToken || properties.token_hash;
+  if (direct) return String(direct).trim();
+
+  const actionLink = properties.action_link || properties.actionLink;
+  if (!actionLink) return "";
+
+  try {
+    const url = new URL(String(actionLink));
+    return (url.searchParams.get("token_hash") || url.searchParams.get("token") || "").trim();
+  } catch {
+    return "";
+  }
+}
+
 export function buildPasswordResetEmailUrl(baseUrl, properties = {}) {
   const origin = String(baseUrl || "").replace(/\/$/, "");
-  const hashedToken = properties.hashed_token;
-  if (origin && hashedToken) {
-    const url = new URL(`${origin}/reset-password`);
-    url.searchParams.set("token_hash", hashedToken);
-    url.searchParams.set("type", "recovery");
-    return url.toString();
-  }
-  return properties.action_link || null;
+  const token = extractRecoveryToken(properties);
+  if (!origin || !token) return null;
+
+  const url = new URL(`${origin}/reset-password`);
+  url.searchParams.set("token_hash", token);
+  url.searchParams.set("type", "recovery");
+  return url.toString();
 }
 
 function parseHashParams(hash = "") {
@@ -28,13 +48,30 @@ function isRecoveryContext(params) {
   return type === "recovery" || params.get("error_code") === "otp_expired";
 }
 
-function buildRecoveryPageTarget(search = "", hash = "") {
+function buildRecoveryPageTarget(pathname = "/", search = "", hash = "") {
   const searchParams = parseSearchParams(search);
+  const hashParams = parseHashParams(hash);
+  const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");
+  const type = (searchParams.get("type") || hashParams.get("type") || "").toLowerCase();
+
+  // Supabase often redirects recovery sessions to Site URL (/) with token_hash in the query.
+  if (pathname !== "/reset-password" && tokenHash && (type === "recovery" || isRecoveryContext(searchParams) || isRecoveryContext(hashParams))) {
+    if (searchParams.get("token_hash")) {
+      const params = new URLSearchParams(searchParams);
+      if (!params.get("type")) params.set("type", "recovery");
+      return `/reset-password?${params.toString()}`;
+    }
+    if (hashParams.get("token_hash")) {
+      const params = new URLSearchParams(hashParams);
+      if (!params.get("type")) params.set("type", "recovery");
+      return `/reset-password?${params.toString()}`;
+    }
+  }
+
   if (searchParams.get("token_hash") && isRecoveryContext(searchParams)) {
     return `/reset-password?${searchParams.toString()}`;
   }
 
-  const hashParams = parseHashParams(hash);
   if (hashParams.get("token_hash") && isRecoveryContext(hashParams)) {
     return `/reset-password?${hashParams.toString()}`;
   }
@@ -55,7 +92,7 @@ function buildRecoveryPageTarget(search = "", hash = "") {
  */
 export function bootstrapAuthRecoveryRedirect(pathname = "/", search = "", hash = "") {
   if (pathname === "/reset-password") return null;
-  return buildRecoveryPageTarget(search, hash);
+  return buildRecoveryPageTarget(pathname, search, hash);
 }
 
 /**
@@ -63,7 +100,7 @@ export function bootstrapAuthRecoveryRedirect(pathname = "/", search = "", hash 
  * with `#error=...`. Send them to the reset page (or callback) with query params.
  */
 export function resolveAuthLandingRedirect({ pathname = "/", search = "", hash = "" } = {}) {
-  const recoveryTarget = buildRecoveryPageTarget(search, hash);
+  const recoveryTarget = buildRecoveryPageTarget(pathname, search, hash);
   if (recoveryTarget && pathname !== "/reset-password") {
     return recoveryTarget;
   }
