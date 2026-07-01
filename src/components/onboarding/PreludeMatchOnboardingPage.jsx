@@ -7,11 +7,13 @@ import { roleFromUser } from "../../lib/dashboardRoutes.js";
 import {
   dashboardPathForRole,
   MATCH_ONBOARDING_PATH,
+  PARENT_ONBOARDING_PATH,
   PLAN_SELECTION_PATH,
   ROLE_SELECTION_PATH,
   postAuthDestination,
   userNeedsMatchOnboarding,
   userNeedsMatchDecision,
+  userNeedsParentInviteStep,
   userNeedsPlanSelection
 } from "../../lib/onboardingRoutes.js";
 import {
@@ -32,7 +34,7 @@ import PreludeMatchQuestionFlow from "../hero/PreludeMatchQuestionFlow.jsx";
 import PreludePigAvatar from "../hero/PreludePigAvatar.jsx";
 import EmailVerificationBanner from "../EmailVerificationBanner.jsx";
 
-export function MatchPendingPanel({ loading = false, onReturnToDashboard }) {
+export function MatchPendingPanel({ loading = false, onContinue }) {
   return (
     <div className="pm-match-pending">
       <PreludePigAvatar size="lg" variant="intro" animate className="pm-match-pending__mascot" />
@@ -45,8 +47,8 @@ export function MatchPendingPanel({ loading = false, onReturnToDashboard }) {
       </header>
       <p className="pm-match-pending__note">We'll reach out as soon as your match is ready.</p>
       <div className="pm-match-result__actions">
-        <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onReturnToDashboard}>
-          Return to dashboard
+        <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onContinue}>
+          Continue to parent invite
         </button>
       </div>
     </div>
@@ -118,9 +120,13 @@ export default function PreludeMatchOnboardingPage() {
     return <Navigate to={`${MATCH_ONBOARDING_PATH}?step=result`} replace />;
   }
 
-  if (!userNeedsMatchOnboarding(user) && !userNeedsMatchDecision(user) && !forceResult) {
+  const shouldShowProcessingStep = user.matchOnboardingComplete && userNeedsParentInviteStep(user);
+
+  if (!userNeedsMatchOnboarding(user) && !userNeedsMatchDecision(user) && !forceResult && !shouldShowProcessingStep) {
     return <Navigate to={postAuthDestination(user)} replace />;
   }
+
+  const renderQuestionnaireFlow = !shouldShowProcessingStep;
 
   function handleStart() {
     setAnswers(user?.questionnaireAnswers || {});
@@ -190,8 +196,8 @@ export default function PreludeMatchOnboardingPage() {
     currentQuestion &&
     getQuestionIndex(visibleQuestions, currentQuestion.id) === visibleQuestions.length - 1;
 
-  const showVerifyBanner = !user.emailVerified && phase === "result";
-  const showResultPanel = phase === "result";
+  const showVerifyBanner = !user.emailVerified && (phase === "result" || shouldShowProcessingStep);
+  const showResultPanel = phase === "result" || shouldShowProcessingStep;
 
   return (
     <main className={`pm-onboarding-page${showVerifyBanner ? " pm-onboarding-page--verify-banner" : ""}`}>
@@ -219,19 +225,19 @@ export default function PreludeMatchOnboardingPage() {
           <div className="pm-card-wrap__glow" aria-hidden="true" />
           <div className="pm-card pm-card--stable">
             <AnimatePresence mode="wait">
-              {phase === "intro" ? (
+              {renderQuestionnaireFlow && phase === "intro" ? (
                 <motion.div key="intro" className="pm-card__panel" exit={{ opacity: 0 }}>
                   <PreludeMatchIntro onStart={handleStart} reducedMotion={reducedMotion} />
                 </motion.div>
               ) : null}
 
-              {phase === "boot" ? (
+              {renderQuestionnaireFlow && phase === "boot" ? (
                 <motion.div key="boot" className="pm-card__panel">
                   <PreludeMatchBoot reducedMotion={reducedMotion} onComplete={handleBootComplete} />
                 </motion.div>
               ) : null}
 
-              {phase === "questions" && currentQuestion ? (
+              {renderQuestionnaireFlow && phase === "questions" && currentQuestion ? (
                 <motion.div key="questions" className="pm-card__panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <PreludeMatchQuestionFlow
                     question={currentQuestion}
@@ -249,7 +255,7 @@ export default function PreludeMatchOnboardingPage() {
                 </motion.div>
               ) : null}
 
-              {phase === "loading" ? (
+              {renderQuestionnaireFlow && phase === "loading" ? (
                 <motion.div key="loading" className="pm-card__panel">
                   <PreludeMatchLoading
                     reducedMotion={reducedMotion}
@@ -265,7 +271,7 @@ export default function PreludeMatchOnboardingPage() {
                 <motion.div key="result" className="pm-card__panel pm-card__panel--results">
                   <MatchPendingPanel
                     loading={saving}
-                    onReturnToDashboard={() => navigate(dashboardPathForRole(user.role), { replace: true })}
+                    onContinue={() => navigate(PARENT_ONBOARDING_PATH, { replace: true })}
                   />
                 </motion.div>
               ) : null}

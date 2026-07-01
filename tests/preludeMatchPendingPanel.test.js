@@ -8,13 +8,13 @@ describe("MatchPendingPanel", () => {
     const html = renderToStaticMarkup(
       React.createElement(MatchPendingPanel, {
         loading: false,
-        onReturnToDashboard: vi.fn()
+        onContinue: vi.fn()
       })
     );
 
     expect(html).toContain("Your mentor match is being processed");
     expect(html).toContain("Thanks for completing the PreludeMatch questionnaire");
-    expect(html).toContain("Return to dashboard");
+    expect(html).toContain("Continue to parent invite");
     expect(html).toContain("prelude-pig-mascot.png");
     expect(html).not.toContain("Your mentor matches");
     expect(html).not.toContain("matchPercent");

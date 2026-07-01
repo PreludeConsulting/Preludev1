@@ -59,6 +59,11 @@ describe("onboarding flow navigation", () => {
     const user = student({ planSelected: false });
     expect(getPreviousOnboardingPath(user, PLAN_SELECTION_PATH)).toBe(ROLE_SELECTION_PATH);
   });
+
+  it("allows returning to role selection while first setup is still incomplete", () => {
+    const user = student({ roleSelectionComplete: true, planSelected: false });
+    expect(canAccessOnboardingPath(user, ROLE_SELECTION_PATH)).toBe(true);
+  });
 });
 
 describe("onboarding draft persistence", () => {

@@ -12,7 +12,7 @@ import OnboardingShell from "./OnboardingShell.jsx";
 
 export default function ParentInviteOnboardingPage() {
   const navigate = useNavigate();
-  const { user, ready } = useAuth();
+  const { user, ready, refreshUser } = useAuth();
   const [parentEmail, setParentEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -33,8 +33,17 @@ export default function ParentInviteOnboardingPage() {
   }
 
   async function finish(destination) {
-    await markParentInviteStepComplete(user.id);
-    navigate(destination, { replace: true });
+    setError("");
+    setLoading(true);
+    try {
+      await markParentInviteStepComplete(user.id);
+      await refreshUser();
+      navigate(destination, { replace: true });
+    } catch (err) {
+      setError(err.message || "Could not finish onboarding. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSend(event) {
