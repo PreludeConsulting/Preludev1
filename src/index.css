@@ -1335,19 +1335,12 @@ a {
   min-height: 3.25rem;
   border-radius: 999px;
   padding: 0.85rem 1.25rem;
-  font-family: "Barlow", sans-serif;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0;
   text-decoration: none;
-  text-transform: uppercase;
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
 .mentors-page__primary-action {
   gap: 0.45rem;
-  background: hsl(var(--primary));
-  color: #fff;
   box-shadow: 0 18px 45px hsl(var(--primary) / 0.22);
 }
 
@@ -1922,12 +1915,9 @@ a {
   min-height: 3.1rem;
   padding: 0.82rem 1.2rem;
   border-radius: 999px;
-  text-transform: none;
 }
 
 .mentors-page__onepager .mentors-page__primary-action {
-  background: hsl(var(--primary-deep));
-  color: #fff8df;
   box-shadow: 0 14px 30px hsl(var(--primary-deep) / 0.22);
 }
 

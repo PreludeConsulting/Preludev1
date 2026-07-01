@@ -5,10 +5,10 @@ import LanguageSwitcher from "./LanguageSwitcher.jsx";
 import Navbar from "./Navbar.jsx";
 import PreludeChat from "./PreludeChat.jsx";
 import SignInModal from "./SignInModal.jsx";
+import { Button } from "./ui/button.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { EXAMPLE_MENTORS } from "../data/mentors.js";
 import { appPath } from "../lib/appPaths.js";
-import { dashboardPathForRole, messagesPathForRole } from "../lib/onboardingRoutes.js";
 
 const MENTOR_REVIEWS = [
   {
@@ -34,8 +34,7 @@ const MENTOR_REVIEWS = [
 ];
 
 function MentorsPageContent() {
-  const { requestPersonalizedAi, user } = useAuth();
-  const findMorePath = user ? (user.role === "parent" ? dashboardPathForRole(user.role) : messagesPathForRole(user.role)) : "/login";
+  const { requestPersonalizedAi } = useAuth();
   const featuredMentors = EXAMPLE_MENTORS.slice(0, 5);
 
   return (
@@ -53,10 +52,10 @@ function MentorsPageContent() {
                 Prelude matches students with near-peer mentors for essays, school lists, and application momentum.
               </p>
               <div className="mentors-page__actions">
-                <Link to="/register" className="mentors-page__primary-action">
+                <Button as={Link} to="/register" className="mentors-page__primary-action nav-bar__cta shrink-0 rounded-full px-4 py-3 text-xs font-extrabold uppercase tracking-[0.12em] sm:px-5">
                   Get matched
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
+                </Button>
                 <a href={appPath("/#pricing")} className="mentors-page__secondary-action">
                   View plans
                 </a>
@@ -100,11 +99,6 @@ function MentorsPageContent() {
                 ))}
               </div>
             </div>
-
-            <p className="mentors-page__note">
-              Already have an account? Open your dashboard to message mentors and review matches.
-            </p>
-            <Link to={findMorePath} className="mentors-page__text-link">Open mentor workspace</Link>
           </section>
         </main>
       </div>
