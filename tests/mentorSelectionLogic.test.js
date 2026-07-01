@@ -94,6 +94,10 @@ describe("mentorSelectionLogic", () => {
     expect(effectiveMatchedMentorCount(0, ["mentor-vincent"])).toBe(1);
   });
 
+  it("uses loaded mentor cards when stored count and ids are empty", () => {
+    expect(effectiveMatchedMentorCount(0, [], 1)).toBe(1);
+  });
+
   it("returns the top mentor when no one clears the score threshold", () => {
     const matched = finalizeMatchedMentors(
       [

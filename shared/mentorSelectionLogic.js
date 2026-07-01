@@ -17,10 +17,11 @@ export const MENTOR_ASSIGNMENT_STATUS = {
 /** Minimum match score for a mentor to count as a PreludeMatch result. */
 export const MIN_MATCH_SCORE = 58;
 
-export function effectiveMatchedMentorCount(matchedMentorCount, matchedMentorIds = []) {
+export function effectiveMatchedMentorCount(matchedMentorCount, matchedMentorIds = [], mentorCardCount = 0) {
   const ids = Array.isArray(matchedMentorIds) ? matchedMentorIds.filter(Boolean) : [];
   const stored = Number.isFinite(matchedMentorCount) ? matchedMentorCount : 0;
-  return Math.max(stored, ids.length);
+  const cards = Number.isFinite(mentorCardCount) ? mentorCardCount : 0;
+  return Math.max(stored, ids.length, cards);
 }
 
 export function canStudentSelectMentor(matchedMentorCount) {

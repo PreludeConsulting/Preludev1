@@ -56,6 +56,40 @@ export function rankDemoMatchedMentors(answers = {}) {
   return finalizeMatchedMentors(ranked, MIN_MATCH_SCORE);
 }
 
+export async function resolveStudentMentorMatches(userId, answers = {}) {
+  const supabaseResult = await rankSupabaseMentorsForStudent(userId, answers);
+  if (supabaseResult.matchedMentors?.length) {
+    const ids = supabaseResult.matchedMentorIds || [];
+    return {
+      matchedMentors: supabaseResult.matchedMentors,
+      matchedMentorIds: ids,
+      matchedMentorCount: effectiveMatchedMentorCount(supabaseResult.matchedMentorCount, ids, supabaseResult.matchedMentors.length),
+      source: "supabase",
+      error: supabaseResult.error || null
+    };
+  }
+
+  const demoMatches = rankDemoMatchedMentors(answers);
+  if (demoMatches.length) {
+    const ids = demoMatches.map((mentor) => mentor.id);
+    return {
+      matchedMentors: demoMatches,
+      matchedMentorIds: ids,
+      matchedMentorCount: demoMatches.length,
+      source: "demo",
+      error: supabaseResult.error || null
+    };
+  }
+
+  return {
+    matchedMentors: [],
+    matchedMentorIds: [],
+    matchedMentorCount: 0,
+    source: "none",
+    error: supabaseResult.error || null
+  };
+}
+
 export function pickSuggestedMentor(answers) {
   return rankDemoMatchedMentors(answers)[0] || rankMentors(answers)[0] || MENTOR_CATALOG[0];
 }
@@ -81,12 +115,12 @@ export async function saveMatchQuestionnaire(userId, answers) {
   const {
     matchedMentors = [],
     matchedMentorIds = [],
-    matchedMentorCount = 0
-  } = await rankSupabaseMentorsForStudent(userId, answers);
-  const demoMatches = rankDemoMatchedMentors(answers);
-  const mentors = matchedMentors.length ? matchedMentors : demoMatches;
-  const ids = matchedMentorIds.length ? matchedMentorIds : mentors.map((mentor) => mentor.id);
-  const count = effectiveMatchedMentorCount(matchedMentorCount || mentors.length, ids);
+    matchedMentorCount = 0,
+    error: matchError
+  } = await resolveStudentMentorMatches(userId, answers);
+  const mentors = matchedMentors;
+  const ids = matchedMentorIds;
+  const count = effectiveMatchedMentorCount(matchedMentorCount, ids, mentors.length);
   const suggested = mentors[0] || pickSuggestedMentor(answers);
 
   const payload = {
@@ -117,7 +151,7 @@ export async function saveMatchQuestionnaire(userId, answers) {
     matchedMentors: mentors,
     matchedMentorCount: count,
     matchedMentorIds: ids,
-    error: error?.message || null
+    error: error?.message || matchError || null
   };
 }
 
@@ -189,7 +223,11 @@ export async function requestMentorMatch(userId, mentorId) {
 
 function mapMentorSelectionState(onboarding, mentors = []) {
   const matchedIds = onboarding?.matched_mentor_ids || [];
-  const matchedMentorCount = effectiveMatchedMentorCount(onboarding?.matched_mentor_count, matchedIds);
+  const matchedMentorCount = effectiveMatchedMentorCount(
+    onboarding?.matched_mentor_count,
+    matchedIds,
+    mentors.length
+  );
   return {
     matchedMentorCount,
     matchedMentorIds: matchedIds,
@@ -226,6 +264,25 @@ async function loadMatchedMentorCards(userId, matchedIds = []) {
     .filter(Boolean);
 }
 
+async function persistMentorMatchResults(userId, onboarding, rematch) {
+  const matchedIds = rematch.matchedMentorIds || [];
+  const mentors = rematch.matchedMentors || [];
+  const count = effectiveMatchedMentorCount(rematch.matchedMentorCount, matchedIds, mentors.length);
+  const now = new Date().toISOString();
+  const { data: updated, error: saveError } = await getSupabase()
+    .from("onboarding_progress")
+    .update({
+      matched_mentor_ids: matchedIds,
+      matched_mentor_count: count,
+      suggested_mentor_id: mentors[0]?.id || onboarding.suggested_mentor_id,
+      updated_at: now
+    })
+    .eq("user_id", userId)
+    .select()
+    .maybeSingle();
+  return { onboarding: updated || onboarding, matchedIds, mentors, count, saveError };
+}
+
 export async function loadMentorSelectionStateDirect(userId) {
   let { onboarding, error } = await loadOnboardingProgress(userId);
   if (error) throw new Error(error);
@@ -235,31 +292,26 @@ export async function loadMentorSelectionStateDirect(userId) {
 
   let matchedIds = onboarding.matched_mentor_ids || [];
   let mentors = await loadMatchedMentorCards(userId, matchedIds);
+  const answers = onboarding.questionnaire_answers || {};
+  const hasAnswers = Object.keys(answers).length > 0;
+
+  if (!mentors.length && onboarding.suggested_mentor_id && !matchedIds.length) {
+    matchedIds = [onboarding.suggested_mentor_id];
+    mentors = await loadMatchedMentorCards(userId, matchedIds);
+  }
+
+  const storedCount = effectiveMatchedMentorCount(onboarding.matched_mentor_count, matchedIds, mentors.length);
   const needsRematch =
-    !matchedIds.length &&
-    onboarding.questionnaire_answers &&
-    Object.keys(onboarding.questionnaire_answers).length > 0;
+    hasAnswers &&
+    (!matchedIds.length || !mentors.length || (storedCount === 0 && !mentors.length));
 
   if (needsRematch) {
-    const rematch = await rankSupabaseMentorsForStudent(userId, onboarding.questionnaire_answers);
-    if (rematch.matchedMentorIds?.length) {
-      const now = new Date().toISOString();
-      const { data: updated, error: saveError } = await getSupabase()
-        .from("onboarding_progress")
-        .update({
-          matched_mentor_ids: rematch.matchedMentorIds,
-          matched_mentor_count: rematch.matchedMentorCount,
-          suggested_mentor_id: rematch.matchedMentors[0]?.id || onboarding.suggested_mentor_id,
-          updated_at: now
-        })
-        .eq("user_id", userId)
-        .select()
-        .maybeSingle();
-      if (!saveError && updated) {
-        onboarding = updated;
-        matchedIds = rematch.matchedMentorIds;
-        mentors = rematch.matchedMentors;
-      }
+    const rematch = await resolveStudentMentorMatches(userId, answers);
+    if (rematch.matchedMentors?.length) {
+      const persisted = await persistMentorMatchResults(userId, onboarding, rematch);
+      onboarding = persisted.onboarding;
+      matchedIds = persisted.matchedIds;
+      mentors = persisted.mentors;
     }
   }
 

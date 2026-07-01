@@ -20,6 +20,7 @@ import {
   saveMatchQuestionnaire
 } from "../../lib/preludeMatchService.js";
 import { loadMentorSelectionState, saveMentorSelection } from "../../lib/mentorSelectionApi.js";
+import { effectiveMatchedMentorCount } from "../../../shared/mentorSelectionLogic.js";
 import {
   computeQuestionProgress,
   getQuestionIndex,
@@ -75,8 +76,14 @@ export default function PreludeMatchOnboardingPage() {
     try {
       if (user.authProvider === "supabase") {
         const state = await loadMentorSelectionState();
-        setMatchedMentors(state.mentors || []);
-        setMatchedMentorCount(state.matchedMentorCount ?? 0);
+        const mentors = state.mentors || [];
+        const count = effectiveMatchedMentorCount(
+          state.matchedMentorCount ?? 0,
+          state.matchedMentorIds || mentors.map((mentor) => mentor.id),
+          mentors.length
+        );
+        setMatchedMentors(mentors);
+        setMatchedMentorCount(count);
         setSelectedMentorId(state.selectedMentorId || null);
         setSelectionComplete(Boolean(state.mentorSelectionComplete));
       } else {
@@ -211,8 +218,12 @@ export default function PreludeMatchOnboardingPage() {
       return;
     }
 
-    const mode = matchedMentorCount === 1 || matchedMentorCount === 2 ? "student_select" : "other";
-    if (mode !== "student_select") {
+    const displayCount = effectiveMatchedMentorCount(
+      matchedMentorCount,
+      matchedMentors.map((mentor) => mentor.id),
+      matchedMentors.length
+    );
+    if (displayCount !== 1 && displayCount !== 2) {
       setError("");
     }
 
