@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import AccountPanel from "./AccountPanel.jsx";
 import LanguageSwitcher from "./LanguageSwitcher.jsx";
@@ -46,10 +46,6 @@ function MentorsPageContent() {
         <main className="mentors-page">
           <section className="mentors-page__onepager" aria-labelledby="mentors-page-title">
             <div className="mentors-page__hero-copy">
-              <p className="mentors-page__eyebrow">
-                <Sparkles className="h-4 w-4" aria-hidden="true" />
-                Near-peer mentor matching
-              </p>
               <h1 id="mentors-page-title" className="mentors-page__title">
                 Meet mentors who made it.
               </h1>
@@ -88,15 +84,21 @@ function MentorsPageContent() {
             </div>
 
             <div className="mentors-page__review-carousel" aria-label="Student and parent reviews">
-              {[...MENTOR_REVIEWS, ...MENTOR_REVIEWS].map((review, index) => (
-                <article className="mentors-page__review-card" key={`${review.name}-${index}`}>
-                  <header>
-                    <strong>{review.name}</strong>
-                    <span>{review.role}</span>
-                  </header>
-                  <p>“{review.quote}”</p>
-                </article>
-              ))}
+              <div className="mentors-page__review-track">
+                {[...MENTOR_REVIEWS, ...MENTOR_REVIEWS].map((review, index) => (
+                  <article
+                    className="mentors-page__review-card"
+                    key={`${review.name}-${index}`}
+                    aria-hidden={index >= MENTOR_REVIEWS.length ? "true" : undefined}
+                  >
+                    <header>
+                      <strong>{review.name}</strong>
+                      <span>{review.role}</span>
+                    </header>
+                    <p>“{review.quote}”</p>
+                  </article>
+                ))}
+              </div>
             </div>
 
             <p className="mentors-page__note">

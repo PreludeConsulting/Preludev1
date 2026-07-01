@@ -1830,12 +1830,12 @@ a {
   width: 100%;
   display: grid;
   justify-items: center;
-  padding: clamp(6.5rem, 11vh, 8.5rem) clamp(1rem, 4vw, 3rem) clamp(2.5rem, 6vh, 4.25rem);
+  padding: clamp(5.7rem, 9vh, 7.4rem) clamp(1rem, 4vw, 3rem) clamp(3rem, 7vh, 4.8rem);
   overflow-x: clip;
   background:
-    radial-gradient(circle at 8% 20%, rgba(139, 92, 246, 0.18), transparent 15rem),
-    radial-gradient(circle at 92% 28%, rgba(99, 102, 241, 0.16), transparent 16rem),
-    linear-gradient(180deg, #ede2ff 0%, #f2e9ff 66%, #fcf8ff 100%);
+    radial-gradient(circle at 18% 18%, rgb(255 255 255 / 0.82), transparent 22rem),
+    radial-gradient(circle at 82% 84%, rgb(62 48 175 / 0.28), transparent 28rem),
+    linear-gradient(180deg, #ffffff 0%, #f7f3ff 34%, #8f80ff 100%);
 }
 
 .mentors-page__onepager {
@@ -1849,7 +1849,7 @@ a {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: clamp(1.1rem, 2.5vh, 1.8rem);
+  gap: clamp(1.25rem, 2.8vh, 2.05rem);
   text-align: center;
 }
 
@@ -1898,14 +1898,14 @@ a {
   max-width: 12ch;
   margin-inline: auto;
   color: hsl(var(--foreground));
-  font-size: clamp(3rem, 8vw, 7.1rem);
+  font-size: clamp(2.85rem, 7.35vw, 6.45rem);
   font-weight: 850;
-  line-height: 0.9;
+  line-height: 0.93;
 }
 
 .mentors-page__onepager .mentors-page__intro {
   max-width: 39rem;
-  margin: 1.25rem auto 0;
+  margin: 1.05rem auto 0;
   color: hsl(var(--foreground) / 0.86);
   font-size: clamp(1.02rem, 1.6vw, 1.24rem);
   font-weight: 500;
@@ -1914,7 +1914,7 @@ a {
 
 .mentors-page__onepager .mentors-page__actions {
   justify-content: center;
-  margin-top: 1.35rem;
+  margin-top: 1.15rem;
 }
 
 .mentors-page__onepager .mentors-page__primary-action,
@@ -1942,10 +1942,10 @@ a {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: end;
-  width: 100%;
+  width: min(100%, 62rem);
   max-width: 100%;
   gap: clamp(0.55rem, 1.6vw, 1rem);
-  margin-top: clamp(0.25rem, 1vh, 0.75rem);
+  margin-top: clamp(0.05rem, 0.6vh, 0.45rem);
 }
 
 .mentors-page__mentor-art::before {
@@ -1965,7 +1965,7 @@ a {
   display: grid;
   gap: 0.55rem;
   min-width: 0;
-  padding: clamp(0.38rem, 0.8vw, 0.55rem);
+  padding: clamp(0.3rem, 0.65vw, 0.45rem);
   border: 1px solid hsl(var(--primary-deep) / 0.12);
   border-radius: clamp(1.25rem, 2vw, 1.75rem);
   background: #faf7ff;
@@ -2005,19 +2005,30 @@ a {
   min-width: 0;
   align-self: center;
   margin-inline: auto;
-  display: flex;
-  gap: 0.7rem;
   margin-top: 0.5rem;
   padding: 0.15rem 0.1rem 0.45rem;
-  overflow-x: auto;
+  overflow: hidden;
   overscroll-behavior-inline: contain;
-  scroll-snap-type: x mandatory;
   scrollbar-width: none;
   mask-image: linear-gradient(to right, transparent, #000 1rem, #000 calc(100% - 1rem), transparent);
 }
 
 .mentors-page__review-carousel::-webkit-scrollbar {
   display: none;
+}
+
+.mentors-page__review-track {
+  --review-gap: 0.7rem;
+  display: flex;
+  width: max-content;
+  gap: var(--review-gap);
+  animation: mentors-review-scroll 28s linear infinite;
+  will-change: transform;
+}
+
+.mentors-page__review-carousel:hover .mentors-page__review-track,
+.mentors-page__review-carousel:focus-within .mentors-page__review-track {
+  animation-play-state: paused;
 }
 
 .mentors-page__review-card {
@@ -2041,6 +2052,16 @@ a {
     0 24px 54px hsl(var(--primary) / 0.08);
   text-align: left;
   scroll-snap-align: center;
+}
+
+@keyframes mentors-review-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(calc(-50% - (var(--review-gap) / 2)));
+  }
 }
 
 .mentors-page__review-card::before {
@@ -2156,7 +2177,7 @@ a {
   }
 
   .mentors-page__stamp {
-    flex: 0 0 min(18rem, 72vw);
+    flex: 0 0 min(14.5rem, 62vw);
     padding: 0.28rem;
     border-radius: 1rem;
   }
@@ -2171,7 +2192,6 @@ a {
 
   .mentors-page__review-carousel {
     width: 100%;
-    justify-content: flex-start;
   }
 
   .mentors-page__review-card {
@@ -2183,6 +2203,16 @@ a {
   .mentors-page__stamp {
     animation: none;
     transform: rotate(var(--stamp-rotate));
+    will-change: auto;
+  }
+
+  .mentors-page__review-carousel {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .mentors-page__review-track {
+    animation: none;
     will-change: auto;
   }
 }
