@@ -52,6 +52,13 @@ export function isEligibleMentorProfile(row) {
   return Boolean(row.display_name?.trim() && row.college?.trim() && row.major?.trim());
 }
 
+/** Mirrors `mentor_matching_profiles` SELECT RLS (supabase/migrations/20260702000000_mentor_matching_student_visibility.sql). */
+export function isMentorProfileReadable(row, viewerUserId) {
+  if (!row?.mentor_user_id) return false;
+  if (viewerUserId && viewerUserId === row.mentor_user_id) return true;
+  return isEligibleMentorProfile(row);
+}
+
 export function mapMentorMatchingProfile(row, matchPercent = null, reasons = []) {
   if (!row) return null;
   const specialties = Array.isArray(row.specialties) ? row.specialties : [];

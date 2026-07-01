@@ -9,6 +9,7 @@ import { appPath } from "./appPaths.js";
 import { sanitizeAuthRedirect } from "./authRedirects.js";
 import { getPublicAppUrl, getSupabaseConfigError, isSupabaseConfigured } from "./supabaseConfig.js";
 import { mapSupabaseUser } from "./supabaseSession.js";
+import { appPath } from "./appPaths.js";
 import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
 import {
   clearLocalUserData,
@@ -350,18 +351,56 @@ export async function getCurrentSession() {
   return { session: data.session, error: null };
 }
 
-export async function resetPassword(email, captchaToken) {
-  requireTurnstileToken(captchaToken);
+export async function resetPassword(email, captchaToken, options = {}) {
+  if (!options.skipCaptcha) requireTurnstileToken(captchaToken);
+  const normalizedEmail = normalizeEmail(email);
+  authDebug("password_reset_request_started", { email: normalizedEmail });
+
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json"
+  };
+  const { session } = await getCurrentSession();
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
+
+  try {
+    const response = await withAuthTimeout(
+      fetch(appPath("/api/auth/request-password-reset"), {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          email: normalizedEmail,
+          captchaToken: captchaToken || undefined
+        })
+      })
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (response.ok) {
+      return { error: null, message: payload.message || "If an account exists for this email, a reset link has been sent." };
+    }
+    if (payload.error !== "password_reset_unavailable") {
+      return { error: friendlyError({ message: payload.message || "Could not send password reset email." }) };
+    }
+  } catch (error) {
+    if (!import.meta.env.DEV) {
+      return { error: friendlyError(error) };
+    }
+    authDebug("password_reset_api_unavailable", { message: error?.message || "request_failed" });
+  }
+
   const redirectTo = fullUrl("/reset-password");
-  authDebug("password_reset_request_started", { email: normalizeEmail(email), redirectTo });
+  authDebug("password_reset_fallback_to_supabase", { email: normalizedEmail, redirectTo });
   const { error } = await withAuthTimeout(
-    getSupabase().auth.resetPasswordForEmail(email, {
+    getSupabase().auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo,
       ...captchaOptions(captchaToken)
     })
   );
   if (error) return { error: friendlyError(error) };
-  return { error: null };
+  return { error: null, message: "If an account exists for this email, a reset link has been sent." };
 }
 
 export async function resendSignupConfirmation(email) {

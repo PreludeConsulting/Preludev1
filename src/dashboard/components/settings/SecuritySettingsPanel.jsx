@@ -36,7 +36,8 @@ export default function SecuritySettingsPanel({ user, onOpenAccount }) {
     try {
       if (isSupabaseConfigured()) {
         const { resetPassword: requestSupabasePasswordReset } = await import("../../../lib/supabaseAuth.js");
-        await requestSupabasePasswordReset(user.email);
+        const { error } = await requestSupabasePasswordReset(user.email, "", { skipCaptcha: true });
+        if (error) throw new Error(error);
       } else {
         await requestPasswordReset(user.email);
       }

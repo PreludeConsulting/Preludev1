@@ -12,16 +12,16 @@ export function shouldLogAuthEmails() {
   return !isProductionEnv() && process.env.PRELUDE_LOG_AUTH_EMAILS !== "0";
 }
 
-function hasResendConfig() {
-  return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.AUTH_EMAIL_FROM?.trim());
+function hasResendConfig(env = process.env) {
+  return Boolean(env.RESEND_API_KEY?.trim() && env.AUTH_EMAIL_FROM?.trim());
 }
 
 /**
  * Public app base URL for auth links (no trailing slash).
  * Production: set PUBLIC_APP_URL (e.g. https://preludev1.pages.dev).
  */
-export function resolvePublicAppUrl(req) {
-  const fromEnv = process.env.PUBLIC_APP_URL?.trim();
+export function resolvePublicAppUrl(req, env = process.env) {
+  const fromEnv = env.PUBLIC_APP_URL?.trim() || env.VITE_PUBLIC_APP_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");
 
   if (req?.headers) {
@@ -35,8 +35,8 @@ export function resolvePublicAppUrl(req) {
   return "http://localhost:5173";
 }
 
-export function buildAuthUrl(req, pathWithQuery) {
-  const base = resolvePublicAppUrl(req);
+export function buildAuthUrl(req, pathWithQuery, env = process.env) {
+  const base = resolvePublicAppUrl(req, env);
   const path = pathWithQuery.startsWith("/") ? pathWithQuery : `/${pathWithQuery}`;
   return `${base}${path}`;
 }
@@ -118,9 +118,9 @@ function buildAccountDeletedHtml({ firstName, email }) {
 </html>`;
 }
 
-async function sendHtmlViaResend({ subject, to, html }) {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.AUTH_EMAIL_FROM?.trim();
+async function sendHtmlViaResend({ subject, to, html, env = process.env }) {
+  const apiKey = env.RESEND_API_KEY?.trim();
+  const from = env.AUTH_EMAIL_FROM?.trim();
   if (!apiKey || !from) {
     console.error("[prelude-auth] Email not sent: set RESEND_API_KEY and AUTH_EMAIL_FROM.");
     return { delivered: false, reason: "missing_provider" };
@@ -144,17 +144,17 @@ async function sendHtmlViaResend({ subject, to, html }) {
   return { delivered: true };
 }
 
-async function sendViaResend({ kind, to, url }) {
+async function sendViaResend({ kind, to, url, env = process.env }) {
   const subject = EMAIL_SUBJECTS[kind] || "Prelude account notice";
-  return sendHtmlViaResend({ subject, to, html: buildAuthEmailHtml({ kind, url }) });
+  return sendHtmlViaResend({ subject, to, html: buildAuthEmailHtml({ kind, url }), env });
 }
 
 /**
  * Send or log a verification / reset link. Uses Resend whenever configured.
  */
-export async function deliverAuthEmail({ kind, to, url, req }) {
-  if (hasResendConfig()) {
-    const result = await sendViaResend({ kind, to, url });
+export async function deliverAuthEmail({ kind, to, url, req, env = process.env }) {
+  if (hasResendConfig(env)) {
+    const result = await sendViaResend({ kind, to, url, env });
     if (result.delivered) return result;
     if (isProductionEnv()) return result;
   } else if (isProductionEnv()) {
@@ -168,7 +168,7 @@ export async function deliverAuthEmail({ kind, to, url, req }) {
     console.info(`[prelude-auth:${kind}] To ${to}:\n${url}`);
   }
 
-  return { delivered: false, logged: shouldLogAuthEmails(), devOnly: !hasResendConfig() };
+  return { delivered: false, logged: shouldLogAuthEmails(), devOnly: !hasResendConfig(env) };
 }
 
 /** Confirmation email after permanent account deletion. */

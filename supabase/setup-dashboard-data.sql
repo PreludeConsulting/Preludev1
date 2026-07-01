@@ -250,9 +250,18 @@ create index if not exists mentor_matching_profiles_target_schools_idx
 alter table public.mentor_matching_profiles enable row level security;
 
 drop policy if exists "Completed mentor matching profiles viewable by authenticated users" on public.mentor_matching_profiles;
-create policy "Completed mentor matching profiles viewable by authenticated users"
+drop policy if exists "Mentor matching profiles viewable for PreludeMatch" on public.mentor_matching_profiles;
+create policy "Mentor matching profiles viewable for PreludeMatch"
   on public.mentor_matching_profiles for select to authenticated
-  using (completed = true or auth.uid() = mentor_user_id);
+  using (
+    auth.uid() = mentor_user_id
+    or completed = true
+    or (
+      coalesce(trim(display_name), '') <> ''
+      and coalesce(trim(college), '') <> ''
+      and coalesce(trim(major), '') <> ''
+    )
+  );
 
 drop policy if exists "Mentor matching profiles insertable by owner" on public.mentor_matching_profiles;
 create policy "Mentor matching profiles insertable by owner"

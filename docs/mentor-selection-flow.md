@@ -60,7 +60,25 @@ Run in Supabase SQL Editor:
 
 ```sql
 -- supabase/migrations/20260630100000_mentor_selection.sql
+-- supabase/migrations/20260702000000_mentor_matching_student_visibility.sql
 ```
+
+## Mentor profile visibility (`mentor_matching_profiles` RLS)
+
+Students need mentor cards during PreludeMatch even when a mentor has not finished the full questionnaire (`completed = false`). The SELECT policy **Mentor matching profiles viewable for PreludeMatch** allows authenticated reads when:
+
+| Condition | Who can read |
+| --- | --- |
+| `auth.uid() = mentor_user_id` | The mentor (always) |
+| `completed = true` | Any authenticated user |
+| `display_name`, `college`, and `major` are all non-empty (trimmed) | Any authenticated user |
+
+Application code mirrors this in `shared/mentorMatching.js`:
+
+- `isEligibleMentorProfile(row)` — used when ranking mentors for a student
+- `isMentorProfileReadable(row, viewerUserId)` — full RLS parity for tests and tooling
+
+Admin mentor assignment still lists only `completed = true` profiles in `AdminPages.jsx` so admins pick from fully onboarded mentors.
 
 ## Tests
 
@@ -68,4 +86,4 @@ Run in Supabase SQL Editor:
 npm test
 ```
 
-Coverage includes `tests/mentorSelectionLogic.test.js` and `tests/mentorMatchSelectionPanel.test.js`.
+Coverage includes `tests/mentorSelectionLogic.test.js`, `tests/mentorMatchSelectionPanel.test.js`, and `tests/mentorMatching.test.js`.
