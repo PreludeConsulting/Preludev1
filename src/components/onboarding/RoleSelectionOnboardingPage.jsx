@@ -2,7 +2,12 @@ import { GraduationCap, HeartHandshake, Users } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { postAuthDestination, ROLE_SELECTION_PATH, userNeedsRoleSelection } from "../../lib/onboardingRoutes.js";
+import {
+  postAuthDestination,
+  ROLE_SELECTION_PATH,
+  userCanChangeRoleDuringOnboarding,
+  userNeedsRoleSelection
+} from "../../lib/onboardingRoutes.js";
 import OnboardingShell from "./OnboardingShell.jsx";
 
 const ROLE_OPTIONS = [
@@ -42,7 +47,7 @@ export default function RoleSelectionOnboardingPage() {
     return <Navigate to="/login" replace state={{ from: ROLE_SELECTION_PATH }} />;
   }
 
-  if (!userNeedsRoleSelection(user)) {
+  if (!userCanChangeRoleDuringOnboarding(user)) {
     return <Navigate to={postAuthDestination(user)} replace />;
   }
 
@@ -66,7 +71,7 @@ export default function RoleSelectionOnboardingPage() {
     <OnboardingShell
       user={user}
       title="Choose your Prelude role"
-      subtitle="We use this once to send you to the right onboarding path and dashboard."
+      subtitle="Choose the experience that fits you. You can correct this while your first setup is still in progress."
       eyebrow="Account setup"
       hideContinue
       footerNote="You can update profile details later in Settings."

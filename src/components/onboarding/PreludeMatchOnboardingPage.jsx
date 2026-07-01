@@ -8,6 +8,7 @@ import {
   dashboardPathForRole,
   MATCH_ONBOARDING_PATH,
   PLAN_SELECTION_PATH,
+  ROLE_SELECTION_PATH,
   postAuthDestination,
   userNeedsMatchOnboarding,
   userNeedsMatchDecision,
@@ -196,7 +197,7 @@ export default function PreludeMatchOnboardingPage() {
     <main className={`pm-onboarding-page${showVerifyBanner ? " pm-onboarding-page--verify-banner" : ""}`}>
       <div className="pm-onboarding-page__inner">
         <nav className="pm-onboarding-page__nav" aria-label="Onboarding navigation">
-          <AppLink href="/" className="pm-onboarding-page__back">← Back to Prelude</AppLink>
+          <AppLink href={ROLE_SELECTION_PATH} className="pm-onboarding-page__back">← Back to role selection</AppLink>
           <AppLink href={PLAN_SELECTION_PATH} className="pm-onboarding-page__back">← Back to plan selection</AppLink>
         </nav>
         <header className="pm-onboarding-page__head">

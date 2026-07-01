@@ -3,6 +3,8 @@ import { useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import AppLink from "../AppLink.jsx";
 import { getOnboardingProgress, getPreviousOnboardingPath } from "../../lib/onboardingFlow.js";
+import { ROLE_SELECTION_PATH } from "../../lib/onboardingRoutes.js";
+import { canAccessDashboard } from "../../lib/onboardingRoutes.js";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
 
 function OnboardingProgress({ steps, currentIndex }) {
@@ -65,12 +67,16 @@ export default function OnboardingShell({
   );
   const showBack = Boolean(onBack || backHref || previousPath);
   const resolvedBackHref = backHref || previousPath;
+  const homeHref = user && !canAccessDashboard(user) && location.pathname !== ROLE_SELECTION_PATH
+    ? ROLE_SELECTION_PATH
+    : "/";
+  const homeLabel = homeHref === ROLE_SELECTION_PATH ? "← Back to role selection" : "← Back to Prelude";
 
   return (
     <main className={`onboarding-flow ${className}`.trim()}>
       <div className="onboarding-flow__inner">
-        <AppLink href="/" className="onboarding-flow__home-link">
-          ← Back to Prelude
+        <AppLink href={homeHref} className="onboarding-flow__home-link">
+          {homeLabel}
         </AppLink>
 
         <OnboardingProgress steps={progress.steps} currentIndex={progress.currentIndex} />

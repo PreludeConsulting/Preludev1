@@ -359,7 +359,8 @@ export async function saveUserRoleSelection(userId, role) {
   if (!safeRole) return { error: "Please choose Student, Mentor, or Parent." };
   if (!userId) return { error: "You must be signed in to choose a role." };
 
-  const { error } = await getSupabase()
+  const supabase = getSupabase();
+  const { error } = await supabase
     .from("profiles")
     .update({
       role: safeRole,
@@ -368,6 +369,11 @@ export async function saveUserRoleSelection(userId, role) {
     .eq("id", userId);
 
   if (error) {
+    if (/change your account role|role selection status/i.test(error.message || "")) {
+      const { error: rpcError } = await supabase.rpc("change_onboarding_role", { requested_role: safeRole });
+      if (!rpcError) return { error: null };
+      return { error: friendlyError(rpcError) };
+    }
     if (/role_selection_complete|column/i.test(error.message || "")) {
       return {
         error: "Role selection is not enabled in Supabase yet. Run the latest setup-dashboard-data.sql or migration."
@@ -378,7 +384,7 @@ export async function saveUserRoleSelection(userId, role) {
 
   const roleProfileTable = safeRole === "mentor" ? "mentor_profiles" : safeRole === "student" ? "student_profiles" : null;
   if (roleProfileTable) {
-    const { error: profileError } = await getSupabase()
+    const { error: profileError } = await supabase
       .from(roleProfileTable)
       .upsert({ user_id: userId }, { onConflict: "user_id" });
     if (profileError && !/relation|schema cache|does not exist/i.test(profileError.message || "")) {

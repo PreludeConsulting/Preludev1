@@ -151,6 +151,18 @@ export function userNeedsParentInviteStep(user) {
   return true;
 }
 
+export function userCanChangeRoleDuringOnboarding(user) {
+  if (!user || user.authProvider !== "supabase") return false;
+  if (userNeedsRoleSelection(user)) return true;
+  const role = roleFromUser(user);
+  if (role === "student") {
+    return userNeedsPlanSelection(user) || userNeedsMatchOnboarding(user) || userNeedsParentInviteStep(user);
+  }
+  if (role === "mentor") return userNeedsMentorOnboarding(user);
+  if (role === "parent") return true;
+  return false;
+}
+
 export function postAuthDestination(user) {
   if (!user) return "/login";
   if (roleFromUser(user) === "admin") return dashboardPathForRole(user.role);

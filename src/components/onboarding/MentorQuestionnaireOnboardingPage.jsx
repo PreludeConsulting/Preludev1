@@ -11,7 +11,7 @@ import {
   MENTOR_TARGET_MAJORS
 } from "../../data/mentorQuestionnaire.js";
 import { roleFromUser } from "../../lib/dashboardRoutes.js";
-import { dashboardPathForRole, MENTOR_ONBOARDING_PATH, userNeedsMentorOnboarding } from "../../lib/onboardingRoutes.js";
+import { dashboardPathForRole, MENTOR_ONBOARDING_PATH, ROLE_SELECTION_PATH, userNeedsMentorOnboarding } from "../../lib/onboardingRoutes.js";
 import { loadMentorQuestionnaire, saveMentorQuestionnaire } from "../../lib/mentorQuestionnaireService.js";
 import AppLink from "../AppLink.jsx";
 
@@ -242,7 +242,7 @@ export default function MentorQuestionnaireOnboardingPage() {
   return (
     <main className="pm-onboarding-page mentor-onboarding">
       <div className="pm-onboarding-page__inner mentor-onboarding__inner">
-        <AppLink href="/" className="pm-onboarding-page__back">← Back to Prelude</AppLink>
+        <AppLink href={ROLE_SELECTION_PATH} className="pm-onboarding-page__back">← Back to role selection</AppLink>
         <header className="pm-onboarding-page__head">
           <p className="plan-select-page__eyebrow">Mentor onboarding</p>
           <h1 className="pm-onboarding-page__title">Build your matching profile</h1>
