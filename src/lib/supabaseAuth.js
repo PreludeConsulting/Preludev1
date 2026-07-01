@@ -572,6 +572,14 @@ export async function updatePassword(newPassword) {
   return { data, error: null };
 }
 
+/** Set a new password from a recovery session, then end the temporary session. */
+export async function completePasswordReset(newPassword) {
+  const { error: updateError } = await updatePassword(newPassword);
+  if (updateError) return { error: updateError };
+  await logOut();
+  return { error: null };
+}
+
 export async function getProfile(userId) {
   const { data, error } = await getSupabase().from("profiles").select("*").eq("id", userId).maybeSingle();
   if (error) return { profile: null, error: friendlyError(error) };
@@ -780,33 +788,49 @@ export async function completeEmailVerification(search = window.location.search,
 
 async function processPasswordRecovery(search, hash) {
   const supabase = getSupabase();
-  if (!supabase) return { hasRecoverySession: false, error: "Supabase client unavailable." };
+  if (!supabase) return { hasRecoverySession: false, error: "Supabase client unavailable.", email: null };
   const searchParams = new URLSearchParams(search || "");
   const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
   authDebug("password_recovery_parameters_detected", {
     hasCode: Boolean(searchParams.get("code")),
+    hasTokenHash: Boolean(searchParams.get("token_hash") || hashParams.get("token_hash")),
     type: searchParams.get("type") || hashParams.get("type") || "",
     hasHashAccessToken: Boolean(hashParams.get("access_token"))
   });
   const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
-  if (providerError) return { hasRecoverySession: false, error: friendlyProviderError(providerError) };
+  if (providerError) return { hasRecoverySession: false, error: friendlyProviderError(providerError), email: null };
 
-  const code = searchParams.get("code");
-  if (code) {
-    authDebug("callback_code_detected", { flow: "password-recovery" });
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return { hasRecoverySession: false, error: friendlyError(error) };
+  const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");
+  const rawType = searchParams.get("type") || hashParams.get("type") || "recovery";
+  const type = rawType === "email" ? "recovery" : rawType;
+
+  if (tokenHash) {
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (error) return { hasRecoverySession: false, error: friendlyError(error), email: null };
   } else {
-    const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
-    if (error) return { hasRecoverySession: false, error: friendlyError(error) };
+    const code = searchParams.get("code");
+    if (code) {
+      authDebug("callback_code_detected", { flow: "password-recovery" });
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) return { hasRecoverySession: false, error: friendlyError(error), email: null };
+    } else {
+      const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
+      if (error) return { hasRecoverySession: false, error: friendlyError(error), email: null };
+    }
   }
 
   const { session, error } = await getCurrentSession();
-  if (error) return { hasRecoverySession: false, error };
+  if (error) return { hasRecoverySession: false, error, email: null };
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
   const urlType = searchParams.get("type") || hashParams.get("type");
-  const hasRecoverySession = Boolean(session && (urlType === "recovery" || code || hashParams.get("access_token")));
-  authDebug("password_recovery_session_detected", { hasRecoverySession });
-  return { hasRecoverySession, error: null };
+  const hasRecoverySession = Boolean(
+    session && (type === "recovery" || urlType === "recovery" || searchParams.get("code") || hashParams.get("access_token"))
+  );
+  authDebug("password_recovery_session_detected", { hasRecoverySession, email: normalizeEmail(user?.email) });
+  return { hasRecoverySession, error: null, email: user?.email ? normalizeEmail(user.email) : null };
 }
 
 export async function initializePasswordRecovery(search = window.location.search, hash = window.location.hash) {

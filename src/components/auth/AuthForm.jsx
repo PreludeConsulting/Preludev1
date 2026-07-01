@@ -2,6 +2,11 @@ import { Check, Eye, EyeOff, Loader2 } from "lucide-react";
 import { forwardRef, useId, useState } from "react";
 import AppLink from "../AppLink.jsx";
 import { useLegalModal } from "../../context/LegalModalContext.jsx";
+import {
+  getPasswordRequirementStatus,
+  getPasswordStrength,
+  passwordsMatch
+} from "../../../shared/passwordValidation.js";
 
 export function AuthBanner({ tone = "info", children, reserve = true }) {
   const hasContent = Boolean(children);
@@ -192,26 +197,52 @@ export function AuthInlineLink({ href, children, className = "" }) {
   );
 }
 
-export function PasswordRequirements({ password, supabaseAuth }) {
-  const hints =
-    supabaseAuth
-      ? [{ label: "At least 6 characters", met: password.length >= 6 }]
-      : [
-          { label: "12+ characters", met: password.length >= 12 },
-          { label: "Uppercase", met: /[A-Z]/.test(password) },
-          { label: "Lowercase", met: /[a-z]/.test(password) },
-          { label: "Number", met: /[0-9]/.test(password) },
-          { label: "Symbol", met: /[^A-Za-z0-9]/.test(password) }
-        ];
+export function PasswordRequirements({ password, supabaseAuth, mode = "signup" }) {
+  const hints = getPasswordRequirementStatus(password, supabaseAuth, mode);
 
   return (
     <ul className="auth-password-hints" aria-label="Password requirements">
-      {hints.map(({ label, met }) => (
-        <li key={label} className={met ? "auth-password-hints__item auth-password-hints__item--met" : "auth-password-hints__item"}>
+      {hints.map(({ id, label, met }) => (
+        <li key={id} className={met ? "auth-password-hints__item auth-password-hints__item--met" : "auth-password-hints__item"}>
           <Check size={12} aria-hidden="true" />
           <span>{label}</span>
         </li>
       ))}
     </ul>
+  );
+}
+
+export function PasswordStrengthMeter({ password, supabaseAuth, mode = "signup" }) {
+  const strength = getPasswordStrength(password, supabaseAuth, mode);
+  const width = password ? `${Math.max(12, (strength.level / 4) * 100)}%` : "0%";
+
+  return (
+    <div className="auth-password-strength" aria-live="polite">
+      <div className="auth-password-strength__track" aria-hidden="true">
+        <div
+          className={`auth-password-strength__bar auth-password-strength__bar--level-${strength.level}`}
+          style={{ width }}
+        />
+      </div>
+      <p className="auth-password-strength__label">
+        Strength: <span>{strength.label}</span>
+      </p>
+    </div>
+  );
+}
+
+export function PasswordMatchHint({ password, confirmPassword }) {
+  if (!confirmPassword) return null;
+  const matched = passwordsMatch(password, confirmPassword);
+
+  return (
+    <p
+      className={`auth-password-match${matched ? " auth-password-match--ok" : " auth-password-match--error"}`}
+      role={matched ? "status" : "alert"}
+      aria-live="polite"
+    >
+      <Check size={14} aria-hidden="true" />
+      <span>{matched ? "Passwords match" : "Passwords do not match"}</span>
+    </p>
   );
 }
