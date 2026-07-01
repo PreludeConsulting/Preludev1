@@ -31,6 +31,7 @@ export function dashboardRoleLabel(role) {
 }
 
 export function canAccessDashboardRole(user, requiredRole) {
+  if (requiredRole === "admin") return Boolean(user?.matchingTeamAccess || user?.systemRole === "admin" || roleFromUser(user) === "admin");
   return roleFromUser(user) === requiredRole;
 }
 
