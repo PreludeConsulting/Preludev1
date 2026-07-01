@@ -57,7 +57,7 @@ Google provider:
 Built-in Supabase auth email:
 
 - Configure Supabase Auth SMTP with Resend for signup confirmation, magic link, and email change.
-- Prelude sends **password reset links through Resend directly** via `POST /api/auth/request-password-reset` (Supabase admin `generateLink` + Prelude HTML email). This matches the login verification email pipeline and does not rely on Supabase's recovery SMTP template.
+- Prelude sends **password reset links through Resend directly** via `POST /api/auth/request-password-reset` (Supabase admin `generateLink` + Prelude HTML email). Email links point to `https://your-domain/reset-password?token_hash=...&type=recovery` (not Supabase `action_link`) so scanners are less likely to consume the token and users always land on the reset page.
 - Host: `smtp.resend.com`
 - Port: `465`
 - Username: `resend`

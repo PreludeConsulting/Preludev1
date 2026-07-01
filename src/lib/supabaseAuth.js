@@ -182,6 +182,9 @@ function friendlyPasswordSignInError(error) {
 export function friendlyProviderError(rawError = "") {
   const message = String(rawError || "").toLowerCase();
   if (!message) return "We couldn't finish signing you in. Please try again.";
+  if (message.includes("otp_expired") || message.includes("invalid or has expired") || message.includes("email link is invalid")) {
+    return "This password reset link has expired or was already used. Request a new reset email.";
+  }
   if (message.includes("access_denied") || message.includes("denied") || message.includes("cancel")) {
     return "Google sign-in was canceled.";
   }
@@ -797,7 +800,13 @@ async function processPasswordRecovery(search, hash) {
     type: searchParams.get("type") || hashParams.get("type") || "",
     hasHashAccessToken: Boolean(hashParams.get("access_token"))
   });
-  const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
+  const providerError =
+    searchParams.get("error_description") ||
+    searchParams.get("error") ||
+    searchParams.get("error_code") ||
+    hashParams.get("error_description") ||
+    hashParams.get("error") ||
+    hashParams.get("error_code");
   if (providerError) return { hasRecoverySession: false, error: friendlyProviderError(providerError), email: null };
 
   const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");

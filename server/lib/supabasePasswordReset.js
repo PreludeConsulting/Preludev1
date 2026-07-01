@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { buildPasswordResetEmailUrl } from "../../shared/authRecoveryLink.js";
 import { buildAuthUrl, deliverAuthEmail } from "./authEmail.js";
 
 export function normalizeResetEmail(email) {
@@ -73,7 +74,8 @@ export async function sendSupabasePasswordResetEmail({ email, req, env = process
     return { delivered: false, reason: "generate_link_failed", accountUnknown: true };
   }
 
-  const resetUrl = data?.properties?.action_link;
+  const appOrigin = new URL(redirectTo).origin;
+  const resetUrl = buildPasswordResetEmailUrl(appOrigin, data?.properties);
   if (!resetUrl) {
     console.error("[prelude-auth] password_reset_missing_action_link", { email: normalizedEmail });
     return { delivered: false, reason: "missing_action_link" };

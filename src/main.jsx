@@ -21,6 +21,7 @@ import { PreludeMotionProvider } from "./context/MotionContext.jsx";
 import { SoundProvider } from "./lib/sound/SoundProvider.jsx";
 import { InteractionFeedbackProvider } from "./components/interaction/InteractionFeedback.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
+import AuthLandingRedirect from "./components/AuthLandingRedirect.jsx";
 import {
   AuthCallbackPage,
   ForgotPasswordPage,
@@ -48,6 +49,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter basename={ROUTER_BASENAME || undefined}>
       <ScrollToTop />
+      <AuthLandingRedirect />
       <LanguageProvider>
         <PreludeMotionProvider>
         <SoundProvider>
