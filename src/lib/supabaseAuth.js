@@ -9,7 +9,6 @@ import { appPath } from "./appPaths.js";
 import { sanitizeAuthRedirect } from "./authRedirects.js";
 import { getPublicAppUrl, getSupabaseConfigError, isSupabaseConfigured } from "./supabaseConfig.js";
 import { mapSupabaseUser } from "./supabaseSession.js";
-import { appPath } from "./appPaths.js";
 import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
 import {
   clearLocalUserData,
