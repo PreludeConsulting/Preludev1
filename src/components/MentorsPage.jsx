@@ -46,7 +46,7 @@ function MentorsPageContent() {
           <section className="mentors-page__onepager" aria-labelledby="mentors-page-title">
             <div className="mentors-page__hero-copy">
               <h1 id="mentors-page-title" className="mentors-page__title">
-                Meet mentors who made it.
+                Meet mentors <span>who made it.</span>
               </h1>
               <p className="mentors-page__intro">
                 Prelude matches students with near-peer mentors for essays, school lists, and application momentum.
@@ -77,7 +77,10 @@ function MentorsPageContent() {
                     loading="eager"
                     decoding="async"
                   />
-                  <span>{mentor.institutionShort}</span>
+                  <div className="mentors-page__stamp-caption">
+                    <strong>{mentor.name}</strong>
+                    <span>{mentor.university}</span>
+                  </div>
                 </article>
               ))}
             </div>
