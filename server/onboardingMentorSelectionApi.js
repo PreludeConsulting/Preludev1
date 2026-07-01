@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   MENTOR_ASSIGNMENT_STATUS,
   MENTOR_SELECTION_METHOD,
+  effectiveMatchedMentorCount,
   resolveMentorSelection
 } from "../shared/mentorSelectionLogic.js";
 import { readJsonBody, sendJson } from "./http.js";
@@ -155,7 +156,7 @@ async function handleGetMentorSelection(req, res) {
   }
 
   return sendJson(res, 200, {
-    matchedMentorCount: onboarding.matched_mentor_count ?? matchedIds.length,
+    matchedMentorCount: effectiveMatchedMentorCount(onboarding.matched_mentor_count, matchedIds),
     matchedMentorIds: matchedIds,
     mentors,
     selectedMentorId: onboarding.selected_mentor_id || null,
@@ -194,7 +195,7 @@ async function handleSaveMentorSelection(req, res) {
   }
 
   const matchedIds = onboarding.matched_mentor_ids || [];
-  const matchedCount = onboarding.matched_mentor_count ?? matchedIds.length;
+  const matchedCount = effectiveMatchedMentorCount(onboarding.matched_mentor_count, matchedIds);
   const resolved = resolveMentorSelection({
     matchedMentorIds: matchedIds,
     matchedMentorCount: matchedCount,

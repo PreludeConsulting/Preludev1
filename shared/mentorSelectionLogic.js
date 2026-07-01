@@ -17,6 +17,12 @@ export const MENTOR_ASSIGNMENT_STATUS = {
 /** Minimum match score for a mentor to count as a PreludeMatch result. */
 export const MIN_MATCH_SCORE = 58;
 
+export function effectiveMatchedMentorCount(matchedMentorCount, matchedMentorIds = []) {
+  const ids = Array.isArray(matchedMentorIds) ? matchedMentorIds.filter(Boolean) : [];
+  const stored = Number.isFinite(matchedMentorCount) ? matchedMentorCount : 0;
+  return Math.max(stored, ids.length);
+}
+
 export function canStudentSelectMentor(matchedMentorCount) {
   return matchedMentorCount === 1 || matchedMentorCount === 2;
 }
@@ -62,8 +68,8 @@ export function resolveMentorSelection({
   selectedMentorId = null,
   now = new Date()
 }) {
-  const count = Number.isFinite(matchedMentorCount) ? matchedMentorCount : matchedMentorIds.length;
   const ids = Array.isArray(matchedMentorIds) ? matchedMentorIds.filter(Boolean) : [];
+  const count = effectiveMatchedMentorCount(matchedMentorCount, ids);
   const timestamp = now.toISOString();
 
   if (canStudentSelectMentor(count)) {
@@ -122,4 +128,20 @@ export function resolveMentorSelection({
 
 export function filterMatchedMentors(rankedMentors = [], minScore = MIN_MATCH_SCORE) {
   return rankedMentors.filter((mentor) => (mentor.matchPercent ?? mentor.score ?? 0) >= minScore);
+}
+
+/** Keep strong matches, but always return the top mentor when a live pool exists. */
+export function finalizeMatchedMentors(rankedItems = [], minScore = MIN_MATCH_SCORE) {
+  const rankedMentors = rankedItems.map((item) => {
+    const mentor = item.mentor || item;
+    const score = item.score ?? mentor.matchPercent ?? 0;
+    return { ...mentor, matchPercent: score };
+  });
+  const matched = filterMatchedMentors(rankedMentors, minScore);
+  if (matched.length || !rankedItems.length) return matched;
+  const top = rankedItems[0];
+  if (top?.mentor) {
+    return [{ ...top.mentor, matchPercent: top.score ?? top.mentor.matchPercent }];
+  }
+  return rankedMentors[0] ? [rankedMentors[0]] : [];
 }

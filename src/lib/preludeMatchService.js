@@ -6,7 +6,7 @@ import { PRELUDE_MATCH_MENTORS } from "../data/preludeMatchMentors.js";
 import { getSupabase } from "./supabase.js";
 import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
 import { getMentorMatchingProfile, mapMentorMatchingProfile, rankSupabaseMentorsForStudent } from "./mentorQuestionnaireService.js";
-import { filterMatchedMentors, MIN_MATCH_SCORE, resolveMentorSelection } from "../../shared/mentorSelectionLogic.js";
+import { filterMatchedMentors, finalizeMatchedMentors, MIN_MATCH_SCORE, resolveMentorSelection, effectiveMatchedMentorCount } from "../../shared/mentorSelectionLogic.js";
 
 const MENTOR_CATALOG = PRELUDE_MATCH_MENTORS.map((m) => ({
   ...m,
@@ -52,7 +52,8 @@ export function rankMentors(answers = {}) {
 }
 
 export function rankDemoMatchedMentors(answers = {}) {
-  return filterMatchedMentors(rankMentors(answers), MIN_MATCH_SCORE);
+  const ranked = rankMentors(answers).map((mentor) => ({ mentor, score: mentor.matchPercent }));
+  return finalizeMatchedMentors(ranked, MIN_MATCH_SCORE);
 }
 
 export function pickSuggestedMentor(answers) {
@@ -85,7 +86,7 @@ export async function saveMatchQuestionnaire(userId, answers) {
   const demoMatches = rankDemoMatchedMentors(answers);
   const mentors = matchedMentors.length ? matchedMentors : demoMatches;
   const ids = matchedMentorIds.length ? matchedMentorIds : mentors.map((mentor) => mentor.id);
-  const count = matchedMentorCount || mentors.length;
+  const count = effectiveMatchedMentorCount(matchedMentorCount || mentors.length, ids);
   const suggested = mentors[0] || pickSuggestedMentor(answers);
 
   const payload = {
@@ -188,8 +189,9 @@ export async function requestMentorMatch(userId, mentorId) {
 
 function mapMentorSelectionState(onboarding, mentors = []) {
   const matchedIds = onboarding?.matched_mentor_ids || [];
+  const matchedMentorCount = effectiveMatchedMentorCount(onboarding?.matched_mentor_count, matchedIds);
   return {
-    matchedMentorCount: onboarding?.matched_mentor_count ?? matchedIds.length,
+    matchedMentorCount,
     matchedMentorIds: matchedIds,
     mentors,
     selectedMentorId: onboarding?.selected_mentor_id || null,
@@ -225,13 +227,46 @@ async function loadMatchedMentorCards(userId, matchedIds = []) {
 }
 
 export async function loadMentorSelectionStateDirect(userId) {
-  const { onboarding, error } = await loadOnboardingProgress(userId);
+  let { onboarding, error } = await loadOnboardingProgress(userId);
   if (error) throw new Error(error);
   if (!onboarding?.mentor_matching_complete) {
     throw new Error("Complete the PreludeMatch quiz first.");
   }
-  const matchedIds = onboarding.matched_mentor_ids || [];
-  const mentors = await loadMatchedMentorCards(userId, matchedIds);
+
+  let matchedIds = onboarding.matched_mentor_ids || [];
+  let mentors = await loadMatchedMentorCards(userId, matchedIds);
+  const needsRematch =
+    !matchedIds.length &&
+    onboarding.questionnaire_answers &&
+    Object.keys(onboarding.questionnaire_answers).length > 0;
+
+  if (needsRematch) {
+    const rematch = await rankSupabaseMentorsForStudent(userId, onboarding.questionnaire_answers);
+    if (rematch.matchedMentorIds?.length) {
+      const now = new Date().toISOString();
+      const { data: updated, error: saveError } = await getSupabase()
+        .from("onboarding_progress")
+        .update({
+          matched_mentor_ids: rematch.matchedMentorIds,
+          matched_mentor_count: rematch.matchedMentorCount,
+          suggested_mentor_id: rematch.matchedMentors[0]?.id || onboarding.suggested_mentor_id,
+          updated_at: now
+        })
+        .eq("user_id", userId)
+        .select()
+        .maybeSingle();
+      if (!saveError && updated) {
+        onboarding = updated;
+        matchedIds = rematch.matchedMentorIds;
+        mentors = rematch.matchedMentors;
+      }
+    }
+  }
+
+  if (matchedIds.length && !mentors.length) {
+    mentors = await loadMatchedMentorCards(userId, matchedIds);
+  }
+
   return mapMentorSelectionState(onboarding, mentors);
 }
 
@@ -268,7 +303,7 @@ export async function saveMentorSelectionDirect(userId, { selectedMentorId = nul
   }
 
   const matchedIds = onboarding.matched_mentor_ids || [];
-  const matchedCount = onboarding.matched_mentor_count ?? matchedIds.length;
+  const matchedCount = effectiveMatchedMentorCount(onboarding.matched_mentor_count, matchedIds);
   const resolved = resolveMentorSelection({
     matchedMentorIds: matchedIds,
     matchedMentorCount: matchedCount,

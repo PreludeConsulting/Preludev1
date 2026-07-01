@@ -211,6 +211,11 @@ export default function PreludeMatchOnboardingPage() {
       return;
     }
 
+    const mode = matchedMentorCount === 1 || matchedMentorCount === 2 ? "student_select" : "other";
+    if (mode !== "student_select") {
+      setError("");
+    }
+
     setSaving(true);
     setError("");
     try {

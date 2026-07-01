@@ -1,5 +1,5 @@
 import { getSupabase } from "./supabase.js";
-import { filterMatchedMentors, MIN_MATCH_SCORE } from "../../shared/mentorSelectionLogic.js";
+import { filterMatchedMentors, finalizeMatchedMentors, MIN_MATCH_SCORE } from "../../shared/mentorSelectionLogic.js";
 
 const EMPTY_ARRAY = [];
 
@@ -228,6 +228,7 @@ export function scoreMentorForStudent(studentAnswers = {}, mentorRow) {
   if (structureScale > 0 && structureScale <= 2 && overlap(["Flexible and conversational"], mentorRow.support_styles).length) {
     score += 7;
   }
+  if (mentorRow.completed) score += 8;
   if (mentorRow.availability) score += 3;
 
   return {
@@ -258,10 +259,7 @@ export async function rankSupabaseMentorsForStudent(studentUserId, studentAnswer
     })
     .sort((a, b) => b.score - a.score);
 
-  const matched = filterMatchedMentors(
-    ranked.map((item) => ({ ...item.mentor, matchPercent: item.score })),
-    minScore
-  );
+  const matched = finalizeMatchedMentors(ranked, minScore);
   const matchedIds = new Set(matched.map((mentor) => mentor.id));
   const matchedRanked = ranked.filter((item) => matchedIds.has(item.row.mentor_user_id));
   const toPersist = persistLimit ? matchedRanked.slice(0, persistLimit) : matchedRanked;

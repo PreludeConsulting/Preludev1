@@ -7,7 +7,9 @@ import {
   MENTOR_SELECTION_METHOD,
   requiresAdminReview,
   resolveMentorSelection,
-  filterMatchedMentors
+  filterMatchedMentors,
+  finalizeMatchedMentors,
+  effectiveMatchedMentorCount
 } from "../shared/mentorSelectionLogic.js";
 
 describe("mentorSelectionLogic", () => {
@@ -86,5 +88,20 @@ describe("mentorSelectionLogic", () => {
     expect(getMentorSelectionMode(1)).toBe("student_select");
     expect(getMentorSelectionMode(0)).toBe("no_matches");
     expect(getMentorSelectionMode(4)).toBe("admin_review");
+  });
+
+  it("uses mentor ids when stored count is zero", () => {
+    expect(effectiveMatchedMentorCount(0, ["mentor-vincent"])).toBe(1);
+  });
+
+  it("returns the top mentor when no one clears the score threshold", () => {
+    const matched = finalizeMatchedMentors(
+      [
+        { mentor: { id: "vincent", name: "Vincent", matchPercent: 53 }, score: 53 },
+        { mentor: { id: "other", name: "Other", matchPercent: 52 }, score: 52 }
+      ],
+      MIN_MATCH_SCORE
+    );
+    expect(matched.map((mentor) => mentor.id)).toEqual(["vincent"]);
   });
 });
