@@ -69,3 +69,24 @@ export async function assignMentorAsAdmin(studentId, mentorId) {
     body: JSON.stringify({ mentorId })
   });
 }
+
+export async function checkMatchingTeamAccess() {
+  return mentorSelectionApi("/api/admin/mentor-review/access");
+}
+
+export async function loadMatchingTeamQueue() {
+  return mentorSelectionApi("/api/admin/mentor-review");
+}
+
+export async function assignMentorAsMatchingTeam(studentId, mentorId) {
+  return mentorSelectionApi(`/api/admin/mentor-review/${encodeURIComponent(studentId)}/assign`, {
+    method: "POST",
+    body: JSON.stringify({ mentorId })
+  });
+}
+
+export async function removeMentorAsMatchingTeam(studentId) {
+  return mentorSelectionApi(`/api/admin/mentor-review/${encodeURIComponent(studentId)}/assign`, {
+    method: "DELETE"
+  });
+}

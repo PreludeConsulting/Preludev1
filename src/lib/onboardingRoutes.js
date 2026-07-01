@@ -48,7 +48,7 @@ export function profilePathForRole(role) {
 
 export function billingPathForRole(role) {
   const r = roleFromUser({ role });
-  return r === "mentor" ? mentorRoute("billing") : studentRoute("billing");
+  return r === "mentor" ? mentorRoute("settings") : studentRoute("billing");
 }
 
 export function helpPathForRole(role) {

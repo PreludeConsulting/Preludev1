@@ -436,20 +436,6 @@ export function StudentMentorMatching() {
   );
 }
 
-export function MentorBilling() {
-  const { user, planDetails } = useAuth();
-  return (
-    <div className="dash-page dash-page--premium">
-      <DashboardPageHeader title="Plans and Billing" subtitle="Mentor account billing." />
-      <SectionCard className="dash-panel">
-        <p className="dash-muted">Mentor billing is managed separately. Your account: {user?.email}</p>
-        {planDetails ? <DashBadge variant="lavender">{planDetails.name} plan</DashBadge> : null}
-        <p className="dash-muted">Payment integration coming soon.</p>
-      </SectionCard>
-    </div>
-  );
-}
-
 export function MentorHelp() {
   return (
     <div className="dash-page dash-page--premium">

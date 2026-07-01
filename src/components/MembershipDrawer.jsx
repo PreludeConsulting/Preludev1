@@ -41,8 +41,9 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
   if (!user) return null;
 
   const dashboardPath = dashboardHomeForRole(user.role);
-  const activePlan = planDetails || (user.plan ? getPlan(user.plan) : null);
   const roleLabel = roleFromUser(user);
+  const isMentor = roleLabel === "mentor";
+  const activePlan = isMentor ? null : planDetails || (user.plan ? getPlan(user.plan) : null);
 
   async function handleManageBilling() {
     setBillingLoading(true);
@@ -90,6 +91,12 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
             <div className="membership-drawer__body">
               {activePlan ? (
                 <MembershipPlanCard plan={activePlan} planId={user.plan || activePlan.id} />
+              ) : isMentor ? (
+                <section className="membership-plan-card">
+                  <p className="membership-plan-card__eyebrow">Account role</p>
+                  <h3 className="membership-plan-card__name">Mentor</h3>
+                  <p className="membership-plan-card__desc">This mentor account does not use a student membership plan.</p>
+                </section>
               ) : (
                 <section className="membership-plan-card">
                   <p className="membership-plan-card__eyebrow">Account role</p>
@@ -98,55 +105,59 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
                 </section>
               )}
 
-              {user.subscriptionStatus ? (
+              {!isMentor && user.subscriptionStatus ? (
                 <p className="membership-drawer__meta">Billing status: {user.subscriptionStatus}</p>
               ) : null}
 
-              <section className="membership-drawer__section">
-                <h3 className="membership-drawer__section-title">
-                  <Bot className="h-4 w-4" /> {PRELUDE_AI_NAME} Tools
-                </h3>
-                <ul className="membership-drawer__list">
-                  {(activePlan?.aiFeatures || []).map((item) => (
-                    <li key={item}>
-                      <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </section>
+              {!isMentor ? (
+                <>
+                  <section className="membership-drawer__section">
+                    <h3 className="membership-drawer__section-title">
+                      <Bot className="h-4 w-4" /> {PRELUDE_AI_NAME} Tools
+                    </h3>
+                    <ul className="membership-drawer__list">
+                      {(activePlan?.aiFeatures || []).map((item) => (
+                        <li key={item}>
+                          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
 
-              <section className="membership-drawer__section">
-                <h3 className="membership-drawer__section-title">Software & Roadmap</h3>
-                <ul className="membership-drawer__list">
-                  {(activePlan?.softwareAccess || []).map((item) => (
-                    <li key={item}>
-                      <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </section>
+                  <section className="membership-drawer__section">
+                    <h3 className="membership-drawer__section-title">Software & Roadmap</h3>
+                    <ul className="membership-drawer__list">
+                      {(activePlan?.softwareAccess || []).map((item) => (
+                        <li key={item}>
+                          <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
 
-              <section className="membership-drawer__section">
-                <h3 className="membership-drawer__section-title">Mentor Access</h3>
-                <ul className="membership-drawer__list">
-                  <li>
-                    <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
-                    {activePlan?.mentorSessions || "Plan selection controls mentor access."}
-                  </li>
-                  <li>
-                    <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
-                    {activePlan?.messaging || "Messaging access is based on your selected plan."}
-                  </li>
-                  {(activePlan?.mentorExtras || []).map((item) => (
-                    <li key={item}>
-                      <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </section>
+                  <section className="membership-drawer__section">
+                    <h3 className="membership-drawer__section-title">Mentor Access</h3>
+                    <ul className="membership-drawer__list">
+                      <li>
+                        <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
+                        {activePlan?.mentorSessions || "Plan selection controls mentor access."}
+                      </li>
+                      <li>
+                        <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
+                        {activePlan?.messaging || "Messaging access is based on your selected plan."}
+                      </li>
+                      {(activePlan?.mentorExtras || []).map((item) => (
+                        <li key={item}>
+                          <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                </>
+              ) : null}
 
               {user.focus ? (
                 <p className="membership-drawer__focus">
@@ -154,7 +165,7 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
                 </p>
               ) : null}
 
-              {user.hasBillingCustomer ? (
+              {!isMentor && user.hasBillingCustomer ? (
                 <button
                   type="button"
                   className="prelude-btn-secondary membership-drawer__btn"

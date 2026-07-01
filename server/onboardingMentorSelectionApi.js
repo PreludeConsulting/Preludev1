@@ -22,6 +22,10 @@ function initialsFor(name) {
 function mapMentorRow(row, score = null, reasons = []) {
   if (!row) return null;
   const specialties = Array.isArray(row.specialties) ? row.specialties : [];
+  const targetMajors = Array.isArray(row.target_majors) ? row.target_majors : [];
+  const targetSchools = Array.isArray(row.target_schools) ? row.target_schools : [];
+  const supportStyles = Array.isArray(row.support_styles) ? row.support_styles : [];
+  const applicationStrengths = Array.isArray(row.application_strengths) ? row.application_strengths : [];
   return {
     id: row.mentor_user_id,
     name: row.display_name || "Prelude mentor",
@@ -30,10 +34,16 @@ function mapMentorRow(row, score = null, reasons = []) {
     major: row.major || "Admissions mentor",
     matchPercent: score ?? 88,
     tags: specialties.slice(0, 3),
+    specialties,
+    targetMajors,
+    targetSchools,
+    supportStyles,
+    applicationStrengths,
     reason: reasons[0] || row.bio || "Strong fit based on your questionnaire.",
     availability: row.availability || "Availability shared after matching",
     initials: initialsFor(row.display_name),
     bio: row.bio || "",
+    completed: Boolean(row.completed),
     source: "supabase"
   };
 }
@@ -86,11 +96,29 @@ async function requireSupabaseUser(req) {
   return { supabase, user: data.user };
 }
 
-async function requireAdmin(req) {
+function matchingTeamEmails() {
+  return [
+    process.env.PRELUDE_MATCHING_TEAM_EMAILS,
+    process.env.MATCHING_TEAM_EMAILS,
+    process.env.ADMIN_EMAIL_WHITELIST
+  ]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(","))
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isMatchingTeamProfile(profile, user) {
+  if (profile?.role === "admin") return true;
+  const email = String(user?.email || "").trim().toLowerCase();
+  return Boolean(email && matchingTeamEmails().includes(email));
+}
+
+async function requireMatchingTeam(req) {
   const { supabase, user } = await requireSupabaseUser(req);
   const { data: profile, error } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).maybeSingle();
-  if (error || profile?.role !== "admin") {
-    const authError = new Error("Admin access required.");
+  if (error || !isMatchingTeamProfile(profile, user)) {
+    const authError = new Error("Matching Team access required.");
     authError.statusCode = 403;
     throw authError;
   }
@@ -256,12 +284,37 @@ async function handleSaveMentorSelection(req, res) {
   });
 }
 
+function getMatchStatus(row) {
+  if (row.admin_review_required) return "needs_review";
+  if (
+    row.selected_mentor_id
+    || row.mentor_assignment_status === MENTOR_ASSIGNMENT_STATUS.ADMIN_ASSIGNED
+    || row.mentor_assignment_status === MENTOR_ASSIGNMENT_STATUS.STUDENT_SELECTED
+  ) return "matched";
+  return "unmatched";
+}
+
+async function loadCompletedMentors(supabase) {
+  const { data, error } = await supabase
+    .from("mentor_matching_profiles")
+    .select("*")
+    .eq("completed", true)
+    .order("display_name", { ascending: true });
+  if (error) throw error;
+  return (data || []).map((row) => mapMentorRow(row)).filter(Boolean);
+}
+
+async function handleMatchingTeamAccess(req, res) {
+  await requireMatchingTeam(req);
+  return sendJson(res, 200, { allowed: true, teamName: "Matching Team" });
+}
+
 async function handleAdminList(req, res) {
-  const { supabase } = await requireAdmin(req);
+  const { supabase } = await requireMatchingTeam(req);
   const { data: rows, error } = await supabase
     .from("onboarding_progress")
     .select("user_id, questionnaire_answers, matched_mentor_ids, matched_mentor_count, admin_review_required, mentor_assignment_status, mentor_selection_method, selected_mentor_id, mentor_selection_timestamp, updated_at")
-    .eq("admin_review_required", true)
+    .not("questionnaire_answers", "is", null)
     .order("mentor_selection_timestamp", { ascending: false, nullsFirst: false });
   if (error) return sendJson(res, 500, { error: "load_failed", message: "Could not load mentor review queue." });
 
@@ -280,16 +333,18 @@ async function handleAdminList(req, res) {
     adminReviewRequired: Boolean(row.admin_review_required),
     mentorAssignmentStatus: row.mentor_assignment_status,
     mentorSelectionMethod: row.mentor_selection_method,
+    matchStatus: getMatchStatus(row),
     selectedMentorId: row.selected_mentor_id,
     selectionTimestamp: row.mentor_selection_timestamp,
     updatedAt: row.updated_at
   }));
 
-  return sendJson(res, 200, { students });
+  const mentors = await loadCompletedMentors(supabase);
+  return sendJson(res, 200, { students, mentors });
 }
 
 async function handleAdminAssign(req, res, studentId) {
-  const { supabase } = await requireAdmin(req);
+  const { supabase } = await requireMatchingTeam(req);
   const payload = adminAssignSchema.parse(await readJsonBody(req));
 
   const { data: onboarding, error: loadError } = await supabase
@@ -299,14 +354,6 @@ async function handleAdminAssign(req, res, studentId) {
     .maybeSingle();
   if (loadError || !onboarding) {
     return sendJson(res, 404, { error: "not_found", message: "Student onboarding record not found." });
-  }
-
-  const matchedIds = onboarding.matched_mentor_ids || [];
-  if (matchedIds.length && !matchedIds.includes(payload.mentorId)) {
-    return sendJson(res, 400, {
-      error: "invalid_mentor",
-      message: "Assign a mentor from the student's matched list or update matches first."
-    });
   }
 
   const mentor = await getMentorDisplay(supabase, payload.mentorId);
@@ -331,7 +378,7 @@ async function handleAdminAssign(req, res, studentId) {
     studentId,
     mentor,
     status: "assigned",
-    notes: "Assigned by Prelude admin after mentor review."
+    notes: "Assigned by Prelude Matching Team after questionnaire review."
   });
 
   return sendJson(res, 200, {
@@ -341,19 +388,61 @@ async function handleAdminAssign(req, res, studentId) {
   });
 }
 
+async function handleAdminRemoveAssign(req, res, studentId) {
+  const { supabase } = await requireMatchingTeam(req);
+
+  const { data: onboarding, error: loadError } = await supabase
+    .from("onboarding_progress")
+    .select("user_id")
+    .eq("user_id", studentId)
+    .maybeSingle();
+  if (loadError || !onboarding) {
+    return sendJson(res, 404, { error: "not_found", message: "Student onboarding record not found." });
+  }
+
+  const now = new Date().toISOString();
+  const { error: saveError } = await supabase
+    .from("onboarding_progress")
+    .update({
+      selected_mentor_id: null,
+      suggested_mentor_id: null,
+      mentor_assignment_status: null,
+      admin_review_required: true,
+      match_decision: null,
+      updated_at: now
+    })
+    .eq("user_id", studentId);
+  if (saveError) return sendJson(res, 500, { error: "save_failed", message: "Could not remove mentor match." });
+
+  const { error: deleteError } = await supabase
+    .from("mentor_matches")
+    .delete()
+    .eq("user_id", studentId)
+    .in("status", ["assigned", "saved", "pending"]);
+  if (deleteError) return sendJson(res, 500, { error: "delete_failed", message: "Could not remove mentor match." });
+
+  return sendJson(res, 200, {
+    studentId,
+    selectedMentorId: null,
+    mentorAssignmentStatus: null,
+    matchStatus: "needs_review"
+  });
+}
+
 export function createOnboardingMentorSelectionMiddleware() {
   return async function onboardingMentorSelectionMiddleware(req, res, next) {
     const url = new URL(req.url || "/", "http://localhost");
     const pathname = url.pathname;
     const isSelectionRoute = pathname === "/api/onboarding/mentor-selection";
+    const isAdminAccess = pathname === "/api/admin/mentor-review/access";
     const isAdminList = pathname === "/api/admin/mentor-review";
     const isAdminAssign = pathname.startsWith("/api/admin/mentor-review/") && pathname.endsWith("/assign");
 
-    if (!isSelectionRoute && !isAdminList && !isAdminAssign) return next();
+    if (!isSelectionRoute && !isAdminAccess && !isAdminList && !isAdminAssign) return next();
 
     if (req.method === "OPTIONS") {
       res.statusCode = 204;
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
       res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
       res.end();
       return;
@@ -362,10 +451,15 @@ export function createOnboardingMentorSelectionMiddleware() {
     try {
       if (isSelectionRoute && req.method === "GET") return await handleGetMentorSelection(req, res);
       if (isSelectionRoute && req.method === "POST") return await handleSaveMentorSelection(req, res);
+      if (isAdminAccess && req.method === "GET") return await handleMatchingTeamAccess(req, res);
       if (isAdminList && req.method === "GET") return await handleAdminList(req, res);
       if (isAdminAssign && req.method === "POST") {
         const studentId = pathname.split("/")[4];
         return await handleAdminAssign(req, res, studentId);
+      }
+      if (isAdminAssign && req.method === "DELETE") {
+        const studentId = pathname.split("/")[4];
+        return await handleAdminRemoveAssign(req, res, studentId);
       }
       return sendJson(res, 404, { error: "not_found" });
     } catch (error) {

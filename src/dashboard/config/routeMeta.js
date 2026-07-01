@@ -24,7 +24,6 @@ export const MENTOR_ROUTE_META = {
   notifications: { title: "Notifications", subtitle: "Student requests and schedule updates." },
   availability: { title: "Availability", subtitle: "Set the times you're available for students to book meetings." },
   settings: { title: "Settings", subtitle: "Profile, account, and preferences." },
-  billing: { title: "Plans and Billing", subtitle: "Mentor account billing." },
   help: { title: "Help and Support", subtitle: "Resources for Prelude mentors." },
   "demo-student-jordan": { title: "Student profile", subtitle: "Progress, notes, and meeting history." },
   "demo-student-alex": { title: "Student profile", subtitle: "Progress, notes, and meeting history." }

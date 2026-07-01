@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { UserCheck } from "lucide-react";
 import { Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import EmailVerificationBanner from "../../components/EmailVerificationBanner.jsx";
@@ -12,17 +13,45 @@ import PreludeFloatingChat from "./chat/PreludeFloatingChat.jsx";
 import { PreludeChatProvider } from "../context/PreludeChatContext.jsx";
 import { PlanUpgradeProvider } from "../context/PlanUpgradeContext.jsx";
 import { MotionPage } from "../../components/motion/MotionPrimitives.jsx";
+import { checkMatchingTeamAccess } from "../../lib/mentorSelectionApi.js";
 
 export default function DashboardLayout({ navItems, basePath, productNav }) {
   const location = useLocation();
   const { user } = useAuth();
   const { error: dataError } = useDashboardData();
+  const [showMatchingNav, setShowMatchingNav] = useState(false);
   const showVerifyBanner = Boolean(user && !user.emailVerified);
   const showParentReminder = roleFromUser(user) === "student";
+  const visibleNavItems = useMemo(() => {
+    const items = productNav || navItems || [];
+    if (!showMatchingNav) return items;
+    if (items.some((item) => item.to === "/matching")) return items;
+    return [...items, { to: "/matching", label: "Matching", icon: UserCheck }];
+  }, [navItems, productNav, showMatchingNav]);
 
   useEffect(() => {
     applyPreferences();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMatchingAccess() {
+      if (!user) {
+        setShowMatchingNav(false);
+        return;
+      }
+      try {
+        await checkMatchingTeamAccess();
+        if (!cancelled) setShowMatchingNav(true);
+      } catch {
+        if (!cancelled) setShowMatchingNav(false);
+      }
+    }
+    loadMatchingAccess();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   return (
     <PreludeChatProvider>
@@ -32,7 +61,7 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
         <div className="dash-shell__grain pointer-events-none" aria-hidden="true" />
         <div className="dash-product-canvas">
           <div className="dash-product-frame">
-            <DashboardProductNav navItems={productNav || navItems} basePath={basePath} />
+            <DashboardProductNav navItems={visibleNavItems} basePath={basePath} />
             <main className="dash-product-main">
               {dataError ? (
                 <div className="dash-callout dash-callout--error" role="alert">

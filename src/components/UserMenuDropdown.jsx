@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { roleFromUser } from "../lib/dashboardRoutes.js";
 import {
   billingPathForRole,
   dashboardPathForRole,
@@ -31,7 +32,14 @@ export default function UserMenuDropdown({ className = "" }) {
   const settingsPath = settingsPathForRole(user.role);
   const billingPath = billingPathForRole(user.role);
   const helpPath = helpPathForRole(user.role);
-  const planLabel = planDetails ? `${planDetails.name} plan` : user.planName ? `${user.planName} plan` : "No plan selected";
+  const isMentor = roleFromUser(user) === "mentor";
+  const planLabel = isMentor
+    ? "Mentor account"
+    : planDetails
+      ? `${planDetails.name} plan`
+      : user.planName
+        ? `${user.planName} plan`
+        : "No plan selected";
 
   async function handleLogout(close) {
     close();
@@ -67,10 +75,12 @@ export default function UserMenuDropdown({ className = "" }) {
             <Settings className="h-4 w-4" aria-hidden="true" />
             Settings
           </DropdownMenuItem>
-          <DropdownMenuItem as={Link} to={billingPath} onSelect={close}>
-            <CreditCard className="h-4 w-4" aria-hidden="true" />
-            Plans and Billing
-          </DropdownMenuItem>
+          {!isMentor ? (
+            <DropdownMenuItem as={Link} to={billingPath} onSelect={close}>
+              <CreditCard className="h-4 w-4" aria-hidden="true" />
+              Plans and Billing
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem as={Link} to={helpPath} onSelect={close}>
             <HelpCircle className="h-4 w-4" aria-hidden="true" />
             Help and Support

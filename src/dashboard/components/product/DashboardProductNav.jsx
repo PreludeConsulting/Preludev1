@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import PreludeLogo from "../../../components/PreludeLogo.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { roleFromUser } from "../../../lib/dashboardRoutes.js";
 import { cn } from "../../../lib/utils.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { usePreludeChatContextOptional } from "../../context/PreludeChatContext.jsx";
@@ -24,6 +25,8 @@ export default function DashboardProductNav({ navItems, basePath }) {
   const profileRef = useRef(null);
   const profileTriggerRef = useRef(null);
   const tabsRef = useRef(null);
+  const role = roleFromUser(user);
+  const isMentor = role === "mentor";
   const planName = planDetails?.name || user?.planName || "Basic";
   const firstName = (user?.firstName || user?.name || "Account").trim().split(/\s+/)[0] || "Account";
   const unreadCount = useMemo(
@@ -135,7 +138,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
   }
 
   return (
-    <header className="dash-product-nav">
+    <header className={cn("dash-product-nav", isMentor && "dash-product-nav--mentor")}>
       <Link to="/" className="dash-product-nav__logo">
         <PreludeLogo className="prelude-logo--compact" />
       </Link>
@@ -258,7 +261,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
             <div className="dash-product-nav__account-summary">
               <strong>{user?.name || "Account"}</strong>
               <span>{user?.email || "Signed in"}</span>
-              <span>{planName} plan</span>
+              {isMentor ? <span>Mentor account</span> : <span>{planName} plan</span>}
             </div>
             <div className="dash-product-nav__menu-divider" role="separator" />
             <NavLink
@@ -279,15 +282,17 @@ export default function DashboardProductNav({ navItems, basePath }) {
               <Settings className="dash-product-nav__menu-icon" aria-hidden="true" />
               <span>Settings</span>
             </NavLink>
-            <NavLink
-              to={`${basePath}/billing`}
-              className="dash-product-nav__menu-item"
-              role="menuitem"
-              onClick={() => closeProfileMenu({ restoreFocus: false })}
-            >
-              <CreditCard className="dash-product-nav__menu-icon" aria-hidden="true" />
-              <span>Plans and Billing</span>
-            </NavLink>
+            {!isMentor ? (
+              <NavLink
+                to={`${basePath}/billing`}
+                className="dash-product-nav__menu-item"
+                role="menuitem"
+                onClick={() => closeProfileMenu({ restoreFocus: false })}
+              >
+                <CreditCard className="dash-product-nav__menu-icon" aria-hidden="true" />
+                <span>Plans and Billing</span>
+              </NavLink>
+            ) : null}
             <NavLink
               to={`${basePath}/help`}
               className="dash-product-nav__menu-item"

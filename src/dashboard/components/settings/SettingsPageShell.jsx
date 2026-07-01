@@ -11,6 +11,7 @@ export default function SettingsPageShell({
   activeTab,
   onTabChange,
   onOpenAccount,
+  accountActionLabel = "Account & plan",
   children
 }) {
   const active = tabs.find((tab) => tab.id === activeTab) || tabs[0];
@@ -27,12 +28,12 @@ export default function SettingsPageShell({
             </p>
             <div className="dash-settings-id__badges">
               <DashBadge variant="soft">{roleLabel}</DashBadge>
-              <DashBadge variant="lavender">{planName} plan</DashBadge>
+              {planName ? <DashBadge variant="lavender">{planName} plan</DashBadge> : null}
             </div>
           </div>
           {onOpenAccount ? (
             <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" onClick={onOpenAccount}>
-              Account &amp; plan
+              {accountActionLabel}
             </button>
           ) : null}
         </div>
