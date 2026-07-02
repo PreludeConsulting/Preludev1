@@ -14,6 +14,9 @@ All post-auth routing decisions flow through `src/lib/onboardingRoutes.js`:
 6. `/onboarding/parent` for students who have not finished the parent invite step
 7. Dashboard home for completed users
 
+Parent invite details (API routes, email delivery, Supabase schema): see
+[`docs/parent-invites.md`](./parent-invites.md).
+
 `postAuthDestination(user)` is the single source of truth for the next required step.
 
 ## Navigation guards

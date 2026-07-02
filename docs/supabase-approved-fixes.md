@@ -7,8 +7,10 @@ belong in these SQL files or in any `VITE_` environment variable.
 2. Run `supabase/setup-auth.sql` to:
    - allow the existing `parent` application role; and
    - prevent authenticated users from changing their own authorization role.
-3. Run `supabase/parent-links.sql` to install the guarded
-   `accept_parent_invite` function used by the existing parent invite flow.
+3. Run `supabase/parent-links.sql` **or** apply migration
+   `supabase/migrations/20260703000000_parent_links.sql` to install parent invite
+   tables, RLS, and the guarded `accept_parent_invite` /
+   `connect_student_parent_email` functions used by the parent invite flow.
 4. Confirm RLS remains enabled:
 
    ```sql
