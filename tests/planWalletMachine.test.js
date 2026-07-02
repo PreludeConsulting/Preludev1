@@ -83,6 +83,11 @@ describe("plan wallet state machine", () => {
     }
   });
 
+  it("cannot close the wallet while a selected card is transitioning to details", () => {
+    const state = createWalletState({ status: S.SELECTING_CARD, selectedPlanId: "plus" });
+    expect(walletReducer(state, { type: "PRESS_WALLET" })).toEqual(state);
+  });
+
   it("returns to the open wallet with selection intact after View other plans", () => {
     let state = createWalletState({
       status: S.POPUP_OPEN,

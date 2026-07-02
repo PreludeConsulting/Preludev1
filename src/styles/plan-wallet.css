@@ -32,7 +32,7 @@
   transition: height 0.7s var(--pw-ease), transform 0.16s ease;
 }
 
-.pw-wallet--closed:active {
+.pw-wallet--closed:has(.pw-wallet__control:active) {
   transform: scale(0.985);
 }
 
@@ -171,6 +171,22 @@
 .pw-wallet--popupOpen .pw-card--selected,
 .pw-wallet--popupClosing .pw-card--selected {
   transform: translateY(calc(var(--pw-i) * var(--pw-card-step) - 0.55rem)) scale(1.015);
+}
+
+.pw-wallet--selectingCard .pw-card--selected {
+  transform: translateY(calc(var(--pw-i) * var(--pw-card-step) - 0.82rem)) scale(1.022);
+}
+
+.pw-wallet--popupOpening .pw-card--selected,
+.pw-wallet--popupOpen .pw-card--selected {
+  transform: translateY(calc(var(--pw-i) * var(--pw-card-step) - 0.9rem)) scale(1.026);
+}
+
+.pw-wallet--popupOpening .pw-card:not(.pw-card--selected),
+.pw-wallet--popupOpen .pw-card:not(.pw-card--selected),
+.pw-wallet--popupClosing .pw-card:not(.pw-card--selected) {
+  opacity: 0.68;
+  transform: translateY(calc(var(--pw-i) * var(--pw-card-step) + 0.18rem)) scale(0.992);
 }
 
 /* Tier faces — material-inspired hierarchy, no material names in copy. */
@@ -358,81 +374,117 @@
 }
 
 /* ------------------------------------------------------------------
-   Opener + close control
+   Wallet open / close control
    ------------------------------------------------------------------ */
 
-.pw-wallet__opener {
+.pw-wallet__control {
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: end center;
-  padding-bottom: 3.1rem;
-  border: 0;
-  border-radius: var(--pw-radius);
-  background: transparent;
+  left: 50%;
+  bottom: 3.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.38rem;
+  min-width: 8.4rem;
+  min-height: 2.42rem;
+  padding: 0.5rem 0.95rem;
+  border: 1px solid rgb(255 255 255 / 0.24);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.12);
+  color: rgb(255 255 255 / 0.94);
   cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 800;
+  transform: translateX(-50%);
   z-index: 30;
-  transition: opacity 0.25s ease;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    0 0.65rem 1.25rem rgb(9 12 36 / 0.18);
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    opacity 0.18s ease;
 }
 
-.pw-wallet__opener:disabled {
+.pw-wallet__control svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  transition: transform 0.22s ease;
+}
+
+.pw-wallet[data-deck-visible="true"] .pw-wallet__control svg {
+  transform: rotate(90deg);
+}
+
+.pw-wallet__control:hover:not(:disabled),
+.pw-wallet__control:focus-visible {
+  border-color: rgb(255 255 255 / 0.42);
+  background: rgb(255 255 255 / 0.18);
+  transform: translateX(-50%) translateY(-1px);
+}
+
+.pw-wallet__control:active:not(:disabled) {
+  transform: translateX(-50%) translateY(0) scale(0.98);
+}
+
+.pw-wallet__control:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.36);
+  outline-offset: 0.24rem;
+}
+
+.pw-wallet__control:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.pw-wallet--popupOpening .pw-wallet__control,
+.pw-wallet--popupOpen .pw-wallet__control,
+.pw-wallet--popupClosing .pw-wallet__control {
   opacity: 0;
   pointer-events: none;
 }
 
-.pw-wallet__opener:focus-visible {
-  outline: 3px solid hsl(var(--primary) / 0.4);
-  outline-offset: 0.3rem;
+.pw-wallet__details-bridge {
+  position: absolute;
+  left: 1.25rem;
+  right: 1.25rem;
+  bottom: 3.25rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  opacity: 0;
+  transform: translateY(0.5rem);
+  pointer-events: none;
+  z-index: 31;
+  transition: opacity 0.22s ease, transform 0.26s var(--pw-ease);
 }
 
-.pw-wallet__opener-hint {
+.pw-wallet--popupOpening .pw-wallet__details-bridge {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.pw-wallet__details-bridge-line {
+  width: min(10rem, 46%);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.42), transparent);
+}
+
+.pw-wallet__details-bridge-copy {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.42rem 0.85rem;
-  border: 1px solid rgb(255 255 255 / 0.22);
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.1);
-  color: rgb(255 255 255 / 0.92);
-  font-size: 0.78rem;
-  font-weight: 750;
-  transition: background 0.18s ease, border-color 0.18s ease;
+  gap: 0.35rem;
+  color: rgb(255 255 255 / 0.76);
+  font-size: 0.72rem;
+  font-weight: 780;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-.pw-wallet__opener-hint svg {
-  width: 0.85rem;
-  height: 0.85rem;
-}
-
-.pw-wallet__opener:hover:not(:disabled) .pw-wallet__opener-hint,
-.pw-wallet__opener:focus-visible .pw-wallet__opener-hint {
-  background: rgb(255 255 255 / 0.18);
-  border-color: rgb(255 255 255 / 0.36);
-}
-
-.pw-wallet__close-btn {
-  margin-top: 1.1rem;
-  padding: 0.5rem 1.15rem;
-  border: 1px solid hsl(var(--foreground) / 0.14);
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.85);
-  color: hsl(var(--foreground));
-  font-size: 0.8rem;
-  font-weight: 750;
-  cursor: pointer;
-  transition: border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
-}
-
-.pw-wallet__close-btn:hover:not(:disabled),
-.pw-wallet__close-btn:focus-visible {
-  border-color: hsl(var(--primary) / 0.36);
-  transform: translateY(-1px);
-  box-shadow: 0 0.6rem 1.4rem rgb(17 24 64 / 0.12);
-}
-
-.pw-wallet__close-btn:focus-visible {
-  outline: 3px solid hsl(var(--primary) / 0.3);
-  outline-offset: 0.2rem;
+.pw-wallet__details-bridge-copy svg {
+  width: 0.8rem;
+  height: 0.8rem;
 }
 
 /* ------------------------------------------------------------------
@@ -453,7 +505,7 @@
   inset: 0;
   background: rgb(13 16 44 / 0.46);
   backdrop-filter: blur(3px);
-  animation: pw-backdrop-in 0.22s ease both;
+  animation: pw-backdrop-in 0.32s ease both;
 }
 
 .pw-popup {
@@ -469,7 +521,8 @@
   box-shadow:
     0 0.4rem 1rem rgb(17 24 64 / 0.1),
     0 2.2rem 4.2rem rgb(17 24 64 / 0.26);
-  animation: pw-popup-in 0.26s var(--pw-ease, cubic-bezier(0.22, 0.9, 0.24, 1)) both;
+  transform-origin: 50% 92%;
+  animation: pw-popup-in 0.42s var(--pw-ease, cubic-bezier(0.22, 0.9, 0.24, 1)) both;
 }
 
 /* Tier accent strip connects the popup to the selected card. */
@@ -492,11 +545,11 @@
 }
 
 .pw-popup-layer--closing .pw-popup {
-  animation: pw-popup-out 0.2s ease both;
+  animation: pw-popup-out 0.24s ease both;
 }
 
 .pw-popup-layer--closing .pw-popup-backdrop {
-  animation: pw-backdrop-out 0.2s ease both;
+  animation: pw-backdrop-out 0.24s ease both;
 }
 
 .pw-popup__head {
@@ -732,7 +785,11 @@
 @keyframes pw-popup-in {
   from {
     opacity: 0;
-    transform: translateY(0.85rem) scale(0.985);
+    transform: translateY(1.45rem) scale(0.94);
+  }
+  56% {
+    opacity: 1;
+    transform: translateY(0.18rem) scale(1.006);
   }
   to {
     opacity: 1;
@@ -747,7 +804,7 @@
   }
   to {
     opacity: 0;
-    transform: translateY(0.5rem) scale(0.99);
+    transform: translateY(0.75rem) scale(0.975);
   }
 }
 
@@ -818,7 +875,8 @@
   .pw-card,
   .pw-wallet__interior::before,
   .pw-wallet__interior::after,
-  .pw-wallet__opener,
+  .pw-wallet__control,
+  .pw-wallet__details-bridge,
   .pw-popup,
   .pw-popup-backdrop {
     animation-duration: 0.001ms !important;

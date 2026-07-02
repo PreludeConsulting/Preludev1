@@ -37,7 +37,7 @@ export function walletReducer(state, event) {
     case "PRESS_WALLET": {
       if (state.status === S.CLOSED) return { ...state, status: S.OPENING };
       // The wallet must not close while a popup exists in any form.
-      if (state.status === S.OPEN || state.status === S.SELECTING_CARD) {
+      if (state.status === S.OPEN) {
         return { ...state, status: S.CLOSING };
       }
       return state;

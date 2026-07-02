@@ -38,7 +38,10 @@ The plan step (`/onboarding/plan` and public `/plans`) renders the interactive w
 - Interaction rules live in a pure state machine, `src/lib/planWalletMachine.js`
   (`closed → opening → open → selectingCard → popupOpening → popupOpen → popupClosing → closing`).
   It guarantees a single popup, no card selection while hidden, no wallet close while the
-  popup is open, and last-selection-wins under rapid clicks.
+  popup is open, no close interruption while a selected card is transitioning to details,
+  and last-selection-wins under rapid clicks.
+- The wallet has an explicit in-wallet Open/Close control; the Close state is disabled
+  while details are opening or visible.
 - Plan data comes exclusively from `src/lib/plans.js`; the popup shows the full feature
   list in a scrollable body with a fixed action footer (“Select this plan”, “View price”,
   “View other plans”).

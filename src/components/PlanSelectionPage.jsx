@@ -30,9 +30,9 @@ const logoSrc = `${import.meta.env.BASE_URL}media/prelude-logo.png`;
 /** Durations must match the CSS transition times in plan-wallet.css. */
 const MOTION_MS = {
   open: 700,
-  selectCard: 240,
-  popupEnter: 260,
-  popupExit: 200,
+  selectCard: 380,
+  popupEnter: 420,
+  popupExit: 240,
   close: 520
 };
 
@@ -368,7 +368,7 @@ function PlanWalletExperience({ context, user }) {
     }
   }, [state.status, state.selectedPlanId]);
 
-  function handleWalletPress() {
+  function handleWalletOpen() {
     if (state.status === WALLET_STATES.CLOSED) {
       dispatch({ type: "PRESS_WALLET" });
       persistDraft({ walletOpen: true, selectedPlanId: state.selectedPlanId });
@@ -376,9 +376,17 @@ function PlanWalletExperience({ context, user }) {
   }
 
   function handleWalletClose() {
-    if (state.status !== WALLET_STATES.OPEN && state.status !== WALLET_STATES.SELECTING_CARD) return;
+    if (state.status !== WALLET_STATES.OPEN) return;
     dispatch({ type: "PRESS_WALLET" });
     persistDraft({ walletOpen: false, selectedPlanId: state.selectedPlanId });
+  }
+
+  function handleWalletControl() {
+    if (state.status === WALLET_STATES.CLOSED) {
+      handleWalletOpen();
+      return;
+    }
+    handleWalletClose();
   }
 
   function handleSelectCard(planId) {
@@ -446,16 +454,17 @@ function PlanWalletExperience({ context, user }) {
     }
   }
 
-  const walletLabel =
-    state.status === WALLET_STATES.CLOSED
-      ? "Open the Prelude plan wallet"
-      : "Prelude plan wallet, open";
+  const walletControlDisabled =
+    state.status !== WALLET_STATES.CLOSED &&
+    state.status !== WALLET_STATES.OPEN;
+  const walletControlLabel = state.status === WALLET_STATES.CLOSED ? "Open wallet" : "Close wallet";
 
   return (
     <div className="plan-wallet-experience">
       <div
         className={`pw-wallet pw-wallet--${state.status}`}
         data-deck-visible={showDeck ? "true" : "false"}
+        data-popup-plan={popupPlan?.id || state.selectedPlanId || ""}
         aria-hidden={popupOpen ? "true" : undefined}
         // React 18 forwards unknown attributes as strings; "" enables inert.
         inert={popupOpen ? "" : undefined}
@@ -486,30 +495,24 @@ function PlanWalletExperience({ context, user }) {
 
         <button
           type="button"
-          className="pw-wallet__opener"
-          onClick={handleWalletPress}
-          disabled={state.status !== WALLET_STATES.CLOSED}
-          tabIndex={state.status === WALLET_STATES.CLOSED ? 0 : -1}
+          className="pw-wallet__control"
+          onClick={handleWalletControl}
+          disabled={walletControlDisabled}
           aria-expanded={showDeck}
-          aria-label={walletLabel}
+          aria-label={`${walletControlLabel} the Prelude plan wallet`}
         >
-          <span className="pw-wallet__opener-hint">
-            Open wallet
+          <span>{walletControlLabel}</span>
+          <ChevronRight aria-hidden="true" />
+        </button>
+
+        <div className="pw-wallet__details-bridge" aria-hidden="true">
+          <span className="pw-wallet__details-bridge-line" />
+          <span className="pw-wallet__details-bridge-copy">
+            Preparing details
             <ChevronRight aria-hidden="true" />
           </span>
-        </button>
+        </div>
       </div>
-
-      <button
-        type="button"
-        className="pw-wallet__close-btn"
-        onClick={handleWalletClose}
-        hidden={!showDeck || popupOpen}
-        disabled={state.status !== WALLET_STATES.OPEN && state.status !== WALLET_STATES.SELECTING_CARD}
-        aria-label="Close the Prelude plan wallet"
-      >
-        Close wallet
-      </button>
 
       {popupOpen && popupPlan ? (
         <PlanPopup
