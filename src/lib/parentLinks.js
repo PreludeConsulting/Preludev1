@@ -80,8 +80,15 @@ function makeLocalToken() {
 }
 
 async function sendInviteEmail({ parentEmail, studentName, inviteToken }) {
+  const supabase = isSupabaseConfigured() ? getSupabase() : null;
+  const {
+    data: { session }
+  } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+  const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined;
+
   return api("/api/parent-invites/send", {
     method: "POST",
+    headers,
     body: JSON.stringify({ parentEmail, studentName, inviteToken })
   });
 }
