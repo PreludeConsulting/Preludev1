@@ -1,6 +1,6 @@
-import { CheckCircle, ChevronRight, WalletCards } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { CheckCircle, ChevronRight, WalletCards, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   MATCH_ONBOARDING_PATH,
@@ -10,139 +10,98 @@ import {
   userNeedsPlanSelection
 } from "../lib/onboardingRoutes.js";
 import { readCachedPlan } from "../lib/supabaseAuth.js";
-import { getPricingPlans } from "../lib/plans.js";
+import { getPlan, getPricingPlans } from "../lib/plans.js";
 import { readOnboardingDraft, writeOnboardingDraft } from "../lib/onboardingFlow.js";
+import { startBillingCheckout } from "../lib/auth.js";
 import OnboardingShell from "./onboarding/OnboardingShell.jsx";
 
-const WALLET_TIMING = {
-  opening: 760,
-  selecting: 360,
-  switching: 300,
-  closing: 620
-};
-
-function tierLabel(index) {
-  if (index === 0) return "Essential";
-  if (index === 1) return "Elevated";
-  return "Signature";
-}
+const PUBLIC_PLANS_PATH = "/plans";
 
 function phaseIsOpen(phase) {
   return phase !== "closed" && phase !== "closing";
 }
 
 function phaseIsLocked(phase) {
-  return phase === "opening" || phase === "selecting" || phase === "switching" || phase === "closing";
+  return phase === "opening" || phase === "navigating" || phase === "closing";
 }
 
-function WalletShell({ phase, open, locked, selectedPlan, loadingPlan, error, onToggle, onChoose, children }) {
+function queryWantsOpen(location) {
+  const search = new URLSearchParams(location.search);
+  return location.state?.walletOpen || search.get("wallet") === "open";
+}
+
+function querySelectedPlan(location) {
+  const search = new URLSearchParams(location.search);
+  const selected = location.state?.selectedPlanId || search.get("selected");
+  return isValidPlanId(selected) ? selected : null;
+}
+
+function selectorPath(context) {
+  return context === "onboarding" ? PLAN_SELECTION_PATH : PUBLIC_PLANS_PATH;
+}
+
+function detailPath(context, planId) {
+  return `${selectorPath(context)}/${planId}`;
+}
+
+function WalletShell({ phase, open, locked, onToggle, onTransitionEnd, children }) {
   return (
     <section
       className={`plan-wallet plan-wallet--${phase} ${open ? "plan-wallet--open" : ""}`}
       aria-label="Prelude plan wallet"
       data-wallet-phase={phase}
+      onTransitionEnd={onTransitionEnd}
     >
-      <div className="plan-wallet__back-panel" aria-hidden="true" />
-      <div className="plan-wallet__card-pocket" aria-hidden="true" />
+      <div className="plan-wallet__back" aria-hidden="true" />
 
       <div id="plan-wallet-stack" className="plan-wallet__stack-wrap">
         {children}
       </div>
 
-      <button
-        type="button"
-        className="plan-wallet__front-panel"
-        onClick={onToggle}
-        aria-expanded={open}
-        aria-controls="plan-wallet-stack plan-wallet-info"
-        disabled={locked}
-        aria-label={open ? "Close Prelude Plans wallet" : "Open Prelude Plans wallet"}
-      >
-        <span className="plan-wallet__front-highlight" aria-hidden="true" />
-        <span className="plan-wallet__front-lines" aria-hidden="true" />
+      <div className="plan-wallet__slot-shadow" aria-hidden="true" />
+      <div className="plan-wallet__front" aria-hidden="true">
         <span className="plan-wallet__brand">
           <WalletCards aria-hidden="true" />
           <span>Prelude Plans</span>
         </span>
-        <span className="plan-wallet__hint">{open ? "Tap to close" : "Tap to open"}</span>
-        <span className="plan-wallet__clasp" aria-hidden="true" />
+      </div>
+
+      <button
+        type="button"
+        className="plan-wallet__microcopy"
+        onClick={onToggle}
+        disabled={locked}
+        aria-label={open ? "Close Prelude Plans wallet" : "Open Prelude Plans wallet"}
+      >
+        {open ? "Close" : "Open"}
       </button>
 
-      <section
-        id="plan-wallet-info"
-        className="plan-wallet__info"
-        aria-live="polite"
-        aria-hidden={!selectedPlan}
-      >
-        {selectedPlan ? (
-          <div key={selectedPlan.id} className={`plan-wallet__info-content plan-wallet__info-content--${selectedPlan.id}`}>
-            <header className="plan-wallet__info-header">
-              <div>
-                <p className="plan-wallet__eyebrow">Selected plan</p>
-                <h2>{selectedPlan.name}</h2>
-              </div>
-              {selectedPlan.isRecommended ? <span className="plan-wallet__badge">Best value</span> : null}
-            </header>
-
-            <div className="plan-wallet__price-row">
-              <span className="plan-wallet__price">{selectedPlan.price}</span>
-              <span className="plan-wallet__period">/mo</span>
-              <span className="plan-wallet__price-label">{selectedPlan.priceLabel}</span>
-            </div>
-
-            <p className="plan-wallet__description">{selectedPlan.description}</p>
-
-            <div className="plan-wallet__feature-section">
-              <h3>Included</h3>
-              <ul className="plan-wallet__features">
-                {selectedPlan.features.map((feature) => (
-                  <li key={feature}>
-                    <CheckCircle aria-hidden="true" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {error ? (
-              <div className="plan-wallet__error" role="alert">
-                {error}
-              </div>
-            ) : null}
-
-            <div className="plan-wallet__action-row">
-              <p>Billing is not charged during this step.</p>
-              <button
-                type="button"
-                className="plan-wallet__cta"
-                onClick={onChoose}
-                disabled={Boolean(loadingPlan)}
-                aria-busy={Boolean(loadingPlan)}
-              >
-                {loadingPlan ? "Saving..." : `Choose ${selectedPlan.name}`}
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </section>
+      <button
+        type="button"
+        className="plan-wallet__toggle"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls="plan-wallet-stack"
+        tabIndex={open ? -1 : 0}
+        disabled={locked}
+        aria-label={open ? "Close Prelude Plans wallet" : "Open Prelude Plans wallet"}
+      />
     </section>
   );
 }
 
-function WalletPlanCard({ plan, index, selected, disabled, phase, onSelect, onKeyDown, buttonRef }) {
-  const cardsDisabled = Boolean(disabled);
-
+function WalletPlanCard({ plan, selected, disabled, phase, onActivate, onKeyDown, onAnimationEnd, buttonRef }) {
   function handleClick() {
-    if (cardsDisabled) return;
-    onSelect(plan.id);
+    if (disabled) return;
+    onActivate(plan.id);
   }
 
   function handleKeyDown(event) {
     onKeyDown(event);
-    if (cardsDisabled || event.defaultPrevented) return;
+    if (disabled || event.defaultPrevented) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      onSelect(plan.id);
+      onActivate(plan.id);
     }
   }
 
@@ -153,28 +112,20 @@ function WalletPlanCard({ plan, index, selected, disabled, phase, onSelect, onKe
       role="tab"
       id={`plan-wallet-tab-${plan.id}`}
       aria-selected={selected}
-      aria-controls="plan-wallet-info"
-      tabIndex={cardsDisabled ? -1 : selected ? 0 : -1}
+      tabIndex={disabled ? -1 : selected ? 0 : -1}
       className={`wallet-plan-card wallet-plan-card--${plan.id} ${selected ? "wallet-plan-card--selected" : ""}`}
-      style={{ "--plan-card-index": index }}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      disabled={cardsDisabled}
+      onAnimationEnd={selected ? onAnimationEnd : undefined}
+      disabled={disabled}
       data-wallet-phase={phase}
     >
-      <span className="wallet-plan-card__grain" aria-hidden="true" />
-      <span className="wallet-plan-card__shine" aria-hidden="true" />
-      <span className="wallet-plan-card__edge" aria-hidden="true" />
-      <span className="wallet-plan-card__topline">
-        <span>{tierLabel(index)}</span>
-        {plan.isRecommended ? <span className="wallet-plan-card__badge">Best value</span> : null}
-      </span>
       <span className="wallet-plan-card__name">{plan.name}</span>
       <span className="wallet-plan-card__price">
         {plan.price}
         <span>/mo</span>
       </span>
-      <span className="wallet-plan-card__desc">{plan.tagline}</span>
+      {plan.isRecommended ? <span className="wallet-plan-card__badge">Best value</span> : null}
       <span className="wallet-plan-card__footer">
         <span>{selected ? "Selected" : "View plan"}</span>
         <ChevronRight aria-hidden="true" />
@@ -183,20 +134,21 @@ function WalletPlanCard({ plan, index, selected, disabled, phase, onSelect, onKe
   );
 }
 
-function PlanCardStack({ plans, phase, open, selectedPlanId, onSelect }) {
+function PlanCardStack({ plans, phase, open, selectedPlanId, onPreview, onActivate, onNavigateAnimationEnd }) {
   const cardRefs = useRef([]);
   const selectedIndex = Math.max(0, plans.findIndex((plan) => plan.id === selectedPlanId));
-  const cardsAvailable = open && !phaseIsLocked(phase);
+  const cardsAvailable = open && phase !== "opening" && phase !== "closing" && phase !== "navigating";
 
   function moveSelection(direction) {
     if (!cardsAvailable) return;
     const nextIndex = (selectedIndex + direction + plans.length) % plans.length;
     const nextPlan = plans[nextIndex];
-    onSelect(nextPlan.id);
+    onPreview(nextPlan.id);
     requestAnimationFrame(() => cardRefs.current[nextIndex]?.focus());
   }
 
   function handleCardKeyDown(event) {
+    if (!cardsAvailable) return;
     if (event.key === "ArrowRight" || event.key === "ArrowDown") {
       event.preventDefault();
       moveSelection(1);
@@ -207,12 +159,12 @@ function PlanCardStack({ plans, phase, open, selectedPlanId, onSelect }) {
     }
     if (event.key === "Home") {
       event.preventDefault();
-      onSelect(plans[0].id);
+      onPreview(plans[0].id);
       requestAnimationFrame(() => cardRefs.current[0]?.focus());
     }
     if (event.key === "End") {
       event.preventDefault();
-      onSelect(plans[plans.length - 1].id);
+      onPreview(plans[plans.length - 1].id);
       requestAnimationFrame(() => cardRefs.current[plans.length - 1]?.focus());
     }
   }
@@ -228,12 +180,12 @@ function PlanCardStack({ plans, phase, open, selectedPlanId, onSelect }) {
         <WalletPlanCard
           key={plan.id}
           plan={plan}
-          index={index}
           selected={plan.id === selectedPlanId}
           disabled={!cardsAvailable}
           phase={phase}
-          onSelect={onSelect}
+          onActivate={onActivate}
           onKeyDown={handleCardKeyDown}
+          onAnimationEnd={onNavigateAnimationEnd}
           buttonRef={(node) => {
             cardRefs.current[index] = node;
           }}
@@ -243,45 +195,135 @@ function PlanCardStack({ plans, phase, open, selectedPlanId, onSelect }) {
   );
 }
 
-export default function PlanSelectionPage() {
+function PublicPlansShell({ children }) {
+  return (
+    <main className="plans-flow">
+      <div className="plans-flow__inner">
+        <Link to="/" className="plans-flow__home-link">
+          ← Back to Prelude
+        </Link>
+        <header className="plans-flow__head">
+          <p className="plans-flow__eyebrow">Plan selection</p>
+          <h1>Choose your Prelude plan</h1>
+          <p>Open the wallet, compare the three tiers, and pick the mentorship level that fits your goals.</p>
+        </header>
+        {children}
+      </div>
+    </main>
+  );
+}
+
+function PlanWalletSelector({ context, user }) {
   const navigate = useNavigate();
-  const { user, ready, saveUserPlan, refreshUser } = useAuth();
+  const location = useLocation();
   const plans = getPricingPlans();
   const recommendedPlanId = useMemo(() => plans.find((plan) => plan.isRecommended)?.id || plans[0]?.id, [plans]);
   const draft = useMemo(() => (user?.id ? readOnboardingDraft(user.id) : {}), [user?.id]);
   const cachedPlan = useMemo(() => (user?.id ? readCachedPlan(user.id) : null), [user?.id]);
-  const restoredPlanId = isValidPlanId(draft.selectedPlanId)
-    ? draft.selectedPlanId
-    : isValidPlanId(cachedPlan)
-      ? cachedPlan
-      : recommendedPlanId;
-
-  const [walletPhase, setWalletPhase] = useState("closed");
+  const restoredPlanId = querySelectedPlan(location) ||
+    (isValidPlanId(draft.selectedPlanId)
+      ? draft.selectedPlanId
+      : isValidPlanId(cachedPlan)
+        ? cachedPlan
+        : recommendedPlanId);
+  const [walletPhase, setWalletPhase] = useState(queryWantsOpen(location) ? "open" : "closed");
   const [selectedPlanId, setSelectedPlanId] = useState(restoredPlanId);
-  const [visiblePlanId, setVisiblePlanId] = useState(null);
-  const [loadingPlan, setLoadingPlan] = useState(null);
-  const [error, setError] = useState("");
-  const phaseTimerRef = useRef(null);
-  const pendingPlanRef = useRef(null);
+  const navigatingPlanRef = useRef(null);
   const walletOpen = phaseIsOpen(walletPhase);
-  const walletLocked = phaseIsLocked(walletPhase) || Boolean(loadingPlan);
+  const walletLocked = phaseIsLocked(walletPhase);
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) || plans[0];
-  const visiblePlan = visiblePlanId ? plans.find((plan) => plan.id === visiblePlanId) : null;
 
-  useEffect(() => {
-    return () => {
-      if (phaseTimerRef.current) window.clearTimeout(phaseTimerRef.current);
-    };
-  }, []);
-
-  function transitionWallet(nextPhase, duration, afterTransition) {
-    if (phaseTimerRef.current) window.clearTimeout(phaseTimerRef.current);
-    setWalletPhase(nextPhase);
-    phaseTimerRef.current = window.setTimeout(() => {
-      phaseTimerRef.current = null;
-      afterTransition?.();
-    }, duration);
+  function persistDraft(patch) {
+    if (!user?.id) return;
+    writeOnboardingDraft(user.id, patch);
   }
+
+  function handleOpenWallet() {
+    if (walletPhase !== "closed") return;
+    setWalletPhase("opening");
+    persistDraft({ selectedPlanId });
+  }
+
+  function handleCloseWallet() {
+    if (walletPhase !== "open") return;
+    navigatingPlanRef.current = null;
+    setWalletPhase("closing");
+    persistDraft({ selectedPlanId });
+  }
+
+  function handleWalletToggle() {
+    if (walletLocked) return;
+    if (walletPhase === "closed") {
+      handleOpenWallet();
+      return;
+    }
+    handleCloseWallet();
+  }
+
+  function handleSelectPlan(planId) {
+    if (walletPhase !== "open") return;
+    setSelectedPlanId(planId);
+    persistDraft({ selectedPlanId: planId });
+  }
+
+  function handleActivatePlan(planId) {
+    if (walletPhase !== "open") return;
+    navigatingPlanRef.current = planId;
+    setSelectedPlanId(planId);
+    setWalletPhase("navigating");
+    persistDraft({ selectedPlanId: planId });
+  }
+
+  function navigateToPlan(planId) {
+    navigate(detailPath(context, planId), {
+      state: {
+        fromWallet: true,
+        walletOpen: true,
+        selectedPlanId: planId
+      }
+    });
+  }
+
+  function handleWalletTransitionEnd(event) {
+    if (event.target !== event.currentTarget || event.propertyName !== "min-height") return;
+    if (walletPhase === "opening") setWalletPhase("open");
+    if (walletPhase === "closing") setWalletPhase("closed");
+  }
+
+  function handleNavigateAnimationEnd(event) {
+    if (event.animationName !== "plan-wallet-card-choose") return;
+    if (walletPhase === "navigating" && navigatingPlanRef.current) {
+      navigateToPlan(navigatingPlanRef.current);
+    }
+  }
+
+  return (
+    <div className="plan-wallet-experience">
+      <div className="plan-wallet-experience__stage">
+        <WalletShell
+          phase={walletPhase}
+          open={walletOpen}
+          locked={walletLocked}
+          onToggle={handleWalletToggle}
+          onTransitionEnd={handleWalletTransitionEnd}
+        >
+          <PlanCardStack
+            plans={plans}
+            phase={walletPhase}
+            open={walletOpen}
+            selectedPlanId={selectedPlan.id}
+            onPreview={handleSelectPlan}
+            onActivate={handleActivatePlan}
+            onNavigateAnimationEnd={handleNavigateAnimationEnd}
+          />
+        </WalletShell>
+      </div>
+    </div>
+  );
+}
+
+function OnboardingPlanSelector() {
+  const { user, ready } = useAuth();
 
   if (!ready) {
     return (
@@ -297,130 +339,180 @@ export default function PlanSelectionPage() {
     return <Navigate to={postAuthDestination(user)} replace />;
   }
 
-  function persistDraft(patch) {
-    if (!user?.id) return;
-    writeOnboardingDraft(user.id, patch);
-  }
-
-  function handleOpenWallet() {
-    if (walletPhase !== "closed") return;
-    transitionWallet("opening", WALLET_TIMING.opening, () => setWalletPhase("open"));
-    persistDraft({ selectedPlanId });
-  }
-
-  function handleCloseWallet() {
-    if ((walletPhase !== "open" && walletPhase !== "expanded") || loadingPlan) return;
-    pendingPlanRef.current = null;
-    setVisiblePlanId(null);
-    transitionWallet("closing", WALLET_TIMING.closing, () => setWalletPhase("closed"));
-    persistDraft({ selectedPlanId });
-  }
-
-  function handleWalletToggle() {
-    if (walletLocked) return;
-    if (walletPhase === "closed") {
-      handleOpenWallet();
-      return;
-    }
-    handleCloseWallet();
-  }
-
-  function finishPlanSelection(planId) {
-    const pendingPlanId = pendingPlanRef.current;
-    if (pendingPlanId && pendingPlanId !== planId) {
-      pendingPlanRef.current = null;
-      beginPlanSelection(pendingPlanId, true);
-      return;
-    }
-    pendingPlanRef.current = null;
-    setVisiblePlanId(planId);
-    setWalletPhase("expanded");
-  }
-
-  function beginPlanSelection(planId, hasVisiblePlan) {
-    setSelectedPlanId(planId);
-    setError("");
-    persistDraft({ selectedPlanId: planId });
-
-    if (!hasVisiblePlan) {
-      transitionWallet("selecting", WALLET_TIMING.selecting, () => finishPlanSelection(planId));
-      return;
-    }
-
-    setVisiblePlanId(null);
-    transitionWallet("switching", WALLET_TIMING.switching, () => finishPlanSelection(planId));
-  }
-
-  function handleSelectPlan(planId) {
-    if (loadingPlan) return;
-    if (walletPhase === "selecting" || walletPhase === "switching") {
-      pendingPlanRef.current = planId;
-      setSelectedPlanId(planId);
-      persistDraft({ selectedPlanId: planId });
-      return;
-    }
-    if ((walletPhase !== "open" && walletPhase !== "expanded") || loadingPlan) return;
-    if (planId === selectedPlanId && visiblePlanId === planId && walletPhase === "expanded") return;
-
-    beginPlanSelection(planId, Boolean(visiblePlanId));
-  }
-
-  async function handleContinue() {
-    if (!isValidPlanId(selectedPlanId)) {
-      setError("Please select a valid Prelude plan before continuing.");
-      return;
-    }
-    setError("");
-    setLoadingPlan(selectedPlanId);
-    try {
-      await saveUserPlan(selectedPlanId);
-      await refreshUser();
-      persistDraft({ selectedPlanId, planConfirmed: true });
-      navigate(MATCH_ONBOARDING_PATH, { replace: true });
-    } catch (err) {
-      setError(err.message || "Could not save your plan. Please try again.");
-    } finally {
-      setLoadingPlan(null);
-    }
-  }
-
   return (
     <OnboardingShell
       user={user}
       title="Choose your Prelude plan"
       subtitle="Open the wallet, compare the three tiers, and pick the mentorship level that fits your goals."
       eyebrow="Plan selection"
-      onContinue={handleContinue}
-      continueDisabled={!walletOpen || !isValidPlanId(selectedPlanId)}
-      continueLoading={Boolean(loadingPlan)}
       hideContinue
       footerNote="Your selection is saved to your profile so Prelude can personalize your dashboard."
-      className={`plan-select-page ${walletOpen ? "plan-select-page--wallet-open" : ""}`}
+      className="plan-select-page"
     >
-      {error ? <div className="onboarding-flow__error" role="alert">{error}</div> : null}
-
-      <div className="plan-wallet-experience">
-        <div className="plan-wallet-experience__stage">
-          <WalletShell
-            phase={walletPhase}
-            open={walletOpen}
-            locked={walletLocked}
-            selectedPlan={visiblePlan}
-            loadingPlan={loadingPlan}
-            error={error}
-            onToggle={handleWalletToggle}
-            onChoose={handleContinue}
-          >
-            <PlanCardStack
-              plans={plans}
-              phase={walletPhase}
-              open={walletOpen}
-              selectedPlanId={selectedPlan.id}
-              onSelect={handleSelectPlan}
-            />
-          </WalletShell>
-        </div>
-      </div>
+      <PlanWalletSelector context="onboarding" user={user} />
     </OnboardingShell>
   );
 }
+
+export function PlansPage() {
+  const { user } = useAuth();
+  return (
+    <PublicPlansShell>
+      <PlanWalletSelector context="public" user={user} />
+    </PublicPlansShell>
+  );
+}
+
+function PlanDetailContent({ plan, context, billingNotice, loadingPlan, onChoose, onClose }) {
+  return (
+    <main className={`plan-detail-page plan-detail-page--${context}`}>
+      <div className="plan-detail-page__inner">
+        <button type="button" className="plan-detail-page__close" onClick={onClose} aria-label="Close plan details">
+          <X aria-hidden="true" />
+        </button>
+
+        <article className={`plan-detail-card plan-detail-card--${plan.id}`}>
+          <header className="plan-detail-card__header">
+            <div>
+              <p className="plan-detail-card__eyebrow">Prelude plan</p>
+              <h1>{plan.name}</h1>
+            </div>
+            {plan.isRecommended ? <span className="plan-detail-card__badge">Best value</span> : null}
+          </header>
+
+          <div className="plan-detail-card__price-row">
+            <span className="plan-detail-card__price">{plan.price}</span>
+            <span className="plan-detail-card__period">/mo</span>
+            <span className="plan-detail-card__price-label">{plan.priceLabel}</span>
+          </div>
+
+          <p className="plan-detail-card__description">{plan.description}</p>
+
+          {billingNotice ? (
+            <p className="plan-detail-card__notice" role="status">
+              {billingNotice}
+            </p>
+          ) : null}
+
+          <button
+            type="button"
+            className="plan-detail-card__cta"
+            onClick={onChoose}
+            disabled={Boolean(loadingPlan)}
+            aria-busy={Boolean(loadingPlan)}
+          >
+            {loadingPlan ? "Saving..." : `Choose ${plan.name}`}
+          </button>
+
+          <section className="plan-detail-card__features" aria-labelledby={`plan-detail-features-${plan.id}`}>
+            <h2 id={`plan-detail-features-${plan.id}`}>Included</h2>
+            <ul>
+              {plan.features.map((feature) => (
+                <li key={feature}>
+                  <CheckCircle aria-hidden="true" />
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <p className="plan-detail-card__supporting">Billing is not charged during this step.</p>
+        </article>
+      </div>
+    </main>
+  );
+}
+
+export function PlanDetailPage({ context = "public" }) {
+  const { planId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, ready, isAuthenticated, openRegister, saveUserPlan, refreshUser } = useAuth();
+  const [loadingPlan, setLoadingPlan] = useState(null);
+  const [billingNotice, setBillingNotice] = useState("");
+  const allowGuestCheckout = import.meta.env.DEV || import.meta.env.VITE_ALLOW_GUEST_CHECKOUT === "true";
+
+  if (!isValidPlanId(planId)) {
+    return <Navigate to={`${selectorPath(context)}?wallet=open`} replace />;
+  }
+
+  if (context === "onboarding" && !ready) {
+    return (
+      <OnboardingShell user={user} loading title="Choose your plan" subtitle="Preparing your Prelude plan details..." hideContinue />
+    );
+  }
+
+  if (context === "onboarding" && !user) {
+    return <Navigate to="/login" replace state={{ from: `${PLAN_SELECTION_PATH}/${planId}` }} />;
+  }
+
+  if (context === "onboarding" && !userNeedsPlanSelection(user)) {
+    return <Navigate to={postAuthDestination(user)} replace />;
+  }
+
+  const plan = getPlan(planId);
+
+  function closePlanDetails() {
+    navigate(`${selectorPath(context)}?wallet=open&selected=${plan.id}`, {
+      replace: false,
+      state: { walletOpen: true, selectedPlanId: plan.id }
+    });
+  }
+
+  async function handleOnboardingChoose() {
+    setBillingNotice("");
+    setLoadingPlan(plan.id);
+    try {
+      await saveUserPlan(plan.id);
+      await refreshUser();
+      if (user?.id) writeOnboardingDraft(user.id, { selectedPlanId: plan.id, planConfirmed: true });
+      navigate(MATCH_ONBOARDING_PATH, { replace: true });
+    } catch (err) {
+      setBillingNotice(err.message || "Could not save your plan. Please try again.");
+    } finally {
+      setLoadingPlan(null);
+    }
+  }
+
+  async function handlePublicChoose() {
+    setBillingNotice("");
+    const requiresRealAccount = user?.authProvider === "demo" || user?.authProvider === "dev";
+
+    if ((!isAuthenticated || requiresRealAccount) && !allowGuestCheckout) {
+      setBillingNotice("Create an account or sign in to choose this plan.");
+      openRegister();
+      return;
+    }
+
+    setLoadingPlan(plan.id);
+    try {
+      const result = await startBillingCheckout(plan.id, { guestCheckout: !isAuthenticated || requiresRealAccount });
+      if (result.url) window.location.href = result.url;
+    } catch (error) {
+      if (error.payload?.error === "billing_not_configured") {
+        setBillingNotice("Plan checkout will turn on after billing is connected.");
+      } else if (error.status === 401 || error.status === 403) {
+        setBillingNotice("Create an account or sign in to choose this plan.");
+        openRegister();
+      } else {
+        setBillingNotice(error.message || "Checkout is unavailable right now. Please try again.");
+      }
+    } finally {
+      setLoadingPlan(null);
+    }
+  }
+
+  return (
+    <PlanDetailContent
+      plan={plan}
+      context={context}
+      billingNotice={billingNotice}
+      loadingPlan={loadingPlan}
+      onChoose={context === "onboarding" ? handleOnboardingChoose : handlePublicChoose}
+      onClose={closePlanDetails}
+      fromWallet={Boolean(location.state?.fromWallet)}
+    />
+  );
+}
+
+export default OnboardingPlanSelector;

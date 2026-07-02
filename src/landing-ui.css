@@ -737,255 +737,298 @@ img.account-menu-btn__avatar {
   animation: plan-wallet-pulse 1.4s ease-in-out infinite;
 }
 
+/* Prelude plan wallet */
+.plans-flow {
+  min-height: 100vh;
+  padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1rem, 3vw, 1.5rem);
+  background:
+    radial-gradient(circle at 50% 0%, hsl(var(--primary) / 0.08), transparent 32rem),
+    hsl(var(--background));
+}
+
+.plans-flow__inner {
+  max-width: 46rem;
+  margin: 0 auto;
+}
+
+.plans-flow__home-link,
+.plan-detail-page__back-link {
+  display: inline-flex;
+  align-items: center;
+  color: hsl(var(--muted-foreground));
+  font-family: "Barlow", sans-serif;
+  font-size: 0.88rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.plans-flow__home-link:hover,
+.plan-detail-page__back-link:hover {
+  color: hsl(var(--foreground));
+}
+
+.plans-flow__head {
+  margin: clamp(1.8rem, 5vw, 3.5rem) 0 clamp(1.5rem, 4vw, 2.4rem);
+  text-align: center;
+}
+
+.plans-flow__eyebrow {
+  margin: 0 0 0.5rem;
+  color: hsl(var(--primary));
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.plans-flow__head h1 {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(2.25rem, 6vw, 4rem);
+  font-weight: 850;
+  line-height: 0.95;
+}
+
+.plans-flow__head p {
+  max-width: 38rem;
+  margin: 0.85rem auto 0;
+  color: hsl(var(--muted-foreground));
+  font-size: clamp(0.98rem, 2.2vw, 1.08rem);
+  line-height: 1.55;
+}
+
 .plan-wallet-experience {
   display: grid;
-  grid-template-columns: minmax(25rem, 1fr) minmax(21rem, 0.86fr);
-  gap: clamp(1.5rem, 4vw, 3.25rem);
-  align-items: center;
+  justify-content: center;
+  margin-top: clamp(1.25rem, 3vw, 2rem);
 }
 
 .plan-wallet-experience__stage {
   min-width: 0;
 }
 
-.plan-wallet-experience__details {
-  min-width: 0;
-}
-
-.plan-select-page:not(.plan-select-page--wallet-open) .plan-wallet-experience {
-  grid-template-columns: minmax(20rem, 42rem);
-  justify-content: center;
-}
-
 .plan-wallet {
+  --wallet-width: min(27rem, 92vw);
+  --wallet-card-width: calc(var(--wallet-width) - 3rem);
+  --wallet-card-height: 92px;
+  --wallet-radius: 1.15rem;
+  --wallet-ease: cubic-bezier(0.22, 0.85, 0.25, 1);
   position: relative;
-  min-height: clamp(27rem, 44vw, 35rem);
-  display: grid;
-  place-items: center;
-  perspective: 1400px;
+  width: var(--wallet-width);
+  min-height: 152px;
+  margin: 0 auto;
   isolation: isolate;
+  transition: min-height 0.44s var(--wallet-ease);
 }
 
-.plan-wallet__surface {
+.plan-select-page--wallet-open .plan-wallet,
+.plans-flow .plan-wallet--open,
+.plan-wallet--open,
+.plan-wallet--navigating {
+  min-height: 374px;
+}
+
+.plan-wallet__toggle {
   position: absolute;
+  top: 0;
   left: 50%;
-  bottom: 2.25rem;
-  width: min(25rem, 88vw);
-  height: min(15.5rem, 55vw);
-  min-height: 13rem;
+  width: var(--wallet-width);
+  height: 142px;
   border: 0;
+  border-radius: var(--wallet-radius);
   background: transparent;
+  color: #fff;
   cursor: pointer;
-  transform: translateX(-50%) translateY(0) rotateX(0deg);
-  transform-origin: center bottom;
-  transition: transform 0.62s cubic-bezier(0.2, 0.86, 0.2, 1), filter 0.28s ease;
-  z-index: 6;
+  transform: translateX(-50%) scale(1);
+  transition: transform 0.18s ease, filter 0.2s ease;
+  z-index: 60;
 }
 
-.plan-wallet__surface:hover:not(:disabled),
-.plan-wallet__surface:focus-visible:not(:disabled) {
-  transform: translateX(-50%) translateY(-0.35rem);
+.plan-wallet__toggle:disabled {
+  cursor: default;
 }
 
-.plan-wallet__surface:focus-visible {
+.plan-wallet__toggle:hover:not(:disabled),
+.plan-wallet__toggle:focus-visible:not(:disabled) {
+  transform: translateX(-50%) translateY(-0.1rem);
+}
+
+.plan-wallet__toggle:active:not(:disabled),
+.plan-wallet--opening .plan-wallet__toggle {
+  transform: translateX(-50%) translateY(0.08rem) scale(0.985);
+}
+
+.plan-wallet__toggle:focus-visible {
   outline: 3px solid hsl(var(--primary) / 0.32);
-  outline-offset: 0.4rem;
+  outline-offset: 0.35rem;
 }
 
-.plan-wallet--opening .plan-wallet__surface,
-.plan-wallet--open .plan-wallet__surface,
-.plan-wallet--switching .plan-wallet__surface {
-  transform: translateX(-50%) translateY(1.65rem) rotateX(54deg) scale(0.96);
-}
-
-.plan-wallet--closing .plan-wallet__surface {
-  transform: translateX(-50%) translateY(0.4rem) rotateX(12deg) scale(0.98);
-}
-
-.plan-wallet__shadow {
-  position: absolute;
-  left: 6%;
-  right: 6%;
-  bottom: -1.2rem;
-  height: 3.4rem;
-  border-radius: 999px;
-  background: radial-gradient(ellipse, rgb(17 24 64 / 0.28), transparent 68%);
-  filter: blur(10px);
-  transform: translateZ(-1px);
+.plan-wallet--opening .plan-wallet__toggle,
+.plan-wallet--open .plan-wallet__toggle,
+.plan-wallet--navigating .plan-wallet__toggle {
+  top: 147px;
+  height: 130px;
+  z-index: 35;
+  pointer-events: none;
 }
 
 .plan-wallet__back,
-.plan-wallet__body {
+.plan-wallet__front {
   position: absolute;
-  inset: 0;
-  border-radius: 1.55rem;
+  left: 50%;
+  width: var(--wallet-width);
+  transform: translateX(-50%);
   overflow: hidden;
 }
 
 .plan-wallet__back {
-  transform-origin: center bottom;
+  top: 0;
+  height: 142px;
+  border: 1px solid rgb(255 255 255 / 0.13);
+  border-radius: var(--wallet-radius);
   background:
-    linear-gradient(145deg, rgb(255 255 255 / 0.12), transparent 34%),
-    linear-gradient(155deg, #242452 0%, #171a3d 52%, #0f1532 100%);
+    linear-gradient(180deg, rgb(255 255 255 / 0.06), transparent 42%),
+    linear-gradient(145deg, #252966 0%, #171a49 58%, #101638 100%);
   box-shadow:
-    0 30px 70px rgb(17 24 64 / 0.26),
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    inset 0 -24px 64px rgb(0 0 0 / 0.24);
-}
-
-.plan-wallet__body {
-  display: grid;
-  align-content: end;
-  justify-items: start;
-  padding: clamp(1.05rem, 3vw, 1.45rem);
-  color: #ffffff;
+    0 20px 42px rgb(31 35 86 / 0.18),
+    inset 0 1px 0 rgb(255 255 255 / 0.16);
   transform-origin: center bottom;
+  transition: height 0.38s var(--wallet-ease), transform 0.46s var(--wallet-ease), border-radius 0.38s var(--wallet-ease);
+  z-index: 10;
+}
+
+.plan-wallet--opening .plan-wallet__back,
+.plan-wallet--open .plan-wallet__back,
+.plan-wallet--navigating .plan-wallet__back {
+  height: 228px;
+  transform: translateX(-50%) translateY(-9px);
+  border-radius: 1.2rem 1.2rem 0.95rem 0.95rem;
+}
+
+.plan-wallet__front {
+  top: 0;
+  height: 142px;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  border-radius: var(--wallet-radius);
   background:
-    radial-gradient(circle at 18% 18%, rgb(255 255 255 / 0.18), transparent 10rem),
-    linear-gradient(90deg, transparent 0 48%, rgb(255 255 255 / 0.065) 48% 49%, transparent 49%),
-    linear-gradient(150deg, #23265b 0%, #16183d 58%, #10152e 100%);
+    linear-gradient(118deg, transparent 0 20%, rgb(255 255 255 / 0.07) 39%, transparent 56%),
+    linear-gradient(180deg, #252965 0%, #171b49 62%, #101638 100%);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.28),
-    inset 0 -32px 70px rgb(0 0 0 / 0.25);
+    0 24px 50px rgb(31 35 86 / 0.22),
+    inset 0 1px 0 rgb(255 255 255 / 0.2),
+    inset 0 -18px 38px rgb(0 0 0 / 0.16);
+  transform-origin: center top;
+  transition: top 0.42s var(--wallet-ease), height 0.42s var(--wallet-ease), border-radius 0.42s var(--wallet-ease), box-shadow 0.28s ease;
+  z-index: 55;
+  pointer-events: none;
 }
 
-.plan-wallet--opening .plan-wallet__body,
-.plan-wallet--open .plan-wallet__body,
-.plan-wallet--switching .plan-wallet__body {
-  transform: rotateX(-13deg) translateY(0.15rem);
-}
-
-.plan-wallet__card-peek {
-  position: absolute;
-  left: 13%;
-  right: 13%;
-  top: 1.1rem;
-  height: 2.25rem;
-  border-radius: 0.8rem 0.8rem 0 0;
-  opacity: 0;
-  transform: translateY(2.1rem);
-  transition: opacity 0.32s ease, transform 0.58s cubic-bezier(0.2, 0.86, 0.2, 1);
-}
-
-.plan-wallet__card-peek--one {
-  background: linear-gradient(110deg, #f5f7fb, #cdd5de 42%, #ffffff 56%, #aeb8c2);
-}
-
-.plan-wallet__card-peek--two {
-  left: 17%;
-  right: 9%;
-  top: 1.75rem;
-  background: linear-gradient(110deg, #ead38f, #c69438 43%, #fff3b4 58%, #a86d22);
-}
-
-.plan-wallet--closed .plan-wallet__card-peek {
-  opacity: 0;
-  transform: translateY(2.1rem);
-}
-
-.plan-wallet--opening .plan-wallet__card-peek,
-.plan-wallet--open .plan-wallet__card-peek,
-.plan-wallet--switching .plan-wallet__card-peek {
-  opacity: 0.95;
-  transform: translateY(-1.25rem);
-}
-
-.plan-wallet__stitch {
-  position: absolute;
-  left: 1rem;
-  right: 1rem;
-  top: 0.8rem;
-  height: 1px;
-  background-image: linear-gradient(90deg, rgb(255 255 255 / 0.28) 0 24%, transparent 24% 48%);
-  background-size: 0.7rem 1px;
-}
-
-.plan-wallet__slot {
-  position: absolute;
-  left: 11%;
-  right: 11%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.3), transparent);
-  box-shadow: 0 0.95rem 0 rgb(255 255 255 / 0.065);
-}
-
-.plan-wallet__slot--one {
-  top: 24%;
-}
-
-.plan-wallet__slot--two {
-  top: 35%;
-  opacity: 0.7;
+.plan-wallet--opening .plan-wallet__front,
+.plan-wallet--open .plan-wallet__front,
+.plan-wallet--navigating .plan-wallet__front {
+  top: 147px;
+  height: 130px;
+  border-radius: 1rem 1rem 1.15rem 1.15rem;
 }
 
 .plan-wallet__brand {
-  position: relative;
+  position: absolute;
+  left: 1.2rem;
+  bottom: 1.2rem;
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  color: #fff;
   font-family: "Barlow", sans-serif;
-  font-size: clamp(1rem, 2vw, 1.25rem);
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-size: 1rem;
+  font-weight: 850;
+  letter-spacing: 0.01em;
 }
 
 .plan-wallet__brand svg {
-  width: 1.3rem;
-  height: 1.3rem;
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
-.plan-wallet__hint {
-  position: relative;
-  margin-top: 0.45rem;
-  color: rgb(255 255 255 / 0.72);
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.plan-wallet__clasp {
+.plan-wallet__microcopy {
   position: absolute;
-  right: 1.35rem;
-  bottom: 1.25rem;
-  width: 3.3rem;
-  height: 2.25rem;
-  border-radius: 0.9rem;
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / 0.24), transparent 44%),
-    linear-gradient(150deg, #7b6dff 0%, #5a47d8 100%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.35),
-    0 12px 24px rgb(0 0 0 / 0.14);
-  transition: transform 0.42s cubic-bezier(0.2, 0.86, 0.2, 1), opacity 0.28s ease;
+  right: 1.15rem;
+  bottom: 1.22rem;
+  border: 0;
+  background: transparent;
+  color: rgb(255 255 255 / 0.66);
+  font-size: 0.74rem;
+  font-weight: 750;
+  cursor: pointer;
+  z-index: 70;
 }
 
-.plan-wallet__clasp::after {
-  content: "";
-  position: absolute;
-  inset: 0.72rem 1.18rem;
+.plan-wallet--opening .plan-wallet__microcopy,
+.plan-wallet--open .plan-wallet__microcopy,
+.plan-wallet--navigating .plan-wallet__microcopy {
+  bottom: auto;
+  top: 246px;
+}
+
+.plan-wallet__microcopy:hover:not(:disabled),
+.plan-wallet__microcopy:focus-visible:not(:disabled) {
+  color: #fff;
+}
+
+.plan-wallet__microcopy:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.32);
+  outline-offset: 0.2rem;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.78);
 }
 
-.plan-wallet--opening .plan-wallet__clasp,
-.plan-wallet--open .plan-wallet__clasp,
-.plan-wallet--switching .plan-wallet__clasp {
-  opacity: 0.82;
-  transform: translateX(0.55rem) rotate(9deg);
+.plan-wallet__microcopy:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.plan-wallet__slot-shadow {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 138px;
+  height: 16px;
+  border-radius: 999px;
+  background: radial-gradient(ellipse, rgb(0 0 0 / 0.2), transparent 70%);
+  opacity: 0;
+  transform: translateY(0.5rem);
+  transition: opacity 0.24s ease, transform 0.4s var(--wallet-ease);
+  z-index: 31;
+}
+
+.plan-wallet--opening .plan-wallet__slot-shadow,
+.plan-wallet--open .plan-wallet__slot-shadow,
+.plan-wallet--navigating .plan-wallet__slot-shadow {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .plan-wallet__stack-wrap {
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
+  left: 50%;
+  top: 42px;
+  width: var(--wallet-card-width);
+  height: 224px;
+  transform: translateX(-50%) translateY(86px);
   pointer-events: none;
-  z-index: 5;
+  transition: transform 0.48s var(--wallet-ease);
+  z-index: 50;
+}
+
+.plan-wallet--opening .plan-wallet__stack-wrap,
+.plan-wallet--open .plan-wallet__stack-wrap,
+.plan-wallet--navigating .plan-wallet__stack-wrap {
+  transform: translateX(-50%) translateY(0);
 }
 
 .plan-card-stack {
   position: relative;
-  width: min(36rem, 100%);
-  height: clamp(19rem, 34vw, 23.5rem);
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
@@ -993,1569 +1036,399 @@ img.account-menu-btn__avatar {
   pointer-events: auto;
 }
 
+.plan-card-stack--navigating {
+  pointer-events: none;
+}
+
 .wallet-plan-card {
+  --card-y: 0rem;
+  --card-scale: 0.97;
   position: absolute;
   left: 50%;
-  bottom: 1.6rem;
-  width: min(15.75rem, 52vw);
-  min-height: 13rem;
-  display: grid;
-  align-content: space-between;
-  gap: 0.65rem;
-  padding: 1rem;
-  border: 1px solid rgb(255 255 255 / 0.62);
-  border-radius: 1.2rem;
-  text-align: left;
-  color: #17182e;
+  top: 0;
+  width: var(--wallet-card-width);
+  height: var(--wallet-card-height);
+  padding: 0.78rem 0.9rem;
+  border: 1px solid rgb(18 23 56 / 0.12);
+  border-radius: 0.88rem;
+  background: #f8fafc;
   box-shadow:
-    0 22px 54px rgb(17 24 64 / 0.17),
-    inset 0 1px 0 rgb(255 255 255 / 0.84),
-    inset 0 -18px 48px rgb(0 0 0 / 0.06);
+    0 10px 24px rgb(31 35 86 / 0.1),
+    inset 0 1px 0 rgb(255 255 255 / 0.72);
+  color: #171b3f;
   cursor: pointer;
-  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.12rem 0.55rem;
   opacity: 0;
-  transform: translateX(-50%) translateY(9.75rem) rotate(0deg) scale(0.74);
-  transform-origin: center bottom;
+  transform: translateX(-50%) translateY(99px) scale(0.96);
   transition:
-    transform 0.72s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.28s ease,
+    transform 0.42s var(--wallet-ease),
+    opacity 0.24s ease,
     box-shadow 0.24s ease,
-    border-color 0.24s ease,
-    filter 0.24s ease;
+    border-color 0.24s ease;
 }
 
 .wallet-plan-card:disabled {
   cursor: default;
 }
 
-.plan-card-stack--open .wallet-plan-card {
+.plan-card-stack--opening .wallet-plan-card,
+.plan-card-stack--open .wallet-plan-card,
+.plan-card-stack--navigating .wallet-plan-card {
   opacity: 1;
+  transform: translateX(-50%) translateY(var(--card-y)) scale(var(--card-scale));
 }
 
-.plan-card-stack--opening .wallet-plan-card {
-  animation: wallet-card-reveal 0.86s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.plan-card-stack--opening .wallet-plan-card--basic {
-  animation-delay: 0.16s;
-}
-
-.plan-card-stack--opening .wallet-plan-card--plus {
-  animation-delay: 0.26s;
-}
-
-.plan-card-stack--opening .wallet-plan-card--pro {
-  animation-delay: 0.38s;
-}
-
-.plan-card-stack--opening .wallet-plan-card--diamond .wallet-plan-card__edge {
-  animation: diamond-edge-arrival 0.72s ease-out 0.68s both;
-}
-
-.plan-card-stack--open .wallet-plan-card--basic {
-  transform: translateX(calc(-50% - 8.5rem)) translateY(2.35rem) rotate(-6deg) scale(0.93);
-  transition-delay: 0.03s;
+.wallet-plan-card--basic {
+  --card-y: 0rem;
+  --card-scale: 0.965;
   z-index: 1;
+  background:
+    linear-gradient(112deg, transparent 0 32%, rgb(255 255 255 / 0.72) 46%, transparent 58%),
+    linear-gradient(145deg, #fbfcff, #dbe2ea 56%, #eef2f7);
 }
 
-.plan-card-stack--open .wallet-plan-card--plus {
-  transform: translateX(-50%) translateY(0.85rem) rotate(0deg) scale(0.96);
-  transition-delay: 0.08s;
+.wallet-plan-card--plus {
+  --card-y: 76px;
+  --card-scale: 0.982;
   z-index: 2;
+  background:
+    linear-gradient(112deg, transparent 0 34%, rgb(255 244 194 / 0.58) 48%, transparent 62%),
+    linear-gradient(145deg, #fff1b0, #d5aa4d 52%, #f5d980);
 }
 
-.plan-card-stack--open .wallet-plan-card--pro {
-  transform: translateX(calc(-50% + 8.5rem)) translateY(2.25rem) rotate(6deg) scale(0.93);
-  transition-delay: 0.13s;
+.wallet-plan-card--pro {
+  --card-y: 152px;
+  --card-scale: 1;
   z-index: 3;
+  background:
+    linear-gradient(112deg, transparent 0 34%, rgb(255 255 255 / 0.72) 48%, transparent 62%),
+    linear-gradient(145deg, #ffffff, #dfeeff 50%, #d9d4ff);
 }
 
-.plan-card-stack--switching .wallet-plan-card--basic,
-.plan-card-stack--switching .wallet-plan-card--plus,
-.plan-card-stack--switching .wallet-plan-card--pro {
-  transition-duration: 0.28s;
-}
-
-.plan-card-stack--open .wallet-plan-card--selected {
-  z-index: 6;
-  border-color: rgb(120 106 255 / 0.62);
+.wallet-plan-card--selected {
+  --card-scale: 1.025;
+  border-color: rgb(120 106 255 / 0.42);
   box-shadow:
-    0 34px 76px rgb(17 24 64 / 0.25),
-    0 0 0 3px rgb(120 106 255 / 0.14),
-    inset 0 1px 0 rgb(255 255 255 / 0.9);
-  filter: saturate(1.08);
+    0 16px 34px rgb(31 35 86 / 0.17),
+    0 0 0 2px rgb(120 106 255 / 0.1),
+    inset 0 1px 0 rgb(255 255 255 / 0.82);
 }
 
-.plan-card-stack--open .wallet-plan-card--basic.wallet-plan-card--selected {
-  transform: translateX(calc(-50% - 8.5rem)) translateY(-0.2rem) rotate(-3.5deg) scale(1.02);
+.plan-wallet--navigating .wallet-plan-card--selected {
+  animation: plan-wallet-card-choose 0.26s var(--wallet-ease);
 }
 
-.plan-card-stack--open .wallet-plan-card--plus.wallet-plan-card--selected {
-  transform: translateX(-50%) translateY(-1.2rem) rotate(0deg) scale(1.05);
+.wallet-plan-card--basic.wallet-plan-card--selected {
+  --card-y: -6px;
 }
 
-.plan-card-stack--open .wallet-plan-card--pro.wallet-plan-card--selected {
-  transform: translateX(calc(-50% + 8.5rem)) translateY(-0.2rem) rotate(3.5deg) scale(1.03);
+.wallet-plan-card--plus.wallet-plan-card--selected {
+  --card-y: 72px;
+}
+
+.wallet-plan-card--pro.wallet-plan-card--selected {
+  --card-y: 148px;
 }
 
 .wallet-plan-card:hover:not(:disabled),
 .wallet-plan-card:focus-visible {
-  border-color: rgb(120 106 255 / 0.58);
-  outline: none;
+  border-color: rgb(120 106 255 / 0.45);
   box-shadow:
-    0 26px 66px rgb(17 24 64 / 0.22),
-    0 0 0 3px rgb(120 106 255 / 0.14),
-    inset 0 1px 0 rgb(255 255 255 / 0.86);
+    0 18px 34px rgb(31 35 86 / 0.16),
+    0 0 0 2px rgb(120 106 255 / 0.08),
+    inset 0 1px 0 rgb(255 255 255 / 0.82);
 }
 
-.wallet-plan-card:active:not(:disabled) {
-  transition-duration: 0.16s;
-}
-
-.wallet-plan-card--silver {
-  background:
-    linear-gradient(112deg, transparent 0 24%, rgb(255 255 255 / 0.72) 35%, transparent 48%),
-    repeating-linear-gradient(100deg, rgb(255 255 255 / 0.16) 0 1px, transparent 1px 6px),
-    linear-gradient(145deg, #f8fafc 0%, #cdd3dc 40%, #ffffff 56%, #aeb7c2 100%);
-  border-color: rgb(255 255 255 / 0.72);
-}
-
-.wallet-plan-card--gold {
-  background:
-    linear-gradient(112deg, transparent 0 25%, rgb(255 248 204 / 0.74) 37%, transparent 50%),
-    radial-gradient(circle at 82% 14%, rgb(255 255 255 / 0.52), transparent 7rem),
-    linear-gradient(145deg, #fff1b6 0%, #d1a142 34%, #f7d876 56%, #b87b26 100%);
-  border-color: rgb(255 238 169 / 0.72);
-  box-shadow:
-    0 26px 64px rgb(155 104 25 / 0.2),
-    inset 0 1px 0 rgb(255 255 255 / 0.78),
-    inset 0 -22px 54px rgb(95 57 14 / 0.12);
-}
-
-.wallet-plan-card--diamond {
-  color: #101538;
-  background:
-    linear-gradient(128deg, transparent 0 22%, rgb(255 255 255 / 0.9) 32%, transparent 46%),
-    linear-gradient(52deg, rgb(126 212 255 / 0.24), transparent 28% 65%, rgb(195 151 255 / 0.28)),
-    radial-gradient(circle at 82% 18%, rgb(255 255 255 / 0.72), transparent 7rem),
-    linear-gradient(145deg, #ffffff 0%, #dcecff 32%, #f8fbff 53%, #bdd4ff 100%);
-  border-color: rgb(255 255 255 / 0.86);
-  box-shadow:
-    0 30px 76px rgb(63 87 171 / 0.24),
-    0 0 0 1px rgb(126 212 255 / 0.18),
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
-    inset 0 -24px 58px rgb(94 120 190 / 0.12);
-}
-
-.wallet-plan-card--gold .wallet-plan-card__desc,
-.wallet-plan-card--gold .wallet-plan-card__footer,
-.wallet-plan-card--gold .wallet-plan-card__price span,
-.wallet-plan-card--gold .wallet-plan-card__topline {
-  color: rgb(68 44 10 / 0.72);
-}
-
-.wallet-plan-card--diamond .wallet-plan-card__desc,
-.wallet-plan-card--diamond .wallet-plan-card__footer,
-.wallet-plan-card--diamond .wallet-plan-card__price span,
-.wallet-plan-card--diamond .wallet-plan-card__topline {
-  color: rgb(16 21 56 / 0.72);
-}
-
-.wallet-plan-card--gold.wallet-plan-card--selected {
-  border-color: rgb(255 239 180 / 0.95);
-}
-
-.wallet-plan-card--diamond.wallet-plan-card--selected {
-  border-color: rgb(255 255 255 / 0.98);
-  box-shadow:
-    0 38px 86px rgb(63 87 171 / 0.3),
-    0 0 0 3px rgb(150 213 255 / 0.2),
-    inset 0 1px 0 rgb(255 255 255 / 0.95);
-}
-
-.plan-card-stack--open .wallet-plan-card--selected.wallet-plan-card--silver .wallet-plan-card__shine {
-  animation: silver-satin-sweep 4.8s ease-in-out 1;
-}
-
-.plan-card-stack--open .wallet-plan-card--selected.wallet-plan-card--gold .wallet-plan-card__shine {
-  animation: gold-sheen-sweep 4.2s ease-in-out 1;
-}
-
-.plan-card-stack--open .wallet-plan-card--selected.wallet-plan-card--diamond .wallet-plan-card__shine {
-  animation: diamond-prism-sweep 4.4s ease-in-out 1;
-}
-
-.wallet-plan-card__grain,
-.wallet-plan-card__edge,
-.wallet-plan-card__shine {
-  pointer-events: none;
-}
-
-.wallet-plan-card__shine {
-  position: absolute;
-  inset: -45% auto auto -55%;
-  width: 75%;
-  height: 160%;
-  background: linear-gradient(112deg, transparent 10%, rgb(255 255 255 / 0.58) 44%, transparent 62%);
-  transform: translateX(0) rotate(16deg);
-  opacity: 0.26;
-  transition: opacity 0.2s ease, transform 0.72s ease;
-}
-
-.wallet-plan-card__grain {
-  position: absolute;
-  inset: 0;
-  opacity: 0.22;
-  background-image:
-    linear-gradient(90deg, rgb(255 255 255 / 0.25), transparent 22% 78%, rgb(0 0 0 / 0.08)),
-    repeating-linear-gradient(0deg, transparent 0 5px, rgb(255 255 255 / 0.12) 5px 6px);
-  mix-blend-mode: soft-light;
-}
-
-.wallet-plan-card__edge {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow:
-    inset 0 0 0 1px rgb(255 255 255 / 0.52),
-    inset 0 0 28px rgb(255 255 255 / 0.2);
-}
-
-.wallet-plan-card:hover .wallet-plan-card__shine,
-.wallet-plan-card:focus-visible .wallet-plan-card__shine,
-.wallet-plan-card--selected .wallet-plan-card__shine {
-  opacity: 0.72;
-  transform: translateX(210%) rotate(16deg);
-}
-
-.wallet-plan-card__topline,
-.wallet-plan-card__footer {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  color: hsl(var(--muted-foreground));
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.wallet-plan-card__topline {
-  flex-wrap: wrap;
-}
-
-.wallet-plan-card__material {
-  color: inherit;
-  opacity: 0.86;
-}
-
-.wallet-plan-card__badge {
-  padding: 0.22rem 0.48rem;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.36);
-  color: inherit;
-  border: 1px solid rgb(255 255 255 / 0.36);
+.wallet-plan-card:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.28);
+  outline-offset: 0.18rem;
 }
 
 .wallet-plan-card__name {
-  position: relative;
+  grid-column: 1;
   font-family: "Barlow", sans-serif;
-  font-size: clamp(1.25rem, 3vw, 1.65rem);
+  font-size: 1.08rem;
   font-weight: 850;
   line-height: 1;
 }
 
 .wallet-plan-card__price {
-  position: relative;
-  display: block;
+  grid-column: 1;
   font-family: "Barlow", sans-serif;
-  font-size: clamp(1.5rem, 3.4vw, 2.05rem);
-  font-weight: 850;
-  line-height: 0.95;
-}
-
-.wallet-plan-card__price span {
-  margin-left: 0.18rem;
-  color: hsl(var(--muted-foreground));
-  font-size: 0.8rem;
-  font-weight: 800;
-}
-
-.wallet-plan-card__desc {
-  position: relative;
-  margin: 0;
-  color: hsl(var(--muted-foreground));
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
-.wallet-plan-card__footer svg {
-  width: 0.95rem;
-  height: 0.95rem;
-}
-
-.plan-wallet-placeholder,
-.plan-wallet-details {
-  min-height: 35.5rem;
-  border: 1px solid hsl(var(--foreground) / 0.08);
-  border-radius: 1.45rem;
-  background: rgb(255 255 255 / 0.86);
-  box-shadow: 0 22px 70px rgb(17 24 64 / 0.11);
-  backdrop-filter: blur(18px);
-}
-
-.plan-wallet-placeholder {
-  display: grid;
-  align-content: center;
-  justify-items: start;
-  gap: 0.8rem;
-  padding: clamp(1.4rem, 4vw, 2rem);
-}
-
-.plan-wallet-placeholder svg {
-  width: 2rem;
-  height: 2rem;
-  color: hsl(var(--primary));
-}
-
-.plan-wallet-placeholder h2 {
-  margin: 0;
-  font-family: "Barlow", sans-serif;
-  font-size: clamp(1.45rem, 3vw, 2rem);
-  font-weight: 850;
-}
-
-.plan-wallet-placeholder p {
-  max-width: 28rem;
-  margin: 0;
-  color: hsl(var(--muted-foreground));
-  line-height: 1.55;
-}
-
-.plan-wallet-details {
-  display: flex;
-  flex-direction: column;
-  padding: clamp(1.25rem, 3vw, 1.75rem);
-  animation: plan-details-in 0.28s ease both;
-}
-
-.plan-wallet-details__header {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.plan-wallet-details__eyebrow {
-  margin: 0 0 0.25rem;
-  color: hsl(var(--primary));
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.plan-wallet-details h2 {
-  margin: 0;
-  font-family: "Barlow", sans-serif;
-  font-size: clamp(1.75rem, 3vw, 2.35rem);
+  font-size: 1.32rem;
   font-weight: 850;
   line-height: 1;
 }
 
-.plan-wallet-details__badge {
-  flex: 0 0 auto;
-  padding: 0.35rem 0.65rem;
+.wallet-plan-card__price span {
+  margin-left: 0.08rem;
+  font-size: 0.68rem;
+}
+
+.wallet-plan-card__badge {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  padding: 0.28rem 0.46rem;
   border-radius: 999px;
-  background: #ede9ff;
-  color: #5b4fd6;
-  border: 1px solid rgb(120 106 255 / 0.16);
+  background: rgb(255 255 255 / 0.72);
+  color: #5648d8;
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.wallet-plan-card__footer {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: rgb(23 27 63 / 0.68);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.wallet-plan-card__footer svg {
+  width: 0.82rem;
+  height: 0.82rem;
+}
+
+.plan-detail-page {
+  min-height: 100vh;
+  padding: max(1rem, env(safe-area-inset-top)) clamp(1rem, 4vw, 2rem) max(1.5rem, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 50% -8rem, hsl(var(--primary) / 0.12), transparent 34rem),
+    hsl(var(--background));
+}
+
+.plan-detail-page__inner {
+  position: relative;
+  width: min(48rem, 100%);
+  margin: 0 auto;
+  padding-top: clamp(2rem, 7vw, 5rem);
+}
+
+.plan-detail-page__close {
+  position: absolute;
+  top: clamp(0.5rem, 2vw, 1.25rem);
+  right: 0;
+  display: inline-grid;
+  place-items: center;
+  width: 2.9rem;
+  height: 2.9rem;
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.9);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  box-shadow: 0 12px 32px rgb(17 24 64 / 0.12);
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.plan-detail-page__close:hover,
+.plan-detail-page__close:focus-visible {
+  border-color: hsl(var(--primary) / 0.28);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 38px rgb(17 24 64 / 0.16);
+}
+
+.plan-detail-page__close:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.28);
+  outline-offset: 0.2rem;
+}
+
+.plan-detail-page__close:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.plan-detail-page__close svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.plan-detail-card {
+  overflow: hidden;
+  border: 1px solid hsl(var(--foreground) / 0.08);
+  border-radius: 1.4rem;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.95), rgb(247 248 255 / 0.98)),
+    hsl(var(--card));
+  box-shadow: 0 28px 80px rgb(17 24 64 / 0.14);
+  padding: clamp(1.25rem, 4vw, 2rem);
+  animation: plan-detail-enter 0.28s ease both;
+}
+
+.plan-detail-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.plan-detail-card__eyebrow {
+  margin: 0 0 0.35rem;
+  color: hsl(var(--primary));
+  font-size: 0.74rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.plan-detail-card h1 {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(2.35rem, 7vw, 4.5rem);
+  font-weight: 850;
+  line-height: 0.9;
+}
+
+.plan-detail-card__badge {
+  flex: 0 0 auto;
+  padding: 0.42rem 0.7rem;
+  border: 1px solid hsl(var(--primary) / 0.18);
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.09);
+  color: hsl(var(--primary));
   font-size: 0.72rem;
   font-weight: 850;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.plan-wallet-details__price-row {
+.plan-detail-card__price-row {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 0.38rem;
-  margin-top: 1rem;
-}
-
-.plan-wallet-details__price {
-  font-family: "Barlow", sans-serif;
-  font-size: clamp(2.1rem, 5vw, 3rem);
-  font-weight: 850;
-  line-height: 1;
-  color: hsl(var(--primary));
-}
-
-.plan-wallet-details__period,
-.plan-wallet-details__price-label {
-  color: hsl(var(--muted-foreground));
-  font-weight: 750;
-}
-
-.plan-wallet-details__price-label {
-  margin-left: 0.25rem;
-  padding: 0.18rem 0.5rem;
-  border-radius: 999px;
-  background: hsl(var(--muted) / 0.72);
-  font-size: 0.75rem;
-}
-
-.plan-wallet-details__description {
-  margin: 0.75rem 0 0;
-  color: hsl(var(--muted-foreground));
-  line-height: 1.55;
-}
-
-.plan-wallet-details__feature-wrap {
-  min-height: 18.5rem;
+  gap: 0.36rem;
   margin-top: 1.2rem;
 }
 
-.plan-wallet-details__feature-wrap h3 {
-  margin: 0 0 0.75rem;
+.plan-detail-card__price {
+  color: hsl(var(--primary));
   font-family: "Barlow", sans-serif;
-  font-size: 1rem;
+  font-size: clamp(2.4rem, 8vw, 4rem);
+  font-weight: 850;
+  line-height: 1;
+}
+
+.plan-detail-card__period,
+.plan-detail-card__price-label,
+.plan-detail-card__description,
+.plan-detail-card__supporting {
+  color: hsl(var(--muted-foreground));
+}
+
+.plan-detail-card__price-label {
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  background: hsl(var(--muted) / 0.76);
+  font-size: 0.76rem;
   font-weight: 800;
 }
 
-.plan-wallet-details__features {
+.plan-detail-card__description {
+  max-width: 39rem;
+  margin: 0.85rem 0 0;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.plan-detail-card__notice {
+  margin: 1rem 0 0;
+  padding: 0.78rem 0.9rem;
+  border: 1px solid hsl(var(--primary) / 0.14);
+  border-radius: 0.9rem;
+  background: hsl(var(--primary) / 0.06);
+  color: hsl(var(--muted-foreground));
+  font-size: 0.9rem;
+}
+
+.plan-detail-card__cta {
+  width: min(26rem, 100%);
+  min-height: 3.15rem;
+  margin-top: 1.2rem;
+  border: 0;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-family: "Barlow", sans-serif;
+  font-weight: 850;
+  cursor: pointer;
+  box-shadow: 0 15px 34px rgb(120 106 255 / 0.22);
+}
+
+.plan-detail-card__cta:hover:not(:disabled),
+.plan-detail-card__cta:focus-visible {
+  background: hsl(var(--primary) / 0.92);
+}
+
+.plan-detail-card__cta:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.28);
+  outline-offset: 0.2rem;
+}
+
+.plan-detail-card__cta:disabled {
+  opacity: 0.68;
+  cursor: wait;
+}
+
+.plan-detail-card__features {
+  margin-top: clamp(1.4rem, 4vw, 2rem);
+}
+
+.plan-detail-card__features h2 {
+  margin: 0 0 0.8rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 850;
+}
+
+.plan-detail-card__features ul {
   display: grid;
-  gap: 0.58rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.68rem 1rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.plan-wallet-details__features li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.55rem;
-  color: hsl(var(--foreground));
-  font-size: 0.9rem;
-  line-height: 1.42;
-}
-
-.plan-wallet-details__features svg {
-  flex: 0 0 auto;
-  width: 1rem;
-  height: 1rem;
-  margin-top: 0.12rem;
-  color: hsl(var(--primary));
-}
-
-.plan-wallet-details__error {
-  margin-top: 1rem;
-  padding: 0.85rem 1rem;
-  border-radius: 0.85rem;
-  border: 1px solid hsl(var(--destructive) / 0.25);
-  background: hsl(var(--destructive) / 0.08);
-  color: hsl(var(--destructive));
-  font-size: 0.875rem;
-}
-
-.plan-wallet-details__cta {
-  margin-top: auto;
-  width: 100%;
-  min-height: 3.1rem;
-  padding: 0.85rem 1rem;
-  border: none;
-  border-radius: 999px;
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-  font-family: "Barlow", sans-serif;
-  font-size: 0.95rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
-  box-shadow: 0 14px 30px rgb(120 106 255 / 0.22);
-}
-
-.plan-wallet-details__cta:hover:not(:disabled),
-.plan-wallet-details__cta:focus-visible {
-  background: hsl(var(--primary) / 0.92);
-  transform: translateY(-1px);
-  box-shadow: 0 18px 38px rgb(120 106 255 / 0.28);
-}
-
-.plan-wallet-details__cta:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-@keyframes plan-wallet-breathe {
-  0%,
-  100% {
-    transform: translateX(-50%) translateY(0) rotateX(0deg);
-  }
-  50% {
-    transform: translateX(-50%) translateY(-3px) rotateX(0deg);
-  }
-}
-
-@keyframes plan-wallet-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(120 106 255 / 0.28);
-  }
-  50% {
-    box-shadow: 0 0 0 0.55rem rgb(120 106 255 / 0);
-  }
-}
-
-@keyframes plan-details-in {
-  from {
-    opacity: 0;
-    transform: translateY(0.55rem);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes wallet-card-reveal {
-  0% {
-    opacity: 0;
-    transform: translateX(-50%) translateY(10.1rem) rotate(0deg) scale(0.72);
-  }
-  38% {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0.4rem) rotate(0deg) scale(0.93);
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-@keyframes silver-satin-sweep {
-  0% {
-    transform: translateX(-15%) rotate(16deg);
-  }
-  55%,
-  100% {
-    transform: translateX(210%) rotate(16deg);
-  }
-}
-
-@keyframes gold-sheen-sweep {
-  0% {
-    transform: translateX(-18%) rotate(16deg);
-  }
-  52%,
-  100% {
-    transform: translateX(220%) rotate(16deg);
-  }
-}
-
-@keyframes diamond-prism-sweep {
-  0% {
-    transform: translateX(-18%) rotate(16deg);
-    opacity: 0.28;
-  }
-  48% {
-    opacity: 0.82;
-  }
-  100% {
-    transform: translateX(230%) rotate(16deg);
-    opacity: 0.54;
-  }
-}
-
-@keyframes diamond-edge-arrival {
-  0% {
-    box-shadow:
-      inset 0 0 0 1px rgb(255 255 255 / 0.52),
-      inset 0 0 28px rgb(255 255 255 / 0.2),
-      0 0 0 rgb(130 212 255 / 0);
-  }
-  55% {
-    box-shadow:
-      inset 0 0 0 1px rgb(255 255 255 / 0.78),
-      inset 0 0 34px rgb(255 255 255 / 0.34),
-      0 0 30px rgb(130 212 255 / 0.38);
-  }
-  100% {
-    box-shadow:
-      inset 0 0 0 1px rgb(255 255 255 / 0.52),
-      inset 0 0 28px rgb(255 255 255 / 0.2),
-      0 0 0 rgb(130 212 255 / 0);
-  }
-}
-
-@media (max-width: 64rem) {
-  .plan-wallet-experience {
-    grid-template-columns: 1fr;
-  }
-
-  .plan-wallet {
-    min-height: clamp(29rem, 60vw, 35rem);
-  }
-
-  .plan-wallet-placeholder,
-  .plan-wallet-details {
-    min-height: auto;
-  }
-
-  .plan-wallet-details__feature-wrap {
-    min-height: 0;
-  }
-}
-
-@media (max-width: 42rem) {
-  .plan-select-page {
-    padding-inline: 1rem;
-  }
-
-  .plan-wallet {
-    min-height: 39rem;
-  }
-
-  .plan-wallet__stack-wrap {
-    align-items: start;
-    padding-top: 1rem;
-  }
-
-  .plan-wallet__surface {
-    bottom: 1.5rem;
-    width: min(21.5rem, 88vw);
-    height: 13.4rem;
-  }
-
-  .plan-card-stack {
-    width: 100%;
-    height: 28rem;
-  }
-
-  .wallet-plan-card {
-    width: min(18.5rem, 86vw);
-    min-height: 9.6rem;
-    padding: 0.95rem;
-  }
-
-  .plan-card-stack--open .wallet-plan-card--basic {
-    transform: translateX(-50%) translateY(-9rem) rotate(-1deg) scale(0.92);
-  }
-
-  .plan-card-stack--open .wallet-plan-card--plus {
-    transform: translateX(-50%) translateY(-1.2rem) rotate(1deg) scale(0.92);
-  }
-
-  .plan-card-stack--open .wallet-plan-card--pro {
-    transform: translateX(-50%) translateY(4.2rem) rotate(-1deg) scale(0.92);
-  }
-
-  .plan-card-stack--open .wallet-plan-card--basic.wallet-plan-card--selected {
-    transform: translateX(-50%) translateY(-9.8rem) rotate(0deg) scale(1);
-  }
-
-  .plan-card-stack--open .wallet-plan-card--plus.wallet-plan-card--selected {
-    transform: translateX(-50%) translateY(-2rem) rotate(0deg) scale(1);
-  }
-
-  .plan-card-stack--open .wallet-plan-card--pro.wallet-plan-card--selected {
-    transform: translateX(-50%) translateY(3.4rem) rotate(0deg) scale(1);
-  }
-
-  .wallet-plan-card__desc {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .plan-select-loading__mark,
-  .plan-wallet__surface {
-    animation: none;
-  }
-
-  .plan-wallet__surface,
-  .plan-wallet__body,
-  .plan-wallet__card-peek,
-  .wallet-plan-card,
-  .plan-card-stack--opening .wallet-plan-card,
-  .wallet-plan-card__shine,
-  .plan-wallet-details,
-  .plan-wallet-details__cta,
-  .plan-select-page__back {
-    transition-duration: 0.001ms !important;
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-  }
-
-  .plan-card-stack--open .wallet-plan-card--basic,
-  .plan-card-stack--open .wallet-plan-card--basic.wallet-plan-card--selected {
-    transform: translateX(-50%) translateY(-7.4rem) rotate(0deg) scale(1);
-  }
-
-  .plan-card-stack--open .wallet-plan-card--plus,
-  .plan-card-stack--open .wallet-plan-card--plus.wallet-plan-card--selected {
-    transform: translateX(-50%) translateY(0) rotate(0deg) scale(1);
-  }
-
-  .plan-card-stack--open .wallet-plan-card--pro,
-  .plan-card-stack--open .wallet-plan-card--pro.wallet-plan-card--selected {
-    transform: translateX(-50%) translateY(7.4rem) rotate(0deg) scale(1);
-  }
-}
-
-/* Concept wallet: compact wallet -> layered deck -> expanded plan card */
-.plan-select-page .plan-wallet-experience {
-  grid-template-columns: minmax(18rem, 42rem);
-  justify-content: center;
-  align-items: start;
-  margin-top: clamp(8.75rem, 12vw, 11rem);
-}
-
-.plan-select-page .plan-wallet-experience__stage {
-  width: 100%;
-}
-
-.plan-select-page .plan-wallet {
-  min-height: 24rem;
-  transition: min-height 0.52s cubic-bezier(0.2, 0.86, 0.2, 1);
-}
-
-.plan-select-page--wallet-open .plan-wallet {
-  min-height: 48rem;
-}
-
-.plan-select-page .plan-wallet__surface {
-  bottom: 0;
-  width: min(30rem, 92vw);
-  height: 14rem;
-  z-index: 20;
-}
-
-.plan-select-page .plan-wallet__body,
-.plan-select-page .plan-wallet__back {
-  border-radius: 2rem;
-}
-
-.plan-select-page .plan-wallet__surface:hover:not(:disabled),
-.plan-select-page .plan-wallet__surface:focus-visible:not(:disabled) {
-  transform: translateX(-50%) translateY(-0.25rem);
-}
-
-.plan-select-page .plan-wallet--opening .plan-wallet__surface,
-.plan-select-page .plan-wallet--deckOpen .plan-wallet__surface,
-.plan-select-page .plan-wallet--expandingCard .plan-wallet__surface,
-.plan-select-page .plan-wallet--cardExpanded .plan-wallet__surface,
-.plan-select-page .plan-wallet--switchingCard .plan-wallet__surface {
-  transform: translateX(-50%) translateY(0.35rem) rotateX(0deg) scale(1);
-}
-
-.plan-select-page .plan-wallet__stack-wrap {
-  z-index: 14;
-  align-items: end;
-  padding-bottom: 5.8rem;
-  pointer-events: none;
-}
-
-.plan-select-page .plan-card-stack {
-  width: min(32rem, 94vw);
-  height: 40rem;
-  pointer-events: none;
-}
-
-.plan-select-page .plan-card-stack--deckOpen,
-.plan-select-page .plan-card-stack--cardExpanded {
-  pointer-events: auto;
-}
-
-.plan-select-page .wallet-plan-card {
-  left: 50%;
-  bottom: 0;
-  width: min(27rem, 86vw);
-  min-height: 9.2rem;
-  height: 9.2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1rem 1.05rem;
-  opacity: 0;
-  transform: translateX(-50%) translateY(7rem) scale(0.9);
-  transition:
-    transform 0.56s cubic-bezier(0.2, 0.86, 0.2, 1),
-    height 0.52s cubic-bezier(0.2, 0.86, 0.2, 1),
-    min-height 0.52s cubic-bezier(0.2, 0.86, 0.2, 1),
-    opacity 0.24s ease,
-    box-shadow 0.24s ease,
-    border-color 0.24s ease;
-}
-
-.plan-select-page .wallet-plan-card[aria-disabled="true"] {
-  cursor: default;
-  pointer-events: none;
-}
-
-.plan-select-page .plan-card-stack--opening .wallet-plan-card,
-.plan-select-page .plan-card-stack--deckOpen .wallet-plan-card,
-.plan-select-page .plan-card-stack--expandingCard .wallet-plan-card,
-.plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card,
-.plan-select-page .plan-card-stack--switchingCard .wallet-plan-card {
-  opacity: 1;
-}
-
-.plan-select-page .plan-card-stack--opening .wallet-plan-card {
-  animation: concept-card-rise 0.72s cubic-bezier(0.2, 0.86, 0.2, 1) both;
-}
-
-.plan-select-page .plan-card-stack--opening .wallet-plan-card--basic {
-  animation-delay: 0.08s;
-}
-
-.plan-select-page .plan-card-stack--opening .wallet-plan-card--plus {
-  animation-delay: 0.15s;
-}
-
-.plan-select-page .plan-card-stack--opening .wallet-plan-card--pro {
-  animation-delay: 0.22s;
-}
-
-.plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--basic,
-.plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--basic,
-.plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--basic,
-.plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--basic {
-  transform: translateX(-50%) translateY(-9.6rem) scale(0.94);
-  z-index: 3;
-}
-
-.plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--plus,
-.plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--plus,
-.plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--plus,
-.plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--plus {
-  transform: translateX(-50%) translateY(-5.7rem) scale(0.97);
-  z-index: 4;
-}
-
-.plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--pro,
-.plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--pro,
-.plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--pro,
-.plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--pro {
-  transform: translateX(-50%) translateY(-1.8rem) scale(1);
-  z-index: 5;
-}
-
-.plan-select-page .wallet-plan-card--expanded {
-  height: min(38rem, 72vh);
-  min-height: min(38rem, 72vh);
-  overflow: hidden;
-  z-index: 12 !important;
-  transform: translateX(-50%) translateY(-13.5rem) scale(1.03) !important;
-  box-shadow:
-    0 34px 84px rgb(17 24 64 / 0.28),
-    0 0 0 3px rgb(120 106 255 / 0.13),
-    inset 0 1px 0 rgb(255 255 255 / 0.9);
-}
-
-.plan-select-page .wallet-plan-card__summary {
-  position: relative;
-  display: grid;
-  gap: 0.2rem;
-}
-
-.plan-select-page .wallet-plan-card__details {
-  position: relative;
-  display: grid;
-  gap: 0.56rem;
-  min-height: 0;
-  opacity: 0;
-  transform: translateY(0.7rem);
-  transition: opacity 0.24s ease 0.18s, transform 0.3s ease 0.18s;
-  pointer-events: none;
-}
-
-.plan-select-page .wallet-plan-card--expanded .wallet-plan-card__details {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-.plan-select-page .wallet-plan-card__full-desc {
-  color: hsl(var(--foreground) / 0.78);
-  font-size: 0.88rem;
-  line-height: 1.42;
-}
-
-.plan-select-page .wallet-plan-card__feature-title {
-  margin-top: 0.15rem;
-  font-size: 0.78rem;
-  font-weight: 850;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.plan-select-page .wallet-plan-card__features {
-  display: grid;
-  gap: 0.42rem;
-  max-height: 15.5rem;
-  overflow: auto;
-  padding-right: 0.25rem;
-}
-
-.plan-select-page .wallet-plan-card__feature {
+.plan-detail-card__features li {
   display: flex;
   align-items: flex-start;
   gap: 0.45rem;
-  font-size: 0.8rem;
-  line-height: 1.28;
-}
-
-.plan-select-page .wallet-plan-card__feature svg {
-  flex: 0 0 auto;
-  width: 0.92rem;
-  height: 0.92rem;
-  margin-top: 0.08rem;
-  color: hsl(var(--primary));
-}
-
-.plan-select-page .wallet-plan-card__disclaimer {
-  color: hsl(var(--foreground) / 0.64);
-  font-size: 0.74rem;
-}
-
-.plan-select-page .wallet-plan-card__cta {
-  width: 100%;
-  min-height: 2.85rem;
-  margin-top: 0.1rem;
-  border: 0;
-  border-radius: 999px;
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-  font-family: "Barlow", sans-serif;
-  font-weight: 850;
-  cursor: pointer;
-  box-shadow: 0 14px 32px rgb(120 106 255 / 0.24);
-}
-
-.plan-select-page .wallet-plan-card__footer {
-  margin-top: auto;
-}
-
-.plan-select-page .wallet-plan-card--expanded .wallet-plan-card__footer {
-  display: none;
-}
-
-.plan-select-page .wallet-plan-card--gold .wallet-plan-card__full-desc,
-.plan-select-page .wallet-plan-card--gold .wallet-plan-card__disclaimer {
-  color: rgb(68 44 10 / 0.72);
-}
-
-.plan-select-page .wallet-plan-card--diamond .wallet-plan-card__full-desc,
-.plan-select-page .wallet-plan-card--diamond .wallet-plan-card__disclaimer {
-  color: rgb(16 21 56 / 0.72);
-}
-
-@keyframes concept-card-rise {
-  0% {
-    opacity: 0;
-    transform: translateX(-50%) translateY(7rem) scale(0.9);
-  }
-  48% {
-    opacity: 1;
-    transform: translateX(-50%) translateY(-2rem) scale(0.96);
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-@media (max-width: 42rem) {
-  .plan-select-page .plan-wallet {
-    min-height: 23rem;
-  }
-
-  .plan-select-page--wallet-open .plan-wallet {
-    min-height: 45rem;
-  }
-
-  .plan-select-page .plan-wallet__surface {
-    width: min(22rem, 92vw);
-    height: 11.8rem;
-  }
-
-  .plan-select-page .plan-card-stack {
-    height: 37rem;
-  }
-
-  .plan-select-page .wallet-plan-card {
-    width: min(20rem, 86vw);
-    min-height: 8.45rem;
-    height: 8.45rem;
-    padding: 0.9rem;
-  }
-
-  .plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--basic,
-  .plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--basic,
-  .plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--basic,
-  .plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--basic {
-    transform: translateX(-50%) translateY(-8.6rem) scale(0.94);
-  }
-
-  .plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--plus,
-  .plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--plus,
-  .plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--plus,
-  .plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--plus {
-    transform: translateX(-50%) translateY(-5rem) scale(0.97);
-  }
-
-  .plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--pro,
-  .plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--pro,
-  .plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--pro,
-  .plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--pro {
-    transform: translateX(-50%) translateY(-1.5rem) scale(1);
-  }
-
-  .plan-select-page .wallet-plan-card--expanded {
-    height: 35.5rem;
-    min-height: 35.5rem;
-    transform: translateX(-50%) translateY(-13rem) scale(1.01) !important;
-  }
-
-  .plan-select-page .wallet-plan-card__features {
-    max-height: 12rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .plan-select-page .wallet-plan-card,
-  .plan-select-page .plan-card-stack--opening .wallet-plan-card,
-  .plan-select-page .wallet-plan-card__details,
-  .plan-select-page .plan-wallet {
-    animation: none !important;
-    transition-duration: 0.001ms !important;
-  }
-}
-
-/* Final Prelude plan wallet: wallet owns the plan information surface */
-.plan-select-page .plan-wallet-experience {
-  grid-template-columns: minmax(18rem, 42rem);
-  justify-content: center;
-  align-items: start;
-  margin-top: clamp(1rem, 2.5vw, 1.6rem);
-}
-
-.plan-select-page .plan-wallet {
-  width: min(42rem, 100%);
-  min-height: 23rem;
-  margin: 0 auto;
-  align-items: end;
-  transition: min-height 0.56s cubic-bezier(0.2, 0.86, 0.2, 1);
-}
-
-.plan-select-page--wallet-open .plan-wallet {
-  min-height: 37rem;
-}
-
-.plan-select-page .plan-wallet--expanded {
-  min-height: 49rem;
-}
-
-.plan-select-page .plan-wallet__back-panel,
-.plan-select-page .plan-wallet__card-pocket,
-.plan-select-page .plan-wallet__front-panel,
-.plan-select-page .plan-wallet__info {
-  position: absolute;
-  left: 50%;
-  width: min(31rem, 92vw);
-  transform: translateX(-50%);
-}
-
-.plan-select-page .plan-wallet__back-panel {
-  bottom: 8.2rem;
-  height: 11rem;
-  border-radius: 2rem 2rem 1.35rem 1.35rem;
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / 0.12), transparent 34%),
-    linear-gradient(155deg, #25275b 0%, #17193c 60%, #11162f 100%);
-  box-shadow:
-    0 24px 70px rgb(17 24 64 / 0.18),
-    inset 0 1px 0 rgb(255 255 255 / 0.2);
-  opacity: 0;
-  clip-path: inset(100% 0 0 0 round 2rem);
-  transition: opacity 0.28s ease, clip-path 0.62s cubic-bezier(0.2, 0.86, 0.2, 1);
-  z-index: 4;
-}
-
-.plan-select-page .plan-wallet--opening .plan-wallet__back-panel,
-.plan-select-page .plan-wallet--open .plan-wallet__back-panel,
-.plan-select-page .plan-wallet--selecting .plan-wallet__back-panel,
-.plan-select-page .plan-wallet--expanded .plan-wallet__back-panel,
-.plan-select-page .plan-wallet--switching .plan-wallet__back-panel {
-  opacity: 1;
-  clip-path: inset(0 0 0 0 round 2rem);
-}
-
-.plan-select-page .plan-wallet__card-pocket {
-  bottom: 7.1rem;
-  height: 7.4rem;
-  border-radius: 1.55rem;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.1), transparent 58%),
-    linear-gradient(150deg, #20234f 0%, #121630 100%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.18),
-    inset 0 -24px 58px rgb(0 0 0 / 0.22);
-  opacity: 0;
-  transform: translateX(-50%) translateY(2rem);
-  transition: opacity 0.24s ease, transform 0.58s cubic-bezier(0.2, 0.86, 0.2, 1);
-  z-index: 10;
-}
-
-.plan-select-page .plan-wallet--open .plan-wallet__card-pocket,
-.plan-select-page .plan-wallet--opening .plan-wallet__card-pocket,
-.plan-select-page .plan-wallet--selecting .plan-wallet__card-pocket,
-.plan-select-page .plan-wallet--expanded .plan-wallet__card-pocket,
-.plan-select-page .plan-wallet--switching .plan-wallet__card-pocket {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-.plan-select-page .plan-wallet__front-panel {
-  bottom: 0;
-  height: 13.6rem;
-  border: 0;
-  border-radius: 2rem;
-  background:
-    radial-gradient(circle at 18% 16%, rgb(255 255 255 / 0.16), transparent 9rem),
-    linear-gradient(90deg, transparent 0 49%, rgb(255 255 255 / 0.07) 49% 50%, transparent 50%),
-    linear-gradient(150deg, #24275c 0%, #15183c 58%, #10152e 100%);
-  box-shadow:
-    0 30px 80px rgb(17 24 64 / 0.24),
-    inset 0 1px 0 rgb(255 255 255 / 0.24),
-    inset 0 -30px 70px rgb(0 0 0 / 0.24);
-  color: #fff;
-  cursor: pointer;
-  z-index: 30;
-  overflow: hidden;
-  transition: transform 0.28s ease, box-shadow 0.28s ease;
-}
-
-.plan-select-page .plan-wallet__front-panel:hover:not(:disabled),
-.plan-select-page .plan-wallet__front-panel:focus-visible:not(:disabled) {
-  transform: translateX(-50%) translateY(-0.18rem);
-  box-shadow:
-    0 34px 88px rgb(17 24 64 / 0.3),
-    inset 0 1px 0 rgb(255 255 255 / 0.28),
-    inset 0 -30px 70px rgb(0 0 0 / 0.22);
-}
-
-.plan-select-page .plan-wallet__front-panel:focus-visible {
-  outline: 3px solid hsl(var(--primary) / 0.34);
-  outline-offset: 0.45rem;
-}
-
-.plan-select-page .plan-wallet--opening .plan-wallet__front-panel,
-.plan-select-page .plan-wallet--open .plan-wallet__front-panel,
-.plan-select-page .plan-wallet--selecting .plan-wallet__front-panel,
-.plan-select-page .plan-wallet--expanded .plan-wallet__front-panel,
-.plan-select-page .plan-wallet--switching .plan-wallet__front-panel {
-  transform: translateX(-50%) translateY(0.25rem);
-}
-
-.plan-select-page .plan-wallet__front-highlight {
-  position: absolute;
-  inset: -40% -20% auto auto;
-  width: 62%;
-  height: 76%;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgb(132 118 255 / 0.36), transparent 68%);
-}
-
-.plan-select-page .plan-wallet__front-lines {
-  position: absolute;
-  left: 11%;
-  right: 11%;
-  top: 28%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.26), transparent);
-  box-shadow:
-    0 1rem 0 rgb(255 255 255 / 0.055),
-    0 2rem 0 rgb(255 255 255 / 0.04);
-}
-
-.plan-select-page .plan-wallet__brand {
-  position: absolute;
-  left: 1.45rem;
-  bottom: 2.25rem;
-}
-
-.plan-select-page .plan-wallet__hint {
-  position: absolute;
-  left: 1.45rem;
-  bottom: 1.25rem;
-}
-
-.plan-select-page .plan-wallet__clasp {
-  right: 1.4rem;
-  bottom: 1.4rem;
-}
-
-.plan-select-page .plan-wallet__stack-wrap {
-  z-index: 18;
-  align-items: end;
-  padding-bottom: 6.35rem;
-  pointer-events: none;
-}
-
-.plan-select-page .plan-card-stack {
-  width: min(31rem, 92vw);
-  height: 19rem;
-}
-
-.plan-select-page .plan-card-stack--open {
-  pointer-events: auto;
-}
-
-.plan-select-page .wallet-plan-card {
-  width: min(24.5rem, 82vw);
-  min-height: 7rem;
-  height: 7rem;
-  padding: 0.9rem 1rem;
-  border-radius: 1.15rem;
-  display: grid;
-  gap: 0.35rem;
-  opacity: 0;
-  transform: translateX(-50%) translateY(7rem) scale(0.92);
-  transition:
-    transform 0.52s cubic-bezier(0.2, 0.86, 0.2, 1),
-    opacity 0.24s ease,
-    box-shadow 0.24s ease,
-    border-color 0.24s ease;
-}
-
-.plan-select-page .wallet-plan-card--basic {
-  background:
-    linear-gradient(112deg, transparent 0 27%, rgb(255 255 255 / 0.72) 39%, transparent 52%),
-    repeating-linear-gradient(100deg, rgb(255 255 255 / 0.14) 0 1px, transparent 1px 6px),
-    linear-gradient(145deg, #f8fafc 0%, #cfd6df 42%, #ffffff 58%, #aeb8c4 100%);
-}
-
-.plan-select-page .wallet-plan-card--plus {
-  background:
-    linear-gradient(112deg, transparent 0 26%, rgb(255 248 204 / 0.72) 38%, transparent 51%),
-    radial-gradient(circle at 82% 14%, rgb(255 255 255 / 0.5), transparent 7rem),
-    linear-gradient(145deg, #fff2b8 0%, #d1a143 36%, #f7d876 58%, #b87b26 100%);
-}
-
-.plan-select-page .wallet-plan-card--pro {
-  background:
-    linear-gradient(128deg, transparent 0 24%, rgb(255 255 255 / 0.88) 34%, transparent 48%),
-    linear-gradient(52deg, rgb(126 212 255 / 0.24), transparent 28% 65%, rgb(195 151 255 / 0.26)),
-    radial-gradient(circle at 82% 18%, rgb(255 255 255 / 0.72), transparent 7rem),
-    linear-gradient(145deg, #ffffff 0%, #dcecff 34%, #f8fbff 55%, #bdd4ff 100%);
-}
-
-.plan-select-page .plan-card-stack--opening .wallet-plan-card,
-.plan-select-page .plan-card-stack--open .wallet-plan-card,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card {
-  opacity: 1;
-}
-
-.plan-select-page .plan-card-stack--opening .wallet-plan-card {
-  animation: plan-wallet-card-rise 0.72s cubic-bezier(0.2, 0.86, 0.2, 1) both;
-}
-
-.plan-select-page .plan-card-stack--opening .wallet-plan-card--basic {
-  animation-delay: 0.08s;
-}
-
-.plan-select-page .plan-card-stack--opening .wallet-plan-card--plus {
-  animation-delay: 0.15s;
-}
-
-.plan-select-page .plan-card-stack--opening .wallet-plan-card--pro {
-  animation-delay: 0.22s;
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--basic,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--basic,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--basic,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--basic {
-  transform: translateX(-50%) translateY(-8rem) scale(0.94);
-  z-index: 3;
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--plus,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--plus,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--plus,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--plus {
-  transform: translateX(-50%) translateY(-4.55rem) scale(0.97);
-  z-index: 4;
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--pro,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--pro,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--pro,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--pro {
-  transform: translateX(-50%) translateY(-1.1rem) scale(1);
-  z-index: 5;
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--selected {
-  z-index: 8;
-  border-color: rgb(120 106 255 / 0.58);
-  box-shadow:
-    0 26px 64px rgb(17 24 64 / 0.24),
-    0 0 0 3px rgb(120 106 255 / 0.13),
-    inset 0 1px 0 rgb(255 255 255 / 0.88);
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--basic.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--basic.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--basic.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--basic.wallet-plan-card--selected {
-  transform: translateX(-50%) translateY(-8.9rem) scale(0.99);
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--plus.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--plus.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--plus.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--plus.wallet-plan-card--selected {
-  transform: translateX(-50%) translateY(-5.45rem) scale(1.01);
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--pro.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--pro.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--pro.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--pro.wallet-plan-card--selected {
-  transform: translateX(-50%) translateY(-2rem) scale(1.02);
-}
-
-.plan-select-page .wallet-plan-card__material {
-  display: none;
-}
-
-.plan-select-page .wallet-plan-card__desc {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.plan-select-page .plan-wallet__info {
-  bottom: 9.35rem;
-  min-height: 0;
-  max-height: 0;
-  overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 0.22);
-  border-radius: 1.6rem 1.6rem 1rem 1rem;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.9), rgb(246 248 255 / 0.96)),
-    linear-gradient(145deg, rgb(255 255 255 / 0.94), rgb(226 232 255 / 0.76));
-  box-shadow:
-    0 28px 70px rgb(17 24 64 / 0.16),
-    inset 0 1px 0 rgb(255 255 255 / 0.9);
-  opacity: 0;
-  transform: translateX(-50%) translateY(3rem);
-  transition:
-    max-height 0.54s cubic-bezier(0.2, 0.86, 0.2, 1),
-    opacity 0.28s ease,
-    transform 0.54s cubic-bezier(0.2, 0.86, 0.2, 1);
-  z-index: 6;
-}
-
-.plan-select-page .plan-wallet--selecting .plan-wallet__info,
-.plan-select-page .plan-wallet--expanded .plan-wallet__info,
-.plan-select-page .plan-wallet--switching .plan-wallet__info {
-  max-height: 34rem;
-  opacity: 1;
-  transform: translateX(-50%) translateY(-12.5rem);
-}
-
-.plan-select-page .plan-wallet__info-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.82rem;
-  min-height: 30rem;
-  padding: 1.35rem;
-  opacity: 0;
-  transform: translateY(0.7rem);
-  animation: plan-wallet-info-in 0.28s ease 0.12s forwards;
-}
-
-.plan-select-page .plan-wallet__info-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.plan-select-page .plan-wallet__eyebrow {
-  margin: 0 0 0.2rem;
-  color: hsl(var(--primary));
-  font-size: 0.72rem;
-  font-weight: 850;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.plan-select-page .plan-wallet__info h2 {
-  margin: 0;
-  font-family: "Barlow", sans-serif;
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  font-weight: 850;
-  line-height: 1;
-}
-
-.plan-select-page .plan-wallet__badge {
-  flex: 0 0 auto;
-  padding: 0.34rem 0.62rem;
-  border: 1px solid rgb(120 106 255 / 0.16);
-  border-radius: 999px;
-  background: #ede9ff;
-  color: #5b4fd6;
-  font-size: 0.7rem;
-  font-weight: 850;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.plan-select-page .plan-wallet__price-row {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.plan-select-page .plan-wallet__price {
-  color: hsl(var(--primary));
-  font-family: "Barlow", sans-serif;
-  font-size: clamp(2rem, 6vw, 2.65rem);
-  font-weight: 850;
-  line-height: 1;
-}
-
-.plan-select-page .plan-wallet__period,
-.plan-select-page .plan-wallet__price-label,
-.plan-select-page .plan-wallet__description,
-.plan-select-page .plan-wallet__action-row p {
-  color: hsl(var(--muted-foreground));
-}
-
-.plan-select-page .plan-wallet__price-label {
-  padding: 0.16rem 0.48rem;
-  border-radius: 999px;
-  background: hsl(var(--muted) / 0.72);
-  font-size: 0.74rem;
-  font-weight: 800;
-}
-
-.plan-select-page .plan-wallet__description {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.45;
-}
-
-.plan-select-page .plan-wallet__feature-section {
-  min-height: 0;
-}
-
-.plan-select-page .plan-wallet__feature-section h3 {
-  margin: 0 0 0.55rem;
-  font-family: "Barlow", sans-serif;
-  font-size: 0.95rem;
-  font-weight: 850;
-}
-
-.plan-select-page .plan-wallet__features {
-  display: grid;
-  gap: 0.42rem;
-  max-height: 11.8rem;
-  margin: 0;
-  padding: 0 0.25rem 0 0;
-  list-style: none;
-  overflow: auto;
-}
-
-.plan-select-page .plan-wallet__features li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.46rem;
   color: hsl(var(--foreground));
-  font-size: 0.82rem;
-  line-height: 1.32;
+  font-size: 0.92rem;
+  line-height: 1.36;
 }
 
-.plan-select-page .plan-wallet__features svg {
+.plan-detail-card__features svg {
   flex: 0 0 auto;
-  width: 0.92rem;
-  height: 0.92rem;
+  width: 1rem;
+  height: 1rem;
   margin-top: 0.08rem;
   color: hsl(var(--primary));
 }
 
-.plan-select-page .plan-wallet__error {
-  padding: 0.72rem 0.85rem;
-  border: 1px solid hsl(var(--destructive) / 0.24);
-  border-radius: 0.85rem;
-  background: hsl(var(--destructive) / 0.08);
-  color: hsl(var(--destructive));
-  font-size: 0.85rem;
+.plan-detail-card__supporting {
+  margin: 1.25rem 0 0;
+  font-size: 0.82rem;
 }
 
-.plan-select-page .plan-wallet__action-row {
-  margin-top: auto;
-  display: grid;
-  gap: 0.6rem;
+@keyframes plan-wallet-card-choose {
+  0% { transform: translateX(-50%) translateY(var(--card-y)) scale(var(--card-scale)); }
+  55% { transform: translateX(-50%) translateY(calc(var(--card-y) - 10px)) scale(1.045); }
+  100% { transform: translateX(-50%) translateY(calc(var(--card-y) - 6px)) scale(1.03); }
 }
 
-.plan-select-page .plan-wallet__action-row p {
-  margin: 0;
-  font-size: 0.74rem;
-}
-
-.plan-select-page .plan-wallet__cta {
-  width: 100%;
-  min-height: 2.9rem;
-  border: 0;
-  border-radius: 999px;
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-  font-family: "Barlow", sans-serif;
-  font-weight: 850;
-  cursor: pointer;
-  box-shadow: 0 14px 32px rgb(120 106 255 / 0.24);
-}
-
-.plan-select-page .plan-wallet__cta:hover:not(:disabled),
-.plan-select-page .plan-wallet__cta:focus-visible {
-  background: hsl(var(--primary) / 0.92);
-}
-
-.plan-select-page .plan-wallet__cta:disabled {
-  opacity: 0.68;
-  cursor: wait;
-}
-
-@keyframes plan-wallet-card-rise {
-  0% {
+@keyframes plan-detail-enter {
+  from {
     opacity: 0;
-    transform: translateX(-50%) translateY(7rem) scale(0.92);
+    transform: translateY(0.6rem);
   }
-  48% {
-    opacity: 1;
-    transform: translateX(-50%) translateY(-1.1rem) scale(0.96);
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-@keyframes plan-wallet-info-in {
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2563,430 +1436,64 @@ img.account-menu-btn__avatar {
 }
 
 @media (max-width: 42rem) {
-  .plan-select-page .plan-wallet-experience {
-    margin-top: clamp(2rem, 9vw, 3.4rem);
+  .plan-wallet {
+    --wallet-width: min(22rem, 92vw);
+    --wallet-card-width: calc(var(--wallet-width) - 1.75rem);
+    --wallet-card-height: 94px;
   }
 
-  .plan-select-page .plan-wallet {
-    min-height: 22rem;
+  .plan-select-page--wallet-open .plan-wallet,
+  .plan-wallet--open,
+  .plan-wallet--navigating {
+    min-height: 372px;
   }
 
-  .plan-select-page--wallet-open .plan-wallet {
-    min-height: 35rem;
+  .plan-wallet__back,
+  .plan-wallet__front,
+  .plan-wallet__toggle {
+    height: 136px;
   }
 
-  .plan-select-page .plan-wallet--expanded {
-    min-height: 46rem;
+  .plan-wallet--opening .plan-wallet__front,
+  .plan-wallet--open .plan-wallet__front,
+  .plan-wallet--navigating .plan-wallet__front {
+    top: 142px;
   }
 
-  .plan-select-page .plan-wallet__back-panel,
-  .plan-select-page .plan-wallet__card-pocket,
-  .plan-select-page .plan-wallet__front-panel,
-  .plan-select-page .plan-wallet__info {
-    width: min(22rem, 92vw);
+  .plan-wallet--opening .plan-wallet__toggle,
+  .plan-wallet--open .plan-wallet__toggle,
+  .plan-wallet--navigating .plan-wallet__toggle {
+    top: 142px;
   }
 
-  .plan-select-page .plan-wallet__front-panel {
-    height: 11.8rem;
+  .wallet-plan-card__price {
+    font-size: 1.18rem;
   }
 
-  .plan-select-page .plan-wallet__back-panel {
-    bottom: 7rem;
-  }
-
-  .plan-select-page .plan-wallet__card-pocket {
-    bottom: 6rem;
-  }
-
-  .plan-select-page .plan-wallet__stack-wrap {
-    padding-bottom: 5.25rem;
-  }
-
-  .plan-select-page .plan-card-stack {
-    height: 17rem;
-  }
-
-  .plan-select-page .wallet-plan-card {
-    width: min(19rem, 84vw);
-    min-height: 6.7rem;
-    height: 6.7rem;
-    padding: 0.82rem;
-  }
-
-  .plan-select-page .wallet-plan-card__desc {
+  .wallet-plan-card__footer {
     display: none;
   }
 
-  .plan-select-page .plan-card-stack--open .wallet-plan-card--basic,
-  .plan-select-page .plan-card-stack--selecting .wallet-plan-card--basic,
-  .plan-select-page .plan-card-stack--expanded .wallet-plan-card--basic,
-  .plan-select-page .plan-card-stack--switching .wallet-plan-card--basic {
-    transform: translateX(-50%) translateY(-7.2rem) scale(0.94);
+  .plan-detail-card__features ul {
+    grid-template-columns: 1fr;
   }
 
-  .plan-select-page .plan-card-stack--open .wallet-plan-card--plus,
-  .plan-select-page .plan-card-stack--selecting .wallet-plan-card--plus,
-  .plan-select-page .plan-card-stack--expanded .wallet-plan-card--plus,
-  .plan-select-page .plan-card-stack--switching .wallet-plan-card--plus {
-    transform: translateX(-50%) translateY(-4.15rem) scale(0.97);
-  }
-
-  .plan-select-page .plan-card-stack--open .wallet-plan-card--pro,
-  .plan-select-page .plan-card-stack--selecting .wallet-plan-card--pro,
-  .plan-select-page .plan-card-stack--expanded .wallet-plan-card--pro,
-  .plan-select-page .plan-card-stack--switching .wallet-plan-card--pro {
-    transform: translateX(-50%) translateY(-1.1rem) scale(1);
-  }
-
-  .plan-select-page .plan-wallet__info {
-    bottom: 8.2rem;
-  }
-
-  .plan-select-page .plan-wallet--selecting .plan-wallet__info,
-  .plan-select-page .plan-wallet--expanded .plan-wallet__info,
-  .plan-select-page .plan-wallet--switching .plan-wallet__info {
-    max-height: 35rem;
-    transform: translateX(-50%) translateY(-9.8rem);
-  }
-
-  .plan-select-page .plan-wallet__info-content {
-    min-height: 31rem;
-    padding: 1.1rem;
-  }
-
-  .plan-select-page .plan-wallet__features {
-    max-height: 10rem;
+  .plan-detail-page__inner {
+    padding-top: 4.25rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .plan-select-page .plan-wallet,
-  .plan-select-page .plan-wallet__back-panel,
-  .plan-select-page .plan-wallet__card-pocket,
-  .plan-select-page .plan-wallet__front-panel,
-  .plan-select-page .plan-wallet__info,
-  .plan-select-page .wallet-plan-card,
-  .plan-select-page .plan-card-stack--opening .wallet-plan-card,
-  .plan-select-page .plan-wallet__info-content {
-    animation: none !important;
+  .plan-wallet,
+  .plan-wallet__toggle,
+  .plan-wallet__back,
+  .plan-wallet__front,
+  .plan-wallet__slot-shadow,
+  .plan-wallet__stack-wrap,
+  .wallet-plan-card,
+  .plan-detail-card {
+    animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
-  }
-}
-
-/* Bottom-expanding wallet correction: selected info lives in the wallet body */
-.plan-select-page .plan-wallet {
-  min-height: 26rem;
-}
-
-.plan-select-page--wallet-open .plan-wallet {
-  min-height: 31rem;
-}
-
-.plan-select-page .plan-wallet--expanded {
-  min-height: 55rem;
-}
-
-.plan-select-page .plan-wallet__back-panel {
-  top: 0;
-  bottom: auto;
-  height: 15rem;
-}
-
-.plan-select-page .plan-wallet__card-pocket {
-  top: 7.2rem;
-  bottom: auto;
-  height: 8rem;
-  z-index: 24;
-}
-
-.plan-select-page .plan-wallet__stack-wrap {
-  align-items: start;
-  padding: 2.1rem 0 0;
-  z-index: 22;
-}
-
-.plan-select-page .plan-card-stack {
-  height: 19rem;
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--basic,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--basic,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--basic,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--basic {
-  transform: translateX(-50%) translateY(0) scale(0.94);
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--plus,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--plus,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--plus,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--plus {
-  transform: translateX(-50%) translateY(3.45rem) scale(0.97);
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--pro,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--pro,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--pro,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--pro {
-  transform: translateX(-50%) translateY(6.9rem) scale(1);
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--basic.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--basic.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--basic.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--basic.wallet-plan-card--selected {
-  transform: translateX(-50%) translateY(-0.65rem) scale(0.99);
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--plus.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--plus.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--plus.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--plus.wallet-plan-card--selected {
-  transform: translateX(-50%) translateY(2.7rem) scale(1.01);
-}
-
-.plan-select-page .plan-card-stack--open .wallet-plan-card--pro.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--selecting .wallet-plan-card--pro.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--expanded .wallet-plan-card--pro.wallet-plan-card--selected,
-.plan-select-page .plan-card-stack--switching .wallet-plan-card--pro.wallet-plan-card--selected {
-  transform: translateX(-50%) translateY(6rem) scale(1.02);
-}
-
-.plan-select-page .plan-wallet__front-panel {
-  top: 12.6rem;
-  bottom: auto;
-  height: 13.4rem;
-  z-index: 30;
-  transition:
-    height 0.56s cubic-bezier(0.2, 0.86, 0.2, 1),
-    transform 0.28s ease,
-    box-shadow 0.28s ease;
-}
-
-.plan-select-page .plan-wallet--selecting .plan-wallet__front-panel,
-.plan-select-page .plan-wallet--expanded .plan-wallet__front-panel,
-.plan-select-page .plan-wallet--switching .plan-wallet__front-panel {
-  height: 40rem;
-}
-
-.plan-select-page .plan-wallet__brand {
-  bottom: 2.25rem;
-}
-
-.plan-select-page .plan-wallet--selecting .plan-wallet__brand,
-.plan-select-page .plan-wallet--expanded .plan-wallet__brand,
-.plan-select-page .plan-wallet--switching .plan-wallet__brand {
-  bottom: 1.35rem;
-}
-
-.plan-select-page .plan-wallet__hint {
-  bottom: 1.25rem;
-}
-
-.plan-select-page .plan-wallet--selecting .plan-wallet__hint,
-.plan-select-page .plan-wallet--expanded .plan-wallet__hint,
-.plan-select-page .plan-wallet--switching .plan-wallet__hint {
-  display: none;
-}
-
-.plan-select-page .plan-wallet__clasp {
-  transition: transform 0.28s ease, opacity 0.28s ease;
-}
-
-.plan-select-page .plan-wallet--selecting .plan-wallet__clasp,
-.plan-select-page .plan-wallet--expanded .plan-wallet__clasp,
-.plan-select-page .plan-wallet--switching .plan-wallet__clasp {
-  opacity: 0.72;
-  transform: translateY(0.35rem);
-}
-
-.plan-select-page .plan-wallet__info {
-  top: 20.3rem;
-  bottom: auto;
-  max-height: 0;
-  z-index: 36;
-  opacity: 0;
-  transform: translateX(-50%) translateY(-0.75rem);
-  transition:
-    max-height 0.48s cubic-bezier(0.2, 0.86, 0.2, 1),
-    opacity 0.24s ease,
-    transform 0.34s ease;
-}
-
-.plan-select-page .plan-wallet--selecting .plan-wallet__info,
-.plan-select-page .plan-wallet--expanded .plan-wallet__info,
-.plan-select-page .plan-wallet--switching .plan-wallet__info {
-  max-height: 31rem;
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-.plan-select-page .plan-wallet__info-content {
-  min-height: 29rem;
-  padding-top: 1.45rem;
-}
-
-.plan-select-page .plan-wallet__features {
-  max-height: 10.6rem;
-}
-
-@media (max-width: 42rem) {
-  .plan-select-page .plan-wallet {
-    min-height: 24rem;
-  }
-
-  .plan-select-page--wallet-open .plan-wallet {
-    min-height: 30rem;
-  }
-
-  .plan-select-page .plan-wallet--expanded {
-    min-height: 52rem;
-  }
-
-  .plan-select-page .plan-wallet__back-panel {
-    top: 0;
-    height: 13.2rem;
-  }
-
-  .plan-select-page .plan-wallet__card-pocket {
-    top: 6.7rem;
-  }
-
-  .plan-select-page .plan-wallet__front-panel {
-    top: 11.7rem;
-    height: 11.8rem;
-  }
-
-  .plan-select-page .plan-wallet--selecting .plan-wallet__front-panel,
-  .plan-select-page .plan-wallet--expanded .plan-wallet__front-panel,
-  .plan-select-page .plan-wallet--switching .plan-wallet__front-panel {
-    height: 37rem;
-  }
-
-  .plan-select-page .plan-wallet__stack-wrap {
-    padding-top: 1.6rem;
-  }
-
-  .plan-select-page .plan-wallet__info {
-    top: 18.1rem;
-  }
-
-  .plan-select-page .plan-wallet--selecting .plan-wallet__info,
-  .plan-select-page .plan-wallet--expanded .plan-wallet__info,
-  .plan-select-page .plan-wallet--switching .plan-wallet__info {
-    max-height: 31rem;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  .plan-select-page .plan-wallet__info-content {
-    min-height: 29.5rem;
-  }
-
-.plan-select-page .plan-wallet__features {
-  max-height: 9.5rem;
-}
-}
-
-/* Final bottom-wallet tuning: keep selectors in the pocket and extend details below */
-.plan-select-page .plan-wallet--expanded {
-  min-height: 49rem;
-}
-
-.plan-select-page .plan-wallet__stack-wrap {
-  z-index: 34;
-}
-
-.plan-select-page .plan-wallet--selecting .plan-wallet__front-panel,
-.plan-select-page .plan-wallet--expanded .plan-wallet__front-panel,
-.plan-select-page .plan-wallet--switching .plan-wallet__front-panel {
-  height: 36rem;
-}
-
-.plan-select-page .plan-wallet__info {
-  top: 27.1rem;
-  max-height: 0;
-  border-color: rgb(255 255 255 / 0.2);
-  box-shadow:
-    0 18px 46px rgb(17 24 64 / 0.12),
-    inset 0 1px 0 rgb(255 255 255 / 0.92);
-}
-
-.plan-select-page .plan-wallet--selecting .plan-wallet__info,
-.plan-select-page .plan-wallet--expanded .plan-wallet__info,
-.plan-select-page .plan-wallet--switching .plan-wallet__info {
-  max-height: 21.2rem;
-}
-
-.plan-select-page .plan-wallet__info-content {
-  box-sizing: border-box;
-  height: 21.2rem;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.62rem;
-  padding: 1.1rem 1.25rem 1.2rem;
-}
-
-.plan-select-page .plan-wallet__info h2 {
-  font-size: clamp(1.35rem, 3vw, 1.72rem);
-}
-
-.plan-select-page .plan-wallet__price {
-  font-size: clamp(1.86rem, 4.5vw, 2.35rem);
-}
-
-.plan-select-page .plan-wallet__description {
-  font-size: 0.84rem;
-}
-
-.plan-select-page .plan-wallet__features {
-  height: 3rem;
-  max-height: 3rem;
-}
-
-.plan-select-page .plan-wallet__feature-section {
-  flex: 0 0 auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.plan-select-page .plan-wallet__features li {
-  font-size: 0.8rem;
-}
-
-.plan-select-page .plan-wallet__action-row {
-  flex: 0 0 auto;
-}
-
-@media (max-width: 42rem) {
-  .plan-select-page .plan-wallet--expanded {
-    min-height: 49rem;
-  }
-
-  .plan-select-page .plan-wallet--selecting .plan-wallet__front-panel,
-  .plan-select-page .plan-wallet--expanded .plan-wallet__front-panel,
-  .plan-select-page .plan-wallet--switching .plan-wallet__front-panel {
-    height: 35rem;
-  }
-
-  .plan-select-page .plan-wallet__info {
-    top: 25rem;
-  }
-
-  .plan-select-page .plan-wallet--selecting .plan-wallet__info,
-  .plan-select-page .plan-wallet--expanded .plan-wallet__info,
-  .plan-select-page .plan-wallet--switching .plan-wallet__info {
-    max-height: 22.1rem;
-  }
-
-  .plan-select-page .plan-wallet__info-content {
-    height: 22.1rem;
-    min-height: 0;
-    padding: 1rem;
-  }
-
-  .plan-select-page .plan-wallet__features {
-    height: 2.75rem;
-    max-height: 2.75rem;
   }
 }
 

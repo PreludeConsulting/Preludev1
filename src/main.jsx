@@ -5,7 +5,7 @@ import App from "./App.jsx";
 import DashboardRouter from "./dashboard/DashboardRouter.jsx";
 import MentorsPage from "./components/MentorsPage.jsx";
 import { CheckoutCancelPage, CheckoutSuccessPage } from "./components/BillingResultPage.jsx";
-import PlanSelectionPage from "./components/PlanSelectionPage.jsx";
+import PlanSelectionPage, { PlanDetailPage, PlansPage } from "./components/PlanSelectionPage.jsx";
 import RoleSelectionOnboardingPage from "./components/onboarding/RoleSelectionOnboardingPage.jsx";
 import PreludeMatchOnboardingPage from "./components/onboarding/PreludeMatchOnboardingPage.jsx";
 import ParentInviteOnboardingPage from "./components/onboarding/ParentInviteOnboardingPage.jsx";
@@ -66,8 +66,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/verify-login" element={<VerifyLoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/settings/security" element={<SecuritySettingsRedirect />} />
+            <Route path="/plans" element={<PlansPage />} />
+            <Route path="/plans/:planId" element={<PlanDetailPage context="public" />} />
             <Route path="/onboarding/role" element={<RequireOnboardingAccess><RoleSelectionOnboardingPage /></RequireOnboardingAccess>} />
             <Route path="/onboarding/plan" element={<RequireOnboardingAccess><PlanSelectionPage /></RequireOnboardingAccess>} />
+            <Route path="/onboarding/plan/:planId" element={<RequireOnboardingAccess><PlanDetailPage context="onboarding" /></RequireOnboardingAccess>} />
             <Route path="/onboarding/match" element={<RequireOnboardingAccess><PreludeMatchOnboardingPage /></RequireOnboardingAccess>} />
             <Route path="/onboarding/parent" element={<RequireOnboardingAccess><ParentInviteOnboardingPage /></RequireOnboardingAccess>} />
             <Route path="/onboarding/mentor" element={<RequireOnboardingAccess><MentorQuestionnaireOnboardingPage /></RequireOnboardingAccess>} />
