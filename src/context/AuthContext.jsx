@@ -139,9 +139,17 @@ export function AuthProvider({ children }) {
     }
     const current = await refreshLoginVerification();
     if (current.verified) return current;
-    const challenge = await sendLoginVerificationCode();
-    setLoginVerified(false);
-    return { verified: false, codeSent: true, ...challenge };
+    try {
+      const challenge = await sendLoginVerificationCode();
+      setLoginVerified(false);
+      return { verified: false, codeSent: true, ...challenge };
+    } catch (error) {
+      if (error?.payload?.error === "email_unconfirmed") {
+        setLoginVerified(false);
+        return { verified: false, emailUnconfirmed: true, error: error.message };
+      }
+      throw error;
+    }
   }, [refreshLoginVerification, useSupabase]);
 
   useEffect(() => {
@@ -386,15 +394,20 @@ export function AuthProvider({ children }) {
           });
         }
         if (next) {
+          const verification = await beginLoginVerification();
+          next.requiresLoginVerification = !verification.verified;
+          next.challengeId = verification.challengeId || "";
           setUser(next);
-          setLoginVerified(true);
+          setLoginVerified(Boolean(verification.verified));
           setSignInOpen(false);
         }
         return {
           ...next,
           id: next?.id || userId,
           emailVerified: Boolean(next?.emailVerified),
-          needsEmailConfirmation
+          needsEmailConfirmation,
+          requiresLoginVerification: Boolean(next?.requiresLoginVerification),
+          challengeId: next?.challengeId || ""
         };
       }
       const next = await authSignUp(payload);
@@ -408,7 +421,7 @@ export function AuthProvider({ children }) {
       setAuthError(error.message);
       throw error;
     }
-  }, [useSupabase]);
+  }, [beginLoginVerification, useSupabase]);
 
   const signInAsDemo = useCallback(async (accountKey = "student") => {
     setAuthError(null);

@@ -346,6 +346,12 @@ export function RegisterPage() {
         return;
       }
       if (result?.id) {
+        if (result?.requiresLoginVerification) {
+          const challenge = result.challengeId ? `&challenge=${encodeURIComponent(result.challengeId)}` : "";
+          const destination = postAuthDestination(result);
+          navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}${challenge}`, { replace: true });
+          return;
+        }
         navigate(postAuthDestination(result), { replace: true });
         return;
       }
@@ -580,7 +586,7 @@ export function ForgotPasswordPage() {
 
 export function VerifyEmailPage() {
   const navigate = useNavigate();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, beginLoginVerification } = useAuth();
   const supabaseAuth = isSupabaseConfigured();
   const verificationUrl = useMemo(() => ({ search: window.location.search, hash: window.location.hash }), []);
   const verificationToken = useMemo(() => new URLSearchParams(window.location.search).get("token") || "", []);
@@ -608,6 +614,15 @@ export function VerifyEmailPage() {
             alreadyVerified: false
           });
           const destination = postAuthDestination(nextUser);
+          const verification = await beginLoginVerification();
+          if (!verification.verified) {
+            const challenge = verification.challengeId ? `&challenge=${encodeURIComponent(verification.challengeId)}` : "";
+            setTimeout(
+              () => navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}${challenge}`, { replace: true }),
+              900
+            );
+            return;
+          }
           setTimeout(() => navigate(destination, { replace: true }), 900);
         })
         .catch((err) => {
@@ -647,7 +662,7 @@ export function VerifyEmailPage() {
     return () => {
       cancelled = true;
     };
-  }, [refreshUser, supabaseAuth, verificationToken, verificationUrl.hash, verificationUrl.search, navigate]);
+  }, [beginLoginVerification, refreshUser, supabaseAuth, verificationToken, verificationUrl.hash, verificationUrl.search, navigate]);
 
   const continuePath = user ? postAuthDestination(user) : "/login";
   const continueLabel = user ? "Continue to dashboard" : "Continue to login";
