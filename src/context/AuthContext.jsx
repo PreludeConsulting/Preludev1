@@ -36,6 +36,36 @@ export function AuthProvider({ children }) {
   const initialAuthCompleteRef = useRef(false);
   const verificationRequestRef = useRef(null);
   const authStateRefreshRef = useRef(null);
+  const postAuthLinkageRef = useRef({ userId: null, ran: false });
+
+  const runPostAuthLinkage = useCallback(
+    async (nextUser) => {
+      if (!useSupabase) return;
+      if (!nextUser?.id || !nextUser?.role) return;
+
+      const normalizedRole = String(nextUser.role || "").toLowerCase();
+      const alreadyRanForUser =
+        postAuthLinkageRef.current.ran && postAuthLinkageRef.current.userId === nextUser.id;
+      if (alreadyRanForUser) return;
+
+      postAuthLinkageRef.current = { userId: nextUser.id, ran: true };
+
+      try {
+        if (normalizedRole === "parent") {
+          await acceptPendingParentInvite(nextUser.id);
+        } else if (normalizedRole === "student") {
+          await connectPendingParentEmailForStudent({
+            studentId: nextUser.id,
+            studentName: nextUser.name || nextUser.email
+          });
+        }
+      } catch (err) {
+        // Best-effort: never block auth/session restore on invite linking.
+        console.warn("[prelude-parent] post-auth linkage skipped:", err?.message || err);
+      }
+    },
+    [useSupabase]
+  );
 
   const refreshLoginVerification = useCallback(async (options = {}) => {
     const silent = Boolean(options.silent);
@@ -70,6 +100,7 @@ export function AuthProvider({ children }) {
       const next = await resolveSupabaseAppUser();
       setUser((current) => next || current);
       if (next) {
+        await runPostAuthLinkage(next);
         const verification = await refreshLoginVerification({ silent: true });
         setLoginVerified((current) => verification.error ? current : Boolean(verification.verified));
       }
@@ -78,7 +109,7 @@ export function AuthProvider({ children }) {
       authStateRefreshRef.current = null;
     });
     return authStateRefreshRef.current;
-  }, [refreshLoginVerification]);
+  }, [refreshLoginVerification, runPostAuthLinkage]);
 
   const clearAuthenticatedSession = useCallback(() => {
     setUser(null);
@@ -135,6 +166,7 @@ export function AuthProvider({ children }) {
             if (!cancelled) {
               setUser(sessionUser);
               if (sessionUser) {
+                await runPostAuthLinkage(sessionUser);
                 const verification = await refreshLoginVerification();
                 if (!cancelled) setLoginVerified(Boolean(verification.verified));
               } else {
@@ -155,6 +187,7 @@ export function AuthProvider({ children }) {
               if (!session) {
                 if (event === "SIGNED_OUT" || event === "USER_DELETED") {
                   clearAuthenticatedSession();
+                  postAuthLinkageRef.current = { userId: null, ran: false };
                 }
                 return;
               }
@@ -202,7 +235,7 @@ export function AuthProvider({ children }) {
       cancelled = true;
       subscription?.unsubscribe();
     };
-  }, [clearAuthenticatedSession, refreshLoginVerification, refreshSupabaseUserSilently, useSupabase]);
+  }, [clearAuthenticatedSession, refreshLoginVerification, refreshSupabaseUserSilently, runPostAuthLinkage, useSupabase]);
 
   const openSignIn = useCallback(() => {
     setAuthError(null);
