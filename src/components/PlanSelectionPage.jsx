@@ -1,4 +1,4 @@
-import { CheckCircle, ChevronRight, Sparkles, WalletCards, X } from "lucide-react";
+import { CheckCircle, ChevronRight, WalletCards } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -20,81 +20,164 @@ function tierLabel(index) {
   return "Signature";
 }
 
-function WalletShell({ open, onOpen, onClose, children }) {
+function materialLabel(index) {
+  if (index === 0) return "Silver";
+  if (index === 1) return "Gold";
+  return "Diamond";
+}
+
+const WALLET_OPEN_MS = 720;
+const WALLET_CLOSE_MS = 520;
+const CARD_EXPAND_MS = 520;
+const CARD_SWITCH_MS = 620;
+
+function WalletShell({ phase, open, locked, onToggle, children }) {
   return (
-    <section className={`plan-wallet ${open ? "plan-wallet--open" : ""}`} aria-label="Prelude plan wallet">
+    <section
+      className={`plan-wallet plan-wallet--${phase} ${open ? "plan-wallet--open" : ""}`}
+      aria-label="Prelude plan wallet"
+      data-wallet-phase={phase}
+    >
       <button
         type="button"
         className="plan-wallet__surface"
-        onClick={onOpen}
+        onClick={onToggle}
         aria-expanded={open}
         aria-controls="plan-wallet-stack"
-        disabled={open}
+        disabled={locked}
+        aria-label={open ? "Close Prelude plan wallet" : "Open Prelude plan wallet"}
       >
-        <span className="plan-wallet__glow" aria-hidden="true" />
-        <span className="plan-wallet__flap" aria-hidden="true" />
-        <span className="plan-wallet__slot plan-wallet__slot--one" aria-hidden="true" />
-        <span className="plan-wallet__slot plan-wallet__slot--two" aria-hidden="true" />
-        <span className="plan-wallet__brand">
-          <WalletCards aria-hidden="true" />
-          <span>Prelude Wallet</span>
+        <span className="plan-wallet__shadow" aria-hidden="true" />
+        <span className="plan-wallet__back" aria-hidden="true" />
+        <span className="plan-wallet__card-peek plan-wallet__card-peek--one" aria-hidden="true" />
+        <span className="plan-wallet__card-peek plan-wallet__card-peek--two" aria-hidden="true" />
+        <span className="plan-wallet__body">
+          <span className="plan-wallet__stitch plan-wallet__stitch--top" aria-hidden="true" />
+          <span className="plan-wallet__slot plan-wallet__slot--one" aria-hidden="true" />
+          <span className="plan-wallet__slot plan-wallet__slot--two" aria-hidden="true" />
+          <span className="plan-wallet__brand">
+            <WalletCards aria-hidden="true" />
+            <span>Prelude Wallet</span>
+          </span>
+          <span className="plan-wallet__hint">{open ? "Tap wallet to close" : "Tap wallet to open"}</span>
+          <span className="plan-wallet__clasp" aria-hidden="true" />
         </span>
-        <span className="plan-wallet__hint">{open ? "Plans unlocked" : "Tap to reveal plans"}</span>
       </button>
 
       <div id="plan-wallet-stack" className="plan-wallet__stack-wrap">
         {children}
       </div>
-
-      {open ? (
-        <button type="button" className="plan-wallet__close" onClick={onClose} aria-label="Close plan wallet">
-          <X aria-hidden="true" />
-        </button>
-      ) : null}
     </section>
   );
 }
 
-function WalletPlanCard({ plan, index, selected, loading, disabled, onSelect, onKeyDown, buttonRef }) {
+function WalletPlanCard({
+  plan,
+  index,
+  selected,
+  expanded,
+  loading,
+  disabled,
+  phase,
+  onSelect,
+  onChoose,
+  onKeyDown,
+  buttonRef
+}) {
+  const material = materialLabel(index);
+  const canShowDetails = expanded && (phase === "cardExpanded" || phase === "switchingCard" || phase === "expandingCard");
+  const isDisabled = Boolean(disabled);
+
+  function handleClick() {
+    if (isDisabled) return;
+    onSelect(plan.id);
+  }
+
+  function handleKeyDown(event) {
+    onKeyDown(event);
+    if (isDisabled || event.defaultPrevented) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onSelect(plan.id);
+    }
+  }
+
   return (
-    <button
+    <div
       ref={buttonRef}
-      type="button"
       role="tab"
       id={`plan-wallet-tab-${plan.id}`}
       aria-selected={selected}
       aria-controls={`plan-wallet-panel-${plan.id}`}
-      tabIndex={selected ? 0 : -1}
-      className={`wallet-plan-card wallet-plan-card--${plan.id} ${selected ? "wallet-plan-card--selected" : ""}`}
+      aria-expanded={expanded}
+      aria-disabled={isDisabled}
+      tabIndex={disabled ? -1 : selected ? 0 : 0}
+      aria-label={`${plan.name} plan, ${material} card material${expanded ? ", expanded" : ""}${selected ? ", selected" : ""}`}
+      className={`wallet-plan-card wallet-plan-card--${plan.id} wallet-plan-card--${material.toLowerCase()} ${selected ? "wallet-plan-card--selected" : ""} ${expanded ? "wallet-plan-card--expanded" : ""}`}
       style={{ "--plan-card-index": index }}
-      onClick={() => onSelect(plan.id)}
-      onKeyDown={onKeyDown}
-      disabled={disabled}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      data-wallet-phase={phase}
     >
+      <span className="wallet-plan-card__grain" aria-hidden="true" />
       <span className="wallet-plan-card__shine" aria-hidden="true" />
+      <span className="wallet-plan-card__edge" aria-hidden="true" />
       <span className="wallet-plan-card__topline">
         <span>{tierLabel(index)}</span>
+        <span className="wallet-plan-card__material">{material}</span>
         {plan.isRecommended ? <span className="wallet-plan-card__badge">Best value</span> : null}
       </span>
-      <span className="wallet-plan-card__name">{plan.name}</span>
-      <span className="wallet-plan-card__price">
-        {plan.price}
-        <span>/mo</span>
+      <span className="wallet-plan-card__summary">
+        <span className="wallet-plan-card__name">{plan.name}</span>
+        <span className="wallet-plan-card__price">
+          {plan.price}
+          <span>/mo</span>
+        </span>
       </span>
       <span className="wallet-plan-card__desc">{plan.tagline}</span>
+      <span
+        id={`plan-wallet-panel-${plan.id}`}
+        className="wallet-plan-card__details"
+        aria-hidden={!canShowDetails}
+      >
+        <span className="wallet-plan-card__full-desc">{plan.description}</span>
+        <span className="wallet-plan-card__feature-title">Included</span>
+        <span className="wallet-plan-card__features">
+          {plan.features.map((feature) => (
+            <span key={feature} className="wallet-plan-card__feature">
+              <CheckCircle aria-hidden="true" />
+              <span>{feature}</span>
+            </span>
+          ))}
+        </span>
+        <span className="wallet-plan-card__disclaimer">Billing is not charged during this step.</span>
+        <button
+          type="button"
+          className="wallet-plan-card__cta"
+          disabled={Boolean(loading)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onChoose();
+          }}
+        >
+          {loading ? "Saving..." : `Choose ${plan.name}`}
+        </button>
+      </span>
       <span className="wallet-plan-card__footer">
-        <span>{selected ? "Selected" : loading ? "Saving" : "View plan"}</span>
+        <span>{expanded ? "Ready" : selected ? "Selected" : "View plan"}</span>
         <ChevronRight aria-hidden="true" />
       </span>
-    </button>
+    </div>
   );
 }
 
-function PlanCardStack({ plans, open, selectedPlanId, loadingPlan, onSelect }) {
+function PlanCardStack({ plans, phase, open, selectedPlanId, expandedPlanId, loadingPlan, onSelect, onChoose }) {
   const cardRefs = useRef([]);
   const selectedIndex = Math.max(0, plans.findIndex((plan) => plan.id === selectedPlanId));
+  const cardsAvailable = open && phase !== "opening" && phase !== "closing" && phase !== "expandingCard" && phase !== "switchingCard";
 
   function moveSelection(direction) {
+    if (!cardsAvailable) return;
     const nextIndex = (selectedIndex + direction + plans.length) % plans.length;
     const nextPlan = plans[nextIndex];
     onSelect(nextPlan.id);
@@ -124,7 +207,7 @@ function PlanCardStack({ plans, open, selectedPlanId, loadingPlan, onSelect }) {
 
   return (
     <div
-      className={`plan-card-stack ${open ? "plan-card-stack--open" : ""}`}
+      className={`plan-card-stack plan-card-stack--${phase} ${open ? "plan-card-stack--open" : ""}`}
       role="tablist"
       aria-label="Prelude plans"
       aria-orientation="horizontal"
@@ -135,9 +218,12 @@ function PlanCardStack({ plans, open, selectedPlanId, loadingPlan, onSelect }) {
           plan={plan}
           index={index}
           selected={plan.id === selectedPlanId}
+          expanded={plan.id === expandedPlanId}
           loading={loadingPlan === plan.id}
-          disabled={!open}
+          disabled={!cardsAvailable}
+          phase={phase}
           onSelect={onSelect}
+          onChoose={onChoose}
           onKeyDown={handleCardKeyDown}
           buttonRef={(node) => {
             cardRefs.current[index] = node;
@@ -145,54 +231,6 @@ function PlanCardStack({ plans, open, selectedPlanId, loadingPlan, onSelect }) {
         />
       ))}
     </div>
-  );
-}
-
-function PlanDetails({ plan, loading, error }) {
-  return (
-    <section
-      key={plan.id}
-      id={`plan-wallet-panel-${plan.id}`}
-      role="tabpanel"
-      aria-labelledby={`plan-wallet-tab-${plan.id}`}
-      className={`plan-wallet-details plan-wallet-details--${plan.id}`}
-    >
-      <div className="plan-wallet-details__header">
-        <div>
-          <p className="plan-wallet-details__eyebrow">Selected plan</p>
-          <h2>{plan.name}</h2>
-        </div>
-        {plan.isRecommended ? <span className="plan-wallet-details__badge">Best value</span> : null}
-      </div>
-
-      <div className="plan-wallet-details__price-row">
-        <span className="plan-wallet-details__price">{plan.price}</span>
-        <span className="plan-wallet-details__period">/mo</span>
-        <span className="plan-wallet-details__price-label">{plan.priceLabel}</span>
-      </div>
-
-      <p className="plan-wallet-details__description">{plan.description}</p>
-
-      <div className="plan-wallet-details__feature-wrap">
-        <h3>Included</h3>
-        <ul className="plan-wallet-details__features">
-          {plan.features.map((feature) => (
-            <li key={feature}>
-              <CheckCircle aria-hidden="true" />
-              <span>{feature}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {error ? (
-        <div className="plan-wallet-details__error" role="alert">
-          {error}
-        </div>
-      ) : null}
-
-      {loading ? <p className="plan-wallet-details__saving">Saving your plan…</p> : null}
-    </section>
   );
 }
 
@@ -209,19 +247,39 @@ export default function PlanSelectionPage() {
       ? cachedPlan
       : recommendedPlanId;
 
-  const [walletOpen, setWalletOpen] = useState(Boolean(draft.walletOpen));
+  const [walletPhase, setWalletPhase] = useState("closed");
   const [selectedPlanId, setSelectedPlanId] = useState(restoredPlanId);
+  const [expandedPlanId, setExpandedPlanId] = useState(null);
   const [loadingPlan, setLoadingPlan] = useState(null);
   const [error, setError] = useState("");
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) || plans[0];
-  const hasOpenedWalletRef = useRef(Boolean(draft.walletOpen));
+  const phaseTimerRef = useRef(null);
+  const walletOpen = walletPhase !== "closed" && walletPhase !== "closing";
+  const walletLocked =
+    walletPhase === "opening" ||
+    walletPhase === "closing" ||
+    walletPhase === "expandingCard" ||
+    walletPhase === "switchingCard" ||
+    Boolean(loadingPlan);
 
   useEffect(() => {
-    if (!user?.id || hasOpenedWalletRef.current) return;
-    hasOpenedWalletRef.current = true;
-    setWalletOpen(true);
-    writeOnboardingDraft(user.id, { walletOpen: true, selectedPlanId: restoredPlanId });
-  }, [user?.id, restoredPlanId]);
+    return () => {
+      if (phaseTimerRef.current) window.clearTimeout(phaseTimerRef.current);
+    };
+  }, []);
+
+  function transitionWallet(nextPhase, duration, afterTransition) {
+    if (phaseTimerRef.current) window.clearTimeout(phaseTimerRef.current);
+    setWalletPhase(nextPhase);
+    if (!duration) {
+      afterTransition?.();
+      return;
+    }
+    phaseTimerRef.current = window.setTimeout(() => {
+      phaseTimerRef.current = null;
+      afterTransition?.();
+    }, duration);
+  }
 
   if (!ready) {
     return (
@@ -243,22 +301,42 @@ export default function PlanSelectionPage() {
   }
 
   function handleOpenWallet() {
-    if (walletOpen) return;
-    setWalletOpen(true);
-    persistDraft({ walletOpen: true, selectedPlanId });
+    if (walletPhase !== "closed") return;
+    transitionWallet("opening", WALLET_OPEN_MS, () => setWalletPhase("deckOpen"));
+    persistDraft({ selectedPlanId });
   }
 
   function handleCloseWallet() {
-    if (loadingPlan) return;
-    setWalletOpen(false);
-    persistDraft({ walletOpen: false, selectedPlanId });
+    if ((walletPhase !== "deckOpen" && walletPhase !== "cardExpanded") || loadingPlan) return;
+    setExpandedPlanId(null);
+    transitionWallet("closing", WALLET_CLOSE_MS, () => setWalletPhase("closed"));
+    persistDraft({ selectedPlanId });
+  }
+
+  function handleWalletToggle() {
+    if (walletLocked) return;
+    if (walletPhase === "closed") {
+      handleOpenWallet();
+      return;
+    }
+    handleCloseWallet();
   }
 
   function handleSelectPlan(planId) {
+    if ((walletPhase !== "deckOpen" && walletPhase !== "cardExpanded") || loadingPlan) return;
+    if (planId === expandedPlanId && walletPhase === "cardExpanded") return;
     setSelectedPlanId(planId);
     setError("");
-    if (!walletOpen) setWalletOpen(true);
-    persistDraft({ walletOpen: true, selectedPlanId: planId });
+    if (expandedPlanId && expandedPlanId !== planId) {
+      transitionWallet("switchingCard", CARD_SWITCH_MS, () => {
+        setExpandedPlanId(planId);
+        setWalletPhase("cardExpanded");
+      });
+    } else {
+      setExpandedPlanId(planId);
+      transitionWallet("expandingCard", CARD_EXPAND_MS, () => setWalletPhase("cardExpanded"));
+    }
+    persistDraft({ selectedPlanId: planId });
   }
 
   async function handleContinue() {
@@ -271,7 +349,7 @@ export default function PlanSelectionPage() {
     try {
       await saveUserPlan(selectedPlanId);
       await refreshUser();
-      persistDraft({ selectedPlanId, walletOpen: true, planConfirmed: true });
+      persistDraft({ selectedPlanId, planConfirmed: true });
       navigate(MATCH_ONBOARDING_PATH, { replace: true });
     } catch (err) {
       setError(err.message || "Could not save your plan. Please try again.");
@@ -289,34 +367,26 @@ export default function PlanSelectionPage() {
       onContinue={handleContinue}
       continueDisabled={!walletOpen || !isValidPlanId(selectedPlanId)}
       continueLoading={Boolean(loadingPlan)}
-      footerNote="Billing is not charged during this step. Your selection is saved to your profile so Prelude can personalize your dashboard."
-      className={walletOpen ? "plan-select-page--wallet-open" : ""}
+      hideContinue
+      footerNote="Your selection is saved to your profile so Prelude can personalize your dashboard."
+      className={`plan-select-page ${walletOpen ? "plan-select-page--wallet-open" : ""}`}
     >
       {error ? <div className="onboarding-flow__error" role="alert">{error}</div> : null}
 
       <div className="plan-wallet-experience">
         <div className="plan-wallet-experience__stage">
-          <WalletShell open={walletOpen} onOpen={handleOpenWallet} onClose={handleCloseWallet}>
+          <WalletShell phase={walletPhase} open={walletOpen} locked={walletLocked} onToggle={handleWalletToggle}>
             <PlanCardStack
               plans={plans}
+              phase={walletPhase}
               open={walletOpen}
               selectedPlanId={selectedPlan.id}
+              expandedPlanId={expandedPlanId}
               loadingPlan={loadingPlan}
               onSelect={handleSelectPlan}
+              onChoose={handleContinue}
             />
           </WalletShell>
-        </div>
-
-        <div className="plan-wallet-experience__details" aria-live="polite">
-          {walletOpen ? (
-            <PlanDetails plan={selectedPlan} loading={loadingPlan === selectedPlan.id} error={error} />
-          ) : (
-            <section className="plan-wallet-placeholder" aria-label="Plan wallet instructions">
-              <Sparkles aria-hidden="true" />
-              <h2>Open the wallet to compare plans</h2>
-              <p>Reveal the three Prelude tiers, then choose any card to bring its complete details forward.</p>
-            </section>
-          )}
         </div>
       </div>
     </OnboardingShell>

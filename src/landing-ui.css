@@ -692,8 +692,8 @@ img.account-menu-btn__avatar {
 
 .plan-wallet-experience {
   display: grid;
-  grid-template-columns: minmax(24rem, 1fr) minmax(21rem, 0.9fr);
-  gap: clamp(1.25rem, 4vw, 3rem);
+  grid-template-columns: minmax(25rem, 1fr) minmax(21rem, 0.86fr);
+  gap: clamp(1.5rem, 4vw, 3.25rem);
   align-items: center;
 }
 
@@ -705,100 +705,170 @@ img.account-menu-btn__avatar {
   min-width: 0;
 }
 
+.plan-select-page:not(.plan-select-page--wallet-open) .plan-wallet-experience {
+  grid-template-columns: minmax(20rem, 42rem);
+  justify-content: center;
+}
+
 .plan-wallet {
   position: relative;
-  min-height: clamp(25rem, 44vw, 34rem);
+  min-height: clamp(27rem, 44vw, 35rem);
   display: grid;
   place-items: center;
-  perspective: 1200px;
+  perspective: 1400px;
   isolation: isolate;
 }
 
 .plan-wallet__surface {
   position: absolute;
-  inset: auto 50% 3.2rem auto;
-  width: min(24rem, 86vw);
-  aspect-ratio: 1.58 / 1;
-  display: grid;
-  align-content: end;
-  justify-items: start;
-  padding: clamp(1.15rem, 3vw, 1.7rem);
-  border: 1px solid rgb(255 255 255 / 0.5);
-  border-radius: 1.75rem;
-  background:
-    linear-gradient(140deg, rgb(255 255 255 / 0.32), transparent 40%),
-    linear-gradient(155deg, #191b3d 0%, #272053 48%, #12152f 100%);
-  box-shadow:
-    0 34px 80px rgb(17 24 64 / 0.25),
-    inset 0 1px 0 rgb(255 255 255 / 0.28),
-    inset 0 -28px 70px rgb(0 0 0 / 0.22);
-  color: #fff;
+  left: 50%;
+  bottom: 2.25rem;
+  width: min(25rem, 88vw);
+  height: min(15.5rem, 55vw);
+  min-height: 13rem;
+  border: 0;
+  background: transparent;
   cursor: pointer;
-  transform: translateX(50%) translateY(0) rotateX(0deg);
+  transform: translateX(-50%) translateY(0) rotateX(0deg);
   transform-origin: center bottom;
-  transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, filter 0.3s ease;
-  animation: plan-wallet-breathe 4.5s ease-in-out infinite;
-  overflow: hidden;
-  z-index: 4;
+  transition: transform 0.62s cubic-bezier(0.2, 0.86, 0.2, 1), filter 0.28s ease;
+  z-index: 6;
 }
 
 .plan-wallet__surface:hover:not(:disabled),
 .plan-wallet__surface:focus-visible:not(:disabled) {
-  transform: translateX(50%) translateY(-5px) rotateX(0deg);
-  box-shadow:
-    0 40px 92px rgb(17 24 64 / 0.32),
-    inset 0 1px 0 rgb(255 255 255 / 0.32),
-    inset 0 -28px 70px rgb(0 0 0 / 0.2);
+  transform: translateX(-50%) translateY(-0.35rem);
 }
 
 .plan-wallet__surface:focus-visible {
   outline: 3px solid hsl(var(--primary) / 0.32);
-  outline-offset: 5px;
+  outline-offset: 0.4rem;
 }
 
-.plan-wallet--open .plan-wallet__surface {
-  pointer-events: none;
-  filter: saturate(1.04);
-  animation: none;
-  transform: translateX(50%) translateY(2rem) rotateX(58deg) scale(0.94);
+.plan-wallet--opening .plan-wallet__surface,
+.plan-wallet--open .plan-wallet__surface,
+.plan-wallet--switching .plan-wallet__surface {
+  transform: translateX(-50%) translateY(1.65rem) rotateX(54deg) scale(0.96);
 }
 
-.plan-wallet__glow {
+.plan-wallet--closing .plan-wallet__surface {
+  transform: translateX(-50%) translateY(0.4rem) rotateX(12deg) scale(0.98);
+}
+
+.plan-wallet__shadow {
   position: absolute;
-  inset: -30% -20% auto auto;
-  width: 70%;
-  height: 80%;
+  left: 6%;
+  right: 6%;
+  bottom: -1.2rem;
+  height: 3.4rem;
   border-radius: 999px;
-  background: radial-gradient(circle, rgb(156 141 255 / 0.42), transparent 65%);
-  opacity: 0.8;
-  transform: rotate(-18deg);
+  background: radial-gradient(ellipse, rgb(17 24 64 / 0.28), transparent 68%);
+  filter: blur(10px);
+  transform: translateZ(-1px);
 }
 
-.plan-wallet__flap {
+.plan-wallet__back,
+.plan-wallet__body {
   position: absolute;
   inset: 0;
-  border-radius: inherit;
+  border-radius: 1.55rem;
+  overflow: hidden;
+}
+
+.plan-wallet__back {
+  transform-origin: center bottom;
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.12), transparent 42%),
-    linear-gradient(90deg, transparent 0 52%, rgb(255 255 255 / 0.08) 52% 53%, transparent 53%);
+    linear-gradient(145deg, rgb(255 255 255 / 0.12), transparent 34%),
+    linear-gradient(155deg, #242452 0%, #171a3d 52%, #0f1532 100%);
+  box-shadow:
+    0 30px 70px rgb(17 24 64 / 0.26),
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    inset 0 -24px 64px rgb(0 0 0 / 0.24);
+}
+
+.plan-wallet__body {
+  display: grid;
+  align-content: end;
+  justify-items: start;
+  padding: clamp(1.05rem, 3vw, 1.45rem);
+  color: #ffffff;
+  transform-origin: center bottom;
+  background:
+    radial-gradient(circle at 18% 18%, rgb(255 255 255 / 0.18), transparent 10rem),
+    linear-gradient(90deg, transparent 0 48%, rgb(255 255 255 / 0.065) 48% 49%, transparent 49%),
+    linear-gradient(150deg, #23265b 0%, #16183d 58%, #10152e 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    inset 0 -32px 70px rgb(0 0 0 / 0.25);
+}
+
+.plan-wallet--opening .plan-wallet__body,
+.plan-wallet--open .plan-wallet__body,
+.plan-wallet--switching .plan-wallet__body {
+  transform: rotateX(-13deg) translateY(0.15rem);
+}
+
+.plan-wallet__card-peek {
+  position: absolute;
+  left: 13%;
+  right: 13%;
+  top: 1.1rem;
+  height: 2.25rem;
+  border-radius: 0.8rem 0.8rem 0 0;
+  opacity: 0;
+  transform: translateY(2.1rem);
+  transition: opacity 0.32s ease, transform 0.58s cubic-bezier(0.2, 0.86, 0.2, 1);
+}
+
+.plan-wallet__card-peek--one {
+  background: linear-gradient(110deg, #f5f7fb, #cdd5de 42%, #ffffff 56%, #aeb8c2);
+}
+
+.plan-wallet__card-peek--two {
+  left: 17%;
+  right: 9%;
+  top: 1.75rem;
+  background: linear-gradient(110deg, #ead38f, #c69438 43%, #fff3b4 58%, #a86d22);
+}
+
+.plan-wallet--closed .plan-wallet__card-peek {
+  opacity: 0;
+  transform: translateY(2.1rem);
+}
+
+.plan-wallet--opening .plan-wallet__card-peek,
+.plan-wallet--open .plan-wallet__card-peek,
+.plan-wallet--switching .plan-wallet__card-peek {
+  opacity: 0.95;
+  transform: translateY(-1.25rem);
+}
+
+.plan-wallet__stitch {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  top: 0.8rem;
+  height: 1px;
+  background-image: linear-gradient(90deg, rgb(255 255 255 / 0.28) 0 24%, transparent 24% 48%);
+  background-size: 0.7rem 1px;
 }
 
 .plan-wallet__slot {
   position: absolute;
-  left: 12%;
-  right: 12%;
+  left: 11%;
+  right: 11%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.34), transparent);
-  box-shadow: 0 1.1rem 0 rgb(255 255 255 / 0.07);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.3), transparent);
+  box-shadow: 0 0.95rem 0 rgb(255 255 255 / 0.065);
 }
 
 .plan-wallet__slot--one {
-  top: 22%;
+  top: 24%;
 }
 
 .plan-wallet__slot--two {
-  top: 34%;
-  opacity: 0.72;
+  top: 35%;
+  opacity: 0.7;
 }
 
 .plan-wallet__brand {
@@ -825,6 +895,37 @@ img.account-menu-btn__avatar {
   font-weight: 700;
 }
 
+.plan-wallet__clasp {
+  position: absolute;
+  right: 1.35rem;
+  bottom: 1.25rem;
+  width: 3.3rem;
+  height: 2.25rem;
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.24), transparent 44%),
+    linear-gradient(150deg, #7b6dff 0%, #5a47d8 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 12px 24px rgb(0 0 0 / 0.14);
+  transition: transform 0.42s cubic-bezier(0.2, 0.86, 0.2, 1), opacity 0.28s ease;
+}
+
+.plan-wallet__clasp::after {
+  content: "";
+  position: absolute;
+  inset: 0.72rem 1.18rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.78);
+}
+
+.plan-wallet--opening .plan-wallet__clasp,
+.plan-wallet--open .plan-wallet__clasp,
+.plan-wallet--switching .plan-wallet__clasp {
+  opacity: 0.82;
+  transform: translateX(0.55rem) rotate(9deg);
+}
+
 .plan-wallet__stack-wrap {
   position: absolute;
   inset: 0;
@@ -834,39 +935,10 @@ img.account-menu-btn__avatar {
   z-index: 5;
 }
 
-.plan-wallet__close {
-  position: absolute;
-  top: 0.8rem;
-  right: clamp(0.25rem, 2vw, 1rem);
-  width: 2.35rem;
-  height: 2.35rem;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid hsl(var(--foreground) / 0.08);
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.88);
-  color: hsl(var(--foreground));
-  box-shadow: 0 10px 26px rgb(17 24 64 / 0.12);
-  cursor: pointer;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-  z-index: 8;
-}
-
-.plan-wallet__close:hover,
-.plan-wallet__close:focus-visible {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 32px rgb(17 24 64 / 0.16);
-}
-
-.plan-wallet__close svg {
-  width: 1.05rem;
-  height: 1.05rem;
-}
-
 .plan-card-stack {
   position: relative;
-  width: min(34rem, 100%);
-  height: clamp(17rem, 34vw, 22rem);
+  width: min(36rem, 100%);
+  height: clamp(19rem, 34vw, 23.5rem);
   pointer-events: none;
 }
 
@@ -877,30 +949,29 @@ img.account-menu-btn__avatar {
 .wallet-plan-card {
   position: absolute;
   left: 50%;
-  bottom: 2.3rem;
-  width: min(15.25rem, 52vw);
-  min-height: 12.5rem;
+  bottom: 1.6rem;
+  width: min(15.75rem, 52vw);
+  min-height: 13rem;
   display: grid;
   align-content: space-between;
   gap: 0.65rem;
   padding: 1rem;
-  border: 1px solid rgb(255 255 255 / 0.5);
-  border-radius: 1.15rem;
+  border: 1px solid rgb(255 255 255 / 0.62);
+  border-radius: 1.2rem;
   text-align: left;
   color: #17182e;
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / 0.86), rgb(245 246 255 / 0.96)),
-    linear-gradient(180deg, rgb(255 255 255 / 0.9), rgb(237 233 255 / 0.72));
   box-shadow:
-    0 18px 48px rgb(17 24 64 / 0.16),
-    inset 0 1px 0 rgb(255 255 255 / 0.82);
+    0 22px 54px rgb(17 24 64 / 0.17),
+    inset 0 1px 0 rgb(255 255 255 / 0.84),
+    inset 0 -18px 48px rgb(0 0 0 / 0.06);
   cursor: pointer;
   overflow: hidden;
   opacity: 0;
-  transform: translateX(-50%) translateY(9.5rem) rotate(-3deg) scale(0.82);
+  transform: translateX(-50%) translateY(9.75rem) rotate(0deg) scale(0.74);
+  transform-origin: center bottom;
   transition:
-    transform 0.64s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity 0.34s ease,
+    transform 0.72s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.28s ease,
     box-shadow 0.24s ease,
     border-color 0.24s ease,
     filter 0.24s ease;
@@ -914,41 +985,70 @@ img.account-menu-btn__avatar {
   opacity: 1;
 }
 
+.plan-card-stack--opening .wallet-plan-card {
+  animation: wallet-card-reveal 0.86s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.plan-card-stack--opening .wallet-plan-card--basic {
+  animation-delay: 0.16s;
+}
+
+.plan-card-stack--opening .wallet-plan-card--plus {
+  animation-delay: 0.26s;
+}
+
+.plan-card-stack--opening .wallet-plan-card--pro {
+  animation-delay: 0.38s;
+}
+
+.plan-card-stack--opening .wallet-plan-card--diamond .wallet-plan-card__edge {
+  animation: diamond-edge-arrival 0.72s ease-out 0.68s both;
+}
+
 .plan-card-stack--open .wallet-plan-card--basic {
-  transform: translateX(calc(-50% - 9.6rem)) translateY(2.3rem) rotate(-7deg) scale(0.9);
+  transform: translateX(calc(-50% - 8.5rem)) translateY(2.35rem) rotate(-6deg) scale(0.93);
   transition-delay: 0.03s;
+  z-index: 1;
 }
 
 .plan-card-stack--open .wallet-plan-card--plus {
-  transform: translateX(-50%) translateY(0.9rem) rotate(0deg) scale(0.95);
+  transform: translateX(-50%) translateY(0.85rem) rotate(0deg) scale(0.96);
   transition-delay: 0.08s;
+  z-index: 2;
 }
 
 .plan-card-stack--open .wallet-plan-card--pro {
-  transform: translateX(calc(-50% + 9.6rem)) translateY(2.1rem) rotate(7deg) scale(0.9);
+  transform: translateX(calc(-50% + 8.5rem)) translateY(2.25rem) rotate(6deg) scale(0.93);
   transition-delay: 0.13s;
+  z-index: 3;
+}
+
+.plan-card-stack--switching .wallet-plan-card--basic,
+.plan-card-stack--switching .wallet-plan-card--plus,
+.plan-card-stack--switching .wallet-plan-card--pro {
+  transition-duration: 0.28s;
 }
 
 .plan-card-stack--open .wallet-plan-card--selected {
-  z-index: 4;
+  z-index: 6;
   border-color: rgb(120 106 255 / 0.62);
   box-shadow:
-    0 28px 70px rgb(17 24 64 / 0.24),
-    0 0 0 3px rgb(120 106 255 / 0.12),
-    inset 0 1px 0 rgb(255 255 255 / 0.86);
-  filter: saturate(1.04);
+    0 34px 76px rgb(17 24 64 / 0.25),
+    0 0 0 3px rgb(120 106 255 / 0.14),
+    inset 0 1px 0 rgb(255 255 255 / 0.9);
+  filter: saturate(1.08);
 }
 
 .plan-card-stack--open .wallet-plan-card--basic.wallet-plan-card--selected {
-  transform: translateX(calc(-50% - 9.6rem)) translateY(-0.1rem) rotate(-5deg) scale(1);
+  transform: translateX(calc(-50% - 8.5rem)) translateY(-0.2rem) rotate(-3.5deg) scale(1.02);
 }
 
 .plan-card-stack--open .wallet-plan-card--plus.wallet-plan-card--selected {
-  transform: translateX(-50%) translateY(-1.3rem) rotate(0deg) scale(1.04);
+  transform: translateX(-50%) translateY(-1.2rem) rotate(0deg) scale(1.05);
 }
 
 .plan-card-stack--open .wallet-plan-card--pro.wallet-plan-card--selected {
-  transform: translateX(calc(-50% + 9.6rem)) translateY(-0.1rem) rotate(5deg) scale(1);
+  transform: translateX(calc(-50% + 8.5rem)) translateY(-0.2rem) rotate(3.5deg) scale(1.03);
 }
 
 .wallet-plan-card:hover:not(:disabled),
@@ -965,64 +1065,120 @@ img.account-menu-btn__avatar {
   transition-duration: 0.16s;
 }
 
-.wallet-plan-card--basic {
+.wallet-plan-card--silver {
   background:
-    linear-gradient(145deg, #ffffff, #f5f6fb),
-    linear-gradient(180deg, #ffffff, #f2f4fb);
+    linear-gradient(112deg, transparent 0 24%, rgb(255 255 255 / 0.72) 35%, transparent 48%),
+    repeating-linear-gradient(100deg, rgb(255 255 255 / 0.16) 0 1px, transparent 1px 6px),
+    linear-gradient(145deg, #f8fafc 0%, #cdd3dc 40%, #ffffff 56%, #aeb7c2 100%);
+  border-color: rgb(255 255 255 / 0.72);
 }
 
-.wallet-plan-card--plus {
+.wallet-plan-card--gold {
   background:
-    radial-gradient(circle at 84% 18%, rgb(120 106 255 / 0.26), transparent 9rem),
-    linear-gradient(145deg, #fff, #eeeaff 55%, #f8f7ff);
-  border-color: rgb(120 106 255 / 0.28);
-}
-
-.wallet-plan-card--pro {
-  color: #fff;
-  background:
-    linear-gradient(120deg, transparent 0 34%, rgb(255 255 255 / 0.18) 48%, transparent 62%),
-    radial-gradient(circle at 82% 16%, rgb(255 217 138 / 0.28), transparent 8rem),
-    linear-gradient(145deg, #131633 0%, #332762 54%, #17182e 100%);
-  border-color: rgb(255 255 255 / 0.24);
-}
-
-.wallet-plan-card--pro .wallet-plan-card__desc,
-.wallet-plan-card--pro .wallet-plan-card__footer,
-.wallet-plan-card--pro .wallet-plan-card__price span,
-.wallet-plan-card--pro .wallet-plan-card__topline {
-  color: rgb(255 255 255 / 0.78);
-}
-
-.wallet-plan-card--pro.wallet-plan-card--selected {
-  border-color: rgb(255 222 160 / 0.72);
+    linear-gradient(112deg, transparent 0 25%, rgb(255 248 204 / 0.74) 37%, transparent 50%),
+    radial-gradient(circle at 82% 14%, rgb(255 255 255 / 0.52), transparent 7rem),
+    linear-gradient(145deg, #fff1b6 0%, #d1a142 34%, #f7d876 56%, #b87b26 100%);
+  border-color: rgb(255 238 169 / 0.72);
   box-shadow:
-    0 32px 78px rgb(17 24 64 / 0.32),
-    0 0 0 3px rgb(255 222 160 / 0.16),
-    inset 0 1px 0 rgb(255 255 255 / 0.28);
+    0 26px 64px rgb(155 104 25 / 0.2),
+    inset 0 1px 0 rgb(255 255 255 / 0.78),
+    inset 0 -22px 54px rgb(95 57 14 / 0.12);
+}
+
+.wallet-plan-card--diamond {
+  color: #101538;
+  background:
+    linear-gradient(128deg, transparent 0 22%, rgb(255 255 255 / 0.9) 32%, transparent 46%),
+    linear-gradient(52deg, rgb(126 212 255 / 0.24), transparent 28% 65%, rgb(195 151 255 / 0.28)),
+    radial-gradient(circle at 82% 18%, rgb(255 255 255 / 0.72), transparent 7rem),
+    linear-gradient(145deg, #ffffff 0%, #dcecff 32%, #f8fbff 53%, #bdd4ff 100%);
+  border-color: rgb(255 255 255 / 0.86);
+  box-shadow:
+    0 30px 76px rgb(63 87 171 / 0.24),
+    0 0 0 1px rgb(126 212 255 / 0.18),
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 -24px 58px rgb(94 120 190 / 0.12);
+}
+
+.wallet-plan-card--gold .wallet-plan-card__desc,
+.wallet-plan-card--gold .wallet-plan-card__footer,
+.wallet-plan-card--gold .wallet-plan-card__price span,
+.wallet-plan-card--gold .wallet-plan-card__topline {
+  color: rgb(68 44 10 / 0.72);
+}
+
+.wallet-plan-card--diamond .wallet-plan-card__desc,
+.wallet-plan-card--diamond .wallet-plan-card__footer,
+.wallet-plan-card--diamond .wallet-plan-card__price span,
+.wallet-plan-card--diamond .wallet-plan-card__topline {
+  color: rgb(16 21 56 / 0.72);
+}
+
+.wallet-plan-card--gold.wallet-plan-card--selected {
+  border-color: rgb(255 239 180 / 0.95);
+}
+
+.wallet-plan-card--diamond.wallet-plan-card--selected {
+  border-color: rgb(255 255 255 / 0.98);
+  box-shadow:
+    0 38px 86px rgb(63 87 171 / 0.3),
+    0 0 0 3px rgb(150 213 255 / 0.2),
+    inset 0 1px 0 rgb(255 255 255 / 0.95);
+}
+
+.plan-card-stack--open .wallet-plan-card--selected.wallet-plan-card--silver .wallet-plan-card__shine {
+  animation: silver-satin-sweep 4.8s ease-in-out 1;
+}
+
+.plan-card-stack--open .wallet-plan-card--selected.wallet-plan-card--gold .wallet-plan-card__shine {
+  animation: gold-sheen-sweep 4.2s ease-in-out 1;
+}
+
+.plan-card-stack--open .wallet-plan-card--selected.wallet-plan-card--diamond .wallet-plan-card__shine {
+  animation: diamond-prism-sweep 4.4s ease-in-out 1;
+}
+
+.wallet-plan-card__grain,
+.wallet-plan-card__edge,
+.wallet-plan-card__shine {
+  pointer-events: none;
 }
 
 .wallet-plan-card__shine {
   position: absolute;
-  inset: -35% auto auto -30%;
-  width: 80%;
-  height: 70%;
-  background: linear-gradient(115deg, transparent, rgb(255 255 255 / 0.34), transparent);
-  transform: rotate(16deg);
-  opacity: 0;
-  transition: opacity 0.2s ease, transform 0.65s ease;
+  inset: -45% auto auto -55%;
+  width: 75%;
+  height: 160%;
+  background: linear-gradient(112deg, transparent 10%, rgb(255 255 255 / 0.58) 44%, transparent 62%);
+  transform: translateX(0) rotate(16deg);
+  opacity: 0.26;
+  transition: opacity 0.2s ease, transform 0.72s ease;
 }
 
-.wallet-plan-card--plus .wallet-plan-card__shine,
-.wallet-plan-card--pro .wallet-plan-card__shine {
-  opacity: 0.55;
+.wallet-plan-card__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(90deg, rgb(255 255 255 / 0.25), transparent 22% 78%, rgb(0 0 0 / 0.08)),
+    repeating-linear-gradient(0deg, transparent 0 5px, rgb(255 255 255 / 0.12) 5px 6px);
+  mix-blend-mode: soft-light;
+}
+
+.wallet-plan-card__edge {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.52),
+    inset 0 0 28px rgb(255 255 255 / 0.2);
 }
 
 .wallet-plan-card:hover .wallet-plan-card__shine,
 .wallet-plan-card:focus-visible .wallet-plan-card__shine,
 .wallet-plan-card--selected .wallet-plan-card__shine {
-  opacity: 0.75;
-  transform: translateX(80%) rotate(16deg);
+  opacity: 0.72;
+  transform: translateX(210%) rotate(16deg);
 }
 
 .wallet-plan-card__topline,
@@ -1039,12 +1195,21 @@ img.account-menu-btn__avatar {
   text-transform: uppercase;
 }
 
+.wallet-plan-card__topline {
+  flex-wrap: wrap;
+}
+
+.wallet-plan-card__material {
+  color: inherit;
+  opacity: 0.86;
+}
+
 .wallet-plan-card__badge {
   padding: 0.22rem 0.48rem;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.16);
+  background: rgb(255 255 255 / 0.36);
   color: inherit;
-  border: 1px solid rgb(255 255 255 / 0.2);
+  border: 1px solid rgb(255 255 255 / 0.36);
 }
 
 .wallet-plan-card__name {
@@ -1283,10 +1448,10 @@ img.account-menu-btn__avatar {
 @keyframes plan-wallet-breathe {
   0%,
   100% {
-    transform: translateX(50%) translateY(0) rotateX(0deg);
+    transform: translateX(-50%) translateY(0) rotateX(0deg);
   }
   50% {
-    transform: translateX(50%) translateY(-3px) rotateX(0deg);
+    transform: translateX(-50%) translateY(-3px) rotateX(0deg);
   }
 }
 
@@ -1311,13 +1476,82 @@ img.account-menu-btn__avatar {
   }
 }
 
+@keyframes wallet-card-reveal {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10.1rem) rotate(0deg) scale(0.72);
+  }
+  38% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0.4rem) rotate(0deg) scale(0.93);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes silver-satin-sweep {
+  0% {
+    transform: translateX(-15%) rotate(16deg);
+  }
+  55%,
+  100% {
+    transform: translateX(210%) rotate(16deg);
+  }
+}
+
+@keyframes gold-sheen-sweep {
+  0% {
+    transform: translateX(-18%) rotate(16deg);
+  }
+  52%,
+  100% {
+    transform: translateX(220%) rotate(16deg);
+  }
+}
+
+@keyframes diamond-prism-sweep {
+  0% {
+    transform: translateX(-18%) rotate(16deg);
+    opacity: 0.28;
+  }
+  48% {
+    opacity: 0.82;
+  }
+  100% {
+    transform: translateX(230%) rotate(16deg);
+    opacity: 0.54;
+  }
+}
+
+@keyframes diamond-edge-arrival {
+  0% {
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.52),
+      inset 0 0 28px rgb(255 255 255 / 0.2),
+      0 0 0 rgb(130 212 255 / 0);
+  }
+  55% {
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.78),
+      inset 0 0 34px rgb(255 255 255 / 0.34),
+      0 0 30px rgb(130 212 255 / 0.38);
+  }
+  100% {
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.52),
+      inset 0 0 28px rgb(255 255 255 / 0.2),
+      0 0 0 rgb(130 212 255 / 0);
+  }
+}
+
 @media (max-width: 64rem) {
   .plan-wallet-experience {
     grid-template-columns: 1fr;
   }
 
   .plan-wallet {
-    min-height: clamp(23rem, 56vw, 31rem);
+    min-height: clamp(29rem, 60vw, 35rem);
   }
 
   .plan-wallet-placeholder,
@@ -1336,57 +1570,57 @@ img.account-menu-btn__avatar {
   }
 
   .plan-wallet {
-    min-height: 43rem;
+    min-height: 39rem;
+  }
+
+  .plan-wallet__stack-wrap {
+    align-items: start;
+    padding-top: 1rem;
   }
 
   .plan-wallet__surface {
-    bottom: 3.4rem;
-    width: min(21rem, 88vw);
-    border-radius: 1.45rem;
+    bottom: 1.5rem;
+    width: min(21.5rem, 88vw);
+    height: 13.4rem;
   }
 
   .plan-card-stack {
     width: 100%;
-    height: 31rem;
+    height: 28rem;
   }
 
   .wallet-plan-card {
-    width: min(18rem, 86vw);
-    min-height: 9.5rem;
+    width: min(18.5rem, 86vw);
+    min-height: 9.6rem;
     padding: 0.95rem;
   }
 
   .plan-card-stack--open .wallet-plan-card--basic {
-    transform: translateX(-50%) translateY(-4.7rem) rotate(-1deg) scale(0.92);
+    transform: translateX(-50%) translateY(-9rem) rotate(-1deg) scale(0.92);
   }
 
   .plan-card-stack--open .wallet-plan-card--plus {
-    transform: translateX(-50%) translateY(4.9rem) rotate(1deg) scale(0.92);
+    transform: translateX(-50%) translateY(-1.2rem) rotate(1deg) scale(0.92);
   }
 
   .plan-card-stack--open .wallet-plan-card--pro {
-    transform: translateX(-50%) translateY(9.6rem) rotate(-1deg) scale(0.92);
+    transform: translateX(-50%) translateY(4.2rem) rotate(-1deg) scale(0.92);
   }
 
   .plan-card-stack--open .wallet-plan-card--basic.wallet-plan-card--selected {
-    transform: translateX(-50%) translateY(-5.4rem) rotate(0deg) scale(1);
+    transform: translateX(-50%) translateY(-9.8rem) rotate(0deg) scale(1);
   }
 
   .plan-card-stack--open .wallet-plan-card--plus.wallet-plan-card--selected {
-    transform: translateX(-50%) translateY(4.2rem) rotate(0deg) scale(1);
+    transform: translateX(-50%) translateY(-2rem) rotate(0deg) scale(1);
   }
 
   .plan-card-stack--open .wallet-plan-card--pro.wallet-plan-card--selected {
-    transform: translateX(-50%) translateY(8.8rem) rotate(0deg) scale(1);
+    transform: translateX(-50%) translateY(3.4rem) rotate(0deg) scale(1);
   }
 
   .wallet-plan-card__desc {
     display: none;
-  }
-
-  .plan-wallet__close {
-    top: 0.2rem;
-    right: 0.2rem;
   }
 }
 
@@ -1397,11 +1631,13 @@ img.account-menu-btn__avatar {
   }
 
   .plan-wallet__surface,
+  .plan-wallet__body,
+  .plan-wallet__card-peek,
   .wallet-plan-card,
+  .plan-card-stack--opening .wallet-plan-card,
   .wallet-plan-card__shine,
   .plan-wallet-details,
   .plan-wallet-details__cta,
-  .plan-wallet__close,
   .plan-select-page__back {
     transition-duration: 0.001ms !important;
     animation-duration: 0.001ms !important;
@@ -1421,6 +1657,335 @@ img.account-menu-btn__avatar {
   .plan-card-stack--open .wallet-plan-card--pro,
   .plan-card-stack--open .wallet-plan-card--pro.wallet-plan-card--selected {
     transform: translateX(-50%) translateY(7.4rem) rotate(0deg) scale(1);
+  }
+}
+
+/* Concept wallet: compact wallet -> layered deck -> expanded plan card */
+.plan-select-page .plan-wallet-experience {
+  grid-template-columns: minmax(18rem, 42rem);
+  justify-content: center;
+  align-items: start;
+  margin-top: clamp(8.75rem, 12vw, 11rem);
+}
+
+.plan-select-page .plan-wallet-experience__stage {
+  width: 100%;
+}
+
+.plan-select-page .plan-wallet {
+  min-height: 24rem;
+  transition: min-height 0.52s cubic-bezier(0.2, 0.86, 0.2, 1);
+}
+
+.plan-select-page--wallet-open .plan-wallet {
+  min-height: 48rem;
+}
+
+.plan-select-page .plan-wallet__surface {
+  bottom: 0;
+  width: min(30rem, 92vw);
+  height: 14rem;
+  z-index: 20;
+}
+
+.plan-select-page .plan-wallet__body,
+.plan-select-page .plan-wallet__back {
+  border-radius: 2rem;
+}
+
+.plan-select-page .plan-wallet__surface:hover:not(:disabled),
+.plan-select-page .plan-wallet__surface:focus-visible:not(:disabled) {
+  transform: translateX(-50%) translateY(-0.25rem);
+}
+
+.plan-select-page .plan-wallet--opening .plan-wallet__surface,
+.plan-select-page .plan-wallet--deckOpen .plan-wallet__surface,
+.plan-select-page .plan-wallet--expandingCard .plan-wallet__surface,
+.plan-select-page .plan-wallet--cardExpanded .plan-wallet__surface,
+.plan-select-page .plan-wallet--switchingCard .plan-wallet__surface {
+  transform: translateX(-50%) translateY(0.35rem) rotateX(0deg) scale(1);
+}
+
+.plan-select-page .plan-wallet__stack-wrap {
+  z-index: 14;
+  align-items: end;
+  padding-bottom: 5.8rem;
+  pointer-events: none;
+}
+
+.plan-select-page .plan-card-stack {
+  width: min(32rem, 94vw);
+  height: 40rem;
+  pointer-events: none;
+}
+
+.plan-select-page .plan-card-stack--deckOpen,
+.plan-select-page .plan-card-stack--cardExpanded {
+  pointer-events: auto;
+}
+
+.plan-select-page .wallet-plan-card {
+  left: 50%;
+  bottom: 0;
+  width: min(27rem, 86vw);
+  min-height: 9.2rem;
+  height: 9.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.05rem;
+  opacity: 0;
+  transform: translateX(-50%) translateY(7rem) scale(0.9);
+  transition:
+    transform 0.56s cubic-bezier(0.2, 0.86, 0.2, 1),
+    height 0.52s cubic-bezier(0.2, 0.86, 0.2, 1),
+    min-height 0.52s cubic-bezier(0.2, 0.86, 0.2, 1),
+    opacity 0.24s ease,
+    box-shadow 0.24s ease,
+    border-color 0.24s ease;
+}
+
+.plan-select-page .wallet-plan-card[aria-disabled="true"] {
+  cursor: default;
+  pointer-events: none;
+}
+
+.plan-select-page .plan-card-stack--opening .wallet-plan-card,
+.plan-select-page .plan-card-stack--deckOpen .wallet-plan-card,
+.plan-select-page .plan-card-stack--expandingCard .wallet-plan-card,
+.plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card,
+.plan-select-page .plan-card-stack--switchingCard .wallet-plan-card {
+  opacity: 1;
+}
+
+.plan-select-page .plan-card-stack--opening .wallet-plan-card {
+  animation: concept-card-rise 0.72s cubic-bezier(0.2, 0.86, 0.2, 1) both;
+}
+
+.plan-select-page .plan-card-stack--opening .wallet-plan-card--basic {
+  animation-delay: 0.08s;
+}
+
+.plan-select-page .plan-card-stack--opening .wallet-plan-card--plus {
+  animation-delay: 0.15s;
+}
+
+.plan-select-page .plan-card-stack--opening .wallet-plan-card--pro {
+  animation-delay: 0.22s;
+}
+
+.plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--basic,
+.plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--basic,
+.plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--basic,
+.plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--basic {
+  transform: translateX(-50%) translateY(-9.6rem) scale(0.94);
+  z-index: 3;
+}
+
+.plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--plus,
+.plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--plus,
+.plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--plus,
+.plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--plus {
+  transform: translateX(-50%) translateY(-5.7rem) scale(0.97);
+  z-index: 4;
+}
+
+.plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--pro,
+.plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--pro,
+.plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--pro,
+.plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--pro {
+  transform: translateX(-50%) translateY(-1.8rem) scale(1);
+  z-index: 5;
+}
+
+.plan-select-page .wallet-plan-card--expanded {
+  height: min(38rem, 72vh);
+  min-height: min(38rem, 72vh);
+  overflow: hidden;
+  z-index: 12 !important;
+  transform: translateX(-50%) translateY(-13.5rem) scale(1.03) !important;
+  box-shadow:
+    0 34px 84px rgb(17 24 64 / 0.28),
+    0 0 0 3px rgb(120 106 255 / 0.13),
+    inset 0 1px 0 rgb(255 255 255 / 0.9);
+}
+
+.plan-select-page .wallet-plan-card__summary {
+  position: relative;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.plan-select-page .wallet-plan-card__details {
+  position: relative;
+  display: grid;
+  gap: 0.56rem;
+  min-height: 0;
+  opacity: 0;
+  transform: translateY(0.7rem);
+  transition: opacity 0.24s ease 0.18s, transform 0.3s ease 0.18s;
+  pointer-events: none;
+}
+
+.plan-select-page .wallet-plan-card--expanded .wallet-plan-card__details {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.plan-select-page .wallet-plan-card__full-desc {
+  color: hsl(var(--foreground) / 0.78);
+  font-size: 0.88rem;
+  line-height: 1.42;
+}
+
+.plan-select-page .wallet-plan-card__feature-title {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.plan-select-page .wallet-plan-card__features {
+  display: grid;
+  gap: 0.42rem;
+  max-height: 15.5rem;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.plan-select-page .wallet-plan-card__feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  line-height: 1.28;
+}
+
+.plan-select-page .wallet-plan-card__feature svg {
+  flex: 0 0 auto;
+  width: 0.92rem;
+  height: 0.92rem;
+  margin-top: 0.08rem;
+  color: hsl(var(--primary));
+}
+
+.plan-select-page .wallet-plan-card__disclaimer {
+  color: hsl(var(--foreground) / 0.64);
+  font-size: 0.74rem;
+}
+
+.plan-select-page .wallet-plan-card__cta {
+  width: 100%;
+  min-height: 2.85rem;
+  margin-top: 0.1rem;
+  border: 0;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-family: "Barlow", sans-serif;
+  font-weight: 850;
+  cursor: pointer;
+  box-shadow: 0 14px 32px rgb(120 106 255 / 0.24);
+}
+
+.plan-select-page .wallet-plan-card__footer {
+  margin-top: auto;
+}
+
+.plan-select-page .wallet-plan-card--expanded .wallet-plan-card__footer {
+  display: none;
+}
+
+.plan-select-page .wallet-plan-card--gold .wallet-plan-card__full-desc,
+.plan-select-page .wallet-plan-card--gold .wallet-plan-card__disclaimer {
+  color: rgb(68 44 10 / 0.72);
+}
+
+.plan-select-page .wallet-plan-card--diamond .wallet-plan-card__full-desc,
+.plan-select-page .wallet-plan-card--diamond .wallet-plan-card__disclaimer {
+  color: rgb(16 21 56 / 0.72);
+}
+
+@keyframes concept-card-rise {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(7rem) scale(0.9);
+  }
+  48% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-2rem) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 42rem) {
+  .plan-select-page .plan-wallet {
+    min-height: 23rem;
+  }
+
+  .plan-select-page--wallet-open .plan-wallet {
+    min-height: 45rem;
+  }
+
+  .plan-select-page .plan-wallet__surface {
+    width: min(22rem, 92vw);
+    height: 11.8rem;
+  }
+
+  .plan-select-page .plan-card-stack {
+    height: 37rem;
+  }
+
+  .plan-select-page .wallet-plan-card {
+    width: min(20rem, 86vw);
+    min-height: 8.45rem;
+    height: 8.45rem;
+    padding: 0.9rem;
+  }
+
+  .plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--basic,
+  .plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--basic,
+  .plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--basic,
+  .plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--basic {
+    transform: translateX(-50%) translateY(-8.6rem) scale(0.94);
+  }
+
+  .plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--plus,
+  .plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--plus,
+  .plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--plus,
+  .plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--plus {
+    transform: translateX(-50%) translateY(-5rem) scale(0.97);
+  }
+
+  .plan-select-page .plan-card-stack--deckOpen .wallet-plan-card--pro,
+  .plan-select-page .plan-card-stack--expandingCard .wallet-plan-card--pro,
+  .plan-select-page .plan-card-stack--cardExpanded .wallet-plan-card--pro,
+  .plan-select-page .plan-card-stack--switchingCard .wallet-plan-card--pro {
+    transform: translateX(-50%) translateY(-1.5rem) scale(1);
+  }
+
+  .plan-select-page .wallet-plan-card--expanded {
+    height: 35.5rem;
+    min-height: 35.5rem;
+    transform: translateX(-50%) translateY(-13rem) scale(1.01) !important;
+  }
+
+  .plan-select-page .wallet-plan-card__features {
+    max-height: 12rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-select-page .wallet-plan-card,
+  .plan-select-page .plan-card-stack--opening .wallet-plan-card,
+  .plan-select-page .wallet-plan-card__details,
+  .plan-select-page .plan-wallet {
+    animation: none !important;
+    transition-duration: 0.001ms !important;
   }
 }
 
