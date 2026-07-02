@@ -2036,6 +2036,960 @@ img.account-menu-btn__avatar {
   }
 }
 
+/* Final Prelude plan wallet: wallet owns the plan information surface */
+.plan-select-page .plan-wallet-experience {
+  grid-template-columns: minmax(18rem, 42rem);
+  justify-content: center;
+  align-items: start;
+  margin-top: clamp(1rem, 2.5vw, 1.6rem);
+}
+
+.plan-select-page .plan-wallet {
+  width: min(42rem, 100%);
+  min-height: 23rem;
+  margin: 0 auto;
+  align-items: end;
+  transition: min-height 0.56s cubic-bezier(0.2, 0.86, 0.2, 1);
+}
+
+.plan-select-page--wallet-open .plan-wallet {
+  min-height: 37rem;
+}
+
+.plan-select-page .plan-wallet--expanded {
+  min-height: 49rem;
+}
+
+.plan-select-page .plan-wallet__back-panel,
+.plan-select-page .plan-wallet__card-pocket,
+.plan-select-page .plan-wallet__front-panel,
+.plan-select-page .plan-wallet__info {
+  position: absolute;
+  left: 50%;
+  width: min(31rem, 92vw);
+  transform: translateX(-50%);
+}
+
+.plan-select-page .plan-wallet__back-panel {
+  bottom: 8.2rem;
+  height: 11rem;
+  border-radius: 2rem 2rem 1.35rem 1.35rem;
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.12), transparent 34%),
+    linear-gradient(155deg, #25275b 0%, #17193c 60%, #11162f 100%);
+  box-shadow:
+    0 24px 70px rgb(17 24 64 / 0.18),
+    inset 0 1px 0 rgb(255 255 255 / 0.2);
+  opacity: 0;
+  clip-path: inset(100% 0 0 0 round 2rem);
+  transition: opacity 0.28s ease, clip-path 0.62s cubic-bezier(0.2, 0.86, 0.2, 1);
+  z-index: 4;
+}
+
+.plan-select-page .plan-wallet--opening .plan-wallet__back-panel,
+.plan-select-page .plan-wallet--open .plan-wallet__back-panel,
+.plan-select-page .plan-wallet--selecting .plan-wallet__back-panel,
+.plan-select-page .plan-wallet--expanded .plan-wallet__back-panel,
+.plan-select-page .plan-wallet--switching .plan-wallet__back-panel {
+  opacity: 1;
+  clip-path: inset(0 0 0 0 round 2rem);
+}
+
+.plan-select-page .plan-wallet__card-pocket {
+  bottom: 7.1rem;
+  height: 7.4rem;
+  border-radius: 1.55rem;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.1), transparent 58%),
+    linear-gradient(150deg, #20234f 0%, #121630 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    inset 0 -24px 58px rgb(0 0 0 / 0.22);
+  opacity: 0;
+  transform: translateX(-50%) translateY(2rem);
+  transition: opacity 0.24s ease, transform 0.58s cubic-bezier(0.2, 0.86, 0.2, 1);
+  z-index: 10;
+}
+
+.plan-select-page .plan-wallet--open .plan-wallet__card-pocket,
+.plan-select-page .plan-wallet--opening .plan-wallet__card-pocket,
+.plan-select-page .plan-wallet--selecting .plan-wallet__card-pocket,
+.plan-select-page .plan-wallet--expanded .plan-wallet__card-pocket,
+.plan-select-page .plan-wallet--switching .plan-wallet__card-pocket {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.plan-select-page .plan-wallet__front-panel {
+  bottom: 0;
+  height: 13.6rem;
+  border: 0;
+  border-radius: 2rem;
+  background:
+    radial-gradient(circle at 18% 16%, rgb(255 255 255 / 0.16), transparent 9rem),
+    linear-gradient(90deg, transparent 0 49%, rgb(255 255 255 / 0.07) 49% 50%, transparent 50%),
+    linear-gradient(150deg, #24275c 0%, #15183c 58%, #10152e 100%);
+  box-shadow:
+    0 30px 80px rgb(17 24 64 / 0.24),
+    inset 0 1px 0 rgb(255 255 255 / 0.24),
+    inset 0 -30px 70px rgb(0 0 0 / 0.24);
+  color: #fff;
+  cursor: pointer;
+  z-index: 30;
+  overflow: hidden;
+  transition: transform 0.28s ease, box-shadow 0.28s ease;
+}
+
+.plan-select-page .plan-wallet__front-panel:hover:not(:disabled),
+.plan-select-page .plan-wallet__front-panel:focus-visible:not(:disabled) {
+  transform: translateX(-50%) translateY(-0.18rem);
+  box-shadow:
+    0 34px 88px rgb(17 24 64 / 0.3),
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    inset 0 -30px 70px rgb(0 0 0 / 0.22);
+}
+
+.plan-select-page .plan-wallet__front-panel:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.34);
+  outline-offset: 0.45rem;
+}
+
+.plan-select-page .plan-wallet--opening .plan-wallet__front-panel,
+.plan-select-page .plan-wallet--open .plan-wallet__front-panel,
+.plan-select-page .plan-wallet--selecting .plan-wallet__front-panel,
+.plan-select-page .plan-wallet--expanded .plan-wallet__front-panel,
+.plan-select-page .plan-wallet--switching .plan-wallet__front-panel {
+  transform: translateX(-50%) translateY(0.25rem);
+}
+
+.plan-select-page .plan-wallet__front-highlight {
+  position: absolute;
+  inset: -40% -20% auto auto;
+  width: 62%;
+  height: 76%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgb(132 118 255 / 0.36), transparent 68%);
+}
+
+.plan-select-page .plan-wallet__front-lines {
+  position: absolute;
+  left: 11%;
+  right: 11%;
+  top: 28%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.26), transparent);
+  box-shadow:
+    0 1rem 0 rgb(255 255 255 / 0.055),
+    0 2rem 0 rgb(255 255 255 / 0.04);
+}
+
+.plan-select-page .plan-wallet__brand {
+  position: absolute;
+  left: 1.45rem;
+  bottom: 2.25rem;
+}
+
+.plan-select-page .plan-wallet__hint {
+  position: absolute;
+  left: 1.45rem;
+  bottom: 1.25rem;
+}
+
+.plan-select-page .plan-wallet__clasp {
+  right: 1.4rem;
+  bottom: 1.4rem;
+}
+
+.plan-select-page .plan-wallet__stack-wrap {
+  z-index: 18;
+  align-items: end;
+  padding-bottom: 6.35rem;
+  pointer-events: none;
+}
+
+.plan-select-page .plan-card-stack {
+  width: min(31rem, 92vw);
+  height: 19rem;
+}
+
+.plan-select-page .plan-card-stack--open {
+  pointer-events: auto;
+}
+
+.plan-select-page .wallet-plan-card {
+  width: min(24.5rem, 82vw);
+  min-height: 7rem;
+  height: 7rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1.15rem;
+  display: grid;
+  gap: 0.35rem;
+  opacity: 0;
+  transform: translateX(-50%) translateY(7rem) scale(0.92);
+  transition:
+    transform 0.52s cubic-bezier(0.2, 0.86, 0.2, 1),
+    opacity 0.24s ease,
+    box-shadow 0.24s ease,
+    border-color 0.24s ease;
+}
+
+.plan-select-page .wallet-plan-card--basic {
+  background:
+    linear-gradient(112deg, transparent 0 27%, rgb(255 255 255 / 0.72) 39%, transparent 52%),
+    repeating-linear-gradient(100deg, rgb(255 255 255 / 0.14) 0 1px, transparent 1px 6px),
+    linear-gradient(145deg, #f8fafc 0%, #cfd6df 42%, #ffffff 58%, #aeb8c4 100%);
+}
+
+.plan-select-page .wallet-plan-card--plus {
+  background:
+    linear-gradient(112deg, transparent 0 26%, rgb(255 248 204 / 0.72) 38%, transparent 51%),
+    radial-gradient(circle at 82% 14%, rgb(255 255 255 / 0.5), transparent 7rem),
+    linear-gradient(145deg, #fff2b8 0%, #d1a143 36%, #f7d876 58%, #b87b26 100%);
+}
+
+.plan-select-page .wallet-plan-card--pro {
+  background:
+    linear-gradient(128deg, transparent 0 24%, rgb(255 255 255 / 0.88) 34%, transparent 48%),
+    linear-gradient(52deg, rgb(126 212 255 / 0.24), transparent 28% 65%, rgb(195 151 255 / 0.26)),
+    radial-gradient(circle at 82% 18%, rgb(255 255 255 / 0.72), transparent 7rem),
+    linear-gradient(145deg, #ffffff 0%, #dcecff 34%, #f8fbff 55%, #bdd4ff 100%);
+}
+
+.plan-select-page .plan-card-stack--opening .wallet-plan-card,
+.plan-select-page .plan-card-stack--open .wallet-plan-card,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card {
+  opacity: 1;
+}
+
+.plan-select-page .plan-card-stack--opening .wallet-plan-card {
+  animation: plan-wallet-card-rise 0.72s cubic-bezier(0.2, 0.86, 0.2, 1) both;
+}
+
+.plan-select-page .plan-card-stack--opening .wallet-plan-card--basic {
+  animation-delay: 0.08s;
+}
+
+.plan-select-page .plan-card-stack--opening .wallet-plan-card--plus {
+  animation-delay: 0.15s;
+}
+
+.plan-select-page .plan-card-stack--opening .wallet-plan-card--pro {
+  animation-delay: 0.22s;
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--basic,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--basic,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--basic,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--basic {
+  transform: translateX(-50%) translateY(-8rem) scale(0.94);
+  z-index: 3;
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--plus,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--plus,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--plus,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--plus {
+  transform: translateX(-50%) translateY(-4.55rem) scale(0.97);
+  z-index: 4;
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--pro,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--pro,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--pro,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--pro {
+  transform: translateX(-50%) translateY(-1.1rem) scale(1);
+  z-index: 5;
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--selected {
+  z-index: 8;
+  border-color: rgb(120 106 255 / 0.58);
+  box-shadow:
+    0 26px 64px rgb(17 24 64 / 0.24),
+    0 0 0 3px rgb(120 106 255 / 0.13),
+    inset 0 1px 0 rgb(255 255 255 / 0.88);
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--basic.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--basic.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--basic.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--basic.wallet-plan-card--selected {
+  transform: translateX(-50%) translateY(-8.9rem) scale(0.99);
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--plus.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--plus.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--plus.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--plus.wallet-plan-card--selected {
+  transform: translateX(-50%) translateY(-5.45rem) scale(1.01);
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--pro.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--pro.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--pro.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--pro.wallet-plan-card--selected {
+  transform: translateX(-50%) translateY(-2rem) scale(1.02);
+}
+
+.plan-select-page .wallet-plan-card__material {
+  display: none;
+}
+
+.plan-select-page .wallet-plan-card__desc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plan-select-page .plan-wallet__info {
+  bottom: 9.35rem;
+  min-height: 0;
+  max-height: 0;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 1.6rem 1.6rem 1rem 1rem;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.9), rgb(246 248 255 / 0.96)),
+    linear-gradient(145deg, rgb(255 255 255 / 0.94), rgb(226 232 255 / 0.76));
+  box-shadow:
+    0 28px 70px rgb(17 24 64 / 0.16),
+    inset 0 1px 0 rgb(255 255 255 / 0.9);
+  opacity: 0;
+  transform: translateX(-50%) translateY(3rem);
+  transition:
+    max-height 0.54s cubic-bezier(0.2, 0.86, 0.2, 1),
+    opacity 0.28s ease,
+    transform 0.54s cubic-bezier(0.2, 0.86, 0.2, 1);
+  z-index: 6;
+}
+
+.plan-select-page .plan-wallet--selecting .plan-wallet__info,
+.plan-select-page .plan-wallet--expanded .plan-wallet__info,
+.plan-select-page .plan-wallet--switching .plan-wallet__info {
+  max-height: 34rem;
+  opacity: 1;
+  transform: translateX(-50%) translateY(-12.5rem);
+}
+
+.plan-select-page .plan-wallet__info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.82rem;
+  min-height: 30rem;
+  padding: 1.35rem;
+  opacity: 0;
+  transform: translateY(0.7rem);
+  animation: plan-wallet-info-in 0.28s ease 0.12s forwards;
+}
+
+.plan-select-page .plan-wallet__info-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.plan-select-page .plan-wallet__eyebrow {
+  margin: 0 0 0.2rem;
+  color: hsl(var(--primary));
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.plan-select-page .plan-wallet__info h2 {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 850;
+  line-height: 1;
+}
+
+.plan-select-page .plan-wallet__badge {
+  flex: 0 0 auto;
+  padding: 0.34rem 0.62rem;
+  border: 1px solid rgb(120 106 255 / 0.16);
+  border-radius: 999px;
+  background: #ede9ff;
+  color: #5b4fd6;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.plan-select-page .plan-wallet__price-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.plan-select-page .plan-wallet__price {
+  color: hsl(var(--primary));
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(2rem, 6vw, 2.65rem);
+  font-weight: 850;
+  line-height: 1;
+}
+
+.plan-select-page .plan-wallet__period,
+.plan-select-page .plan-wallet__price-label,
+.plan-select-page .plan-wallet__description,
+.plan-select-page .plan-wallet__action-row p {
+  color: hsl(var(--muted-foreground));
+}
+
+.plan-select-page .plan-wallet__price-label {
+  padding: 0.16rem 0.48rem;
+  border-radius: 999px;
+  background: hsl(var(--muted) / 0.72);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.plan-select-page .plan-wallet__description {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.plan-select-page .plan-wallet__feature-section {
+  min-height: 0;
+}
+
+.plan-select-page .plan-wallet__feature-section h3 {
+  margin: 0 0 0.55rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
+.plan-select-page .plan-wallet__features {
+  display: grid;
+  gap: 0.42rem;
+  max-height: 11.8rem;
+  margin: 0;
+  padding: 0 0.25rem 0 0;
+  list-style: none;
+  overflow: auto;
+}
+
+.plan-select-page .plan-wallet__features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.46rem;
+  color: hsl(var(--foreground));
+  font-size: 0.82rem;
+  line-height: 1.32;
+}
+
+.plan-select-page .plan-wallet__features svg {
+  flex: 0 0 auto;
+  width: 0.92rem;
+  height: 0.92rem;
+  margin-top: 0.08rem;
+  color: hsl(var(--primary));
+}
+
+.plan-select-page .plan-wallet__error {
+  padding: 0.72rem 0.85rem;
+  border: 1px solid hsl(var(--destructive) / 0.24);
+  border-radius: 0.85rem;
+  background: hsl(var(--destructive) / 0.08);
+  color: hsl(var(--destructive));
+  font-size: 0.85rem;
+}
+
+.plan-select-page .plan-wallet__action-row {
+  margin-top: auto;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.plan-select-page .plan-wallet__action-row p {
+  margin: 0;
+  font-size: 0.74rem;
+}
+
+.plan-select-page .plan-wallet__cta {
+  width: 100%;
+  min-height: 2.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-family: "Barlow", sans-serif;
+  font-weight: 850;
+  cursor: pointer;
+  box-shadow: 0 14px 32px rgb(120 106 255 / 0.24);
+}
+
+.plan-select-page .plan-wallet__cta:hover:not(:disabled),
+.plan-select-page .plan-wallet__cta:focus-visible {
+  background: hsl(var(--primary) / 0.92);
+}
+
+.plan-select-page .plan-wallet__cta:disabled {
+  opacity: 0.68;
+  cursor: wait;
+}
+
+@keyframes plan-wallet-card-rise {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(7rem) scale(0.92);
+  }
+  48% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-1.1rem) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes plan-wallet-info-in {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 42rem) {
+  .plan-select-page .plan-wallet-experience {
+    margin-top: clamp(2rem, 9vw, 3.4rem);
+  }
+
+  .plan-select-page .plan-wallet {
+    min-height: 22rem;
+  }
+
+  .plan-select-page--wallet-open .plan-wallet {
+    min-height: 35rem;
+  }
+
+  .plan-select-page .plan-wallet--expanded {
+    min-height: 46rem;
+  }
+
+  .plan-select-page .plan-wallet__back-panel,
+  .plan-select-page .plan-wallet__card-pocket,
+  .plan-select-page .plan-wallet__front-panel,
+  .plan-select-page .plan-wallet__info {
+    width: min(22rem, 92vw);
+  }
+
+  .plan-select-page .plan-wallet__front-panel {
+    height: 11.8rem;
+  }
+
+  .plan-select-page .plan-wallet__back-panel {
+    bottom: 7rem;
+  }
+
+  .plan-select-page .plan-wallet__card-pocket {
+    bottom: 6rem;
+  }
+
+  .plan-select-page .plan-wallet__stack-wrap {
+    padding-bottom: 5.25rem;
+  }
+
+  .plan-select-page .plan-card-stack {
+    height: 17rem;
+  }
+
+  .plan-select-page .wallet-plan-card {
+    width: min(19rem, 84vw);
+    min-height: 6.7rem;
+    height: 6.7rem;
+    padding: 0.82rem;
+  }
+
+  .plan-select-page .wallet-plan-card__desc {
+    display: none;
+  }
+
+  .plan-select-page .plan-card-stack--open .wallet-plan-card--basic,
+  .plan-select-page .plan-card-stack--selecting .wallet-plan-card--basic,
+  .plan-select-page .plan-card-stack--expanded .wallet-plan-card--basic,
+  .plan-select-page .plan-card-stack--switching .wallet-plan-card--basic {
+    transform: translateX(-50%) translateY(-7.2rem) scale(0.94);
+  }
+
+  .plan-select-page .plan-card-stack--open .wallet-plan-card--plus,
+  .plan-select-page .plan-card-stack--selecting .wallet-plan-card--plus,
+  .plan-select-page .plan-card-stack--expanded .wallet-plan-card--plus,
+  .plan-select-page .plan-card-stack--switching .wallet-plan-card--plus {
+    transform: translateX(-50%) translateY(-4.15rem) scale(0.97);
+  }
+
+  .plan-select-page .plan-card-stack--open .wallet-plan-card--pro,
+  .plan-select-page .plan-card-stack--selecting .wallet-plan-card--pro,
+  .plan-select-page .plan-card-stack--expanded .wallet-plan-card--pro,
+  .plan-select-page .plan-card-stack--switching .wallet-plan-card--pro {
+    transform: translateX(-50%) translateY(-1.1rem) scale(1);
+  }
+
+  .plan-select-page .plan-wallet__info {
+    bottom: 8.2rem;
+  }
+
+  .plan-select-page .plan-wallet--selecting .plan-wallet__info,
+  .plan-select-page .plan-wallet--expanded .plan-wallet__info,
+  .plan-select-page .plan-wallet--switching .plan-wallet__info {
+    max-height: 35rem;
+    transform: translateX(-50%) translateY(-9.8rem);
+  }
+
+  .plan-select-page .plan-wallet__info-content {
+    min-height: 31rem;
+    padding: 1.1rem;
+  }
+
+  .plan-select-page .plan-wallet__features {
+    max-height: 10rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-select-page .plan-wallet,
+  .plan-select-page .plan-wallet__back-panel,
+  .plan-select-page .plan-wallet__card-pocket,
+  .plan-select-page .plan-wallet__front-panel,
+  .plan-select-page .plan-wallet__info,
+  .plan-select-page .wallet-plan-card,
+  .plan-select-page .plan-card-stack--opening .wallet-plan-card,
+  .plan-select-page .plan-wallet__info-content {
+    animation: none !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Bottom-expanding wallet correction: selected info lives in the wallet body */
+.plan-select-page .plan-wallet {
+  min-height: 26rem;
+}
+
+.plan-select-page--wallet-open .plan-wallet {
+  min-height: 31rem;
+}
+
+.plan-select-page .plan-wallet--expanded {
+  min-height: 55rem;
+}
+
+.plan-select-page .plan-wallet__back-panel {
+  top: 0;
+  bottom: auto;
+  height: 15rem;
+}
+
+.plan-select-page .plan-wallet__card-pocket {
+  top: 7.2rem;
+  bottom: auto;
+  height: 8rem;
+  z-index: 24;
+}
+
+.plan-select-page .plan-wallet__stack-wrap {
+  align-items: start;
+  padding: 2.1rem 0 0;
+  z-index: 22;
+}
+
+.plan-select-page .plan-card-stack {
+  height: 19rem;
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--basic,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--basic,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--basic,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--basic {
+  transform: translateX(-50%) translateY(0) scale(0.94);
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--plus,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--plus,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--plus,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--plus {
+  transform: translateX(-50%) translateY(3.45rem) scale(0.97);
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--pro,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--pro,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--pro,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--pro {
+  transform: translateX(-50%) translateY(6.9rem) scale(1);
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--basic.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--basic.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--basic.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--basic.wallet-plan-card--selected {
+  transform: translateX(-50%) translateY(-0.65rem) scale(0.99);
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--plus.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--plus.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--plus.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--plus.wallet-plan-card--selected {
+  transform: translateX(-50%) translateY(2.7rem) scale(1.01);
+}
+
+.plan-select-page .plan-card-stack--open .wallet-plan-card--pro.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--selecting .wallet-plan-card--pro.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--expanded .wallet-plan-card--pro.wallet-plan-card--selected,
+.plan-select-page .plan-card-stack--switching .wallet-plan-card--pro.wallet-plan-card--selected {
+  transform: translateX(-50%) translateY(6rem) scale(1.02);
+}
+
+.plan-select-page .plan-wallet__front-panel {
+  top: 12.6rem;
+  bottom: auto;
+  height: 13.4rem;
+  z-index: 30;
+  transition:
+    height 0.56s cubic-bezier(0.2, 0.86, 0.2, 1),
+    transform 0.28s ease,
+    box-shadow 0.28s ease;
+}
+
+.plan-select-page .plan-wallet--selecting .plan-wallet__front-panel,
+.plan-select-page .plan-wallet--expanded .plan-wallet__front-panel,
+.plan-select-page .plan-wallet--switching .plan-wallet__front-panel {
+  height: 40rem;
+}
+
+.plan-select-page .plan-wallet__brand {
+  bottom: 2.25rem;
+}
+
+.plan-select-page .plan-wallet--selecting .plan-wallet__brand,
+.plan-select-page .plan-wallet--expanded .plan-wallet__brand,
+.plan-select-page .plan-wallet--switching .plan-wallet__brand {
+  bottom: 1.35rem;
+}
+
+.plan-select-page .plan-wallet__hint {
+  bottom: 1.25rem;
+}
+
+.plan-select-page .plan-wallet--selecting .plan-wallet__hint,
+.plan-select-page .plan-wallet--expanded .plan-wallet__hint,
+.plan-select-page .plan-wallet--switching .plan-wallet__hint {
+  display: none;
+}
+
+.plan-select-page .plan-wallet__clasp {
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+
+.plan-select-page .plan-wallet--selecting .plan-wallet__clasp,
+.plan-select-page .plan-wallet--expanded .plan-wallet__clasp,
+.plan-select-page .plan-wallet--switching .plan-wallet__clasp {
+  opacity: 0.72;
+  transform: translateY(0.35rem);
+}
+
+.plan-select-page .plan-wallet__info {
+  top: 20.3rem;
+  bottom: auto;
+  max-height: 0;
+  z-index: 36;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-0.75rem);
+  transition:
+    max-height 0.48s cubic-bezier(0.2, 0.86, 0.2, 1),
+    opacity 0.24s ease,
+    transform 0.34s ease;
+}
+
+.plan-select-page .plan-wallet--selecting .plan-wallet__info,
+.plan-select-page .plan-wallet--expanded .plan-wallet__info,
+.plan-select-page .plan-wallet--switching .plan-wallet__info {
+  max-height: 31rem;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.plan-select-page .plan-wallet__info-content {
+  min-height: 29rem;
+  padding-top: 1.45rem;
+}
+
+.plan-select-page .plan-wallet__features {
+  max-height: 10.6rem;
+}
+
+@media (max-width: 42rem) {
+  .plan-select-page .plan-wallet {
+    min-height: 24rem;
+  }
+
+  .plan-select-page--wallet-open .plan-wallet {
+    min-height: 30rem;
+  }
+
+  .plan-select-page .plan-wallet--expanded {
+    min-height: 52rem;
+  }
+
+  .plan-select-page .plan-wallet__back-panel {
+    top: 0;
+    height: 13.2rem;
+  }
+
+  .plan-select-page .plan-wallet__card-pocket {
+    top: 6.7rem;
+  }
+
+  .plan-select-page .plan-wallet__front-panel {
+    top: 11.7rem;
+    height: 11.8rem;
+  }
+
+  .plan-select-page .plan-wallet--selecting .plan-wallet__front-panel,
+  .plan-select-page .plan-wallet--expanded .plan-wallet__front-panel,
+  .plan-select-page .plan-wallet--switching .plan-wallet__front-panel {
+    height: 37rem;
+  }
+
+  .plan-select-page .plan-wallet__stack-wrap {
+    padding-top: 1.6rem;
+  }
+
+  .plan-select-page .plan-wallet__info {
+    top: 18.1rem;
+  }
+
+  .plan-select-page .plan-wallet--selecting .plan-wallet__info,
+  .plan-select-page .plan-wallet--expanded .plan-wallet__info,
+  .plan-select-page .plan-wallet--switching .plan-wallet__info {
+    max-height: 31rem;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .plan-select-page .plan-wallet__info-content {
+    min-height: 29.5rem;
+  }
+
+.plan-select-page .plan-wallet__features {
+  max-height: 9.5rem;
+}
+}
+
+/* Final bottom-wallet tuning: keep selectors in the pocket and extend details below */
+.plan-select-page .plan-wallet--expanded {
+  min-height: 49rem;
+}
+
+.plan-select-page .plan-wallet__stack-wrap {
+  z-index: 34;
+}
+
+.plan-select-page .plan-wallet--selecting .plan-wallet__front-panel,
+.plan-select-page .plan-wallet--expanded .plan-wallet__front-panel,
+.plan-select-page .plan-wallet--switching .plan-wallet__front-panel {
+  height: 36rem;
+}
+
+.plan-select-page .plan-wallet__info {
+  top: 27.1rem;
+  max-height: 0;
+  border-color: rgb(255 255 255 / 0.2);
+  box-shadow:
+    0 18px 46px rgb(17 24 64 / 0.12),
+    inset 0 1px 0 rgb(255 255 255 / 0.92);
+}
+
+.plan-select-page .plan-wallet--selecting .plan-wallet__info,
+.plan-select-page .plan-wallet--expanded .plan-wallet__info,
+.plan-select-page .plan-wallet--switching .plan-wallet__info {
+  max-height: 21.2rem;
+}
+
+.plan-select-page .plan-wallet__info-content {
+  box-sizing: border-box;
+  height: 21.2rem;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.62rem;
+  padding: 1.1rem 1.25rem 1.2rem;
+}
+
+.plan-select-page .plan-wallet__info h2 {
+  font-size: clamp(1.35rem, 3vw, 1.72rem);
+}
+
+.plan-select-page .plan-wallet__price {
+  font-size: clamp(1.86rem, 4.5vw, 2.35rem);
+}
+
+.plan-select-page .plan-wallet__description {
+  font-size: 0.84rem;
+}
+
+.plan-select-page .plan-wallet__features {
+  height: 3rem;
+  max-height: 3rem;
+}
+
+.plan-select-page .plan-wallet__feature-section {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.plan-select-page .plan-wallet__features li {
+  font-size: 0.8rem;
+}
+
+.plan-select-page .plan-wallet__action-row {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 42rem) {
+  .plan-select-page .plan-wallet--expanded {
+    min-height: 49rem;
+  }
+
+  .plan-select-page .plan-wallet--selecting .plan-wallet__front-panel,
+  .plan-select-page .plan-wallet--expanded .plan-wallet__front-panel,
+  .plan-select-page .plan-wallet--switching .plan-wallet__front-panel {
+    height: 35rem;
+  }
+
+  .plan-select-page .plan-wallet__info {
+    top: 25rem;
+  }
+
+  .plan-select-page .plan-wallet--selecting .plan-wallet__info,
+  .plan-select-page .plan-wallet--expanded .plan-wallet__info,
+  .plan-select-page .plan-wallet--switching .plan-wallet__info {
+    max-height: 22.1rem;
+  }
+
+  .plan-select-page .plan-wallet__info-content {
+    height: 22.1rem;
+    min-height: 0;
+    padding: 1rem;
+  }
+
+  .plan-select-page .plan-wallet__features {
+    height: 2.75rem;
+    max-height: 2.75rem;
+  }
+}
+
 /* Prelude Match onboarding + email verification banner */
 .pm-onboarding-page {
   min-height: 100vh;
