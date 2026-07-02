@@ -5,25 +5,34 @@
 
 import { PASSWORD_RESET_LINK_EXPIRY_MINUTES } from "../../shared/passwordResetConstants.js";
 
-export function isProductionEnv() {
-  return process.env.NODE_ENV === "production";
+function resolveRuntimeEnv(env) {
+  if (env) return env;
+  if (typeof process !== "undefined" && process.env) return process.env;
+  return {};
+}
+
+export function isProductionEnv(env) {
+  return resolveRuntimeEnv(env).NODE_ENV === "production";
 }
 
 /** Development only: print verification/reset links in the server terminal. */
-export function shouldLogAuthEmails() {
-  return !isProductionEnv() && process.env.PRELUDE_LOG_AUTH_EMAILS !== "0";
+export function shouldLogAuthEmails(env) {
+  const runtimeEnv = resolveRuntimeEnv(env);
+  return !isProductionEnv(runtimeEnv) && runtimeEnv.PRELUDE_LOG_AUTH_EMAILS !== "0";
 }
 
-function hasResendConfig(env = process.env) {
-  return Boolean(env.RESEND_API_KEY?.trim() && env.AUTH_EMAIL_FROM?.trim());
+function hasResendConfig(env) {
+  const runtimeEnv = resolveRuntimeEnv(env);
+  return Boolean(runtimeEnv.RESEND_API_KEY?.trim() && runtimeEnv.AUTH_EMAIL_FROM?.trim());
 }
 
 /**
  * Public app base URL for auth links (no trailing slash).
  * Production: set PUBLIC_APP_URL (e.g. https://preludev1.pages.dev).
  */
-export function resolvePublicAppUrl(req, env = process.env) {
-  const fromEnv = env.PUBLIC_APP_URL?.trim() || env.VITE_PUBLIC_APP_URL?.trim();
+export function resolvePublicAppUrl(req, env) {
+  const runtimeEnv = resolveRuntimeEnv(env);
+  const fromEnv = runtimeEnv.PUBLIC_APP_URL?.trim() || runtimeEnv.VITE_PUBLIC_APP_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");
 
   if (req?.headers) {
@@ -37,7 +46,7 @@ export function resolvePublicAppUrl(req, env = process.env) {
   return "http://localhost:5173";
 }
 
-export function buildAuthUrl(req, pathWithQuery, env = process.env) {
+export function buildAuthUrl(req, pathWithQuery, env) {
   const base = resolvePublicAppUrl(req, env);
   const path = pathWithQuery.startsWith("/") ? pathWithQuery : `/${pathWithQuery}`;
   return `${base}${path}`;
@@ -129,9 +138,10 @@ function buildAccountDeletedHtml({ firstName, email }) {
 </html>`;
 }
 
-async function sendHtmlViaResend({ subject, to, html, env = process.env }) {
-  const apiKey = env.RESEND_API_KEY?.trim();
-  const from = env.AUTH_EMAIL_FROM?.trim();
+async function sendHtmlViaResend({ subject, to, html, env }) {
+  const runtimeEnv = resolveRuntimeEnv(env);
+  const apiKey = runtimeEnv.RESEND_API_KEY?.trim();
+  const from = runtimeEnv.AUTH_EMAIL_FROM?.trim();
   if (!apiKey || !from) {
     console.error("[prelude-auth] Email not sent: set RESEND_API_KEY and AUTH_EMAIL_FROM.");
     return { delivered: false, reason: "missing_provider" };
@@ -155,7 +165,7 @@ async function sendHtmlViaResend({ subject, to, html, env = process.env }) {
   return { delivered: true };
 }
 
-async function sendViaResend({ kind, to, url, env = process.env }) {
+async function sendViaResend({ kind, to, url, env }) {
   const subject = EMAIL_SUBJECTS[kind] || "Prelude account notice";
   return sendHtmlViaResend({ subject, to, html: buildAuthEmailHtml({ kind, url }), env });
 }
@@ -234,24 +244,28 @@ function buildParentInviteHtml({ studentName, url }) {
 }
 
 /** Email sent when a student invites a parent/guardian. */
-export async function deliverParentInviteEmail({ to, studentName, url, req }) {
+export async function deliverParentInviteEmail({ to, studentName, url, req, env }) {
   const subject = EMAIL_SUBJECTS["parent-invite"];
   const html = buildParentInviteHtml({ studentName, url });
 
-  if (hasResendConfig()) {
-    const result = await sendHtmlViaResend({ subject, to, html });
+  if (hasResendConfig(env)) {
+    const result = await sendHtmlViaResend({ subject, to, html, env });
     if (result.delivered) return result;
-    if (isProductionEnv()) return result;
-  } else if (isProductionEnv()) {
+    if (isProductionEnv(env)) return result;
+  } else if (isProductionEnv(env)) {
     console.error(
       "[prelude-auth] Parent invite not sent: set RESEND_API_KEY and AUTH_EMAIL_FROM in production."
     );
     return { delivered: false, reason: "missing_provider" };
   }
 
-  if (shouldLogAuthEmails()) {
+  if (shouldLogAuthEmails(env)) {
     console.info(`[prelude-auth:parent-invite] To ${to} for student ${studentName}:\n${url}`);
   }
 
-  return { delivered: false, logged: shouldLogAuthEmails(), devOnly: !hasResendConfig() };
+  return {
+    delivered: false,
+    logged: shouldLogAuthEmails(env),
+    devOnly: !hasResendConfig(env)
+  };
 }

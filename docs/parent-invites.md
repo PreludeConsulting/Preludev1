@@ -18,7 +18,7 @@ Students can invite a parent or guardian during onboarding (`/onboarding/parent`
 
 | Runtime | Handler |
 |---------|---------|
-| Cloudflare Pages (production) | `functions/api/parent-invites/send.js` |
+| Cloudflare Pages (production) | `functions/api/parent-invites/send.js` — passes `context.env` through to email helpers (Workers have no Node `process` global) |
 | Vite dev / embedded API | `server/supabaseParentInvitesApi.js` via `createApiStack` |
 | Vercel-style `api/` routes | `api/parent-invites/send.js` → `server/supabaseParentInvitesApi.js` |
 
@@ -91,7 +91,7 @@ PUBLIC_APP_URL=https://preludeconsultingllc.com
 
 ```bash
 npm test -- tests/parentInviteErrors.test.js
-node --test tests/server/supabaseParentInvites.node.test.js
+node --test tests/server/supabaseParentInvites.node.test.js tests/server/parentInviteEmail.node.test.js
 ```
 
 ## Manual QA

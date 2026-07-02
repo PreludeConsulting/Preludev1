@@ -16,8 +16,15 @@ export function getBearerToken(req) {
   return req?.headers?.authorization?.replace(/^Bearer\s+/i, "") || "";
 }
 
-export async function requireSupabaseStudent(req, env = process.env) {
-  const admin = createSupabaseAdmin(env);
+function resolveRuntimeEnv(env) {
+  if (env) return env;
+  if (typeof process !== "undefined" && process.env) return process.env;
+  return {};
+}
+
+export async function requireSupabaseStudent(req, env) {
+  const runtimeEnv = resolveRuntimeEnv(env);
+  const admin = createSupabaseAdmin(runtimeEnv);
   if (!admin) {
     const error = new Error("Supabase server credentials are not configured.");
     error.statusCode = 503;
@@ -68,9 +75,10 @@ export async function requireSupabaseStudent(req, env = process.env) {
 /**
  * Validate payload, verify the caller is a student, and deliver the parent invite email.
  */
-export async function sendParentInviteEmail({ req, env = process.env, payload }) {
+export async function sendParentInviteEmail({ req, env, payload }) {
+  const runtimeEnv = resolveRuntimeEnv(env);
   const parsed = parentInviteSendSchema.parse(payload);
-  const { profile } = await requireSupabaseStudent(req, env);
+  const { profile } = await requireSupabaseStudent(req, runtimeEnv);
 
   const parentEmail = normalizeParentEmail(parsed.parentEmail);
   const studentEmail = normalizeParentEmail(profile.email);
@@ -83,17 +91,19 @@ export async function sendParentInviteEmail({ req, env = process.env, payload })
 
   const url = buildAuthUrl(
     req,
-    `/register?${new URLSearchParams({ parentInvite: parsed.inviteToken, role: "parent" }).toString()}`
+    `/register?${new URLSearchParams({ parentInvite: parsed.inviteToken, role: "parent" }).toString()}`,
+    runtimeEnv
   );
 
   const result = await deliverParentInviteEmail({
     to: parentEmail,
     studentName: profile.full_name || parsed.studentName || "your student",
     url,
-    req
+    req,
+    env: runtimeEnv
   });
 
-  if (!result.delivered && !result.logged && env.NODE_ENV === "production") {
+  if (!result.delivered && !result.logged && runtimeEnv.NODE_ENV === "production") {
     const deliveryError = new Error(
       "We couldn't send the parent invitation email right now. Please try again in a moment."
     );
