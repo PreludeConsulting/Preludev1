@@ -2434,6 +2434,85 @@ img.dash-avatar {
   line-height: 1.4;
 }
 
+.dash-ai-chat__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0.75rem 1rem 0;
+}
+
+.dash-ai-chat__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 999px;
+  background: hsl(var(--background));
+  font-size: 0.72rem;
+  color: hsl(var(--foreground) / 0.8);
+  cursor: pointer;
+}
+
+.dash-ai-chat__chip:hover:not(:disabled),
+.dash-ai-chat__chip:focus-visible {
+  border-color: hsl(var(--foreground) / 0.2);
+  background: hsl(var(--foreground) / 0.04);
+}
+
+.dash-ai-chat__chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dash-ai-rec-cards {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.dash-ai-rec-card {
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  background: hsl(var(--background));
+}
+
+.dash-ai-rec-card__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.dash-ai-rec-card__grid {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.dash-ai-rec-card__field {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+}
+
+.dash-ai-rec-card__field dt {
+  margin: 0;
+  color: hsl(var(--foreground) / 0.55);
+}
+
+.dash-ai-rec-card__field dd {
+  margin: 0;
+  color: hsl(var(--foreground) / 0.85);
+}
+
+.dash-ai-rec-card__source {
+  margin: 0.45rem 0 0;
+  font-size: 0.66rem;
+  color: hsl(var(--foreground) / 0.5);
+}
+
 .dash-ai-chat {
   display: flex;
   flex-direction: column;

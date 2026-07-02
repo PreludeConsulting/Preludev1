@@ -14,7 +14,44 @@ function collegeLabel(summary) {
 }
 
 function sourceSuffix(record) {
-  return record?.source ? ` _(Source: ${record.source})_` : "";
+  return "";
+}
+
+function formatKnowledgeAnswer(records) {
+  const dashboardRecords = records.filter((record) =>
+    ["university", "scholarship", "summer_program", "extracurricular", "cs_project"].includes(record.sourceType)
+  );
+
+  if (dashboardRecords.length) {
+    const lines = dashboardRecords.slice(0, 6).map((record, index) => {
+      const titlePrefix = record.title ? `**${record.title}:** ` : "";
+      return `${index + 1}. ${titlePrefix}${record.summary}${sourceSuffix(record)}`;
+    });
+
+    return [
+      "Here are recommendations from the **Prelude dashboard database**:",
+      "",
+      lines.join("\n"),
+      "",
+      "These are starting points — verify deadlines, eligibility, and costs on each official site before applying.",
+      "I do not guarantee admission, awards, or outcomes."
+    ].join("\n");
+  }
+
+  const lines = records
+    .slice(0, 6)
+    .map((record, index) => {
+      const titlePrefix = record.title ? `**${record.title}:** ` : "";
+      return `${index + 1}. ${titlePrefix}${record.summary}${sourceSuffix(record)}`;
+    });
+
+  return [
+    "Here is what I can share from verified admissions and career sources:",
+    "",
+    lines.join("\n"),
+    "",
+    "If you need exact school-specific numbers that are not listed here, I do not have verified data for that claim in the current retrieval context. Please check the official source directly."
+  ].join("\n");
 }
 
 function isTechnicalCollege(record) {
@@ -142,6 +179,23 @@ export function shouldPreferRetrievalAnswer(intent, retrieval) {
   const records = (retrieval?.blocks ?? []).flatMap((block) => block.records ?? []);
   if (!records.length) return false;
 
+  if (records.some((record) => record.type === "knowledge")) {
+    const hasDashboardRecords = records.some((record) =>
+      ["university", "scholarship", "summer_program", "extracurricular", "cs_project", "sat_report", "act_report"].includes(
+        record.sourceType
+      )
+    );
+    return (
+      hasDashboardRecords ||
+      intent === "school_fact" ||
+      intent === "financial_aid" ||
+      intent === "career_exploration" ||
+      intent === "essays" ||
+      intent === "general_admissions" ||
+      intent === "getting_started"
+    );
+  }
+
   return (
     intent === "school_comparison" ||
     retrieval.intent === "college_comparison" ||
@@ -157,6 +211,10 @@ export function buildRetrievalAssistedAnswer(message, retrieval, conversationSta
     .filter((record) => record.type !== "notice");
 
   if (!records.length) return null;
+  const knowledgeRecords = records.filter((record) => record.type === "knowledge");
+  if (knowledgeRecords.length) {
+    return formatKnowledgeAnswer(knowledgeRecords);
+  }
 
   const majorHint =
     normalizeMajorTerm(retrieval.major) ||

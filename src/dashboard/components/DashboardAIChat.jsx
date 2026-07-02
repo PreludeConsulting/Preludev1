@@ -4,15 +4,40 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { useDashboardData } from "../context/DashboardDataContext.jsx";
 import { getAgentReply, getTypingDelay } from "../../lib/preludeAgent.js";
 import FormattedChatText from "../../components/FormattedChatText.jsx";
+import DashboardRecommendationCards from "./DashboardRecommendationCards.jsx";
 import { PrimaryButton } from "./ui/index.jsx";
+
+const SUGGESTED_PROMPTS = [
+  { label: "Build my college list", prompt: "Build a reach/target/likely college list using my GPA, SAT, budget, and major." },
+  { label: "Find scholarships", prompt: "What scholarships fit my profile from the Prelude database?" },
+  { label: "Suggest summer programs", prompt: "What summer programs should I apply to based on my interests and goals?" },
+  { label: "Improve my activities", prompt: "How can I improve my extracurricular profile with practical next steps?" },
+  { label: "Recommend CS projects", prompt: "What CS project should I build for college apps based on my skill level?" },
+  { label: "Analyze my SAT/ACT", prompt: "Is my SAT or ACT score on track based on the 2025 profile reports?" },
+  { label: "Help with essays", prompt: "Help me brainstorm my Common App essay with structure and next steps." },
+  { label: "Plan my application timeline", prompt: "What should I do this month for college applications based on my grade level?" },
+  { label: "Compare colleges", prompt: "Compare two colleges using Prelude data and help me think about fit." },
+  { label: "Find a mentor", prompt: "How does Prelude mentor matching work and who should I match with?" },
+  { label: "What should I do next?", prompt: "I'm overwhelmed — give me a short prioritized checklist for this week." }
+];
 
 const WELCOME = {
   id: "welcome",
   role: "assistant",
-  text: "Hi — I'm Prelude AI. Ask about college lists, essays, SAT prep, extracurriculars, scholarships, or your application timeline.",
+  text: "Hi — I'm Prelude AI. I use Prelude's college, scholarship, program, activity, and CS project databases plus SAT/ACT reports to give personalized admissions guidance.",
   createdAt: Date.now(),
   isWelcome: true
 };
+
+function buildChatProfile(profile, user) {
+  return {
+    ...profile,
+    name: user?.name,
+    email: user?.email,
+    majors: profile?.majors ?? profile?.targetMajors ?? [],
+    savedColleges: profile?.savedColleges ?? profile?.colleges ?? []
+  };
+}
 
 export default function DashboardAIChat({ initialPrompt = "" }) {
   const { user } = useAuth();
@@ -22,6 +47,7 @@ export default function DashboardAIChat({ initialPrompt = "" }) {
   const [thinking, setThinking] = useState(false);
   const scrollRef = useRef(null);
   const sentInitial = useRef(false);
+  const chatProfile = buildChatProfile(profile, user);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -44,11 +70,7 @@ export default function DashboardAIChat({ initialPrompt = "" }) {
     setThinking(true);
 
     try {
-      const reply = await getAgentReply(trimmed, history, {
-        ...profile,
-        name: user?.name,
-        email: user?.email
-      });
+      const reply = await getAgentReply(trimmed, history, chatProfile);
       await new Promise((r) => setTimeout(r, getTypingDelay(reply.text || "")));
       setMessages((prev) => [...prev, reply]);
     } catch {
@@ -81,6 +103,21 @@ export default function DashboardAIChat({ initialPrompt = "" }) {
 
   return (
     <div className="dash-ai-chat">
+      <div className="dash-ai-chat__chips" role="list">
+        {SUGGESTED_PROMPTS.map((chip) => (
+          <button
+            key={chip.label}
+            type="button"
+            className="dash-ai-chat__chip"
+            onClick={() => sendText(chip.prompt)}
+            disabled={thinking}
+          >
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{chip.label}</span>
+          </button>
+        ))}
+      </div>
+
       <div className="dash-ai-chat__messages" ref={scrollRef}>
         {messages.map((msg) => (
           <div
@@ -89,6 +126,7 @@ export default function DashboardAIChat({ initialPrompt = "" }) {
           >
             {msg.role === "assistant" ? <Sparkles className="h-4 w-4 dash-ai-chat__icon" aria-hidden="true" /> : null}
             <FormattedChatText text={msg.text} />
+            {msg.role === "assistant" ? <DashboardRecommendationCards records={msg.retrievedRecords} /> : null}
           </div>
         ))}
         {thinking ? (

@@ -1,10 +1,36 @@
 import { buildChatModelConfig } from "./aiConfig.js";
 import { createMentorMatch } from "./mentorMatch.js";
 import { mapChatError, shouldLogChatError } from "./chatErrors.js";
+import { createRagChatCompletion } from "./chatHandler.js";
+import { db, requireAuth } from "./authApi.js";
 import { readJsonBody, sendJson } from "./http.js";
+import { mergeStudentProfileForChat } from "./rag/studentProfile.js";
 
 export function createChatApiMiddleware(env = process.env) {
   const config = buildChatModelConfig(env);
+
+  async function loadStudentProfileSummary(req, body = {}) {
+    try {
+      const { user } = await requireAuth(req);
+      const studentProfile = await db().studentProfile.findUnique({
+        where: { userId: user.id },
+        select: {
+          graduationYear: true,
+          highSchool: true,
+          location: true,
+          targetMajors: true,
+          gpa: true,
+          testScores: true,
+          preferences: true,
+          progress: true
+        }
+      });
+      const clientProfile = body.profile && typeof body.profile === "object" ? body.profile : {};
+      return mergeStudentProfileForChat({ user, studentProfile, clientProfile });
+    } catch {
+      return body.profile && typeof body.profile === "object" ? body.profile : null;
+    }
+  }
 
   return async function chatApiMiddleware(req, res, next) {
     const pathname = req.url?.split("?")[0];
@@ -34,9 +60,22 @@ export function createChatApiMiddleware(env = process.env) {
         sendJson(res, 200, result);
         return;
       }
-      sendJson(res, 410, {
-        error: "guided_assistant_only",
-        message: "Open-ended admissions chat has been replaced by the guided assistant. AI is available only after a completed mentor questionnaire."
+      if (typeof body.message === "string" && body.message.trim()) {
+        const profile = (await loadStudentProfileSummary(req, body)) ?? body.profile ?? null;
+        const result = await createRagChatCompletion(
+          {
+            message: body.message,
+            conversationHistory: Array.isArray(body.conversationHistory) ? body.conversationHistory : []
+          },
+          config,
+          profile
+        );
+        sendJson(res, 200, result);
+        return;
+      }
+      sendJson(res, 400, {
+        error: "invalid_chat_request",
+        message: "Send either mentorMatch payload or a message string."
       });
     } catch (error) {
       if (shouldLogChatError(error)) {

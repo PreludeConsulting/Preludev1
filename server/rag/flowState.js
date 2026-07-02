@@ -1,5 +1,6 @@
 import { sanitizeConversationHistory } from "./conversationHistory.js";
 import { deriveConversationState } from "./conversationState.js";
+import { deriveSchoolConversationContext } from "./schoolConversation.js";
 
 const MAX_FLOW_HISTORY = 8;
 
@@ -39,10 +40,33 @@ function inferEssayStage(history) {
   return null;
 }
 
-function inferMode(history) {
+function inferSchoolStage(history, message) {
+  const lastAssistant = getLastAssistantMessage(history);
+  const schoolContext = deriveSchoolConversationContext(message, history);
+  if (schoolContext.continuedFromPrior) {
+    return "school_follow_up";
+  }
+  if (schoolContext.school && schoolContext.questionIntent && schoolContext.questionIntent !== "school_recommendation") {
+    return "school_fact";
+  }
+  if (schoolContext.needsSchoolClarification) {
+    return "awaiting_school";
+  }
+  if (lastAssistant && /\bwhich school are you asking about\b/i.test(lastAssistant.content ?? "")) {
+    return "awaiting_school";
+  }
+  return null;
+}
+
+function inferMode(history, message) {
   const essayStage = inferEssayStage(history);
   if (essayStage) {
     return { mode: "essay_help", stage: essayStage };
+  }
+
+  const schoolStage = inferSchoolStage(history, message);
+  if (schoolStage) {
+    return { mode: "school_facts", stage: schoolStage };
   }
 
   return { mode: null, stage: null };
@@ -51,14 +75,37 @@ function inferMode(history) {
 export function deriveActiveConversationState(message, conversationHistory = []) {
   const history = sanitizeConversationHistory(conversationHistory);
   const recentMessages = getRecentConversationMessages(history);
-  const { mode, stage } = inferMode(recentMessages);
+  const { mode, stage } = inferMode(recentMessages, message);
   const knownContext = deriveConversationState(message, history);
+  const schoolContext = deriveSchoolConversationContext(message, history, knownContext);
+
+  if (schoolContext.lastSchool) {
+    knownContext.lastSchool = schoolContext.lastSchool;
+    knownContext.lastSchoolName = schoolContext.lastSchool.metadata?.name ?? null;
+    knownContext.lastSchoolUnitId = schoolContext.lastSchool.metadata?.unitid ?? null;
+  }
+  if (schoolContext.pendingSchoolTopic) {
+    knownContext.pendingSchoolTopic = schoolContext.pendingSchoolTopic;
+    knownContext.pendingSchoolIntent = schoolContext.pendingSchoolIntent;
+  }
 
   return {
-    mode,
-    stage,
+    mode: schoolContext.school || schoolContext.needsSchoolClarification ? "school_facts" : mode,
+    stage:
+      schoolContext.continuedFromPrior
+        ? "school_follow_up"
+        : schoolContext.needsSchoolClarification
+          ? "awaiting_school"
+          : schoolContext.school
+            ? "school_fact"
+            : stage,
     knownContext,
     recentMessages,
-    active: Boolean(mode && stage)
+    active: Boolean(
+      (mode && stage) ||
+        schoolContext.school ||
+        schoolContext.needsSchoolClarification ||
+        schoolContext.continuedFromPrior
+    )
   };
 }

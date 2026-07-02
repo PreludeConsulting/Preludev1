@@ -20,7 +20,9 @@ import {
 import { classifyIntent, isPreludeBusinessIntent } from "./rag/intent.js";
 import { buildPreludeBusinessAnswer } from "./rag/preludeBusiness.js";
 import { routeActiveConversation } from "./rag/intentRouter.js";
+import { buildAdmissionsCopilotAnswer } from "./rag/admissionsCopilot.js";
 import { retrieveContext } from "./rag/retrieval.js";
+import { buildKnowledgeRetrieval } from "./rag/knowledgeRetrieval.js";
 import {
   buildMandatoryFallbackAnswer,
   buildRetrievalAssistedAnswer,
@@ -35,6 +37,14 @@ function resolveConfig(config = {}) {
     ...buildChatModelConfig(),
     ...config,
     provider: config.provider ?? buildChatModelConfig().provider
+  };
+}
+
+function mergeRetrieval(primary, secondary) {
+  return {
+    ...primary,
+    blocks: [...(primary.blocks ?? []), ...(secondary.blocks ?? [])],
+    sources: [...(primary.sources ?? []), ...(secondary.sources ?? [])]
   };
 }
 
@@ -71,13 +81,39 @@ export async function createRagChatCompletion({ message, conversationHistory = [
   }
 
   const history = sanitizeConversationHistory(conversationHistory);
-  const activeFlow = routeActiveConversation({
-    message: trimmedMessage,
-    conversationHistory: history
-  });
+  const priorState =
+    [...history]
+      .reverse()
+      .find((item) => item.conversationState && typeof item.conversationState === "object")?.conversationState ?? {};
+
+  let activeFlow = null;
+  try {
+    activeFlow = routeActiveConversation({
+      message: trimmedMessage,
+      conversationHistory: history
+    });
+  } catch (error) {
+    if (!(error instanceof DatabaseNotFoundError)) {
+      throw error;
+    }
+  }
 
   if (activeFlow) {
     return normalizeChatResponse(activeFlow);
+  }
+
+  const copilotAnswer = await buildAdmissionsCopilotAnswer({
+    message: trimmedMessage,
+    conversationHistory: history,
+    profile,
+    priorState
+  });
+  if (copilotAnswer?.text) {
+    return normalizeChatResponse({
+      ...copilotAnswer,
+      answer: copilotAnswer.text,
+      sources: copilotAnswer.sourceLabels ?? copilotAnswer.sources ?? []
+    });
   }
 
   const { intentMessage } = buildRetrievalQuery(trimmedMessage, history);
@@ -104,7 +140,17 @@ export async function createRagChatCompletion({ message, conversationHistory = [
   let retrieval = { intent: classifiedIntent, blocks: [], sources: [], conversationState: {} };
   try {
     retrieval = retrieveContext(trimmedMessage, history);
+  } catch (error) {
+    if (!(error instanceof DatabaseNotFoundError)) {
+      throw error;
+    }
+    retrieval = { intent: classifiedIntent, blocks: [], sources: [], conversationState: {} };
+  }
+
+  try {
     if (!retrieval.intent) retrieval.intent = classifiedIntent;
+    const knowledgeRetrieval = await buildKnowledgeRetrieval(trimmedMessage, { limit: 8, profile });
+    retrieval = mergeRetrieval(retrieval, knowledgeRetrieval);
   } catch (error) {
     if (error instanceof DatabaseNotFoundError) {
       error.code = "DATABASE_NOT_FOUND";
@@ -127,6 +173,7 @@ export async function createRagChatCompletion({ message, conversationHistory = [
   const sharedMeta = {
     intent,
     sources: uniqueSourceLabels(retrieval.sources),
+    sourceLabels: uniqueSourceLabels(retrieval.sources),
     retrievedRecords: retrieval.blocks.flatMap((block) => block.records).slice(0, 12),
     conversationState
   };
