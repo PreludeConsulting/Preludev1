@@ -171,17 +171,43 @@ export function buildRagUserPrompt(args) {
   return messages.at(-1)?.content ?? args.message.trim();
 }
 
+function formatProfileValue(value) {
+  if (Array.isArray(value)) {
+    const cleaned = value.map((item) => String(item ?? "").trim()).filter(Boolean).slice(0, 12);
+    return cleaned.length ? cleaned.join(", ") : null;
+  }
+  const cleaned = String(value ?? "").trim();
+  return cleaned || null;
+}
+
 export function buildProfileAddon(profile) {
-  if (!profile?.name) return "";
+  if (!profile || typeof profile !== "object") return "";
+
+  const name = formatProfileValue(profile.name);
+  const grade = formatProfileValue(profile.grade);
+  const intendedMajor = formatProfileValue(profile.intendedMajor ?? profile.major ?? profile.focus);
+  const gpa = formatProfileValue(profile.gpa);
+  const interests = formatProfileValue(profile.interests);
+  const goals = formatProfileValue(profile.goals);
+  const role = formatProfileValue(profile.role);
+  const plan = formatProfileValue(profile.planName ?? profile.plan);
+
+  const hasUsefulContext = [name, grade, intendedMajor, gpa, interests, goals, role, plan].some(Boolean);
+  if (!hasUsefulContext) return "";
+
   const lines = [
     "",
     "SIGNED-IN MEMBER CONTEXT:",
-    `- Name: ${profile.name}`,
-    profile.planName || profile.plan ? `- Plan: ${profile.planName ?? profile.plan}` : null,
-    profile.role ? `- Role: ${profile.role}` : null,
-    profile.grade ? `- Grade: ${profile.grade}` : null,
-    profile.focus ? `- Focus: ${profile.focus}` : null,
+    name ? `- Name: ${name}` : null,
+    plan ? `- Plan: ${plan}` : null,
+    role ? `- Role: ${role}` : null,
+    grade ? `- Grade: ${grade}` : null,
+    intendedMajor ? `- Intended major / focus: ${intendedMajor}` : null,
+    gpa ? `- GPA: ${gpa}` : null,
+    interests ? `- Interests: ${interests}` : null,
+    goals ? `- Goals: ${goals}` : null,
     "",
+    "Use this member context to personalize general guidance, but do not treat client-provided profile values as verified official records.",
     "Prelude AI is the same for all plans. Plans differ only in roadmap tools and mentor access."
   ].filter(Boolean);
   return lines.join("\n");
