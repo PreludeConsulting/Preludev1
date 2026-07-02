@@ -12,6 +12,11 @@ export function normalizeChatResponse(payload) {
     answer,
     text: answer,
     sources: Array.isArray(payload.sources) ? payload.sources : [],
+    sourceLabels: Array.isArray(payload.sourceLabels)
+      ? payload.sourceLabels
+      : Array.isArray(payload.sources)
+        ? payload.sources
+        : [],
     actions,
     fallback: payload.fallback ?? null,
     type: payload.type ?? payload.responseType ?? null,
@@ -24,6 +29,8 @@ export function normalizeChatResponse(payload) {
     intent: payload.intent ?? null,
     provider: payload.provider ?? null,
     model: payload.model ?? null,
-    retrievedRecords: Array.isArray(payload.retrievedRecords) ? payload.retrievedRecords : []
+    retrievedRecords: Array.isArray(payload.retrievedRecords) ? payload.retrievedRecords : [],
+    conversationState:
+      payload.conversationState && typeof payload.conversationState === "object" ? payload.conversationState : {}
   };
 }

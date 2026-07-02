@@ -153,6 +153,12 @@ function formatKnownContext(conversationState = {}) {
   return parts.length ? ` I’ll keep using your context (${parts.join(", ")}).` : "";
 }
 
+import { lookupUniversityInText } from "./universityLookup.js";
+
+function schoolMentionedInMessage(message) {
+  return Boolean(lookupUniversityInText(message));
+}
+
 function hasEarlyIntentGuidance(message, intent, conversationState = {}) {
   if (
     (intent === "essays" || /\b(essays?|personal statement|common app|supplementals?|supplemental essays?)\b/i.test(message)) &&
@@ -165,9 +171,15 @@ function hasEarlyIntentGuidance(message, intent, conversationState = {}) {
   }
 
   if (intent === "guarantee_refusal") {
+    if (schoolMentionedInMessage(message) || (conversationState.schoolsUnderDiscussion ?? []).length) {
+      return null;
+    }
+    if (/\b(average sat|sat average|admission rate|acceptance rate|tuition|cost|how much)\b/i.test(message)) {
+      return null;
+    }
     return buildGuidancePayload(
       "admissions_chances",
-      `I can’t predict admission outcomes or guarantee a result, but I can help you think about reach/target/likely fit using academics, activities, essays, major, cost, and school selectivity.${formatKnownContext(conversationState)} Which school are you asking about?`
+      `I can't guarantee admission outcomes, but I can share database benchmarks for a specific school. Which school are you asking about?`
     );
   }
 
@@ -243,6 +255,7 @@ Would you like to view the available support plans?`
 };
 
 function hasActionableContext(conversationState = {}, retrieval = {}, intent = "") {
+  if (conversationState.lastSchool || conversationState.lastSchoolName) return true;
   if (conversationState.state && conversationState.intendedMajor) return true;
   if ((conversationState.schoolsUnderDiscussion ?? []).length >= 1) return true;
   if (intent === "school_comparison" || retrieval.intent === "college_comparison") return true;

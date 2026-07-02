@@ -22,9 +22,9 @@ export const FOOTER_LINK_COLUMNS = [
     headingKey: "sections.footer.support",
     ariaLabelKey: "sections.footer.supportLabel",
     links: [
-      { labelKey: "sections.footer.links.contact", href: "#contact" },
-      { labelKey: "sections.footer.links.bookCall", href: "mailto:prelude@preludeconsultingllc.com" },
-      { labelKey: "sections.footer.links.email", href: "mailto:prelude@preludeconsultingllc.com" }
+      { labelKey: "sections.footer.links.contact", href: "/contact" },
+      { labelKey: "sections.footer.links.bookCall", href: "/contact#book-call" },
+      { labelKey: "sections.footer.links.email", href: "/contact#email-us" }
     ]
   }
 ];

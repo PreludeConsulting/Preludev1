@@ -1,0 +1,32 @@
+Project_Type,Project_Name,Description,Difficulty,Impact_Level
+Web Development,Personal Portfolio Website,Build a responsive website using HTML/CSS/JS to showcase projects.,Beginner,Low
+Web Development,E-commerce Storefront,Create a functional store with product listings and a shopping cart.,Intermediate,Medium
+Web Development,Real-time Chat App,Develop a chat application using WebSockets (Socket.io) and Node.js.,Advanced,High
+Mobile Development,Fitness Tracker App,Build an app to track workouts and calories using React Native or Flutter.,Intermediate,Medium
+Mobile Development,Weather App,Create an app that fetches and displays weather data from an API.,Beginner,Low
+Mobile Development,Social Media Clone,Develop a simplified version of Instagram or Twitter with image uploads.,Advanced,High
+Data Science,Stock Price Predictor,Use Python and Scikit-learn to predict stock prices based on historical data.,Advanced,High
+Data Science,Movie Recommendation System,Build a system that recommends movies based on user ratings (Collaborative Filtering).,Intermediate,Medium
+Data Science,COVID-19 Data Visualization,Create interactive dashboards using Plotly or Tableau to visualize pandemic trends.,Beginner,Medium
+AI/Machine Learning,Handwritten Digit Recognizer,Train a CNN using MNIST dataset to recognize handwritten digits.,Intermediate,Medium
+AI/Machine Learning,Sentiment Analysis Tool,Build a tool that analyzes the sentiment of tweets or reviews using NLP.,Intermediate,Medium
+AI/Machine Learning,Object Detection System,Implement YOLO or SSD for real-time object detection in images or video.,Advanced,High
+Game Development,2D Platformer Game,Create a game with multiple levels; enemies; and power-ups using Unity or Godot.,Intermediate,Medium
+Game Development,Multiplayer Card Game,Develop an online card game with real-time multiplayer functionality.,Advanced,High
+Game Development,Text-based Adventure,Build a branching narrative game in Python or C++.,Beginner,Low
+Cybersecurity,Password Manager,Create a secure application to store and manage encrypted passwords.,Intermediate,Medium
+Cybersecurity,Network Packet Sniffer,Build a tool to capture and analyze network traffic using Scapy.,Advanced,High
+Cybersecurity,Vulnerability Scanner,Develop a script to scan for common web vulnerabilities like XSS or SQLi.,Advanced,High
+Hardware/IoT,Smart Home Hub,Use Raspberry Pi to control lights and sensors via a web interface.,Intermediate,High
+Hardware/IoT,Automated Plant Waterer,Build a system with Arduino and moisture sensors to water plants.,Beginner,Medium
+Hardware/IoT,Wearable Health Monitor,Create a device that tracks heart rate and steps using ESP32.,Advanced,High
+Open Source,Bug Fixes in Popular Repos,Contribute to large projects like React; Django; or TensorFlow on GitHub.,Advanced,Extremely High
+Open Source,Documentation Translation,Help translate technical documentation for open-source projects.,Beginner,Medium
+Open Source,Creating a Useful Library,Develop and publish a small utility library on NPM or PyPI.,Intermediate,High
+Competitions,USA Computing Olympiad (USACO),Competitive programming competition with multiple divisions.,Varies,Extremely High
+Competitions,Google Code Jam (Archived/Legacy),Global coding competition (useful for practice problems).,Advanced,High
+Competitions,Kaggle Competitions,Participate in data science and machine learning challenges.,Varies,High
+Competitions,CyberPatriot,National youth cyber defense competition.,Intermediate,High
+Research,Independent CS Research,Conduct original research in a niche area like Cryptography or AI Ethics.,Advanced,Extremely High
+Research,Summer Research Assistant,Work with a university professor on a CS-related research project.,Advanced,High
+Research,Publishing a Paper,Co-author a research paper for a conference or journal.,Advanced,Extremely High

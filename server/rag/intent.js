@@ -66,8 +66,17 @@ const INTENT_PATTERNS = [
     re: /\bwhere (?:is|are)\b.{0,30}\b(pricing|plans|mentors?|dashboard|sign up|register)\b/i
   },
   {
+    intent: "school_fact",
+    re: /\b(average sat|sat average|admission rate|acceptance rate|tuition|cost of attendance|total cost|how much does)\b/i
+  },
+  {
+    intent: "school_fact",
+    re: /\b(need on the sat|sat to get into|what sat|get into)\b/i
+  },
+  {
     intent: "guarantee_refusal",
-    re: /\b(?:guarantee|guaranteed|100%|surely get in|will i (?:get|be) (?:in|into|accepted|admitted)|chances? of (?:getting|being) (?:in|into|accepted|admitted)|what are my chances|my chances of|odds of (?:getting|being) (?:in|into|accepted|admitted)|admission chances|chance of admission)/i
+    re: /\b(?:guarantee|guaranteed|100%|surely get in|will i (?:get|be) (?:in|into|accepted|admitted)|chances? of (?:getting|being) (?:in|into|accepted|admitted)|what are my chances|my chances of|odds of (?:getting|being) (?:in|into|accepted|admitted)|admission chances|chance of admission)/i,
+    unless: /\b(average sat|sat average|admission rate|acceptance rate|tuition|cost|how much|need on the sat|sat to get into)\b/i
   },
   {
     intent: "high_school_search",
@@ -265,6 +274,10 @@ export function classifyIntent(message) {
       return { intent, needsRetrieval: false };
     }
 
+    if (intent === "school_fact") {
+      return { intent, needsRetrieval: true };
+    }
+
     if (intent === "high_school_search" && COLLEGE_CONTEXT.test(text) && !HIGH_SCHOOL_CONTEXT.test(text)) {
       continue;
     }
@@ -289,6 +302,7 @@ function intentNeedsRetrieval(intent, text) {
 
   switch (intent) {
     case "high_school_search":
+    case "school_fact":
     case "school_search":
     case "school_comparison":
     case "affordability":

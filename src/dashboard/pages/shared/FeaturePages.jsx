@@ -282,11 +282,11 @@ export function StudentHelp() {
 
       <div className="dash-help-grid">
         <SectionCard title="Contact us" className="dash-panel">
-          <a href="mailto:hello@preludeconsulting.com" className="dash-help-card">
+          <a href="mailto:preludesupport@preludeconsultingllc.com" className="dash-help-card">
             <Mail className="h-5 w-5" />
             <div>
               <strong>Email support</strong>
-              <p className="dash-muted">hello@preludeconsulting.com — we typically respond within one business day.</p>
+              <p className="dash-muted">preludesupport@preludeconsultingllc.com — we typically respond within one business day.</p>
             </div>
           </a>
         </SectionCard>
@@ -441,11 +441,11 @@ export function MentorHelp() {
     <div className="dash-page dash-page--premium">
       <DashboardPageHeader title="Help and Support" subtitle="Resources for Prelude mentors." />
       <SectionCard className="dash-panel">
-        <a href="mailto:hello@preludeconsulting.com" className="dash-help-card">
+        <a href="mailto:preludesupport@preludeconsultingllc.com" className="dash-help-card">
           <Mail className="h-5 w-5" />
           <div>
             <strong>Contact mentor support</strong>
-            <p className="dash-muted">hello@preludeconsulting.com</p>
+            <p className="dash-muted">preludesupport@preludeconsultingllc.com</p>
           </div>
         </a>
         <Link to="/" className="dash-btn dash-btn--secondary dash-btn--sm">Back to homepage</Link>
@@ -598,11 +598,11 @@ export function ParentHelp() {
 
       <div className="dash-help-grid">
         <SectionCard title="Contact us" className="dash-panel">
-          <a href="mailto:hello@preludeconsulting.com" className="dash-help-card">
+          <a href="mailto:preludesupport@preludeconsultingllc.com" className="dash-help-card">
             <Mail className="h-5 w-5" />
             <div>
               <strong>Email support</strong>
-              <p className="dash-muted">hello@preludeconsulting.com — we typically respond within one business day.</p>
+              <p className="dash-muted">preludesupport@preludeconsultingllc.com — we typically respond within one business day.</p>
             </div>
           </a>
         </SectionCard>

@@ -1,0 +1,98 @@
+[
+  {
+    "source_id": "college_scorecard",
+    "name": "College Scorecard",
+    "owner": "U.S. Department of Education",
+    "url": "https://collegescorecard.ed.gov/",
+    "use_for": [
+      "college search",
+      "college comparison",
+      "cost",
+      "graduation rate",
+      "acceptance rate",
+      "student debt",
+      "earnings",
+      "fields of study"
+    ],
+    "refresh_frequency": "monthly_or_before_major_release",
+    "trust_level": "official_government"
+  },
+  {
+    "source_id": "ipeds",
+    "name": "IPEDS Use the Data",
+    "owner": "NCES",
+    "url": "https://nces.ed.gov/ipeds/use-the-data",
+    "use_for": [
+      "institution-level facts",
+      "admissions",
+      "enrollment",
+      "test scores",
+      "tuition and fees",
+      "room and board",
+      "financial aid",
+      "graduation rates",
+      "degrees awarded"
+    ],
+    "refresh_frequency": "annual_or_before_major_release",
+    "trust_level": "official_government"
+  },
+  {
+    "source_id": "common_app",
+    "name": "Common App Essay Prompts",
+    "owner": "Common App",
+    "url": "https://www.commonapp.org/apply/essay-prompts/",
+    "use_for": [
+      "first-year essay prompts",
+      "essay guidance categories"
+    ],
+    "refresh_frequency": "annual_application_cycle",
+    "trust_level": "official_primary_source"
+  },
+  {
+    "source_id": "federal_student_aid",
+    "name": "Federal Student Aid",
+    "owner": "U.S. Department of Education",
+    "url": "https://studentaid.gov/",
+    "use_for": [
+      "fafsa basics",
+      "federal grants",
+      "federal loans",
+      "work-study",
+      "aid definitions",
+      "deadline reminders"
+    ],
+    "refresh_frequency": "monthly_or_policy_change",
+    "trust_level": "official_government"
+  },
+  {
+    "source_id": "onet",
+    "name": "O*NET Web Services",
+    "owner": "National Center for O*NET Development",
+    "url": "https://services.onetcenter.org/",
+    "use_for": [
+      "occupation search",
+      "skills",
+      "tasks",
+      "interests",
+      "work activities",
+      "tools and technologies"
+    ],
+    "refresh_frequency": "quarterly_or_api_release",
+    "trust_level": "official_government_partner"
+  },
+  {
+    "source_id": "bls_ooh",
+    "name": "BLS Occupational Outlook Handbook",
+    "owner": "U.S. Bureau of Labor Statistics",
+    "url": "https://www.bls.gov/ooh/",
+    "use_for": [
+      "median pay",
+      "job outlook",
+      "required education",
+      "job duties",
+      "related occupations"
+    ],
+    "refresh_frequency": "annual_or_when_updated_by_bls",
+    "trust_level": "official_government"
+  }
+]

@@ -1,2 +1,2 @@
-import handler from "../../server/vercelAuthHandler.js";
+import handler from "../../server/supabaseParentInvitesApi.js";
 export default handler;

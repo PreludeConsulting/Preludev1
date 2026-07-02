@@ -514,3 +514,27 @@ model Meeting {
   @@index([mentorUserId, status], map: "idx_meetings_mentor_user_status")
   @@map("meetings")
 }
+
+model AiKnowledgeChunk {
+  id             String    @id @default(cuid())
+  sourceId       String
+  sourceName     String
+  sourceUrl      String
+  category       String
+  title          String
+  content        String
+  sourceFile     String?   @map("source_file")
+  sourceType     String?   @map("source_type")
+  metadata       Json      @default("{}")
+  searchableText String?   @map("searchable_text")
+  embedding      Unsupported("vector")?
+  lastVerified   DateTime
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([sourceId], map: "idx_ai_knowledge_chunks_source_id")
+  @@index([category], map: "idx_ai_knowledge_chunks_category")
+  @@index([sourceType], map: "idx_ai_knowledge_chunks_source_type")
+  @@index([lastVerified], map: "idx_ai_knowledge_chunks_last_verified")
+  @@map("ai_knowledge_chunks")
+}

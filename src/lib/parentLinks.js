@@ -4,6 +4,9 @@
 
 import { DEMO_PARENT, DEMO_STUDENT, DEMO_STUDENT_2 } from "../data/demoAccounts.js";
 import { DEMO_SLUGS } from "../data/demoDashboardData.js";
+import { PARENT_INVITE_SENT_MESSAGE } from "../../shared/parentInviteConstants.js";
+import { friendlyParentInviteError } from "../../shared/parentInviteErrors.js";
+import { appPath } from "./appPaths.js";
 import { getSupabase } from "./supabase.js";
 import { isSupabaseConfigured } from "./supabaseConfig.js";
 import { api } from "./auth.js";
@@ -79,11 +82,33 @@ function makeLocalToken() {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+async function getSupabaseAccessToken() {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
+  return session?.access_token || null;
+}
+
 async function sendInviteEmail({ parentEmail, studentName, inviteToken }) {
-  return api("/api/parent-invites/send", {
-    method: "POST",
-    body: JSON.stringify({ parentEmail, studentName, inviteToken })
-  });
+  const accessToken = await getSupabaseAccessToken();
+  if (isSupabaseConfigured() && !accessToken) {
+    throw new Error("Your session expired. Sign in again and retry the invitation.");
+  }
+
+  const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
+
+  try {
+    return await api(appPath("/api/parent-invites/send"), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ parentEmail, studentName, inviteToken })
+    });
+  } catch (error) {
+    throw new Error(friendlyParentInviteError(error));
+  }
 }
 
 /**
@@ -92,41 +117,53 @@ async function sendInviteEmail({ parentEmail, studentName, inviteToken }) {
 export async function connectStudentParentEmail({ studentId, studentName, parentEmail, sendEmail = true }) {
   const email = normalizeEmail(parentEmail);
   if (!email || !studentId) throw new Error("Enter a valid parent email.");
-
-  let inviteToken = makeLocalToken();
-  let linked = false;
+  if (!email.includes("@")) throw new Error("Enter a valid parent or guardian email address.");
 
   if (isSupabaseConfigured()) {
     const supabase = getSupabase();
-    if (supabase) {
-      const { data, error } = await supabase.rpc("connect_student_parent_email", {
-        p_student_id: studentId,
-        p_parent_email: email
-      });
+    if (!supabase) throw new Error("Supabase client unavailable.");
 
-      if (!error && data) {
-        linked = Boolean(data.linked);
-        inviteToken = data.invite_token || inviteToken;
-        writeLocalParentEmail(studentId, email);
-        if (sendEmail) {
-          await sendInviteEmail({ parentEmail: email, studentName, inviteToken });
-        }
-        return { linked, inviteToken };
-      }
-
-      if (error) {
-        console.warn("[prelude-parent] connectStudentParentEmail:", error.message);
-      }
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (!user?.id) {
+      throw new Error("Your session expired. Sign in again and retry the invitation.");
     }
+    if (user.id !== studentId) {
+      throw new Error("Sign in as the student account before inviting a parent.");
+    }
+    if (normalizeEmail(user.email) === email) {
+      throw new Error("Enter your parent or guardian's email, not your own.");
+    }
+
+    const { data, error } = await supabase.rpc("connect_student_parent_email", {
+      p_student_id: studentId,
+      p_parent_email: email
+    });
+
+    if (error || !data?.invite_token) {
+      throw new Error(friendlyParentInviteError(error, "Could not save the parent invitation."));
+    }
+
+    const linked = Boolean(data.linked);
+    const inviteToken = String(data.invite_token);
+    writeLocalParentEmail(studentId, email);
+
+    if (sendEmail) {
+      await sendInviteEmail({ parentEmail: email, studentName, inviteToken });
+    }
+
+    return { linked, inviteToken, message: PARENT_INVITE_SENT_MESSAGE };
   }
 
+  let inviteToken = makeLocalToken();
   const existing = readLocalInvites(studentId);
   const next = existing.filter((item) => normalizeEmail(item.parent_email) !== email);
   const row = {
     id: `local-${inviteToken}`,
     student_id: studentId,
     parent_email: email,
-    status: linked ? "accepted" : "pending",
+    status: "pending",
     invite_token: inviteToken,
     created_at: new Date().toISOString()
   };
@@ -137,7 +174,7 @@ export async function connectStudentParentEmail({ studentId, studentName, parent
     await sendInviteEmail({ parentEmail: email, studentName, inviteToken });
   }
 
-  return { linked, inviteToken };
+  return { linked: false, inviteToken, message: PARENT_INVITE_SENT_MESSAGE };
 }
 
 export async function listParentInvites(studentId) {

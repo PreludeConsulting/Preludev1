@@ -18,7 +18,7 @@ export default function PreludeChatPanel() {
         </p>
         <div className="dash-ai-layout__hint">
           <Bot className="h-4 w-4" />
-          <span>Essays · College list · SAT · Scholarships · Deadlines</span>
+          <span>Colleges · Scholarships · Programs · Activities · CS · SAT/ACT</span>
         </div>
       </aside>
       <div className="dash-ai-layout__main">

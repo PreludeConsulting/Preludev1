@@ -6,7 +6,7 @@ const en = {
     updated: UPDATED,
     summary: [
       { label: "Applies to", value: "Prelude website, dashboard, mentor matching, AI-assisted guidance, billing, and support services." },
-      { label: "Privacy contact", value: "prelude@preludeconsultingllc.com" },
+      { label: "Privacy contact", value: "preludesupport@preludeconsultingllc.com" },
       { label: "Key commitment", value: "Prelude does not sell personal information or knowingly share it for cross-context behavioral advertising." }
     ],
     sections: [
@@ -63,7 +63,7 @@ const en = {
         body: [
           "Prelude is designed for college-bound students, parents, guardians, mentors, and related users. Users under 18 should use the Services with permission from a parent or guardian where required.",
           "Users under 13 may not create an account or submit personal information unless Prelude has implemented a legally sufficient consent process or the account is created and supervised by an authorized parent, guardian, school, or other lawful representative.",
-          "Parents or guardians may contact us at prelude@preludeconsultingllc.com to request access, correction, or deletion of a minor's personal information, subject to identity verification and lawful retention requirements."
+          "Parents or guardians may contact us at preludesupport@preludeconsultingllc.com to request access, correction, or deletion of a minor's personal information, subject to identity verification and lawful retention requirements."
         ]
       },
       {
@@ -77,7 +77,7 @@ const en = {
         heading: "9. Your rights and choices",
         body: [
           "Depending on where you live, you may have rights to access, correct, delete, restrict, object to, or obtain a copy of certain personal information, and to appeal a privacy decision.",
-          "You may update some profile information in your account settings. You may also contact prelude@preludeconsultingllc.com to make a privacy request. We may verify your identity before responding.",
+          "You may update some profile information in your account settings. You may also contact preludesupport@preludeconsultingllc.com to make a privacy request. We may verify your identity before responding.",
           "We will not discriminate against you for exercising applicable privacy rights, though some Services may require certain information to function."
         ]
       },
@@ -92,7 +92,7 @@ const en = {
         heading: "11. Changes and contact",
         body: [
           "We may update this Privacy Policy from time to time. Material changes will be posted with an updated effective date, and we will provide additional notice where required by law.",
-          "Questions or privacy requests may be sent to prelude@preludeconsultingllc.com or through the contact section on our website."
+          "Questions or privacy requests may be sent to preludesupport@preludeconsultingllc.com or through the contact section on our website."
         ]
       }
     ]
@@ -102,7 +102,7 @@ const en = {
     updated: UPDATED,
     summary: [
       { label: "Applies to", value: "All students, parents, guardians, mentors, account holders, visitors, and other users of Prelude Services." },
-      { label: "Legal contact", value: "prelude@preludeconsultingllc.com" },
+      { label: "Legal contact", value: "preludesupport@preludeconsultingllc.com" },
       { label: "Important protection", value: "Prelude provides guidance and tools, but does not guarantee admission, scholarships, financial aid, or any specific outcome." }
     ],
     sections: [
@@ -205,7 +205,7 @@ const en = {
       {
         heading: "14. Contact",
         body: [
-          "Questions about these Terms may be sent to prelude@preludeconsultingllc.com or through the contact section on our website."
+          "Questions about these Terms may be sent to preludesupport@preludeconsultingllc.com or through the contact section on our website."
         ]
       }
     ]
@@ -218,7 +218,7 @@ const es = {
     updated: UPDATED,
     summary: [
       { label: "Se aplica a", value: "El sitio web, panel, mentoría, orientación con IA, facturación y soporte de Prelude." },
-      { label: "Contacto de privacidad", value: "prelude@preludeconsultingllc.com" },
+      { label: "Contacto de privacidad", value: "preludesupport@preludeconsultingllc.com" },
       { label: "Compromiso clave", value: "Prelude no vende información personal ni la comparte deliberadamente para publicidad conductual entre contextos." }
     ],
     sections: [
@@ -228,11 +228,11 @@ const es = {
       { heading: "4. Cómo divulgamos información", body: ["Divulgamos información a mentores, estudiantes, padres o tutores según sea necesario para mensajería, programación, orientación y funciones de cuenta, conforme a roles y configuraciones.", "Divulgamos información a proveedores que alojan infraestructura, procesan pagos, envían comunicaciones, apoyan análisis, brindan soporte, detectan fraude o ayudan a operar los Servicios. Solo pueden usarla para prestar servicios a Prelude o según permita la ley.", "Podemos divulgar información en una fusión, financiación, adquisición, reorganización, venta de activos o transacción similar, con protecciones de confidencialidad adecuadas.", "Podemos divulgar información cuando lo exija la ley, un proceso legal, una solicitud gubernamental o para proteger derechos, seguridad, propiedad e integridad de Prelude, usuarios u otras personas."] },
       { heading: "5. No venta de información personal", body: ["Prelude no vende información personal. Tampoco comparte deliberadamente información personal para publicidad conductual entre contextos según el uso común de esas expresiones en leyes estatales de privacidad de EE. UU.", "Si nuestras prácticas cambian, actualizaremos esta Política y daremos los derechos de exclusión requeridos antes de realizar dicha actividad."] },
       { heading: "6. Cookies y análisis", body: ["Podemos usar cookies, almacenamiento local, píxeles y tecnologías similares para mantener sesión, recordar preferencias, medir rendimiento, mejorar funciones y proteger los Servicios.", "La configuración del navegador puede permitir bloquear o eliminar algunas cookies. Si las desactivas, algunas funciones podrían no operar correctamente."] },
-      { heading: "7. Privacidad de estudiantes y menores", body: ["Prelude está diseñado para estudiantes que se preparan para la universidad, padres, tutores, mentores y usuarios relacionados. Los menores de 18 años deben usar los Servicios con permiso de un padre o tutor cuando sea requerido.", "Los menores de 13 años no pueden crear una cuenta ni enviar información personal salvo que Prelude haya implementado un proceso de consentimiento legalmente suficiente o la cuenta sea creada y supervisada por un padre, tutor, escuela u otro representante autorizado.", "Padres o tutores pueden contactar a prelude@preludeconsultingllc.com para solicitar acceso, corrección o eliminación de información personal de un menor, sujeto a verificación de identidad y requisitos legales de conservación."] },
+      { heading: "7. Privacidad de estudiantes y menores", body: ["Prelude está diseñado para estudiantes que se preparan para la universidad, padres, tutores, mentores y usuarios relacionados. Los menores de 18 años deben usar los Servicios con permiso de un padre o tutor cuando sea requerido.", "Los menores de 13 años no pueden crear una cuenta ni enviar información personal salvo que Prelude haya implementado un proceso de consentimiento legalmente suficiente o la cuenta sea creada y supervisada por un padre, tutor, escuela u otro representante autorizado.", "Padres o tutores pueden contactar a preludesupport@preludeconsultingllc.com para solicitar acceso, corrección o eliminación de información personal de un menor, sujeto a verificación de identidad y requisitos legales de conservación."] },
       { heading: "8. Conservación y seguridad", body: ["Conservamos información personal mientras sea necesario para prestar los Servicios, mantener registros, cumplir obligaciones legales, resolver disputas, hacer cumplir acuerdos, prevenir fraude y proteger la seguridad.", "Usamos salvaguardas administrativas, técnicas y organizativas diseñadas para proteger información personal. Ningún sistema o método de transmisión o almacenamiento es completamente seguro, y no podemos garantizar seguridad absoluta."] },
-      { heading: "9. Tus derechos y opciones", body: ["Según dónde vivas, puedes tener derechos de acceso, corrección, eliminación, restricción, oposición, portabilidad y apelación de decisiones de privacidad.", "Puedes actualizar algunos datos de perfil en la cuenta o contactar a prelude@preludeconsultingllc.com para una solicitud de privacidad. Podemos verificar tu identidad antes de responder.", "No discriminaremos por ejercer derechos aplicables, aunque algunos Servicios requieren cierta información para funcionar."] },
+      { heading: "9. Tus derechos y opciones", body: ["Según dónde vivas, puedes tener derechos de acceso, corrección, eliminación, restricción, oposición, portabilidad y apelación de decisiones de privacidad.", "Puedes actualizar algunos datos de perfil en la cuenta o contactar a preludesupport@preludeconsultingllc.com para una solicitud de privacidad. Podemos verificar tu identidad antes de responder.", "No discriminaremos por ejercer derechos aplicables, aunque algunos Servicios requieren cierta información para funcionar."] },
       { heading: "10. Usuarios internacionales", body: ["Prelude opera principalmente desde Estados Unidos. Si accedes desde fuera de Estados Unidos, tu información puede procesarse en Estados Unidos u otros países con leyes de privacidad distintas.", "Cuando sea requerido, usamos mecanismos legales reconocidos u otras salvaguardas adecuadas para transferencias internacionales."] },
-      { heading: "11. Cambios y contacto", body: ["Podemos actualizar esta Política ocasionalmente. Los cambios materiales se publicarán con una fecha actualizada y daremos aviso adicional cuando la ley lo requiera.", "Preguntas o solicitudes de privacidad pueden enviarse a prelude@preludeconsultingllc.com o por la sección de contacto del sitio."] }
+      { heading: "11. Cambios y contacto", body: ["Podemos actualizar esta Política ocasionalmente. Los cambios materiales se publicarán con una fecha actualizada y daremos aviso adicional cuando la ley lo requiera.", "Preguntas o solicitudes de privacidad pueden enviarse a preludesupport@preludeconsultingllc.com o por la sección de contacto del sitio."] }
     ]
   },
   terms: {
@@ -240,7 +240,7 @@ const es = {
     updated: UPDATED,
     summary: [
       { label: "Se aplica a", value: "Estudiantes, padres, tutores, mentores, titulares de cuenta, visitantes y demás usuarios de Prelude." },
-      { label: "Contacto legal", value: "prelude@preludeconsultingllc.com" },
+      { label: "Contacto legal", value: "preludesupport@preludeconsultingllc.com" },
       { label: "Protección importante", value: "Prelude ofrece orientación y herramientas, pero no garantiza admisión, becas, ayuda financiera ni resultados específicos." }
     ],
     sections: [
@@ -257,7 +257,7 @@ const es = {
       { heading: "11. Indemnización", body: ["En la máxima medida permitida por la ley, aceptas defender, indemnizar y mantener indemne a Prelude y sus directivos, empleados, contratistas, mentores, afiliados, licenciantes y proveedores frente a reclamaciones derivadas de tu uso de los Servicios, tu contenido, violación de estos Términos, violación de la ley o infracción de derechos."] },
       { heading: "12. Disputas, ley aplicable y jurisdicción", body: ["En la medida permitida por la ley, estos Términos se rigen por las leyes del Estado de Delaware, excluidas sus normas de conflicto. Las disputas no sujetas a arbitraje o tribunal de reclamos menores se presentarán exclusivamente en tribunales estatales o federales de Delaware.", "En la medida permitida por la ley, las disputas deben resolverse individualmente y no como acción colectiva, consolidada o representativa. Cualquier arbitraje, renuncia colectiva o requisito de foro se aplicará solo cuando sea exigible legalmente."] },
       { heading: "13. Cambios, terminación y divisibilidad", body: ["Prelude puede modificar estos Términos. Los cambios materiales se publicarán con fecha actualizada, y el uso continuado implica aceptación.", "Prelude puede suspender o terminar Servicios o acceso cuando la ley lo permita. Las secciones que deban sobrevivir seguirán vigentes.", "Si una disposición es inexigible, las restantes seguirán vigentes y la disposición se modificará lo mínimo necesario para hacerla exigible cuando sea posible."] },
-      { heading: "14. Contacto", body: ["Preguntas sobre estos Términos pueden enviarse a prelude@preludeconsultingllc.com o por la sección de contacto del sitio."] }
+      { heading: "14. Contacto", body: ["Preguntas sobre estos Términos pueden enviarse a preludesupport@preludeconsultingllc.com o por la sección de contacto del sitio."] }
     ]
   }
 };
@@ -268,7 +268,7 @@ const ko = {
     updated: UPDATED,
     summary: [
       { label: "적용 대상", value: "Prelude 웹사이트, 대시보드, 멘토 매칭, AI 지원 상담, 결제 및 지원 서비스." },
-      { label: "개인정보 문의", value: "prelude@preludeconsultingllc.com" },
+      { label: "개인정보 문의", value: "preludesupport@preludeconsultingllc.com" },
       { label: "핵심 약속", value: "Prelude는 개인정보를 판매하지 않으며, 교차 맥락 행동 광고를 위해 고의로 공유하지 않습니다." }
     ],
     sections: [
@@ -278,11 +278,11 @@ const ko = {
       { heading: "4. 정보 공개", body: ["계정 역할과 설정에 따라 메시지, 일정, 상담 및 계정 기능에 필요한 범위에서 멘토, 학생, 부모 또는 보호자에게 정보를 공개합니다.", "호스팅, 결제, 커뮤니케이션, 분석, 고객지원, 사기 탐지 및 서비스 운영을 지원하는 업체에 정보를 공개합니다. 이들은 Prelude를 위한 서비스 수행 또는 법에서 허용된 목적에만 사용할 수 있습니다.", "합병, 투자, 인수, 조직개편, 자산 매각 또는 유사 거래와 관련하여 적절한 비밀유지 보호 하에 정보를 공개할 수 있습니다.", "법률, 법적 절차, 정부 요청 또는 Prelude, 사용자, 타인의 권리, 안전, 재산, 보안 및 무결성을 보호하기 위해 정보를 공개할 수 있습니다."] },
       { heading: "5. 개인정보 판매 금지", body: ["Prelude는 개인정보를 판매하지 않습니다. 또한 미국 주 개인정보 보호법에서 일반적으로 사용되는 의미의 교차 맥락 행동 광고를 위해 개인정보를 고의로 공유하지 않습니다.", "관행이 변경되는 경우 본 방침을 업데이트하고 필요한 거부권을 제공합니다."] },
       { heading: "6. 쿠키 및 분석", body: ["로그인 유지, 선호 기억, 성능 측정, 기능 개선 및 서비스 보호를 위해 쿠키, 로컬 스토리지, 픽셀 및 유사 기술을 사용할 수 있습니다.", "브라우저 설정으로 일부 쿠키를 차단하거나 삭제할 수 있습니다. 쿠키를 비활성화하면 일부 기능이 제대로 작동하지 않을 수 있습니다."] },
-      { heading: "7. 학생 및 아동 개인정보", body: ["Prelude는 대학 진학을 준비하는 학생, 부모, 보호자, 멘토 및 관련 사용자를 위한 서비스입니다. 18세 미만 사용자는 요구되는 경우 부모 또는 보호자의 허가를 받아야 합니다.", "13세 미만 사용자는 Prelude가 법적으로 충분한 동의 절차를 구현했거나 부모, 보호자, 학교 또는 적법한 대리인이 계정을 생성 및 감독하는 경우를 제외하고 계정을 만들거나 개인정보를 제출할 수 없습니다.", "부모 또는 보호자는 prelude@preludeconsultingllc.com으로 미성년자의 개인정보 열람, 정정 또는 삭제를 요청할 수 있으며, 신원 확인 및 법적 보관 요건이 적용됩니다."] },
+      { heading: "7. 학생 및 아동 개인정보", body: ["Prelude는 대학 진학을 준비하는 학생, 부모, 보호자, 멘토 및 관련 사용자를 위한 서비스입니다. 18세 미만 사용자는 요구되는 경우 부모 또는 보호자의 허가를 받아야 합니다.", "13세 미만 사용자는 Prelude가 법적으로 충분한 동의 절차를 구현했거나 부모, 보호자, 학교 또는 적법한 대리인이 계정을 생성 및 감독하는 경우를 제외하고 계정을 만들거나 개인정보를 제출할 수 없습니다.", "부모 또는 보호자는 preludesupport@preludeconsultingllc.com으로 미성년자의 개인정보 열람, 정정 또는 삭제를 요청할 수 있으며, 신원 확인 및 법적 보관 요건이 적용됩니다."] },
       { heading: "8. 보관 및 보안", body: ["서비스 제공, 기록 유지, 법적 의무 준수, 분쟁 해결, 계약 이행, 사기 방지 및 보안 보호에 필요한 기간 동안 개인정보를 보관합니다.", "개인정보 보호를 위해 관리적, 기술적 및 조직적 보호조치를 사용하지만 어떤 시스템도 완전히 안전할 수 없으며 절대적 보안을 보장할 수 없습니다."] },
-      { heading: "9. 권리와 선택", body: ["거주지에 따라 개인정보 접근, 정정, 삭제, 제한, 반대, 사본 제공 및 결정에 대한 이의제기 권리가 있을 수 있습니다.", "계정 설정에서 일부 프로필 정보를 수정하거나 prelude@preludeconsultingllc.com으로 요청할 수 있습니다. 응답 전에 신원 확인을 할 수 있습니다.", "관련 권리를 행사했다는 이유로 차별하지 않지만, 일부 서비스는 특정 정보가 필요할 수 있습니다."] },
+      { heading: "9. 권리와 선택", body: ["거주지에 따라 개인정보 접근, 정정, 삭제, 제한, 반대, 사본 제공 및 결정에 대한 이의제기 권리가 있을 수 있습니다.", "계정 설정에서 일부 프로필 정보를 수정하거나 preludesupport@preludeconsultingllc.com으로 요청할 수 있습니다. 응답 전에 신원 확인을 할 수 있습니다.", "관련 권리를 행사했다는 이유로 차별하지 않지만, 일부 서비스는 특정 정보가 필요할 수 있습니다."] },
       { heading: "10. 해외 사용자", body: ["Prelude는 주로 미국에서 운영됩니다. 미국 외 지역에서 접속하는 경우 정보가 미국 또는 다른 국가에서 처리될 수 있으며, 해당 국가의 개인정보 법률은 귀하의 지역과 다를 수 있습니다.", "필요한 경우 국제 이전을 위해 법적으로 인정된 이전 수단 또는 적절한 보호조치를 사용합니다."] },
-      { heading: "11. 변경 및 문의", body: ["본 방침은 수시로 업데이트될 수 있습니다. 중요한 변경은 업데이트된 날짜와 함께 게시되며, 법에서 요구하는 경우 추가 통지를 제공합니다.", "문의 또는 개인정보 요청은 prelude@preludeconsultingllc.com 또는 웹사이트 연락처를 통해 보낼 수 있습니다."] }
+      { heading: "11. 변경 및 문의", body: ["본 방침은 수시로 업데이트될 수 있습니다. 중요한 변경은 업데이트된 날짜와 함께 게시되며, 법에서 요구하는 경우 추가 통지를 제공합니다.", "문의 또는 개인정보 요청은 preludesupport@preludeconsultingllc.com 또는 웹사이트 연락처를 통해 보낼 수 있습니다."] }
     ]
   },
   terms: {
@@ -290,7 +290,7 @@ const ko = {
     updated: UPDATED,
     summary: [
       { label: "적용 대상", value: "Prelude 서비스를 이용하는 학생, 부모, 보호자, 멘토, 계정 보유자, 방문자 및 기타 사용자." },
-      { label: "법무 문의", value: "prelude@preludeconsultingllc.com" },
+      { label: "법무 문의", value: "preludesupport@preludeconsultingllc.com" },
       { label: "중요 보호 조항", value: "Prelude는 안내와 도구를 제공하지만 입학, 장학금, 재정지원 또는 특정 결과를 보장하지 않습니다." }
     ],
     sections: [
@@ -307,7 +307,7 @@ const ko = {
       { heading: "11. 면책", body: ["법이 허용하는 최대 범위에서 귀하는 서비스 이용, 사용자 콘텐츠, 약관 위반, 법률 위반 또는 권리 침해로 발생하는 청구와 비용으로부터 Prelude 및 관련자를 방어, 면책 및 보호하는 데 동의합니다."] },
       { heading: "12. 분쟁, 준거법 및 관할", body: ["법이 허용하는 범위에서 본 약관은 법 충돌 원칙을 제외한 델라웨어주 법률의 적용을 받습니다. 중재 또는 소액재판 대상이 아닌 분쟁은 델라웨어주의 주 또는 연방 법원에서만 제기됩니다.", "법이 허용하는 범위에서 분쟁은 집단, 병합 또는 대표 소송이 아닌 개별적으로 해결되어야 합니다. 중재 조항, 집단소송 포기 또는 관할 요건은 법적으로 집행 가능한 경우에만 적용됩니다."] },
       { heading: "13. 변경, 종료 및 분리 가능성", body: ["Prelude는 약관을 수정할 수 있습니다. 중요한 변경은 업데이트된 날짜와 함께 게시되며, 계속 이용하면 수정 약관에 동의한 것으로 간주됩니다.", "Prelude는 법에서 허용하는 경우 서비스 또는 접근을 정지하거나 종료할 수 있습니다. 성격상 존속해야 하는 조항은 종료 후에도 존속합니다.", "어떤 조항이 집행 불가능한 경우 나머지 조항은 계속 유효하며, 가능한 경우 집행 가능하도록 최소한으로 수정됩니다."] },
-      { heading: "14. 문의", body: ["본 약관에 관한 질문은 prelude@preludeconsultingllc.com 또는 웹사이트 연락처를 통해 보낼 수 있습니다."] }
+      { heading: "14. 문의", body: ["본 약관에 관한 질문은 preludesupport@preludeconsultingllc.com 또는 웹사이트 연락처를 통해 보낼 수 있습니다."] }
     ]
   }
 };
@@ -318,7 +318,7 @@ const zh = {
     updated: UPDATED,
     summary: [
       { label: "适用范围", value: "Prelude 网站、控制面板、导师匹配、AI 辅助指导、账单和支持服务。" },
-      { label: "隐私联系", value: "prelude@preludeconsultingllc.com" },
+      { label: "隐私联系", value: "preludesupport@preludeconsultingllc.com" },
       { label: "核心承诺", value: "Prelude 不出售个人信息，也不会故意为跨情境行为广告共享个人信息。" }
     ],
     sections: [
@@ -328,11 +328,11 @@ const zh = {
       { heading: "4. 信息披露方式", body: ["我们会根据账户角色和设置，在消息、日程、指导和账户功能所需范围内向导师、学生、家长或监护人披露信息。", "我们会向帮助托管基础设施、处理付款、发送通信、分析、客户支持、欺诈检测或运营服务的供应商披露信息。他们只能为 Prelude 提供服务或在法律允许范围内使用信息。", "在合并、融资、收购、重组、资产出售或类似交易中，我们可能在适当保密保护下披露信息。", "在法律、法律程序、政府请求要求时，或为保护 Prelude、用户或他人的权利、安全、财产、安保和完整性时，我们可能披露信息。"] },
       { heading: "5. 不出售个人信息", body: ["Prelude 不出售个人信息。我们也不会故意为美国州隐私法通常所称的跨情境行为广告共享个人信息。", "如果我们的做法发生变化，我们会更新本政策，并在开展此类活动前提供所需的退出权利。"] },
       { heading: "6. Cookie 和分析", body: ["我们可能使用 Cookie、本地存储、像素和类似技术来保持登录、记住偏好、衡量性能、改进功能并保护服务。", "浏览器设置可能允许你阻止或删除部分 Cookie。如果禁用 Cookie，某些功能可能无法正常工作。"] },
-      { heading: "7. 学生和儿童隐私", body: ["Prelude 面向准备申请大学的学生、家长、监护人、导师和相关用户。18 岁以下用户应在法律要求时经父母或监护人许可使用服务。", "13 岁以下用户不得创建账户或提交个人信息，除非 Prelude 已实施法律上充分的同意流程，或账户由授权的父母、监护人、学校或其他合法代表创建并监督。", "父母或监护人可联系 prelude@preludeconsultingllc.com 请求访问、更正或删除未成年人的个人信息，但需经过身份验证并受合法保留要求限制。"] },
+      { heading: "7. 学生和儿童隐私", body: ["Prelude 面向准备申请大学的学生、家长、监护人、导师和相关用户。18 岁以下用户应在法律要求时经父母或监护人许可使用服务。", "13 岁以下用户不得创建账户或提交个人信息，除非 Prelude 已实施法律上充分的同意流程，或账户由授权的父母、监护人、学校或其他合法代表创建并监督。", "父母或监护人可联系 preludesupport@preludeconsultingllc.com 请求访问、更正或删除未成年人的个人信息，但需经过身份验证并受合法保留要求限制。"] },
       { heading: "8. 保留和安全", body: ["我们在提供服务、保存业务记录、遵守法律义务、解决争议、执行协议、防止欺诈和保护安全所需期间保留个人信息。", "我们采用行政、技术和组织措施保护个人信息。任何系统、传输或存储方式都不可能完全安全，我们无法保证绝对安全。"] },
-      { heading: "9. 你的权利和选择", body: ["根据所在地，你可能有权访问、更正、删除、限制、反对或获取某些个人信息副本，并对隐私决定提出申诉。", "你可以在账户设置中更新部分资料，也可以联系 prelude@preludeconsultingllc.com 提出隐私请求。我们可能在回应前验证身份。", "我们不会因你行使适用隐私权而歧视你，但某些服务可能需要特定信息才能运行。"] },
+      { heading: "9. 你的权利和选择", body: ["根据所在地，你可能有权访问、更正、删除、限制、反对或获取某些个人信息副本，并对隐私决定提出申诉。", "你可以在账户设置中更新部分资料，也可以联系 preludesupport@preludeconsultingllc.com 提出隐私请求。我们可能在回应前验证身份。", "我们不会因你行使适用隐私权而歧视你，但某些服务可能需要特定信息才能运行。"] },
       { heading: "10. 国际用户", body: ["Prelude 主要在美国运营。如果你从美国以外访问服务，你的信息可能在美国或其他国家处理，这些国家的隐私法律可能与你所在地不同。", "在需要时，我们会使用法律认可的传输机制或其他适当保障措施进行国际数据传输。"] },
-      { heading: "11. 变更和联系", body: ["我们可能不时更新本政策。重大变更将以更新日期发布，并在法律要求时提供额外通知。", "问题或隐私请求可发送至 prelude@preludeconsultingllc.com，或通过网站联系部分提交。"] }
+      { heading: "11. 变更和联系", body: ["我们可能不时更新本政策。重大变更将以更新日期发布，并在法律要求时提供额外通知。", "问题或隐私请求可发送至 preludesupport@preludeconsultingllc.com，或通过网站联系部分提交。"] }
     ]
   },
   terms: {
@@ -340,7 +340,7 @@ const zh = {
     updated: UPDATED,
     summary: [
       { label: "适用对象", value: "所有使用 Prelude 服务的学生、家长、监护人、导师、账户持有人、访客和其他用户。" },
-      { label: "法律联系", value: "prelude@preludeconsultingllc.com" },
+      { label: "法律联系", value: "preludesupport@preludeconsultingllc.com" },
       { label: "重要保护", value: "Prelude 提供指导和工具，但不保证录取、奖学金、经济资助或任何特定结果。" }
     ],
     sections: [
@@ -357,7 +357,7 @@ const zh = {
       { heading: "11. 赔偿", body: ["在法律允许的最大范围内，你同意就因你使用服务、用户内容、违反条款、违反法律或侵犯权利而产生的索赔、损害、损失、责任、费用和开支，为 Prelude 及相关方进行抗辩、赔偿并使其免受损害。"] },
       { heading: "12. 争议、适用法律和管辖", body: ["在法律允许范围内，本条款受特拉华州法律管辖，不适用法律冲突规则。不属于仲裁或小额索赔法院的争议，应专属提交特拉华州州或联邦法院。", "在法律允许范围内，争议必须以个人形式解决，不得作为集体、合并或代表诉讼。任何仲裁条款、集体诉讼弃权或法院选择要求仅在依法可执行时适用。"] },
       { heading: "13. 变更、终止和可分割性", body: ["Prelude 可不时修改本条款。重大变更将以更新日期发布，变更生效后继续使用即表示接受修订条款。", "Prelude 可在法律允许时暂停或终止服务或你的访问。按性质应继续有效的条款将在终止后继续有效。", "如果任何条款不可执行，其余条款继续有效，并在可能时将不可执行条款作最低限度修改以使其可执行。"] },
-      { heading: "14. 联系", body: ["关于本条款的问题可发送至 prelude@preludeconsultingllc.com，或通过网站联系部分提交。"] }
+      { heading: "14. 联系", body: ["关于本条款的问题可发送至 preludesupport@preludeconsultingllc.com，或通过网站联系部分提交。"] }
     ]
   }
 };

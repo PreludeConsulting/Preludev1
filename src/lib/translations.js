@@ -39,6 +39,7 @@ export const translations = {
         pricing: "Pricing",
         satPrepTutoring: "SAT Prep & Tutoring",
         clarity: "Clarity",
+        contact: "Contact",
         dashboard: "Dashboard"
       }
     },
@@ -304,7 +305,7 @@ export const translations = {
         headline: "Start your Prelude.",
         body: "Book a free call and learn how Prelude can help you reach your college goals.",
         primary: "Book a free call",
-        secondary: "View plans"
+        secondary: "Email us"
       },
       footer: {
         body: "Student-led college admissions counseling — smarter spending, real mentors, affordable support.",
@@ -367,6 +368,7 @@ export const translations = {
         mentors: "멘토",
         pricing: "가격",
         clarity: "명확성",
+        contact: "문의",
         dashboard: "대시보드"
       }
     },
@@ -599,7 +601,7 @@ export const translations = {
         headline: "당신의 Prelude를 시작하세요.",
         body: "무료 전략 상담을 예약하고, 예산을 존중하는 명확함과 자신감, 지원으로 입시를 시작하세요.",
         primary: "무료 상담 예약",
-        secondary: "플랜 보기"
+        secondary: "이메일 보내기"
       },
       footer: {
         body: "또래 기반 대학 입시 상담 — 더 똑똑한 지출, 실제 멘토, 부담 없는 지원.",
@@ -662,6 +664,7 @@ export const translations = {
         mentors: "导师",
         pricing: "价格",
         clarity: "清晰规划",
+        contact: "联系",
         dashboard: "仪表板"
       }
     },
@@ -894,7 +897,7 @@ export const translations = {
         headline: "开始你的 Prelude。",
         body: "预约一次免费策略通话，用清晰、自信和尊重预算的支持开启申请之路。",
         primary: "预约免费通话",
-        secondary: "查看方案"
+        secondary: "给我们发邮件"
       },
       footer: {
         body: "由同龄导师驱动的大学申请咨询——更聪明的支出、真实导师、负担得起的支持。",
@@ -957,6 +960,7 @@ export const translations = {
         mentors: "Mentores",
         pricing: "Precios",
         clarity: "Claridad",
+        contact: "Contacto",
         dashboard: "Panel"
       }
     },
@@ -1189,7 +1193,7 @@ export const translations = {
         headline: "Comienza tu Prelude.",
         body: "Agenda una llamada estratégica gratis y empieza admisiones con claridad, confianza y apoyo que respeta tu presupuesto.",
         primary: "Agenda una llamada gratis",
-        secondary: "Ver planes"
+        secondary: "Escríbenos"
       },
       footer: {
         body: "Asesoría de admisiones universitarias entre pares: gasto inteligente, mentores reales y apoyo accesible.",

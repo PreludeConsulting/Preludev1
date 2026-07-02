@@ -6,24 +6,48 @@ import { parseGradeNumber } from "../../config/studentDashboardByGrade.js";
 
 const SUGGESTION_CHIPS = [
   {
-    label: "Build a stronger CS profile",
-    prompt: "How can I build a stronger computer science profile for college admissions?"
+    label: "Build my college list",
+    prompt: "Build a reach/target/likely college list using my profile, budget, and major."
   },
   {
-    label: "Find summer programs",
-    prompt: "What summer programs would strengthen my college application?"
+    label: "Find scholarships",
+    prompt: "What scholarships fit me from the Prelude database?"
   },
   {
-    label: "Improve leadership experience",
-    prompt: "How can I improve my leadership experience before applying to college?"
+    label: "Suggest summer programs",
+    prompt: "What summer programs should I apply to based on my interests and goals?"
   },
   {
-    label: "Prepare for SAT",
-    prompt: "What is the best SAT prep plan for an 11th grader?"
+    label: "Improve my activities",
+    prompt: "How can I improve my extracurricular profile with practical next steps?"
   },
   {
-    label: "Recommend AP courses",
-    prompt: "Which AP courses should I take next year based on my goals?"
+    label: "Recommend CS projects",
+    prompt: "What CS project should I build for college apps based on my skill level?"
+  },
+  {
+    label: "Analyze my SAT/ACT",
+    prompt: "Is my SAT or ACT score on track based on the 2025 profile reports?"
+  },
+  {
+    label: "Help with essays",
+    prompt: "Help me brainstorm my Common App essay with structure and next steps."
+  },
+  {
+    label: "Plan my application timeline",
+    prompt: "What should I do this month for college applications based on my grade level?"
+  },
+  {
+    label: "Compare colleges",
+    prompt: "Compare two colleges using Prelude data and help me think about fit."
+  },
+  {
+    label: "Find a mentor",
+    prompt: "How does Prelude mentor matching work and who should I match with?"
+  },
+  {
+    label: "What should I do next?",
+    prompt: "I'm overwhelmed — give me a short prioritized checklist for this week."
   }
 ];
 
@@ -68,7 +92,7 @@ export default function PreludeAIWorkspace({ profile, studentProfileStats }) {
             Based on your profile, here are some suggested questions.
           </p>
           <div className="dash-prelude-ai__chips" role="list">
-            {SUGGESTION_CHIPS.slice(0, 3).map((chip) => (
+            {SUGGESTION_CHIPS.map((chip) => (
               <button
                 key={chip.label}
                 type="button"

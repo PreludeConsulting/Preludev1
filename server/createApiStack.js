@@ -4,6 +4,7 @@ import { createChatApiMiddleware } from "./chatApi.js";
 import { createDatasetsApiMiddleware } from "./datasetsApi.js";
 import { createDashboardApiMiddleware } from "./dashboardApi.js";
 import { createSupabaseLoginVerificationMiddleware } from "./supabaseLoginVerificationApi.js";
+import { createSupabaseParentInvitesMiddleware } from "./supabaseParentInvitesApi.js";
 import { createSupabasePasswordResetMiddleware } from "./supabasePasswordResetApi.js";
 import { createSupabaseSignupVerificationMiddleware } from "./supabaseSignupVerificationApi.js";
 import { createOnboardingMentorSelectionMiddleware } from "./onboardingMentorSelectionApi.js";
@@ -12,6 +13,7 @@ import { createOnboardingMentorSelectionMiddleware } from "./onboardingMentorSel
 export function createPreludeApiStack(env = process.env) {
   return [
     createSupabaseLoginVerificationMiddleware(),
+    createSupabaseParentInvitesMiddleware(env),
     createSupabasePasswordResetMiddleware(env),
     createSupabaseSignupVerificationMiddleware(env),
     createOnboardingMentorSelectionMiddleware(),

@@ -27,6 +27,20 @@ export function loadPreludeInstructions() {
   };
 }
 
+const DASHBOARD_KNOWLEDGE_RULES = `
+## Prelude dashboard knowledge rules
+
+You are Prelude AI, a college admissions assistant for students and parents.
+
+Use the Prelude knowledge base first. Prioritize retrieved Prelude dashboard database records for university, scholarship, summer program, extracurricular, CS project, and SAT/ACT report questions.
+
+When giving database-backed recommendations, explain why each item fits, mention relevant fields, and note when data comes from the Prelude database.
+
+Do not invent schools, scholarships, programs, activities, projects, deadlines, costs, or stats that are not in retrieved data.
+Do not claim guaranteed admission, scholarships, or outcomes.
+If profile data is missing, ask one short follow-up instead of guessing.
+`.trim();
+
 const RESPONSE_STYLE_RULES = `
 Write in polished, readable markdown.
 
@@ -67,6 +81,10 @@ Ask at most one useful follow-up question when it helps.
 Never invent Prelude pricing, discounts, or website routes.
 
 Only use verified internal links from the route registry when linking to Prelude pages.
+
+When answering with numbers or school-specific claims, use only retrieved verified data.
+
+If no verified source was retrieved for a numeric or school-specific claim, say you do not have verified data and recommend checking the official source.
 `.trim();
 
 function formatRetrievedBlocks(blocks) {
@@ -102,6 +120,8 @@ export function buildRagChatMessages({ message, conversationHistory = [], retrie
 
   const systemContent = [
     instructions.system,
+    "",
+    DASHBOARD_KNOWLEDGE_RULES,
     "",
     RESPONSE_STYLE_RULES,
     "",
@@ -172,18 +192,33 @@ export function buildRagUserPrompt(args) {
 }
 
 export function buildProfileAddon(profile) {
-  if (!profile?.name) return "";
+  if (!profile) return "";
+
+  const majors = profile.majors ?? profile.targetMajors ?? (profile.focus ? [profile.focus] : []);
+  const activities = profile.extracurricularActivities ?? profile.activities ?? [];
+  const savedColleges = profile.colleges ?? profile.savedColleges ?? profile.collegeInterests ?? [];
+
   const lines = [
     "",
-    "SIGNED-IN MEMBER CONTEXT:",
-    `- Name: ${profile.name}`,
+    "## Student profile context (use when personalizing; ask follow-ups if key fields are missing)",
+    profile.name ? `- Name: ${profile.name}` : null,
+    profile.grade || profile.graduationYear
+      ? `- Grade: ${profile.grade ?? `Class of ${profile.graduationYear}`}`
+      : null,
+    profile.gpa != null ? `- GPA: ${profile.gpa}` : null,
+    profile.sat != null ? `- SAT: ${profile.sat}` : null,
+    profile.act != null ? `- ACT: ${profile.act}` : null,
+    majors.length ? `- Intended major(s): ${majors.join(", ")}` : null,
+    profile.location ? `- Location preference: ${profile.location}` : null,
+    profile.budget || profile.financialAidNotes
+      ? `- Budget/cost notes: ${profile.budget ?? profile.financialAidNotes}`
+      : null,
+    activities.length ? `- Activities: ${activities.slice(0, 6).map((item) => (typeof item === "string" ? item : item?.name || item?.title)).filter(Boolean).join(", ")}` : null,
+    savedColleges.length ? `- Saved/target schools: ${savedColleges.slice(0, 8).join(", ")}` : null,
     profile.planName || profile.plan ? `- Plan: ${profile.planName ?? profile.plan}` : null,
-    profile.role ? `- Role: ${profile.role}` : null,
-    profile.grade ? `- Grade: ${profile.grade}` : null,
-    profile.focus ? `- Focus: ${profile.focus}` : null,
-    "",
-    "Prelude AI is the same for all plans. Plans differ only in roadmap tools and mentor access."
   ].filter(Boolean);
+
+  if (lines.length <= 2) return "";
   return lines.join("\n");
 }
 

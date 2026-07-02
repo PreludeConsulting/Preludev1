@@ -13,6 +13,10 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "seed:demo": "node scripts/seed-demo.mjs",
+    "seed:prelude-ai-data": "node scripts/seed-prelude-ai-data.js",
+    "ai:ingest": "node scripts/ai-ingest.js",
+    "ai:reset-knowledge": "node scripts/ai-reset-knowledge.js",
+    "ai:test-retrieval": "node scripts/ai-test-retrieval.js",
     "stripe:domain": "node scripts/setup-stripe-domain.mjs https://preludeconsultingllc.com",
     "stripe:webhook": "node scripts/stripe-listen.mjs vite",
     "stripe:webhook:api": "node scripts/stripe-listen.mjs api",
@@ -41,6 +45,7 @@
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.462.0",
     "motion": "^12.35.0",
+    "pdf-parse": "^1.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.1",
@@ -58,8 +63,15 @@
     "vitest": "^4.1.8"
   },
   "supportedArchitectures": {
-    "os": ["current", "linux"],
-    "cpu": ["current", "x64", "arm64"]
+    "os": [
+      "current",
+      "linux"
+    ],
+    "cpu": [
+      "current",
+      "x64",
+      "arm64"
+    ]
   },
   "overrides": {
     "@emnapi/core": "1.10.0",

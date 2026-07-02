@@ -416,6 +416,7 @@ async function getLLMReply(userText, history, profile = null) {
       source: data.fallback ? "fallback" : data.model === "business" ? "business" : "llm",
       category,
       sources: Array.isArray(data.sources) ? data.sources : [],
+      retrievedRecords: Array.isArray(data.retrievedRecords) ? data.retrievedRecords : [],
       actions: actions.length ? actions : undefined,
       fallback: data.fallback ?? null,
       type: data.type ?? data.responseType ?? null,
