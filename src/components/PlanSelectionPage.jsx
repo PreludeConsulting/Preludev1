@@ -1,4 +1,4 @@
-import { CheckCircle, ChevronRight, WalletCards, X } from "lucide-react";
+import { ChevronRight, WalletCards, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -53,6 +53,10 @@ function WalletShell({ phase, open, locked, onToggle, onTransitionEnd, children 
       onTransitionEnd={onTransitionEnd}
     >
       <div className="plan-wallet__back" aria-hidden="true" />
+      <div className="plan-wallet__card-face" aria-hidden="true">
+        <span className="plan-wallet__card-mark">P</span>
+        <span className="plan-wallet__card-touch" />
+      </div>
 
       <div id="plan-wallet-stack" className="plan-wallet__stack-wrap">
         {children}
@@ -60,10 +64,12 @@ function WalletShell({ phase, open, locked, onToggle, onTransitionEnd, children 
 
       <div className="plan-wallet__slot-shadow" aria-hidden="true" />
       <div className="plan-wallet__front" aria-hidden="true">
+        <span className="plan-wallet__lip" />
         <span className="plan-wallet__brand">
           <WalletCards aria-hidden="true" />
-          <span>Prelude Plans</span>
+          <span>View card details</span>
         </span>
+        <span className="plan-wallet__digits">•••• 8054</span>
       </div>
 
       <button
@@ -126,6 +132,7 @@ function WalletPlanCard({ plan, selected, disabled, phase, onActivate, onKeyDown
         <span>/mo</span>
       </span>
       {plan.isRecommended ? <span className="wallet-plan-card__badge">Best value</span> : null}
+      <span className="wallet-plan-card__number">•••• •••• •••• {plan.id === "basic" ? "1049" : plan.id === "plus" ? "1102" : "1299"}</span>
       <span className="wallet-plan-card__footer">
         <span>{selected ? "Selected" : "View plan"}</span>
         <ChevronRight aria-hidden="true" />
@@ -364,59 +371,75 @@ export function PlansPage() {
 }
 
 function PlanDetailContent({ plan, context, billingNotice, loadingPlan, onChoose, onClose }) {
+  const featureRows = plan.features.slice(0, 3);
+  const remainingFeatures = Math.max(0, plan.features.length - featureRows.length);
+
   return (
     <main className={`plan-detail-page plan-detail-page--${context}`}>
       <div className="plan-detail-page__inner">
-        <button type="button" className="plan-detail-page__close" onClick={onClose} aria-label="Close plan details">
-          <X aria-hidden="true" />
-        </button>
-
-        <article className={`plan-detail-card plan-detail-card--${plan.id}`}>
-          <header className="plan-detail-card__header">
-            <div>
-              <p className="plan-detail-card__eyebrow">Prelude plan</p>
-              <h1>{plan.name}</h1>
+        <article className={`plan-detail-wallet plan-detail-wallet--${plan.id}`}>
+          <section className="plan-detail-wallet__card" aria-labelledby={`plan-detail-title-${plan.id}`}>
+            <span className="plan-detail-wallet__bird" aria-hidden="true">P</span>
+            <span className="plan-detail-wallet__locked" aria-hidden="true">{plan.isRecommended ? "Best value" : "Prelude plan"}</span>
+            <span className="plan-detail-wallet__eye" aria-hidden="true" />
+            <div className="plan-detail-wallet__card-bottom">
+              <div>
+                <h1 id={`plan-detail-title-${plan.id}`}>{plan.name}</h1>
+                <p>{plan.description}</p>
+              </div>
+              <div className="plan-detail-wallet__price">
+                <span>{plan.price}</span>
+                <small>/mo</small>
+              </div>
             </div>
-            {plan.isRecommended ? <span className="plan-detail-card__badge">Best value</span> : null}
-          </header>
-
-          <div className="plan-detail-card__price-row">
-            <span className="plan-detail-card__price">{plan.price}</span>
-            <span className="plan-detail-card__period">/mo</span>
-            <span className="plan-detail-card__price-label">{plan.priceLabel}</span>
-          </div>
-
-          <p className="plan-detail-card__description">{plan.description}</p>
-
-          {billingNotice ? (
-            <p className="plan-detail-card__notice" role="status">
-              {billingNotice}
-            </p>
-          ) : null}
-
-          <button
-            type="button"
-            className="plan-detail-card__cta"
-            onClick={onChoose}
-            disabled={Boolean(loadingPlan)}
-            aria-busy={Boolean(loadingPlan)}
-          >
-            {loadingPlan ? "Saving..." : `Choose ${plan.name}`}
-          </button>
-
-          <section className="plan-detail-card__features" aria-labelledby={`plan-detail-features-${plan.id}`}>
-            <h2 id={`plan-detail-features-${plan.id}`}>Included</h2>
-            <ul>
-              {plan.features.map((feature) => (
-                <li key={feature}>
-                  <CheckCircle aria-hidden="true" />
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="plan-detail-wallet__number" aria-hidden="true">
+              <span>•••• •••• •••• {plan.id === "basic" ? "1049" : plan.id === "plus" ? "1102" : "1299"}</span>
+              <span>EXP ••/••</span>
+              <span>CVV •••</span>
+            </div>
           </section>
 
-          <p className="plan-detail-card__supporting">Billing is not charged during this step.</p>
+          <section className="plan-detail-wallet__drawer" aria-labelledby={`plan-detail-features-${plan.id}`}>
+            <h2 id={`plan-detail-features-${plan.id}`} className="sr-only">Included in {plan.name}</h2>
+            <div className="plan-detail-wallet__row plan-detail-wallet__row--switch">
+              <span>{plan.priceLabel}</span>
+              <span className="plan-detail-wallet__switch" aria-hidden="true" />
+            </div>
+            {featureRows.map((feature) => (
+              <div className="plan-detail-wallet__row" key={feature}>
+                <span>{feature}</span>
+                <ChevronRight aria-hidden="true" />
+              </div>
+            ))}
+            {remainingFeatures > 0 ? (
+              <div className="plan-detail-wallet__row plan-detail-wallet__row--muted">
+                <span>{remainingFeatures} more included benefits</span>
+                <ChevronRight aria-hidden="true" />
+              </div>
+            ) : null}
+
+            {billingNotice ? (
+              <p className="plan-detail-wallet__notice" role="status">
+                {billingNotice}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              className="plan-detail-wallet__cta"
+              onClick={onChoose}
+              disabled={Boolean(loadingPlan)}
+              aria-busy={Boolean(loadingPlan)}
+            >
+              {loadingPlan ? "Saving..." : `Choose ${plan.name}`}
+            </button>
+
+            <p className="plan-detail-wallet__supporting">Billing is not charged during this step.</p>
+          </section>
+
+          <button type="button" className="plan-detail-page__close" onClick={onClose} aria-label="Close plan details">
+            <X aria-hidden="true" />
+          </button>
         </article>
       </div>
     </main>
