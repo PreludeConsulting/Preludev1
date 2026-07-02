@@ -1,0 +1,828 @@
+/* ==================================================================
+   Prelude plan wallet
+   Closed pristine wallet → layered three-card deck → plan popup.
+   Class prefix: pw-  (consumed by PlanSelectionPage.jsx)
+   Motion durations must stay in sync with MOTION_MS in that file.
+   ================================================================== */
+
+.plan-wallet-experience {
+  display: grid;
+  justify-items: center;
+  margin-top: clamp(1.25rem, 3vw, 2rem);
+}
+
+/* ------------------------------------------------------------------
+   Wallet body
+   ------------------------------------------------------------------ */
+
+.pw-wallet {
+  --pw-width: min(28rem, 92vw);
+  --pw-radius: 1.6rem;
+  --pw-card-h: 8.6rem;
+  --pw-card-step: 5.9rem;
+  --pw-pocket-h: 9.2rem;
+  --pw-ease: cubic-bezier(0.22, 0.9, 0.24, 1);
+  position: relative;
+  width: var(--pw-width);
+  height: 13.5rem;
+  border-radius: var(--pw-radius);
+  isolation: isolate;
+  overflow: hidden;
+  filter: drop-shadow(0 2rem 2.8rem rgb(17 24 64 / 0.24));
+  transition: height 0.7s var(--pw-ease), transform 0.16s ease;
+}
+
+.pw-wallet--closed:active {
+  transform: scale(0.985);
+}
+
+.pw-wallet--opening,
+.pw-wallet--open,
+.pw-wallet--selectingCard,
+.pw-wallet--popupOpening,
+.pw-wallet--popupOpen,
+.pw-wallet--popupClosing {
+  height: 29.5rem;
+}
+
+/* Back panel + closed card face */
+.pw-wallet__interior {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: var(--pw-radius);
+  background:
+    radial-gradient(circle at 70% 12%, rgb(255 255 255 / 0.09), transparent 10rem),
+    linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent 40%),
+    linear-gradient(150deg, #333979 0%, #232965 56%, #151b4c 100%);
+  box-shadow:
+    inset 0 0 0 0.34rem rgb(255 255 255 / 0.05),
+    inset 0 1px 0 rgb(255 255 255 / 0.2);
+  z-index: 1;
+}
+
+/* Sheen + monogram visible while the wallet is closed */
+.pw-wallet__interior::before {
+  content: "P";
+  position: absolute;
+  top: 0.55rem;
+  right: 1.3rem;
+  color: rgb(255 255 255 / 0.16);
+  font-family: "Barlow", sans-serif;
+  font-size: 3.2rem;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.pw-wallet__interior::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5rem;
+  background: linear-gradient(112deg, transparent 0 30%, rgb(255 255 255 / 0.1) 46%, transparent 60%);
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.pw-wallet[data-deck-visible="true"] .pw-wallet__interior::before,
+.pw-wallet[data-deck-visible="true"] .pw-wallet__interior::after {
+  opacity: 0;
+}
+
+/* ------------------------------------------------------------------
+   Card deck
+   ------------------------------------------------------------------ */
+
+.pw-deck {
+  position: absolute;
+  top: 1.1rem;
+  left: 0.9rem;
+  right: 0.9rem;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.pw-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--pw-card-h);
+  padding: 0.95rem 1.1rem;
+  border: 1px solid rgb(17 24 64 / 0.14);
+  border-radius: 1.1rem;
+  color: #11173d;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  pointer-events: auto;
+  /* Fixed stacking order: layers never fight while animating. */
+  z-index: calc(11 + var(--pw-i));
+  opacity: 0;
+  transform: translateY(13rem) scale(0.95);
+  transition:
+    transform 0.55s var(--pw-ease),
+    opacity 0.32s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+  transition-delay: 0ms;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.72),
+    0 0.9rem 1.7rem rgb(17 24 64 / 0.14);
+}
+
+.pw-card:disabled {
+  cursor: default;
+}
+
+/* Deck rises together with a slight coordinated stagger on open only. */
+.pw-wallet--opening .pw-card {
+  transition-delay: calc(var(--pw-i) * 55ms);
+}
+
+.pw-wallet--opening .pw-card,
+.pw-wallet--open .pw-card,
+.pw-wallet--selectingCard .pw-card,
+.pw-wallet--popupOpening .pw-card,
+.pw-wallet--popupOpen .pw-card,
+.pw-wallet--popupClosing .pw-card {
+  opacity: 1;
+  transform: translateY(calc(var(--pw-i) * var(--pw-card-step))) scale(1);
+}
+
+/* Once settled, card moves are quick and deterministic (selection shifts). */
+.pw-wallet--open .pw-card,
+.pw-wallet--selectingCard .pw-card,
+.pw-wallet--popupOpening .pw-card,
+.pw-wallet--popupOpen .pw-card,
+.pw-wallet--popupClosing .pw-card {
+  transition-duration: 0.24s, 0.2s, 0.22s, 0.22s;
+}
+
+.pw-wallet--opening .pw-card--selected,
+.pw-wallet--open .pw-card--selected,
+.pw-wallet--selectingCard .pw-card--selected,
+.pw-wallet--popupOpening .pw-card--selected,
+.pw-wallet--popupOpen .pw-card--selected,
+.pw-wallet--popupClosing .pw-card--selected {
+  transform: translateY(calc(var(--pw-i) * var(--pw-card-step) - 0.55rem)) scale(1.015);
+}
+
+/* Tier faces — material-inspired hierarchy, no material names in copy. */
+.pw-card--basic {
+  background:
+    linear-gradient(112deg, transparent 0 34%, rgb(255 255 255 / 0.74) 50%, transparent 64%),
+    linear-gradient(145deg, #fbfcff, #dfe6f0 58%, #f1f4fa);
+}
+
+.pw-card--plus {
+  background:
+    linear-gradient(112deg, transparent 0 34%, rgb(255 244 194 / 0.7) 50%, transparent 64%),
+    linear-gradient(145deg, #fff1b0, #d7ab4d 54%, #f8dc82);
+}
+
+.pw-card--pro {
+  background:
+    linear-gradient(112deg, transparent 0 34%, rgb(255 255 255 / 0.68) 50%, transparent 64%),
+    linear-gradient(145deg, #ffffff, #e5f1ff 50%, #dcd6ff);
+}
+
+.pw-card--selected {
+  border-color: rgb(120 106 255 / 0.5);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.82),
+    0 1.2rem 2.2rem rgb(17 24 64 / 0.2),
+    0 0 0 2px rgb(120 106 255 / 0.14);
+}
+
+.pw-card:hover:not(:disabled),
+.pw-card:focus-visible {
+  border-color: rgb(120 106 255 / 0.42);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.88),
+    0 1.3rem 2.4rem rgb(17 24 64 / 0.22),
+    0 0 0 2px rgb(120 106 255 / 0.1);
+}
+
+.pw-card:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.32);
+  outline-offset: 0.2rem;
+}
+
+.pw-card__top {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+
+.pw-card__name {
+  font-family: "Barlow", sans-serif;
+  font-size: 1.12rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.pw-card__badge {
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.74);
+  color: #5548d8;
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transform: translateY(-0.1rem);
+}
+
+.pw-card__price {
+  margin-left: auto;
+  font-family: "Barlow", sans-serif;
+  font-size: 1.22rem;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.pw-card__price small {
+  margin-left: 0.1rem;
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: rgb(17 24 64 / 0.6);
+}
+
+.pw-card__tagline {
+  overflow: hidden;
+  color: rgb(17 24 64 / 0.62);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pw-card__selected-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #4d40cf;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pw-card__selected-mark svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+/* ------------------------------------------------------------------
+   Pocket + branding footer
+   ------------------------------------------------------------------ */
+
+.pw-wallet__pocket {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--pw-pocket-h);
+  border-top: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 0 0 var(--pw-radius) var(--pw-radius);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgb(255 255 255 / 0.07), transparent 12rem),
+    linear-gradient(180deg, #2a3070 0%, #1d2459 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    inset 0 -1px 0 rgb(255 255 255 / 0.06),
+    0 -0.6rem 1.4rem rgb(10 14 44 / 0.35);
+  z-index: 20;
+}
+
+.pw-wallet__pocket-lip {
+  position: absolute;
+  left: -3%;
+  top: -1.1rem;
+  width: 106%;
+  height: 2.4rem;
+  background: #2a3070;
+  clip-path: ellipse(54% 46% at 50% 100%);
+  opacity: 0.97;
+}
+
+.pw-wallet__footer {
+  position: absolute;
+  left: 1.25rem;
+  right: 1.25rem;
+  bottom: 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  z-index: 21;
+  pointer-events: none;
+}
+
+.pw-wallet__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: rgb(255 255 255 / 0.88);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.pw-wallet__brand img {
+  width: 1.25rem;
+  height: 1.25rem;
+  object-fit: contain;
+  border-radius: 0.3rem;
+  background: #fff;
+  padding: 0.1rem;
+}
+
+.pw-wallet__email {
+  overflow: hidden;
+  max-width: 55%;
+  color: rgb(255 255 255 / 0.56);
+  font-size: 0.74rem;
+  font-weight: 650;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------------------
+   Opener + close control
+   ------------------------------------------------------------------ */
+
+.pw-wallet__opener {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 3.1rem;
+  border: 0;
+  border-radius: var(--pw-radius);
+  background: transparent;
+  cursor: pointer;
+  z-index: 30;
+  transition: opacity 0.25s ease;
+}
+
+.pw-wallet__opener:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pw-wallet__opener:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.4);
+  outline-offset: 0.3rem;
+}
+
+.pw-wallet__opener-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.42rem 0.85rem;
+  border: 1px solid rgb(255 255 255 / 0.22);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  color: rgb(255 255 255 / 0.92);
+  font-size: 0.78rem;
+  font-weight: 750;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.pw-wallet__opener-hint svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.pw-wallet__opener:hover:not(:disabled) .pw-wallet__opener-hint,
+.pw-wallet__opener:focus-visible .pw-wallet__opener-hint {
+  background: rgb(255 255 255 / 0.18);
+  border-color: rgb(255 255 255 / 0.36);
+}
+
+.pw-wallet__close-btn {
+  margin-top: 1.1rem;
+  padding: 0.5rem 1.15rem;
+  border: 1px solid hsl(var(--foreground) / 0.14);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.85);
+  color: hsl(var(--foreground));
+  font-size: 0.8rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.pw-wallet__close-btn:hover:not(:disabled),
+.pw-wallet__close-btn:focus-visible {
+  border-color: hsl(var(--primary) / 0.36);
+  transform: translateY(-1px);
+  box-shadow: 0 0.6rem 1.4rem rgb(17 24 64 / 0.12);
+}
+
+.pw-wallet__close-btn:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.3);
+  outline-offset: 0.2rem;
+}
+
+/* ------------------------------------------------------------------
+   Plan details popup
+   ------------------------------------------------------------------ */
+
+.pw-popup-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+}
+
+.pw-popup-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(13 16 44 / 0.46);
+  backdrop-filter: blur(3px);
+  animation: pw-backdrop-in 0.22s ease both;
+}
+
+.pw-popup {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(26.5rem, 100%);
+  max-height: min(38rem, calc(100dvh - 3rem));
+  overflow: hidden;
+  border: 1px solid rgb(17 24 64 / 0.12);
+  border-radius: 1.35rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f7ff 100%);
+  box-shadow:
+    0 0.4rem 1rem rgb(17 24 64 / 0.1),
+    0 2.2rem 4.2rem rgb(17 24 64 / 0.26);
+  animation: pw-popup-in 0.26s var(--pw-ease, cubic-bezier(0.22, 0.9, 0.24, 1)) both;
+}
+
+/* Tier accent strip connects the popup to the selected card. */
+.pw-popup::before {
+  content: "";
+  flex: 0 0 auto;
+  height: 0.3rem;
+}
+
+.pw-popup--basic::before {
+  background: linear-gradient(90deg, #dfe6f0, #f1f4fa);
+}
+
+.pw-popup--plus::before {
+  background: linear-gradient(90deg, #f2cf6c, #d7ab4d);
+}
+
+.pw-popup--pro::before {
+  background: linear-gradient(90deg, #a99bff, #6a5cff);
+}
+
+.pw-popup-layer--closing .pw-popup {
+  animation: pw-popup-out 0.2s ease both;
+}
+
+.pw-popup-layer--closing .pw-popup-backdrop {
+  animation: pw-backdrop-out 0.2s ease both;
+}
+
+.pw-popup__head {
+  flex: 0 0 auto;
+  padding: 1.15rem 1.4rem 0.9rem;
+  border-bottom: 1px solid rgb(17 24 64 / 0.08);
+}
+
+.pw-popup__head-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.pw-popup__head h2 {
+  margin: 0;
+  font-family: "Barlow", sans-serif;
+  font-size: 1.45rem;
+  font-weight: 850;
+  color: hsl(var(--foreground));
+}
+
+.pw-popup__badge {
+  padding: 0.26rem 0.55rem;
+  border: 1px solid hsl(var(--primary) / 0.2);
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.09);
+  color: hsl(var(--primary));
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pw-popup__head-sub {
+  margin: 0.3rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+/* Scrollable content body */
+.pw-popup__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.1rem 1.4rem 1.2rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(17 24 64 / 0.24) transparent;
+}
+
+.pw-popup__body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pw-popup__body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(17 24 64 / 0.22);
+}
+
+.pw-popup__body:focus-visible {
+  outline: 2px solid hsl(var(--primary) / 0.3);
+  outline-offset: -2px;
+}
+
+.pw-popup__price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid hsl(var(--primary) / 0.14);
+  border-radius: 1rem;
+  background: hsl(var(--primary) / 0.05);
+  outline: none;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.pw-popup__price--flash {
+  border-color: hsl(var(--primary) / 0.5);
+  background: hsl(var(--primary) / 0.12);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.16);
+}
+
+.pw-popup__price-amount {
+  font-family: "Barlow", sans-serif;
+  font-size: 2rem;
+  font-weight: 850;
+  line-height: 1;
+  color: hsl(var(--primary));
+}
+
+.pw-popup__price-period {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.pw-popup__price-label {
+  margin-left: auto;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: hsl(var(--muted) / 0.8);
+  color: hsl(var(--muted-foreground));
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.pw-popup__description {
+  margin: 0.95rem 0 0;
+  color: hsl(var(--foreground) / 0.86);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.pw-popup__features {
+  margin-top: 1.15rem;
+}
+
+.pw-popup__features h3 {
+  margin: 0 0 0.6rem;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 850;
+  color: hsl(var(--foreground));
+}
+
+.pw-popup__features ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pw-popup__features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: hsl(var(--foreground) / 0.9);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.pw-popup__features svg {
+  flex: 0 0 auto;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-top: 0.12rem;
+  color: hsl(var(--primary));
+}
+
+.pw-popup__supporting {
+  margin: 1.05rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.76rem;
+}
+
+.pw-popup__notice {
+  margin: 0.85rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid hsl(var(--primary) / 0.16);
+  border-radius: 0.85rem;
+  background: hsl(var(--primary) / 0.06);
+  color: hsl(var(--foreground) / 0.85);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+/* Fixed action footer */
+.pw-popup__actions {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.95rem 1.4rem calc(1.05rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgb(17 24 64 / 0.08);
+  background: rgb(255 255 255 / 0.92);
+}
+
+.pw-popup__actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.pw-popup__action {
+  min-height: 2.65rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid hsl(var(--foreground) / 0.14);
+  border-radius: 999px;
+  background: #fff;
+  color: hsl(var(--foreground));
+  font-family: "Barlow", sans-serif;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.pw-popup__action:hover:not(:disabled) {
+  border-color: hsl(var(--primary) / 0.4);
+  transform: translateY(-1px);
+}
+
+.pw-popup__action:focus-visible {
+  outline: 3px solid hsl(var(--primary) / 0.32);
+  outline-offset: 0.15rem;
+}
+
+.pw-popup__action:disabled {
+  opacity: 0.62;
+  cursor: wait;
+  transform: none;
+}
+
+.pw-popup__action--primary {
+  border-color: transparent;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 0.8rem 1.8rem rgb(120 106 255 / 0.28);
+}
+
+.pw-popup__action--primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: hsl(var(--primary) / 0.92);
+}
+
+/* ------------------------------------------------------------------
+   Animations
+   ------------------------------------------------------------------ */
+
+@keyframes pw-popup-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.85rem) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pw-popup-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.99);
+  }
+}
+
+@keyframes pw-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pw-backdrop-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ------------------------------------------------------------------
+   Responsive
+   ------------------------------------------------------------------ */
+
+@media (max-width: 42rem) {
+  .pw-wallet {
+    --pw-width: min(24rem, 94vw);
+    --pw-card-h: 7.9rem;
+    --pw-card-step: 5.35rem;
+    --pw-pocket-h: 8.4rem;
+    height: 12.6rem;
+  }
+
+  .pw-wallet--opening,
+  .pw-wallet--open,
+  .pw-wallet--selectingCard,
+  .pw-wallet--popupOpening,
+  .pw-wallet--popupOpen,
+  .pw-wallet--popupClosing {
+    height: 27rem;
+  }
+
+  .pw-card {
+    padding: 0.85rem 0.95rem;
+  }
+
+  .pw-wallet__email {
+    max-width: 50%;
+    font-size: 0.7rem;
+  }
+
+  .pw-popup-layer {
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .pw-popup {
+    width: 100%;
+    max-height: calc(100dvh - 1.75rem);
+  }
+
+  .pw-popup__head,
+  .pw-popup__body,
+  .pw-popup__actions {
+    padding-left: 1.1rem;
+    padding-right: 1.1rem;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Reduced motion
+   ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .pw-wallet,
+  .pw-card,
+  .pw-wallet__interior::before,
+  .pw-wallet__interior::after,
+  .pw-wallet__opener,
+  .pw-popup,
+  .pw-popup-backdrop {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+  }
+}

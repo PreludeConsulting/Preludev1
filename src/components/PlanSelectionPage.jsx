@@ -1,5 +1,5 @@
-import { ChevronRight, WalletCards, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { Check, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
@@ -13,194 +13,522 @@ import { readCachedPlan } from "../lib/supabaseAuth.js";
 import { getPlan, getPricingPlans } from "../lib/plans.js";
 import { readOnboardingDraft, writeOnboardingDraft } from "../lib/onboardingFlow.js";
 import { startBillingCheckout } from "../lib/auth.js";
+import {
+  WALLET_STATES,
+  cardsSelectable,
+  createWalletState,
+  popupVisible,
+  walletReducer,
+  walletShowsDeck
+} from "../lib/planWalletMachine.js";
+import { useReducedMotion } from "../lib/useReducedMotion.js";
 import OnboardingShell from "./onboarding/OnboardingShell.jsx";
 
 const PUBLIC_PLANS_PATH = "/plans";
+const logoSrc = `${import.meta.env.BASE_URL}media/prelude-logo.png`;
 
-function phaseIsOpen(phase) {
-  return phase !== "closed" && phase !== "closing";
-}
-
-function phaseIsLocked(phase) {
-  return phase === "opening" || phase === "navigating" || phase === "closing";
-}
-
-function queryWantsOpen(location) {
-  const search = new URLSearchParams(location.search);
-  return location.state?.walletOpen || search.get("wallet") === "open";
-}
-
-function querySelectedPlan(location) {
-  const search = new URLSearchParams(location.search);
-  const selected = location.state?.selectedPlanId || search.get("selected");
-  return isValidPlanId(selected) ? selected : null;
-}
+/** Durations must match the CSS transition times in plan-wallet.css. */
+const MOTION_MS = {
+  open: 700,
+  selectCard: 240,
+  popupEnter: 260,
+  popupExit: 200,
+  close: 520
+};
 
 function selectorPath(context) {
   return context === "onboarding" ? PLAN_SELECTION_PATH : PUBLIC_PLANS_PATH;
 }
 
-function detailPath(context, planId) {
-  return `${selectorPath(context)}/${planId}`;
+function restoreFromLocation(location) {
+  const search = new URLSearchParams(location.search);
+  const selected = location.state?.selectedPlanId || search.get("selected");
+  return {
+    walletOpen: Boolean(location.state?.walletOpen) || search.get("wallet") === "open",
+    detailsOpen: search.get("details") === "open",
+    selectedPlanId: isValidPlanId(selected) ? selected : null
+  };
 }
 
-function WalletShell({ phase, open, locked, onToggle, onTransitionEnd, children }) {
+/* ------------------------------------------------------------------ */
+/* Wallet machine hook                                                  */
+/* ------------------------------------------------------------------ */
+
+function useWalletMachine(initialState, reducedMotion) {
+  const [state, dispatch] = useReducer(walletReducer, initialState, createWalletState);
+  const { status, selectedPlanId } = state;
+
+  useEffect(() => {
+    const scale = reducedMotion ? 0 : 1;
+    let delay = null;
+    let settle = null;
+
+    if (status === WALLET_STATES.OPENING) {
+      delay = MOTION_MS.open * scale;
+      settle = { type: "OPEN_SETTLED" };
+    } else if (status === WALLET_STATES.SELECTING_CARD) {
+      delay = MOTION_MS.selectCard * scale;
+      settle = { type: "CARD_SETTLED" };
+    } else if (status === WALLET_STATES.POPUP_OPENING) {
+      delay = MOTION_MS.popupEnter * scale;
+      settle = { type: "POPUP_SETTLED" };
+    } else if (status === WALLET_STATES.POPUP_CLOSING) {
+      delay = MOTION_MS.popupExit * scale;
+      settle = { type: "POPUP_CLOSED" };
+    } else if (status === WALLET_STATES.CLOSING) {
+      delay = MOTION_MS.close * scale;
+      settle = { type: "CLOSE_SETTLED" };
+    }
+
+    if (settle === null) return undefined;
+    // Re-selecting a card while one is settling restarts the timer, so the
+    // most recent valid selection always wins deterministically.
+    const id = window.setTimeout(() => dispatch(settle), delay);
+    return () => window.clearTimeout(id);
+  }, [status, selectedPlanId, reducedMotion]);
+
+  return [state, dispatch];
+}
+
+/* ------------------------------------------------------------------ */
+/* Wallet pieces                                                        */
+/* ------------------------------------------------------------------ */
+
+function WalletBrandFooter({ email }) {
   return (
-    <section
-      className={`plan-wallet plan-wallet--${phase} ${open ? "plan-wallet--open" : ""}`}
-      aria-label="Prelude plan wallet"
-      data-wallet-phase={phase}
-      onTransitionEnd={onTransitionEnd}
-    >
-      <div className="plan-wallet__back" aria-hidden="true" />
-      <div className="plan-wallet__card-face" aria-hidden="true">
-        <span className="plan-wallet__card-mark">P</span>
-        <span className="plan-wallet__card-touch" />
-      </div>
-
-      <div id="plan-wallet-stack" className="plan-wallet__stack-wrap">
-        {children}
-      </div>
-
-      <div className="plan-wallet__slot-shadow" aria-hidden="true" />
-      <div className="plan-wallet__front" aria-hidden="true">
-        <span className="plan-wallet__lip" />
-        <span className="plan-wallet__brand">
-          <WalletCards aria-hidden="true" />
-          <span>View card details</span>
-        </span>
-        <span className="plan-wallet__digits">•••• 8054</span>
-      </div>
-
-      <button
-        type="button"
-        className="plan-wallet__microcopy"
-        onClick={onToggle}
-        disabled={locked}
-        aria-label={open ? "Close Prelude Plans wallet" : "Open Prelude Plans wallet"}
-      >
-        {open ? "Close" : "Open"}
-      </button>
-
-      <button
-        type="button"
-        className="plan-wallet__toggle"
-        onClick={onToggle}
-        aria-expanded={open}
-        aria-controls="plan-wallet-stack"
-        tabIndex={open ? -1 : 0}
-        disabled={locked}
-        aria-label={open ? "Close Prelude Plans wallet" : "Open Prelude Plans wallet"}
-      />
-    </section>
+    <div className="pw-wallet__footer" aria-hidden="true">
+      <span className="pw-wallet__brand">
+        <img src={logoSrc} alt="" width={20} height={20} decoding="async" draggable={false} />
+        <span>Prelude Consulting</span>
+      </span>
+      <span className="pw-wallet__email">{email || "Guest"}</span>
+    </div>
   );
 }
 
-function WalletPlanCard({ plan, selected, disabled, phase, onActivate, onKeyDown, onAnimationEnd, buttonRef }) {
-  function handleClick() {
-    if (disabled) return;
-    onActivate(plan.id);
-  }
-
-  function handleKeyDown(event) {
-    onKeyDown(event);
-    if (disabled || event.defaultPrevented) return;
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onActivate(plan.id);
-    }
-  }
-
+function WalletPlanCard({ plan, index, selected, selectable, onSelect, buttonRef }) {
   return (
     <button
       ref={buttonRef}
       type="button"
-      role="tab"
-      id={`plan-wallet-tab-${plan.id}`}
-      aria-selected={selected}
-      tabIndex={disabled ? -1 : selected ? 0 : -1}
-      className={`wallet-plan-card wallet-plan-card--${plan.id} ${selected ? "wallet-plan-card--selected" : ""}`}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      onAnimationEnd={selected ? onAnimationEnd : undefined}
-      disabled={disabled}
-      data-wallet-phase={phase}
+      className={`pw-card pw-card--${plan.id} ${selected ? "pw-card--selected" : ""}`}
+      style={{ "--pw-i": index }}
+      onClick={() => onSelect(plan.id)}
+      disabled={!selectable}
+      aria-haspopup="dialog"
+      aria-pressed={selected}
+      aria-label={`${plan.name} plan, ${plan.price} per month${selected ? ", selected" : ""}`}
+      tabIndex={selectable ? 0 : -1}
     >
-      <span className="wallet-plan-card__name">{plan.name}</span>
-      <span className="wallet-plan-card__price">
-        {plan.price}
-        <span>/mo</span>
+      <span className="pw-card__top">
+        <span className="pw-card__name">{plan.name}</span>
+        {plan.isRecommended ? <span className="pw-card__badge">Best value</span> : null}
+        <span className="pw-card__price">
+          {plan.price}
+          <small>/mo</small>
+        </span>
       </span>
-      {plan.isRecommended ? <span className="wallet-plan-card__badge">Best value</span> : null}
-      <span className="wallet-plan-card__number">•••• •••• •••• {plan.id === "basic" ? "1049" : plan.id === "plus" ? "1102" : "1299"}</span>
-      <span className="wallet-plan-card__footer">
-        <span>{selected ? "Selected" : "View plan"}</span>
-        <ChevronRight aria-hidden="true" />
-      </span>
+      <span className="pw-card__tagline">{plan.tagline}</span>
+      {selected ? (
+        <span className="pw-card__selected-mark">
+          <Check aria-hidden="true" />
+          Selected
+        </span>
+      ) : null}
     </button>
   );
 }
 
-function PlanCardStack({ plans, phase, open, selectedPlanId, onPreview, onActivate, onNavigateAnimationEnd }) {
-  const cardRefs = useRef([]);
-  const selectedIndex = Math.max(0, plans.findIndex((plan) => plan.id === selectedPlanId));
-  const cardsAvailable = open && phase !== "opening" && phase !== "closing" && phase !== "navigating";
+/* ------------------------------------------------------------------ */
+/* Plan details popup                                                   */
+/* ------------------------------------------------------------------ */
 
-  function moveSelection(direction) {
-    if (!cardsAvailable) return;
-    const nextIndex = (selectedIndex + direction + plans.length) % plans.length;
-    const nextPlan = plans[nextIndex];
-    onPreview(nextPlan.id);
-    requestAnimationFrame(() => cardRefs.current[nextIndex]?.focus());
+function getTabbable(container) {
+  if (!container) return [];
+  return Array.from(
+    container.querySelectorAll('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')
+  ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+}
+
+function PlanPopup({ plan, status, busy, notice, onSelectPlan, onViewOtherPlans, onRequestClose }) {
+  const dialogRef = useRef(null);
+  const bodyRef = useRef(null);
+  const priceRef = useRef(null);
+  const firstActionRef = useRef(null);
+  const [priceFlash, setPriceFlash] = useState(false);
+  const closing = status === WALLET_STATES.POPUP_CLOSING;
+
+  // Lock background scrolling for the popup's whole lifetime.
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
+  // Move focus into the dialog once it is interactive.
+  useEffect(() => {
+    if (status === WALLET_STATES.POPUP_OPEN) {
+      firstActionRef.current?.focus();
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (!priceFlash) return undefined;
+    const id = window.setTimeout(() => setPriceFlash(false), 1200);
+    return () => window.clearTimeout(id);
+  }, [priceFlash]);
+
+  function handleKeyDown(event) {
+    if (event.key === "Escape") {
+      event.stopPropagation();
+      if (!busy) onRequestClose();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const tabbable = getTabbable(dialogRef.current);
+    if (tabbable.length === 0) return;
+    const first = tabbable[0];
+    const last = tabbable[tabbable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
-  function handleCardKeyDown(event) {
-    if (!cardsAvailable) return;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      event.preventDefault();
-      moveSelection(1);
-    }
-    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      event.preventDefault();
-      moveSelection(-1);
-    }
-    if (event.key === "Home") {
-      event.preventDefault();
-      onPreview(plans[0].id);
-      requestAnimationFrame(() => cardRefs.current[0]?.focus());
-    }
-    if (event.key === "End") {
-      event.preventDefault();
-      onPreview(plans[plans.length - 1].id);
-      requestAnimationFrame(() => cardRefs.current[plans.length - 1]?.focus());
-    }
+  function handleViewPrice() {
+    const priceEl = priceRef.current;
+    if (!priceEl) return;
+    priceEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    priceEl.focus({ preventScroll: true });
+    setPriceFlash(true);
   }
 
   return (
     <div
-      className={`plan-card-stack plan-card-stack--${phase} ${open ? "plan-card-stack--open" : ""}`}
-      role="tablist"
-      aria-label="Prelude plans"
-      aria-orientation="vertical"
+      className={`pw-popup-layer ${closing ? "pw-popup-layer--closing" : ""}`}
+      onKeyDown={handleKeyDown}
     >
-      {plans.map((plan, index) => (
-        <WalletPlanCard
-          key={plan.id}
-          plan={plan}
-          selected={plan.id === selectedPlanId}
-          disabled={!cardsAvailable}
-          phase={phase}
-          onActivate={onActivate}
-          onKeyDown={handleCardKeyDown}
-          onAnimationEnd={onNavigateAnimationEnd}
-          buttonRef={(node) => {
-            cardRefs.current[index] = node;
-          }}
-        />
-      ))}
+      <div
+        className="pw-popup-backdrop"
+        onClick={busy ? undefined : onRequestClose}
+        aria-hidden="true"
+      />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`pw-popup-title-${plan.id}`}
+        className={`pw-popup pw-popup--${plan.id}`}
+      >
+        <header className="pw-popup__head">
+          <div className="pw-popup__head-row">
+            <h2 id={`pw-popup-title-${plan.id}`}>{plan.name}</h2>
+            {plan.isRecommended ? <span className="pw-popup__badge">Best value</span> : null}
+          </div>
+          <p className="pw-popup__head-sub">{plan.tagline}</p>
+        </header>
+
+        <div
+          ref={bodyRef}
+          className="pw-popup__body"
+          tabIndex={0}
+          role="region"
+          aria-label={`${plan.name} plan details`}
+        >
+          <section
+            ref={priceRef}
+            tabIndex={-1}
+            className={`pw-popup__price ${priceFlash ? "pw-popup__price--flash" : ""}`}
+            aria-label={`${plan.name} pricing`}
+          >
+            <span className="pw-popup__price-amount">{plan.price}</span>
+            <span className="pw-popup__price-period">per month</span>
+            <span className="pw-popup__price-label">{plan.priceLabel}</span>
+          </section>
+
+          <p className="pw-popup__description">{plan.description}</p>
+
+          <section className="pw-popup__features" aria-label={`Included in ${plan.name}`}>
+            <h3>What&apos;s included</h3>
+            <ul>
+              {plan.features.map((feature) => (
+                <li key={feature}>
+                  <Check aria-hidden="true" />
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <p className="pw-popup__supporting">Billing is not charged during this step.</p>
+
+          {notice ? (
+            <p className="pw-popup__notice" role="status">
+              {notice}
+            </p>
+          ) : null}
+        </div>
+
+        <footer className="pw-popup__actions">
+          <button
+            ref={firstActionRef}
+            type="button"
+            className="pw-popup__action pw-popup__action--primary"
+            onClick={onSelectPlan}
+            disabled={busy}
+            aria-busy={busy}
+          >
+            {busy ? "Processing…" : "Select this plan"}
+          </button>
+          <div className="pw-popup__actions-row">
+            <button type="button" className="pw-popup__action" onClick={handleViewPrice} disabled={busy}>
+              View price
+            </button>
+            <button type="button" className="pw-popup__action" onClick={onViewOtherPlans} disabled={busy}>
+              View other plans
+            </button>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Wallet experience                                                    */
+/* ------------------------------------------------------------------ */
+
+function PlanWalletExperience({ context, user }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const reducedMotion = useReducedMotion();
+  const plans = getPricingPlans();
+  const { isAuthenticated, openRegister, saveUserPlan, refreshUser } = useAuth();
+
+  const restored = useMemo(() => restoreFromLocation(location), [location]);
+  const draft = useMemo(() => (user?.id ? readOnboardingDraft(user.id) : {}), [user?.id]);
+  const cachedPlan = useMemo(() => (user?.id ? readCachedPlan(user.id) : null), [user?.id]);
+
+  const initialPlanId =
+    restored.selectedPlanId ||
+    (isValidPlanId(draft.selectedPlanId)
+      ? draft.selectedPlanId
+      : isValidPlanId(cachedPlan)
+        ? cachedPlan
+        : null);
+
+  const initialOpen = restored.walletOpen || Boolean(draft.walletOpen);
+  const initialStatus = restored.detailsOpen && initialPlanId
+    ? WALLET_STATES.POPUP_OPEN
+    : initialOpen
+      ? WALLET_STATES.OPEN
+      : WALLET_STATES.CLOSED;
+
+  const [state, dispatch] = useWalletMachine(
+    {
+      status: initialStatus,
+      selectedPlanId: initialPlanId,
+      popupPlanId: initialStatus === WALLET_STATES.POPUP_OPEN ? initialPlanId : null
+    },
+    reducedMotion
+  );
+
+  const [busyPlan, setBusyPlan] = useState(null);
+  const [notice, setNotice] = useState("");
+  const cardRefs = useRef({});
+  const previousStatusRef = useRef(state.status);
+  const allowGuestCheckout = import.meta.env.DEV || import.meta.env.VITE_ALLOW_GUEST_CHECKOUT === "true";
+
+  const showDeck = walletShowsDeck(state.status);
+  const selectable = cardsSelectable(state.status);
+  const popupOpen = popupVisible(state.status);
+  const popupPlan = state.popupPlanId ? getPlan(state.popupPlanId) : null;
+
+  const persistDraft = useCallback(
+    (patch) => {
+      if (!user?.id) return;
+      writeOnboardingDraft(user.id, patch);
+    },
+    [user?.id]
+  );
+
+  // Restore focus to the selected card when the popup fully closes.
+  useEffect(() => {
+    const previous = previousStatusRef.current;
+    previousStatusRef.current = state.status;
+    if (previous === WALLET_STATES.POPUP_CLOSING && state.status === WALLET_STATES.OPEN) {
+      const ref = cardRefs.current[state.selectedPlanId];
+      ref?.focus();
+      setNotice("");
+    }
+  }, [state.status, state.selectedPlanId]);
+
+  function handleWalletPress() {
+    if (state.status === WALLET_STATES.CLOSED) {
+      dispatch({ type: "PRESS_WALLET" });
+      persistDraft({ walletOpen: true, selectedPlanId: state.selectedPlanId });
+    }
+  }
+
+  function handleWalletClose() {
+    if (state.status !== WALLET_STATES.OPEN && state.status !== WALLET_STATES.SELECTING_CARD) return;
+    dispatch({ type: "PRESS_WALLET" });
+    persistDraft({ walletOpen: false, selectedPlanId: state.selectedPlanId });
+  }
+
+  function handleSelectCard(planId) {
+    if (!selectable) return;
+    setNotice("");
+    dispatch({ type: "SELECT_CARD", planId });
+    persistDraft({ walletOpen: true, selectedPlanId: planId });
+  }
+
+  function handleViewOtherPlans() {
+    dispatch({ type: "CLOSE_POPUP" });
+  }
+
+  async function handleChooseOnboarding(plan) {
+    setNotice("");
+    setBusyPlan(plan.id);
+    try {
+      await saveUserPlan(plan.id);
+      await refreshUser();
+      persistDraft({ selectedPlanId: plan.id, planConfirmed: true });
+      navigate(MATCH_ONBOARDING_PATH, { replace: true });
+    } catch (err) {
+      setNotice(err.message || "Could not save your plan. Please try again.");
+    } finally {
+      setBusyPlan(null);
+    }
+  }
+
+  async function handleChoosePublic(plan) {
+    setNotice("");
+    const requiresRealAccount = user?.authProvider === "demo" || user?.authProvider === "dev";
+
+    if ((!isAuthenticated || requiresRealAccount) && !allowGuestCheckout) {
+      setNotice("Create an account or sign in to choose this plan.");
+      openRegister();
+      return;
+    }
+
+    setBusyPlan(plan.id);
+    try {
+      const result = await startBillingCheckout(plan.id, {
+        guestCheckout: !isAuthenticated || requiresRealAccount
+      });
+      if (result.url) window.location.href = result.url;
+    } catch (error) {
+      if (error.payload?.error === "billing_not_configured") {
+        setNotice("Plan checkout will turn on after billing is connected.");
+      } else if (error.status === 401 || error.status === 403) {
+        setNotice("Create an account or sign in to choose this plan.");
+        openRegister();
+      } else {
+        setNotice(error.message || "Checkout is unavailable right now. Please try again.");
+      }
+    } finally {
+      setBusyPlan(null);
+    }
+  }
+
+  function handleSelectPlanAction() {
+    if (!popupPlan || busyPlan) return;
+    if (context === "onboarding") {
+      handleChooseOnboarding(popupPlan);
+    } else {
+      handleChoosePublic(popupPlan);
+    }
+  }
+
+  const walletLabel =
+    state.status === WALLET_STATES.CLOSED
+      ? "Open the Prelude plan wallet"
+      : "Prelude plan wallet, open";
+
+  return (
+    <div className="plan-wallet-experience">
+      <div
+        className={`pw-wallet pw-wallet--${state.status}`}
+        data-deck-visible={showDeck ? "true" : "false"}
+        aria-hidden={popupOpen ? "true" : undefined}
+        // React 18 forwards unknown attributes as strings; "" enables inert.
+        inert={popupOpen ? "" : undefined}
+      >
+        <div className="pw-wallet__interior" aria-hidden="true" />
+
+        <div className="pw-deck" role="group" aria-label="Prelude plans">
+          {plans.map((plan, index) => (
+            <WalletPlanCard
+              key={plan.id}
+              plan={plan}
+              index={index}
+              selected={state.selectedPlanId === plan.id}
+              selectable={selectable}
+              onSelect={handleSelectCard}
+              buttonRef={(node) => {
+                cardRefs.current[plan.id] = node;
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="pw-wallet__pocket" aria-hidden="true">
+          <span className="pw-wallet__pocket-lip" />
+        </div>
+
+        <WalletBrandFooter email={user?.email} />
+
+        <button
+          type="button"
+          className="pw-wallet__opener"
+          onClick={handleWalletPress}
+          disabled={state.status !== WALLET_STATES.CLOSED}
+          tabIndex={state.status === WALLET_STATES.CLOSED ? 0 : -1}
+          aria-expanded={showDeck}
+          aria-label={walletLabel}
+        >
+          <span className="pw-wallet__opener-hint">
+            Open wallet
+            <ChevronRight aria-hidden="true" />
+          </span>
+        </button>
+      </div>
+
+      <button
+        type="button"
+        className="pw-wallet__close-btn"
+        onClick={handleWalletClose}
+        hidden={!showDeck || popupOpen}
+        disabled={state.status !== WALLET_STATES.OPEN && state.status !== WALLET_STATES.SELECTING_CARD}
+        aria-label="Close the Prelude plan wallet"
+      >
+        Close wallet
+      </button>
+
+      {popupOpen && popupPlan ? (
+        <PlanPopup
+          plan={popupPlan}
+          status={state.status}
+          busy={busyPlan === popupPlan.id}
+          notice={notice}
+          onSelectPlan={handleSelectPlanAction}
+          onViewOtherPlans={handleViewOtherPlans}
+          onRequestClose={handleViewOtherPlans}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Page shells                                                          */
+/* ------------------------------------------------------------------ */
 
 function PublicPlansShell({ children }) {
   return (
@@ -220,121 +548,12 @@ function PublicPlansShell({ children }) {
   );
 }
 
-function PlanWalletSelector({ context, user }) {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const plans = getPricingPlans();
-  const recommendedPlanId = useMemo(() => plans.find((plan) => plan.isRecommended)?.id || plans[0]?.id, [plans]);
-  const draft = useMemo(() => (user?.id ? readOnboardingDraft(user.id) : {}), [user?.id]);
-  const cachedPlan = useMemo(() => (user?.id ? readCachedPlan(user.id) : null), [user?.id]);
-  const restoredPlanId = querySelectedPlan(location) ||
-    (isValidPlanId(draft.selectedPlanId)
-      ? draft.selectedPlanId
-      : isValidPlanId(cachedPlan)
-        ? cachedPlan
-        : recommendedPlanId);
-  const [walletPhase, setWalletPhase] = useState(queryWantsOpen(location) ? "open" : "closed");
-  const [selectedPlanId, setSelectedPlanId] = useState(restoredPlanId);
-  const navigatingPlanRef = useRef(null);
-  const walletOpen = phaseIsOpen(walletPhase);
-  const walletLocked = phaseIsLocked(walletPhase);
-  const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) || plans[0];
-
-  function persistDraft(patch) {
-    if (!user?.id) return;
-    writeOnboardingDraft(user.id, patch);
-  }
-
-  function handleOpenWallet() {
-    if (walletPhase !== "closed") return;
-    setWalletPhase("opening");
-    persistDraft({ selectedPlanId });
-  }
-
-  function handleCloseWallet() {
-    if (walletPhase !== "open") return;
-    navigatingPlanRef.current = null;
-    setWalletPhase("closing");
-    persistDraft({ selectedPlanId });
-  }
-
-  function handleWalletToggle() {
-    if (walletLocked) return;
-    if (walletPhase === "closed") {
-      handleOpenWallet();
-      return;
-    }
-    handleCloseWallet();
-  }
-
-  function handleSelectPlan(planId) {
-    if (walletPhase !== "open") return;
-    setSelectedPlanId(planId);
-    persistDraft({ selectedPlanId: planId });
-  }
-
-  function handleActivatePlan(planId) {
-    if (walletPhase !== "open") return;
-    navigatingPlanRef.current = planId;
-    setSelectedPlanId(planId);
-    setWalletPhase("navigating");
-    persistDraft({ selectedPlanId: planId });
-  }
-
-  function navigateToPlan(planId) {
-    navigate(detailPath(context, planId), {
-      state: {
-        fromWallet: true,
-        walletOpen: true,
-        selectedPlanId: planId
-      }
-    });
-  }
-
-  function handleWalletTransitionEnd(event) {
-    if (event.target !== event.currentTarget || event.propertyName !== "min-height") return;
-    if (walletPhase === "opening") setWalletPhase("open");
-    if (walletPhase === "closing") setWalletPhase("closed");
-  }
-
-  function handleNavigateAnimationEnd(event) {
-    if (event.animationName !== "plan-wallet-card-choose") return;
-    if (walletPhase === "navigating" && navigatingPlanRef.current) {
-      navigateToPlan(navigatingPlanRef.current);
-    }
-  }
-
-  return (
-    <div className="plan-wallet-experience">
-      <div className="plan-wallet-experience__stage">
-        <WalletShell
-          phase={walletPhase}
-          open={walletOpen}
-          locked={walletLocked}
-          onToggle={handleWalletToggle}
-          onTransitionEnd={handleWalletTransitionEnd}
-        >
-          <PlanCardStack
-            plans={plans}
-            phase={walletPhase}
-            open={walletOpen}
-            selectedPlanId={selectedPlan.id}
-            onPreview={handleSelectPlan}
-            onActivate={handleActivatePlan}
-            onNavigateAnimationEnd={handleNavigateAnimationEnd}
-          />
-        </WalletShell>
-      </div>
-    </div>
-  );
-}
-
 function OnboardingPlanSelector() {
   const { user, ready } = useAuth();
 
   if (!ready) {
     return (
-      <OnboardingShell user={user} loading title="Choose your plan" subtitle="Preparing your Prelude plan wallet..." hideContinue />
+      <OnboardingShell user={user} loading title="Choose your plan" subtitle="Preparing your Prelude plan wallet…" hideContinue />
     );
   }
 
@@ -354,9 +573,8 @@ function OnboardingPlanSelector() {
       eyebrow="Plan selection"
       hideContinue
       footerNote="Your selection is saved to your profile so Prelude can personalize your dashboard."
-      className="plan-select-page"
     >
-      <PlanWalletSelector context="onboarding" user={user} />
+      <PlanWalletExperience context="onboarding" user={user} />
     </OnboardingShell>
   );
 }
@@ -365,95 +583,18 @@ export function PlansPage() {
   const { user } = useAuth();
   return (
     <PublicPlansShell>
-      <PlanWalletSelector context="public" user={user} />
+      <PlanWalletExperience context="public" user={user} />
     </PublicPlansShell>
   );
 }
 
-function PlanDetailContent({ plan, context, billingNotice, loadingPlan, onChoose, onClose }) {
-  const featureRows = plan.features.slice(0, 3);
-  const remainingFeatures = Math.max(0, plan.features.length - featureRows.length);
-
-  return (
-    <main className={`plan-detail-page plan-detail-page--${context}`}>
-      <div className="plan-detail-page__inner">
-        <article className={`plan-detail-wallet plan-detail-wallet--${plan.id}`}>
-          <section className="plan-detail-wallet__card" aria-labelledby={`plan-detail-title-${plan.id}`}>
-            <span className="plan-detail-wallet__bird" aria-hidden="true">P</span>
-            <span className="plan-detail-wallet__locked" aria-hidden="true">{plan.isRecommended ? "Best value" : "Prelude plan"}</span>
-            <span className="plan-detail-wallet__eye" aria-hidden="true" />
-            <div className="plan-detail-wallet__card-bottom">
-              <div>
-                <h1 id={`plan-detail-title-${plan.id}`}>{plan.name}</h1>
-                <p>{plan.description}</p>
-              </div>
-              <div className="plan-detail-wallet__price">
-                <span>{plan.price}</span>
-                <small>/mo</small>
-              </div>
-            </div>
-            <div className="plan-detail-wallet__number" aria-hidden="true">
-              <span>•••• •••• •••• {plan.id === "basic" ? "1049" : plan.id === "plus" ? "1102" : "1299"}</span>
-              <span>EXP ••/••</span>
-              <span>CVV •••</span>
-            </div>
-          </section>
-
-          <section className="plan-detail-wallet__drawer" aria-labelledby={`plan-detail-features-${plan.id}`}>
-            <h2 id={`plan-detail-features-${plan.id}`} className="sr-only">Included in {plan.name}</h2>
-            <div className="plan-detail-wallet__row plan-detail-wallet__row--switch">
-              <span>{plan.priceLabel}</span>
-              <span className="plan-detail-wallet__switch" aria-hidden="true" />
-            </div>
-            {featureRows.map((feature) => (
-              <div className="plan-detail-wallet__row" key={feature}>
-                <span>{feature}</span>
-                <ChevronRight aria-hidden="true" />
-              </div>
-            ))}
-            {remainingFeatures > 0 ? (
-              <div className="plan-detail-wallet__row plan-detail-wallet__row--muted">
-                <span>{remainingFeatures} more included benefits</span>
-                <ChevronRight aria-hidden="true" />
-              </div>
-            ) : null}
-
-            {billingNotice ? (
-              <p className="plan-detail-wallet__notice" role="status">
-                {billingNotice}
-              </p>
-            ) : null}
-
-            <button
-              type="button"
-              className="plan-detail-wallet__cta"
-              onClick={onChoose}
-              disabled={Boolean(loadingPlan)}
-              aria-busy={Boolean(loadingPlan)}
-            >
-              {loadingPlan ? "Saving..." : `Choose ${plan.name}`}
-            </button>
-
-            <p className="plan-detail-wallet__supporting">Billing is not charged during this step.</p>
-          </section>
-
-          <button type="button" className="plan-detail-page__close" onClick={onClose} aria-label="Close plan details">
-            <X aria-hidden="true" />
-          </button>
-        </article>
-      </div>
-    </main>
-  );
-}
-
+/**
+ * Legacy deep links (/plans/:planId and /onboarding/plan/:planId) now land on
+ * the wallet with the matching plan popup already open.
+ */
 export function PlanDetailPage({ context = "public" }) {
   const { planId } = useParams();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { user, ready, isAuthenticated, openRegister, saveUserPlan, refreshUser } = useAuth();
-  const [loadingPlan, setLoadingPlan] = useState(null);
-  const [billingNotice, setBillingNotice] = useState("");
-  const allowGuestCheckout = import.meta.env.DEV || import.meta.env.VITE_ALLOW_GUEST_CHECKOUT === "true";
+  const { user, ready } = useAuth();
 
   if (!isValidPlanId(planId)) {
     return <Navigate to={`${selectorPath(context)}?wallet=open`} replace />;
@@ -461,7 +602,7 @@ export function PlanDetailPage({ context = "public" }) {
 
   if (context === "onboarding" && !ready) {
     return (
-      <OnboardingShell user={user} loading title="Choose your plan" subtitle="Preparing your Prelude plan details..." hideContinue />
+      <OnboardingShell user={user} loading title="Choose your plan" subtitle="Preparing your Prelude plan details…" hideContinue />
     );
   }
 
@@ -473,69 +614,7 @@ export function PlanDetailPage({ context = "public" }) {
     return <Navigate to={postAuthDestination(user)} replace />;
   }
 
-  const plan = getPlan(planId);
-
-  function closePlanDetails() {
-    navigate(`${selectorPath(context)}?wallet=open&selected=${plan.id}`, {
-      replace: false,
-      state: { walletOpen: true, selectedPlanId: plan.id }
-    });
-  }
-
-  async function handleOnboardingChoose() {
-    setBillingNotice("");
-    setLoadingPlan(plan.id);
-    try {
-      await saveUserPlan(plan.id);
-      await refreshUser();
-      if (user?.id) writeOnboardingDraft(user.id, { selectedPlanId: plan.id, planConfirmed: true });
-      navigate(MATCH_ONBOARDING_PATH, { replace: true });
-    } catch (err) {
-      setBillingNotice(err.message || "Could not save your plan. Please try again.");
-    } finally {
-      setLoadingPlan(null);
-    }
-  }
-
-  async function handlePublicChoose() {
-    setBillingNotice("");
-    const requiresRealAccount = user?.authProvider === "demo" || user?.authProvider === "dev";
-
-    if ((!isAuthenticated || requiresRealAccount) && !allowGuestCheckout) {
-      setBillingNotice("Create an account or sign in to choose this plan.");
-      openRegister();
-      return;
-    }
-
-    setLoadingPlan(plan.id);
-    try {
-      const result = await startBillingCheckout(plan.id, { guestCheckout: !isAuthenticated || requiresRealAccount });
-      if (result.url) window.location.href = result.url;
-    } catch (error) {
-      if (error.payload?.error === "billing_not_configured") {
-        setBillingNotice("Plan checkout will turn on after billing is connected.");
-      } else if (error.status === 401 || error.status === 403) {
-        setBillingNotice("Create an account or sign in to choose this plan.");
-        openRegister();
-      } else {
-        setBillingNotice(error.message || "Checkout is unavailable right now. Please try again.");
-      }
-    } finally {
-      setLoadingPlan(null);
-    }
-  }
-
-  return (
-    <PlanDetailContent
-      plan={plan}
-      context={context}
-      billingNotice={billingNotice}
-      loadingPlan={loadingPlan}
-      onChoose={context === "onboarding" ? handleOnboardingChoose : handlePublicChoose}
-      onClose={closePlanDetails}
-      fromWallet={Boolean(location.state?.fromWallet)}
-    />
-  );
+  return <Navigate to={`${selectorPath(context)}?wallet=open&selected=${planId}&details=open`} replace />;
 }
 
 export default OnboardingPlanSelector;

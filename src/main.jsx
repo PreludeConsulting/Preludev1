@@ -44,6 +44,7 @@ import "./dashboard/constellation.css";
 import "./dashboard/prelude-chat.css";
 import "./landing-ui.css";
 import "./styles/onboarding-flow.css";
+import "./styles/plan-wallet.css";
 import "./styles/contact.css";
 import "./components/interaction/interaction.css";
 

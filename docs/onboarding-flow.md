@@ -30,6 +30,27 @@ Parent invite details (API routes, email delivery, Supabase schema): see
 - `src/lib/onboardingFlow.js` stores non-destructive draft state in `localStorage` under `prelude_onboarding_draft_{userId}`
 - Plan selection also writes the confirmed plan to `profiles.plan_id` and `prelude_plan_{userId}`
 
+## Plan wallet
+
+The plan step (`/onboarding/plan` and public `/plans`) renders the interactive wallet in
+`src/components/PlanSelectionPage.jsx`:
+
+- Interaction rules live in a pure state machine, `src/lib/planWalletMachine.js`
+  (`closed → opening → open → selectingCard → popupOpening → popupOpen → popupClosing → closing`).
+  It guarantees a single popup, no card selection while hidden, no wallet close while the
+  popup is open, and last-selection-wins under rapid clicks.
+- Plan data comes exclusively from `src/lib/plans.js`; the popup shows the full feature
+  list in a scrollable body with a fixed action footer (“Select this plan”, “View price”,
+  “View other plans”).
+- “Select this plan” calls `saveUserPlan` during onboarding and `startBillingCheckout`
+  on the public page — no mock actions.
+- The wallet footer shows the Prelude Consulting logo/name and the authenticated user's
+  email (falls back to “Guest”).
+- Deep links `/plans/:planId` and `/onboarding/plan/:planId` redirect to the wallet with
+  the matching popup open (`?wallet=open&selected=<id>&details=open`).
+- Styles: `src/styles/plan-wallet.css` (`pw-` prefix). Motion durations are mirrored in
+  `MOTION_MS` inside the page component; `prefers-reduced-motion` collapses them.
+
 ## Google OAuth recreation
 
 Run `supabase/migrations/20260701000000_onboarding_oauth_fixes.sql` in Supabase if you have not deployed it yet.
@@ -64,3 +85,4 @@ Focused coverage lives in:
 
 - `tests/onboardingRoutes.test.js`
 - `tests/onboardingFlow.test.js`
+- `tests/planWalletMachine.test.js`
