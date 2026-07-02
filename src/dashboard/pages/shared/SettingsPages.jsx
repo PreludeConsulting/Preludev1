@@ -1129,10 +1129,10 @@ export function StudentSettingsPage() {
 
       {tab === "support" ? (
         <SectionCard title="Support" className="dash-panel">
-          <a className="dash-setting-link" href="mailto:hello@preludeconsulting.com">
+          <a className="dash-setting-link" href="mailto:preludesupport@preludeconsultingllc.com">
             <span>
               <span className="dash-setting-link__label"><Mail className="h-4 w-4" aria-hidden="true" /> Contact support</span>
-              <span className="dash-setting-link__desc">hello@preludeconsulting.com</span>
+              <span className="dash-setting-link__desc">preludesupport@preludeconsultingllc.com</span>
             </span>
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </a>
@@ -1215,10 +1215,10 @@ export function MentorSettingsPage() {
 
       {tab === "support" ? (
         <SectionCard title="Support" className="dash-panel">
-          <a className="dash-setting-link" href="mailto:hello@preludeconsulting.com">
+          <a className="dash-setting-link" href="mailto:preludesupport@preludeconsultingllc.com">
             <span>
               <span className="dash-setting-link__label"><Mail className="h-4 w-4" aria-hidden="true" /> Contact support</span>
-              <span className="dash-setting-link__desc">hello@preludeconsulting.com</span>
+              <span className="dash-setting-link__desc">preludesupport@preludeconsultingllc.com</span>
             </span>
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </a>
@@ -1530,10 +1530,10 @@ export function ParentSettingsPage() {
 
       {tab === "support" ? (
         <SectionCard title="Support" className="dash-panel">
-          <a className="dash-setting-link" href="mailto:hello@preludeconsulting.com">
+          <a className="dash-setting-link" href="mailto:preludesupport@preludeconsultingllc.com">
             <span>
               <span className="dash-setting-link__label"><Mail className="h-4 w-4" aria-hidden="true" /> Contact support</span>
-              <span className="dash-setting-link__desc">hello@preludeconsulting.com</span>
+              <span className="dash-setting-link__desc">preludesupport@preludeconsultingllc.com</span>
             </span>
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </a>

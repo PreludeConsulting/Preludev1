@@ -311,13 +311,14 @@ export function LowerCta() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button
-              href="mailto:hello@preludeconsulting.com"
+              as={Link}
+              to="/contact"
               className="bg-white text-primary hover:bg-white/95"
             >
               {t("sections.cta.primary")}
               <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </Button>
-            <Button href="#pricing" variant="secondary" className="border-white/40 bg-transparent text-white hover:bg-white/10">
+            <Button as={Link} to="/contact#email-us" variant="secondary" className="border-white/40 bg-transparent text-white hover:bg-white/10">
               {t("sections.cta.secondary")}
             </Button>
           </div>
@@ -334,7 +335,7 @@ export function LowerFooter() {
     { label: "Instagram", href: "https://www.instagram.com/preludellc/" },
     { label: "X", href: "https://x.com/PreludeLLC" },
     { label: "Youtube", href: "https://www.youtube.com/@PreludeLLC" },
-    { label: "Email", href: "mailto:prelude@preludeconsultingllc.com" },
+    { label: "Email", href: "mailto:preludesupport@preludeconsultingllc.com" },
     { label: "LinkedIn", href: "https://linkedin.com/" }
   ];
 

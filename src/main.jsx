@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import App from "./App.jsx";
 import DashboardRouter from "./dashboard/DashboardRouter.jsx";
 import MentorsPage from "./components/MentorsPage.jsx";
+import ContactPage from "./components/ContactPage.jsx";
 import { CheckoutCancelPage, CheckoutSuccessPage } from "./components/BillingResultPage.jsx";
 import PlanSelectionPage from "./components/PlanSelectionPage.jsx";
 import RoleSelectionOnboardingPage from "./components/onboarding/RoleSelectionOnboardingPage.jsx";
@@ -43,6 +44,7 @@ import "./dashboard/constellation.css";
 import "./dashboard/prelude-chat.css";
 import "./landing-ui.css";
 import "./styles/onboarding-flow.css";
+import "./styles/contact.css";
 import "./components/interaction/interaction.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -82,6 +84,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
             <Route path="/checkout/cancel" element={<CheckoutCancelPage />} />
             <Route path="/mentors" element={<MentorsPage />} />
+            <Route path="/contact" element={<ContactPage />} />
             {/* Legacy Supabase test routes redirect to main Prelude auth pages. */}
             <Route path="/auth/login" element={<Navigate to="/login" replace />} />
             <Route path="/auth/signup" element={<Navigate to="/register" replace />} />

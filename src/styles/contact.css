@@ -1,0 +1,590 @@
+.contact-page {
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 18% 8%, hsl(var(--primary) / 0.14), transparent 26rem),
+    radial-gradient(circle at 88% 16%, hsl(var(--secondary) / 0.1), transparent 24rem),
+    linear-gradient(180deg, #ffffff 0%, #f7f4ff 48%, hsl(var(--background)) 100%);
+  color: hsl(var(--foreground));
+  font-family: "Barlow", sans-serif;
+}
+
+.contact-page__grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.contact-page__main {
+  width: min(100%, 74rem);
+  margin-inline: auto;
+  padding: clamp(6.5rem, 12vw, 8rem) clamp(1rem, 4vw, 2rem) clamp(3rem, 7vw, 5rem);
+}
+
+.contact-page__eyebrow {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  margin: 0 0 1rem;
+  border: 1px solid hsl(var(--primary) / 0.16);
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.08);
+  padding: 0.35rem 0.8rem;
+  color: hsl(var(--primary-deep));
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.contact-scheduler {
+  min-height: 43.75rem;
+  display: grid;
+  grid-template-columns: minmax(20rem, 0.94fr) minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  border-radius: 0.5rem;
+  background: #ffffff;
+  box-shadow:
+    0 24px 72px hsl(var(--primary) / 0.12),
+    0 1px 2px hsl(var(--foreground) / 0.04);
+}
+
+.contact-scheduler__info,
+.contact-scheduler__booking {
+  min-width: 0;
+}
+
+.contact-scheduler__info {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border-right: 1px solid hsl(var(--foreground) / 0.1);
+  background:
+    linear-gradient(180deg, #ffffff 0%, #fbf8ff 100%);
+}
+
+.contact-brand {
+  min-height: 10.75rem;
+  display: flex;
+  align-items: center;
+  padding: clamp(1.5rem, 4vw, 2rem);
+}
+
+.prelude-logo--contact {
+  width: 11rem;
+  height: auto;
+}
+
+.contact-scheduler__summary {
+  border-top: 1px solid hsl(var(--foreground) / 0.08);
+  padding: clamp(1.5rem, 4vw, 2rem);
+}
+
+.contact-scheduler__host,
+.contact-section-label,
+.contact-email-card__eyebrow,
+.contact-confirm__label {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.contact-scheduler__summary h1,
+.contact-calendar-header h2,
+.contact-email-card h2,
+.contact-time-panel h3,
+.contact-details h3 {
+  margin: 0;
+  color: hsl(var(--foreground));
+  letter-spacing: 0;
+}
+
+.contact-scheduler__summary h1 {
+  margin-top: 0.2rem;
+  font-size: clamp(1.85rem, 4vw, 2.35rem);
+  line-height: 1.05;
+  font-weight: 750;
+}
+
+.contact-scheduler__facts {
+  display: grid;
+  gap: 1rem;
+  margin: 1.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.contact-scheduler__facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  color: hsl(var(--foreground));
+  font-size: 0.975rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.contact-scheduler__facts svg {
+  flex: 0 0 auto;
+  color: hsl(var(--primary));
+}
+
+.contact-email-section {
+  scroll-margin-top: 7rem;
+  margin-top: clamp(1.25rem, 3vw, 1.75rem);
+}
+
+.contact-email-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.68fr);
+  align-items: center;
+  gap: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid hsl(var(--primary) / 0.18);
+  border-radius: 0.5rem;
+  background:
+    radial-gradient(circle at 0% 0%, hsl(var(--primary) / 0.1), transparent 18rem),
+    linear-gradient(145deg, hsl(var(--primary) / 0.08), rgba(255, 255, 255, 0.96));
+  padding: clamp(1rem, 3vw, 1.35rem);
+  box-shadow:
+    0 18px 54px hsl(var(--primary) / 0.1),
+    0 1px 2px hsl(var(--foreground) / 0.04);
+}
+
+.contact-email-card h2 {
+  margin-top: 0.2rem;
+  font-size: 1.25rem;
+  font-weight: 750;
+}
+
+.contact-email-card p:not(.contact-email-card__eyebrow) {
+  margin: 0.4rem 0 0;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.55;
+}
+
+.contact-email-card__actions {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.contact-button {
+  min-height: 2.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  padding: 0.7rem 0.95rem;
+  font: inherit;
+  font-size: 0.925rem;
+  font-weight: 750;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.contact-button:hover:not(.contact-button--disabled) {
+  transform: translateY(-1px);
+}
+
+.contact-button--primary {
+  border: 1px solid hsl(var(--primary));
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+  color: #ffffff;
+  box-shadow: 0 16px 34px hsl(var(--primary) / 0.22);
+}
+
+.contact-button--secondary {
+  border: 1px solid hsl(var(--foreground) / 0.14);
+  background: #ffffff;
+  color: hsl(var(--foreground));
+}
+
+.contact-button--secondary:hover {
+  border-color: hsl(var(--primary) / 0.28);
+  background: hsl(var(--primary) / 0.06);
+}
+
+.contact-button--ghost {
+  border: 1px solid hsl(var(--primary) / 0.18);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary-deep));
+}
+
+.contact-button--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.contact-scheduler__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.35rem;
+  padding: 1.25rem clamp(1.5rem, 4vw, 2rem) 1.75rem;
+}
+
+.contact-link {
+  min-height: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: hsl(var(--primary));
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 750;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.contact-link:hover {
+  color: hsl(var(--primary-deep));
+}
+
+.contact-scheduler__booking {
+  display: grid;
+  align-content: start;
+  gap: 1.45rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.contact-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.contact-calendar-header h2 {
+  margin-top: 0.3rem;
+  font-size: clamp(1.25rem, 3vw, 1.65rem);
+  font-weight: 800;
+}
+
+.contact-calendar-header__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.contact-calendar-header__controls button {
+  width: 2.35rem;
+  height: 2.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: hsl(var(--primary));
+  cursor: pointer;
+}
+
+.contact-calendar-header__controls button:hover:not(:disabled) {
+  background: hsl(var(--primary) / 0.08);
+}
+
+.contact-calendar-header__controls button:disabled {
+  color: hsl(var(--muted-foreground) / 0.55);
+  cursor: not-allowed;
+}
+
+.contact-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.contact-calendar__weekday {
+  min-height: 2.4rem;
+  display: grid;
+  place-items: center;
+  color: hsl(var(--primary-deep));
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.contact-calendar__day,
+.contact-calendar__blank {
+  width: 100%;
+  aspect-ratio: 1;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.contact-calendar__day {
+  cursor: default;
+}
+
+.contact-calendar__day--available {
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+  cursor: pointer;
+}
+
+.contact-calendar__day--available:hover {
+  background: hsl(var(--primary) / 0.14);
+}
+
+.contact-calendar__day--selected {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+  color: #ffffff;
+  box-shadow: 0 12px 26px hsl(var(--primary) / 0.25);
+}
+
+.contact-calendar__day:disabled {
+  opacity: 0.74;
+}
+
+.contact-timezone {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.contact-timezone p {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.contact-timezone div {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: hsl(var(--foreground));
+  font-size: 0.925rem;
+}
+
+.contact-timezone svg {
+  color: hsl(var(--primary));
+}
+
+.contact-time-panel,
+.contact-details {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 0.5rem;
+  background: #ffffff;
+  padding: 1rem;
+  box-shadow: 0 10px 26px hsl(var(--primary) / 0.06);
+}
+
+.contact-time-panel h3,
+.contact-details h3 {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.contact-time-panel p,
+.contact-details p {
+  margin: 0.25rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.contact-time-panel__slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.contact-time-slot {
+  min-height: 2.6rem;
+  min-width: 6.5rem;
+  border: 1px solid hsl(var(--primary) / 0.24);
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: hsl(var(--primary));
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.contact-time-slot:hover {
+  background: hsl(var(--primary) / 0.08);
+  transform: translateY(-1px);
+}
+
+.contact-time-slot--selected {
+  border-color: hsl(var(--primary));
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+  color: #ffffff;
+}
+
+.contact-details__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.contact-details__heading svg {
+  flex: 0 0 auto;
+  color: hsl(var(--primary));
+}
+
+.contact-details__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.contact-details label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.contact-details label span {
+  color: hsl(var(--foreground) / 0.76);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.contact-details input,
+.contact-details select,
+.contact-details textarea {
+  width: 100%;
+  min-height: 2.8rem;
+  border: 1px solid hsl(var(--foreground) / 0.14);
+  border-radius: 0.5rem;
+  background: #ffffff;
+  padding: 0.65rem 0.75rem;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.contact-details textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.contact-details input:focus-visible,
+.contact-details select:focus-visible,
+.contact-details textarea:focus-visible {
+  border-color: hsl(var(--primary));
+  outline: 3px solid hsl(var(--primary) / 0.16);
+  outline-offset: 0;
+}
+
+.contact-details__topic {
+  grid-column: 1 / -1;
+}
+
+.contact-confirm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-top: 1px solid hsl(var(--foreground) / 0.08);
+  padding-top: 1rem;
+}
+
+.contact-confirm p {
+  margin: 0;
+}
+
+.contact-confirm__label {
+  color: hsl(var(--primary));
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.contact-confirm__button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 900px) {
+  .contact-scheduler {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-email-card {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-scheduler__info {
+    border-right: 0;
+    border-bottom: 1px solid hsl(var(--foreground) / 0.1);
+  }
+
+  .contact-brand {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .contact-page__main {
+    padding-inline: 0.8rem;
+  }
+
+  .contact-scheduler {
+    border-radius: 0.5rem;
+  }
+
+  .contact-scheduler__booking {
+    padding: 1rem;
+  }
+
+  .contact-calendar {
+    gap: 0.25rem;
+  }
+
+  .contact-calendar__weekday {
+    min-height: 1.8rem;
+    font-size: 0.7rem;
+  }
+
+  .contact-calendar__day {
+    font-size: 0.88rem;
+  }
+
+  .contact-details__grid,
+  .contact-confirm {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .contact-confirm__button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-button,
+  .contact-calendar-header__controls button,
+  .contact-calendar__day,
+  .contact-time-slot {
+    transition: none;
+  }
+
+  .contact-button:hover:not(.contact-button--disabled),
+  .contact-time-slot:hover {
+    transform: none;
+  }
+}

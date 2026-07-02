@@ -244,6 +244,14 @@ Developers can work quickly in one process, debug backend routes separately, or 
 | Datasets | `/api/colleges/*`, `/api/programs/search`, `/api/careers/search`, `/api/high-schools/search` | Public-data search and comparison. |
 | PreludeMatch | `/api/prelude-match-questionnaire` | Account-linked questionnaire submission for matching/personalization. |
 
+## Public page summary
+
+| Route | What it provides |
+|---|---|
+| `/` | Landing page, plans, mentor network, academic support, and public CTAs. |
+| `/contact` | Discovery-call scheduler and email contact page with Gmail and mail-client compose links. See `docs/contact-page.md`. |
+| `/mentors` | Example mentor directory and mentor preview experience. |
+
 ## Quick start
 
 ```bash
