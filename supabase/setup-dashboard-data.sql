@@ -105,7 +105,8 @@ begin
   if auth.uid() is not null
     and auth.uid() = old.id
     and new.role is distinct from old.role
-    and old.role_selection_complete = true then
+    and old.role_selection_complete = true
+    and coalesce(current_setting('prelude.allow_role_correction', true), '') <> 'true' then
     raise exception 'You are not allowed to change your account role.';
   end if;
 
@@ -131,6 +132,99 @@ drop trigger if exists profiles_role_guard on public.profiles;
 create trigger profiles_role_guard
   before update on public.profiles
   for each row execute function public.enforce_profile_role_guard();
+
+create or replace function public.change_onboarding_role(requested_role text)
+returns public.profiles
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  uid uuid := auth.uid();
+  safe_role text := lower(trim(coalesce(requested_role, '')));
+  existing public.profiles;
+  onboarding record;
+  mentor_done boolean := false;
+  can_change boolean := false;
+  updated_profile public.profiles;
+begin
+  if uid is null then
+    raise exception 'Authentication required.';
+  end if;
+
+  if safe_role not in ('student', 'mentor', 'parent') then
+    raise exception 'Please choose Student, Mentor, or Parent.';
+  end if;
+
+  select * into existing
+  from public.profiles
+  where id = uid
+  for update;
+
+  if not found then
+    raise exception 'Profile not found.';
+  end if;
+
+  if existing.role = 'admin' then
+    raise exception 'Matching Team access is managed separately.';
+  end if;
+
+  if existing.role_selection_complete = false then
+    can_change := true;
+  elsif existing.role = 'student' then
+    select * into onboarding
+    from public.onboarding_progress
+    where user_id = uid;
+
+    if not found then
+      can_change := true;
+    else
+      can_change :=
+        existing.plan_id is null
+        or onboarding.onboarding_status in ('needs_plan', 'needs_match', 'match_completed')
+        or coalesce(onboarding.mentor_matching_complete, false) = false
+        or coalesce(onboarding.parent_invite_step_completed, false) = false;
+    end if;
+  elsif existing.role = 'mentor' then
+    select coalesce(completed, false) into mentor_done
+    from public.mentor_questionnaires
+    where user_id = uid;
+
+    can_change := coalesce(mentor_done, false) = false;
+  elsif existing.role = 'parent' then
+    can_change := existing.created_at > now() - interval '24 hours';
+  end if;
+
+  if not can_change then
+    raise exception 'Your account role can only be changed during initial setup.';
+  end if;
+
+  perform set_config('prelude.allow_role_correction', 'true', true);
+
+  update public.profiles
+  set
+    role = safe_role,
+    role_selection_complete = true,
+    plan_id = case when safe_role = 'student' then plan_id else null end,
+    updated_at = now()
+  where id = uid
+  returning * into updated_profile;
+
+  if safe_role = 'student' and to_regclass('public.student_profiles') is not null then
+    insert into public.student_profiles (user_id)
+    values (uid)
+    on conflict (user_id) do nothing;
+  elsif safe_role = 'mentor' and to_regclass('public.mentor_profiles') is not null then
+    insert into public.mentor_profiles (user_id)
+    values (uid)
+    on conflict (user_id) do nothing;
+  end if;
+
+  return updated_profile;
+end;
+$$;
+
+grant execute on function public.change_onboarding_role(text) to authenticated;
 
 -- -----------------------------------------------------------------------------
 -- 2) Role-specific profile extensions
@@ -250,9 +344,18 @@ create index if not exists mentor_matching_profiles_target_schools_idx
 alter table public.mentor_matching_profiles enable row level security;
 
 drop policy if exists "Completed mentor matching profiles viewable by authenticated users" on public.mentor_matching_profiles;
-create policy "Completed mentor matching profiles viewable by authenticated users"
+drop policy if exists "Mentor matching profiles viewable for PreludeMatch" on public.mentor_matching_profiles;
+create policy "Mentor matching profiles viewable for PreludeMatch"
   on public.mentor_matching_profiles for select to authenticated
-  using (completed = true or auth.uid() = mentor_user_id);
+  using (
+    auth.uid() = mentor_user_id
+    or completed = true
+    or (
+      coalesce(trim(display_name), '') <> ''
+      and coalesce(trim(college), '') <> ''
+      and coalesce(trim(major), '') <> ''
+    )
+  );
 
 drop policy if exists "Mentor matching profiles insertable by owner" on public.mentor_matching_profiles;
 create policy "Mentor matching profiles insertable by owner"
@@ -377,6 +480,14 @@ create table if not exists public.onboarding_progress (
   suggested_mentor_id      text,
   match_decision           text check (match_decision is null or match_decision in ('accepted', 'declined')),
   declined_mentor_ids      jsonb not null default '[]'::jsonb,
+  selected_mentor_id       text,
+  mentor_selection_method  text check (mentor_selection_method is null or mentor_selection_method in ('student_selected', 'admin_review_required')),
+  mentor_assignment_status text check (mentor_assignment_status is null or mentor_assignment_status in ('student_selected', 'admin_review_required', 'admin_assigned')),
+  prelude_match_completed  boolean not null default false,
+  matched_mentor_count     integer not null default 0,
+  matched_mentor_ids       jsonb not null default '[]'::jsonb,
+  admin_review_required    boolean not null default false,
+  mentor_selection_timestamp timestamptz,
   updated_at               timestamptz not null default now()
 );
 

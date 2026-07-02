@@ -1150,7 +1150,7 @@ export function StudentSettingsPage() {
 }
 
 export function MentorSettingsPage() {
-  const { user, planDetails, openAccount } = useAuth();
+  const { user, openAccount } = useAuth();
   const {
     integrations,
     connectGoogle,
@@ -1163,18 +1163,16 @@ export function MentorSettingsPage() {
   } = useDashboardData();
   const [tab, setTab] = useState("profile");
 
-  const planName = planDetails?.name || user?.planName || "Basic";
-
   return (
     <SettingsPageShell
       user={user}
       profile={profile}
       roleLabel="Mentor"
-      planName={planName}
       tabs={MENTOR_SETTINGS_TABS}
       activeTab={tab}
       onTabChange={setTab}
       onOpenAccount={openAccount}
+      accountActionLabel="Account"
     >
       {tab === "profile" ? (
         <>

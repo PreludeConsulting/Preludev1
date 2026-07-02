@@ -2,7 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AuthLoadingState from "../AuthLoadingState.jsx";
 import { canAccessOnboardingPath, isOnboardingComplete } from "../../lib/onboardingFlow.js";
-import { postAuthDestination } from "../../lib/onboardingRoutes.js";
+import { postAuthDestination, ROLE_SELECTION_PATH, userCanChangeRoleDuringOnboarding } from "../../lib/onboardingRoutes.js";
 
 export default function RequireOnboardingAccess({ children }) {
   const { user, ready, verificationRequired } = useAuth();
@@ -29,6 +29,10 @@ export default function RequireOnboardingAccess({ children }) {
         replace
       />
     );
+  }
+
+  if (location.pathname === ROLE_SELECTION_PATH && userCanChangeRoleDuringOnboarding(user)) {
+    return children;
   }
 
   if (isOnboardingComplete(user)) {

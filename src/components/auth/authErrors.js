@@ -30,6 +30,12 @@ export function friendlyAuthError(message = "", context = "signin") {
   if (/too many requests|rate limit|email rate limit/i.test(lower)) {
     return "Too many attempts. Wait a moment and try again.";
   }
+  if (/same password|different from your current password/i.test(lower)) {
+    return "Choose a new password that is different from your current password.";
+  }
+  if (/invalid or expired|otp_expired|secure link is invalid/i.test(lower)) {
+    return "This reset link is invalid or has expired. Request a new reset email.";
+  }
   if (/captcha|turnstile|security check/i.test(lower)) {
     return "Complete the security check and try again.";
   }

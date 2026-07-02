@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { resendVerificationEmail } from "../lib/emailVerification.js";
 
-const RESEND_COOLDOWN_SECONDS = 60;
+const RESEND_COOLDOWN_SECONDS = 30;
 
 export default function EmailVerificationBanner({ className = "" }) {
   const { user } = useAuth();

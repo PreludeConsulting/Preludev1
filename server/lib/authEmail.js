@@ -3,6 +3,8 @@
  * Supabase Auth uses its own email flow — see SUPABASE_AUTH_SETUP.md.
  */
 
+import { PASSWORD_RESET_LINK_EXPIRY_MINUTES } from "../../shared/passwordResetConstants.js";
+
 export function isProductionEnv() {
   return process.env.NODE_ENV === "production";
 }
@@ -12,16 +14,16 @@ export function shouldLogAuthEmails() {
   return !isProductionEnv() && process.env.PRELUDE_LOG_AUTH_EMAILS !== "0";
 }
 
-function hasResendConfig() {
-  return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.AUTH_EMAIL_FROM?.trim());
+function hasResendConfig(env = process.env) {
+  return Boolean(env.RESEND_API_KEY?.trim() && env.AUTH_EMAIL_FROM?.trim());
 }
 
 /**
  * Public app base URL for auth links (no trailing slash).
  * Production: set PUBLIC_APP_URL (e.g. https://preludev1.pages.dev).
  */
-export function resolvePublicAppUrl(req) {
-  const fromEnv = process.env.PUBLIC_APP_URL?.trim();
+export function resolvePublicAppUrl(req, env = process.env) {
+  const fromEnv = env.PUBLIC_APP_URL?.trim() || env.VITE_PUBLIC_APP_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");
 
   if (req?.headers) {
@@ -35,8 +37,8 @@ export function resolvePublicAppUrl(req) {
   return "http://localhost:5173";
 }
 
-export function buildAuthUrl(req, pathWithQuery) {
-  const base = resolvePublicAppUrl(req);
+export function buildAuthUrl(req, pathWithQuery, env = process.env) {
+  const base = resolvePublicAppUrl(req, env);
   const path = pathWithQuery.startsWith("/") ? pathWithQuery : `/${pathWithQuery}`;
   return `${base}${path}`;
 }
@@ -56,17 +58,25 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
-function buildAuthEmailHtml({ kind, url }) {
+function escapeHref(url) {
+  return String(url).replace(/"/g, "&quot;");
+}
+
+export function buildAuthEmailHtml({ kind, url, expiryMinutes = PASSWORD_RESET_LINK_EXPIRY_MINUTES }) {
   const safeUrl = escapeHtml(url);
+  const hrefUrl = escapeHref(url);
   const isVerify = kind === "verify-email";
   const heading = isVerify ? "Verify your email" : "Reset your password";
   const intro = isVerify
     ? "Thanks for joining Prelude. Confirm your email address to secure your account and prove your identity."
-    : "We received a request to reset your Prelude password. Click below to choose a new password.";
+    : "We received a request to reset your Prelude password. Click the button below to choose a new password.";
   const buttonLabel = isVerify ? "Verify email address" : "Reset password";
   const footer = isVerify
     ? "If you did not create a Prelude account, you can safely ignore this email."
-    : "If you did not request a password reset, you can safely ignore this email.";
+    : "If you did not request a password reset, you can safely ignore this email. Your password will not change unless you complete the reset form.";
+  const expiryNote = isVerify
+    ? ""
+    : `<p style="margin:0 0 24px;font-size:13px;line-height:1.5;color:#6b645c;">This link expires in about ${expiryMinutes} minutes and can only be used once.</p>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -79,11 +89,12 @@ function buildAuthEmailHtml({ kind, url }) {
           <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#8a7f72;">Prelude</p>
           <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;font-weight:600;">${heading}</h1>
           <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#4a4540;">${intro}</p>
+          ${expiryNote}
           <p style="margin:0 0 28px;">
-            <a href="${safeUrl}" style="display:inline-block;background:#1f4d3a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 24px;border-radius:999px;">${buttonLabel}</a>
+            <a href="${hrefUrl}" style="display:inline-block;background:#1f4d3a;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 24px;border-radius:999px;">${buttonLabel}</a>
           </p>
           <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#6b645c;">Or copy this link into your browser:</p>
-          <p style="margin:0 0 24px;font-size:13px;line-height:1.5;word-break:break-all;color:#1f4d3a;">${safeUrl}</p>
+          <p style="margin:0 0 24px;font-size:13px;line-height:1.5;word-break:break-all;color:#1f4d3a;"><a href="${hrefUrl}" style="color:#1f4d3a;text-decoration:underline;">${safeUrl}</a></p>
           <p style="margin:0;font-size:12px;line-height:1.5;color:#8a7f72;">${footer}</p>
         </td></tr>
       </table>
@@ -118,9 +129,9 @@ function buildAccountDeletedHtml({ firstName, email }) {
 </html>`;
 }
 
-async function sendHtmlViaResend({ subject, to, html }) {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.AUTH_EMAIL_FROM?.trim();
+async function sendHtmlViaResend({ subject, to, html, env = process.env }) {
+  const apiKey = env.RESEND_API_KEY?.trim();
+  const from = env.AUTH_EMAIL_FROM?.trim();
   if (!apiKey || !from) {
     console.error("[prelude-auth] Email not sent: set RESEND_API_KEY and AUTH_EMAIL_FROM.");
     return { delivered: false, reason: "missing_provider" };
@@ -144,17 +155,17 @@ async function sendHtmlViaResend({ subject, to, html }) {
   return { delivered: true };
 }
 
-async function sendViaResend({ kind, to, url }) {
+async function sendViaResend({ kind, to, url, env = process.env }) {
   const subject = EMAIL_SUBJECTS[kind] || "Prelude account notice";
-  return sendHtmlViaResend({ subject, to, html: buildAuthEmailHtml({ kind, url }) });
+  return sendHtmlViaResend({ subject, to, html: buildAuthEmailHtml({ kind, url }), env });
 }
 
 /**
  * Send or log a verification / reset link. Uses Resend whenever configured.
  */
-export async function deliverAuthEmail({ kind, to, url, req }) {
-  if (hasResendConfig()) {
-    const result = await sendViaResend({ kind, to, url });
+export async function deliverAuthEmail({ kind, to, url, req, env = process.env }) {
+  if (hasResendConfig(env)) {
+    const result = await sendViaResend({ kind, to, url, env });
     if (result.delivered) return result;
     if (isProductionEnv()) return result;
   } else if (isProductionEnv()) {
@@ -168,7 +179,7 @@ export async function deliverAuthEmail({ kind, to, url, req }) {
     console.info(`[prelude-auth:${kind}] To ${to}:\n${url}`);
   }
 
-  return { delivered: false, logged: shouldLogAuthEmails(), devOnly: !hasResendConfig() };
+  return { delivered: false, logged: shouldLogAuthEmails(), devOnly: !hasResendConfig(env) };
 }
 
 /** Confirmation email after permanent account deletion. */

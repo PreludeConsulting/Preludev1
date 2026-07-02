@@ -177,8 +177,10 @@ export function LowerPlans() {
     return {
       ...plan,
       ...translatedPlan,
+      priceAmount: plan.price || null,
+      pricePeriod: plan.price ? t("sections.plans.priceLabels.perMonth") : null,
       priceLabel: plan.price
-        ? `${plan.price}${t("sections.plans.priceLabels.perMonth")}`
+        ? null
         : plan.paid
           ? t("sections.plans.priceLabels.paid")
           : t("sections.plans.priceLabels.free")

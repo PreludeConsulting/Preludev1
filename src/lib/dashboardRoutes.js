@@ -5,9 +5,11 @@ import { appPath } from "./appPaths.js";
 export const STUDENT_DASHBOARD_BASE = "/dashboard/student";
 export const MENTOR_DASHBOARD_BASE = "/dashboard/mentor";
 export const PARENT_DASHBOARD_BASE = "/dashboard/parent";
+export const ADMIN_DASHBOARD_BASE = "/dashboard/admin";
 
 export function dashboardHomeForRole(role) {
   const r = (role || "").toLowerCase();
+  if (r === "admin") return `${ADMIN_DASHBOARD_BASE}/matching`;
   if (r === "mentor") return `${MENTOR_DASHBOARD_BASE}/overview`;
   if (r === "parent") return `${PARENT_DASHBOARD_BASE}/overview`;
   return `${STUDENT_DASHBOARD_BASE}/overview`;
@@ -29,6 +31,7 @@ export function dashboardRoleLabel(role) {
 }
 
 export function canAccessDashboardRole(user, requiredRole) {
+  if (requiredRole === "admin") return Boolean(user?.matchingTeamAccess || user?.systemRole === "admin" || roleFromUser(user) === "admin");
   return roleFromUser(user) === requiredRole;
 }
 

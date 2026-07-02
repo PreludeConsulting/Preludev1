@@ -24,20 +24,20 @@ export default function PricingCard({
             <span className="pricing-card__badge">{mostPopularLabel}</span>
           ) : null}
         </div>
-        <div className="pricing-card__title-block">
-          <h3 className="pricing-card__name shopify-hero__headline">{plan.name}</h3>
-          <p className="pricing-card__price">{plan.priceLabel}</p>
-        </div>
+        <h3 className="pricing-card__name shopify-hero__headline">{plan.name}</h3>
       </header>
+
       <p className="pricing-card__desc">{plan.description}</p>
-      <ul className="pricing-card__features">
-        {plan.features.slice(0, 6).map((feature) => (
-          <li key={feature}>
-            <CheckCircle className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            <span>{feature}</span>
-          </li>
-        ))}
-      </ul>
+
+      {plan.priceAmount ? (
+        <p className="pricing-card__price" aria-label={`${plan.priceAmount}${plan.pricePeriod || ""}`}>
+          <span className="pricing-card__price-amount">{plan.priceAmount}</span>
+          {plan.pricePeriod ? <span className="pricing-card__price-period">{plan.pricePeriod}</span> : null}
+        </p>
+      ) : plan.priceLabel ? (
+        <p className="pricing-card__price pricing-card__price--fallback">{plan.priceLabel}</p>
+      ) : null}
+
       <Button
         as="button"
         type="button"
@@ -48,6 +48,20 @@ export default function PricingCard({
       >
         {ctaLabel}
       </Button>
+
+      <div className="pricing-card__features-wrap">
+        {plan.featureHeader ? (
+          <p className="pricing-card__feature-header">{plan.featureHeader}</p>
+        ) : null}
+        <ul className="pricing-card__features">
+          {plan.features.map((feature) => (
+            <li key={feature}>
+              <CheckCircle className="pricing-card__feature-icon" aria-hidden="true" />
+              <span>{feature}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </article>
   );
 }

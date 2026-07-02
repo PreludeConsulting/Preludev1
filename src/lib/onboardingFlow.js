@@ -17,7 +17,8 @@ import {
   userNeedsMentorOnboarding,
   userNeedsParentInviteStep,
   userNeedsPlanSelection,
-  userNeedsRoleSelection
+  userNeedsRoleSelection,
+  userCanChangeRoleDuringOnboarding
 } from "./onboardingRoutes.js";
 
 const DRAFT_STORAGE_PREFIX = "prelude_onboarding_draft_";
@@ -173,6 +174,9 @@ export function getFirstIncompleteStepIndex(user) {
 
 export function canAccessOnboardingPath(user, pathname, searchParams) {
   if (!user) return false;
+  if (pathname === ROLE_SELECTION_PATH && userCanChangeRoleDuringOnboarding(user)) {
+    return true;
+  }
   if (canAccessDashboard(user)) {
     return false;
   }

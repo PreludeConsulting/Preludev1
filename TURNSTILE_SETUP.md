@@ -1,6 +1,6 @@
 # Cloudflare Turnstile for Supabase Auth
 
-Prelude sends Turnstile tokens with Supabase email/password login, signup, password-reset requests, and the password reauthentication used for account deletion. Google OAuth and password recovery completion do not accept CAPTCHA tokens in the Supabase client API.
+Prelude sends Turnstile tokens with Supabase email/password login, signup, password-reset requests, and the password reauthentication used for account deletion. Password reset requests are sent through Prelude's Resend-backed API (`POST /api/auth/request-password-reset`) in production; local development falls back to Supabase's built-in recover email when server credentials are absent. Google OAuth and password recovery completion do not accept CAPTCHA tokens in the Supabase client API.
 
 ## Cloudflare
 

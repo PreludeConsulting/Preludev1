@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { UserCheck } from "lucide-react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { dashboardHomeForRole, MENTOR_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
@@ -11,6 +13,7 @@ import StudentGamificationShell from "./components/StudentGamificationShell.jsx"
 import {
   StudentAI,
   StudentCalendar,
+  StudentColleges,
   StudentMentor,
   StudentMessages,
   StudentOverview,
@@ -32,7 +35,6 @@ import { PRODUCT_PARENT_NAV } from "./config/parentNav.js";
 import { PARENT_ROUTE_META } from "./config/parentRouteMeta.js";
 import { PARENT_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
 import {
-  MentorBilling,
   MentorHelp,
   MentorNotifications,
   ParentBilling,
@@ -44,6 +46,9 @@ import {
   StudentResources
 } from "./pages/shared/FeaturePages.jsx";
 import { PreludeMatchBrowsePage } from "./pages/shared/PreludeMatchPages.jsx";
+import MatchingTeamPage from "./pages/admin/AdminPages.jsx";
+import { ADMIN_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
+import { checkMatchingTeamAccess } from "../lib/mentorSelectionApi.js";
 
 function DashboardRedirect() {
   const { user, ready } = useAuth();
@@ -56,6 +61,38 @@ function LegacyStudentRedirect({ to }) {
   return <Navigate to={to} replace />;
 }
 
+function MatchingTeamGuard({ children }) {
+  const [state, setState] = useState({ loading: true, allowed: false });
+
+  useEffect(() => {
+    let cancelled = false;
+    async function checkAccess() {
+      try {
+        await checkMatchingTeamAccess();
+        if (!cancelled) setState({ loading: false, allowed: true });
+      } catch {
+        if (!cancelled) setState({ loading: false, allowed: false });
+      }
+    }
+    checkAccess();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (state.loading) return <div className="dash-loading">Checking Matching Team access...</div>;
+  if (!state.allowed) {
+    return (
+      <div className="dash-page dash-page--premium">
+        <div className="dash-callout dash-callout--error" role="alert">
+          <p>403 Forbidden. Matching Team access is required.</p>
+        </div>
+      </div>
+    );
+  }
+  return children;
+}
+
 function StudentRoutes() {
   const { user } = useAuth();
   return (
@@ -65,6 +102,7 @@ function StudentRoutes() {
           <Route element={<DashboardLayout productNav={PRODUCT_STUDENT_NAV} basePath={STUDENT_DASHBOARD_BASE} routeMeta={STUDENT_ROUTE_META} />}>
             <Route path="overview" element={<StudentOverview />} />
             <Route path="calendar" element={<StudentCalendar />} />
+            <Route path="colleges" element={<StudentColleges />} />
             <Route path="ai" element={<StudentAI />} />
             <Route path="workspace" element={<StudentWorkspace />} />
             <Route path="mentor" element={<StudentMentor />} />
@@ -77,6 +115,7 @@ function StudentRoutes() {
             <Route path="settings" element={<StudentSettingsPage />} />
             <Route path="profile-stats" element={<StudentProfileStats />} />
             <Route path="progress-rewards" element={<StudentProgressRewards />} />
+            <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
             <Route path="profile" element={<LegacyStudentRedirect to="settings" />} />
             <Route path="mentor-matching" element={<LegacyStudentRedirect to="prelude-match" />} />
             <Route index element={<Navigate to="overview" replace />} />
@@ -102,8 +141,9 @@ function MentorRoutes() {
           <Route path="availability" element={<MentorAvailability />} />
           <Route path="settings" element={<MentorSettingsPage />} />
           <Route path="profile" element={<Navigate to="settings" replace />} />
-          <Route path="billing" element={<MentorBilling />} />
+          <Route path="billing" element={<Navigate to="settings" replace />} />
           <Route path="help" element={<MentorHelp />} />
+          <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
           <Route index element={<Navigate to="overview" replace />} />
         </Route>
       </Routes>
@@ -125,7 +165,23 @@ function ParentRoutes() {
           <Route path="profile" element={<Navigate to="settings" replace />} />
           <Route path="billing" element={<ParentBilling />} />
           <Route path="help" element={<ParentHelp />} />
+          <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
           <Route index element={<Navigate to="overview" replace />} />
+        </Route>
+      </Routes>
+    </DashboardDataProvider>
+  );
+}
+
+function AdminRoutes() {
+  const { user } = useAuth();
+  return (
+    <DashboardDataProvider user={user}>
+      <Routes>
+        <Route element={<DashboardLayout productNav={[{ to: "/matching", label: "Matching", icon: UserCheck }]} basePath={ADMIN_DASHBOARD_BASE} routeMeta={{}} />}>
+          <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
+          <Route path="mentor-review" element={<Navigate to="../matching" replace />} />
+          <Route index element={<Navigate to="matching" replace />} />
         </Route>
       </Routes>
     </DashboardDataProvider>
@@ -161,6 +217,14 @@ export default function DashboardRouter() {
         element={
           <RoleGuard role="parent">
             <ParentRoutes />
+          </RoleGuard>
+        }
+      />
+      <Route
+        path="admin/*"
+        element={
+          <RoleGuard role="admin">
+            <AdminRoutes />
           </RoleGuard>
         }
       />

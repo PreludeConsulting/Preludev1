@@ -17,6 +17,8 @@ import PiggyBankProgress from "./rewards/PiggyBankProgress.jsx";
 import MyStatusProgressBar from "./rewards/MyStatusProgressBar.jsx";
 import { ProgressBar, RedeemTab } from "./rewards/RedeemTab.jsx";
 import { RewardsSidebarBottom, RewardsSidebarTop } from "./rewards/RewardsSidebar.jsx";
+import PlanLockedFeature from "./PlanLockedFeature.jsx";
+import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 
 const TABS = [
   { id: "redeem", label: "Redeem", icon: Gift },
@@ -227,6 +229,7 @@ function EarnTab() {
 
 export default function StudentProgressRewardsProduct() {
   const [activeTab, setActiveTab] = useState("redeem");
+  const { canAccess } = usePlanAccess();
 
   useEffect(() => {
     const syncTab = () => {
@@ -249,6 +252,15 @@ export default function StudentProgressRewardsProduct() {
           {activeTab === "status" ? <StatusTab /> : null}
           {activeTab === "my-rewards" ? <MyRewardsTab /> : null}
           {activeTab === "earn" ? <EarnTab /> : null}
+
+          {!canAccess("advancedRewards") ? (
+            <PlanLockedFeature feature="advancedRewards" compact className="dash-rewards-pro-boost" />
+          ) : (
+            <div className="dash-rewards-pro-boost dash-rewards-pro-boost--active" role="status">
+              <Zap className="h-4 w-4" aria-hidden="true" />
+              <p>Pro earning boost active — you earn coins faster on every milestone.</p>
+            </div>
+          )}
         </div>
         <RewardsSidebarBottom />
       </div>

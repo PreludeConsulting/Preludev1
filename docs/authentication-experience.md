@@ -7,8 +7,8 @@ Prelude auth uses one browser Supabase client from `src/lib/supabase.js` and one
 - Email/password login starts in `/login`, restores the Supabase session, then runs six-digit login verification unless the current trusted-device cookie is valid.
 - Google OAuth starts with PKCE and returns to `/auth/callback`. The callback page captures `next`, scrubs raw callback parameters from the URL, exchanges the code once, restores the app user, and then routes through login verification or onboarding.
 - Email verification returns to `/verify-email`. The page captures the token/code first, cleans the URL, verifies the link, refreshes the app user, and routes to the next onboarding step.
-- Password recovery returns to `/reset-password`. The page captures recovery parameters first, cleans the URL, exchanges the recovery session, and only enables password update after Supabase confirms a recovery session.
-- Registration supports Google OAuth and email signup, requires role selection, handles duplicate/unconfirmed accounts, and exposes resend-confirmation with cooldown state.
+- Password recovery returns to `/reset-password`. The page captures recovery parameters first, cleans the URL, exchanges the recovery session, and only enables password update after Supabase confirms a recovery session. Users enter and confirm a new password with live strength and match feedback; the new password must differ from the current one (ephemeral sign-in probe on Supabase, argon2 verify on legacy) and the temporary recovery session is cleared after a successful update. See `docs/password-reset.md` for the full security contract.
+- Registration supports Google OAuth and email signup, requires role selection, handles duplicate/unconfirmed accounts, and exposes resend-confirmation with cooldown state. Signup verification emails are sent through Prelude's Resend pipeline (`POST /api/auth/send-signup-verification`), not Supabase's built-in SMTP alone.
 
 ## UX contract
 

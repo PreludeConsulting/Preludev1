@@ -77,7 +77,7 @@ async function main() {
     email: "nobody@example.com"
   });
   assert.equal(forgotPassword.status, 200);
-  assert.match(forgotPassword.json.message, /If that account exists/i);
+  assert.match(forgotPassword.json.message, /If an account exists with this email/i);
 
   console.log("authApi validation tests passed");
 }

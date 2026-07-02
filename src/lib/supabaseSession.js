@@ -22,7 +22,18 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     oauthAvatarUrl
   }) || null;
   const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
-  const role = (profile?.role || meta.role || "student").toLowerCase();
+  const storedRole = (profile?.role || meta.role || "student").toLowerCase();
+  const metadataRole = (meta.role || "").toLowerCase();
+  const matchingTeamAccess = storedRole === "admin";
+  const role = matchingTeamAccess
+    ? (
+      ["student", "mentor", "parent"].includes(metadataRole)
+        ? metadataRole
+        : mentorQuestionnaire
+          ? "mentor"
+          : "mentor"
+    )
+    : storedRole;
   const cachedPlan = typeof window !== "undefined" ? window.localStorage.getItem(`prelude_plan_${u.id}`) : null;
   const planId = normalizePlanId(profile?.plan_id || cachedPlan);
   const plan = planId ? getPlan(planId) : null;
@@ -49,6 +60,8 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     lastName: rest.join(" ") || "User",
     name: fullName || u.email,
     role,
+    systemRole: storedRole,
+    matchingTeamAccess,
     plan: planId,
     planName: plan?.name || null,
     planSelected: Boolean(planId),

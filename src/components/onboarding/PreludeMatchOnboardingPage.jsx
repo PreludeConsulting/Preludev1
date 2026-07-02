@@ -7,17 +7,16 @@ import { roleFromUser } from "../../lib/dashboardRoutes.js";
 import {
   dashboardPathForRole,
   MATCH_ONBOARDING_PATH,
-  PLAN_SELECTION_PATH,
   PARENT_ONBOARDING_PATH,
-  preludeMatchPathForRole,
+  PLAN_SELECTION_PATH,
+  ROLE_SELECTION_PATH,
+  postAuthDestination,
   userNeedsMatchOnboarding,
+  userNeedsMatchDecision,
+  userNeedsParentInviteStep,
   userNeedsPlanSelection
 } from "../../lib/onboardingRoutes.js";
 import {
-  getMentorById,
-  getSuggestedMentor,
-  pickSuggestedMentor,
-  saveMatchDecision,
   saveMatchQuestionnaire
 } from "../../lib/preludeMatchService.js";
 import {
@@ -32,8 +31,29 @@ import PreludeMatchBoot from "../hero/PreludeMatchBoot.jsx";
 import PreludeMatchIntro from "../hero/PreludeMatchIntro.jsx";
 import PreludeMatchLoading from "../hero/PreludeMatchLoading.jsx";
 import PreludeMatchQuestionFlow from "../hero/PreludeMatchQuestionFlow.jsx";
-import MatchResultPanel from "./MatchResultPanel.jsx";
+import PreludePigAvatar from "../hero/PreludePigAvatar.jsx";
 import EmailVerificationBanner from "../EmailVerificationBanner.jsx";
+
+export function MatchPendingPanel({ loading = false, onContinue }) {
+  return (
+    <div className="pm-match-pending">
+      <PreludePigAvatar size="lg" variant="intro" animate className="pm-match-pending__mascot" />
+      <header className="pm-match-pending__head">
+        <h2 className="pm-results__title">Your mentor match is being processed</h2>
+        <p className="pm-results__sub">
+          Thanks for completing the PreludeMatch questionnaire. Our team is reviewing your goals and preferences so we
+          can find the best mentor for you. You'll receive an email soon with your recommended match.
+        </p>
+      </header>
+      <p className="pm-match-pending__note">We'll reach out as soon as your match is ready.</p>
+      <div className="pm-match-result__actions">
+        <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onContinue}>
+          Continue to parent invite
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function PreludeMatchOnboardingPage() {
   const reducedMotion = useReducedMotion();
@@ -47,7 +67,6 @@ export default function PreludeMatchOnboardingPage() {
   const [currentQuestionId, setCurrentQuestionId] = useState(null);
   const [pigMotion, setPigMotion] = useState("none");
   const [progress, setProgress] = useState(0);
-  const [suggestedMentor, setSuggestedMentor] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -64,17 +83,16 @@ export default function PreludeMatchOnboardingPage() {
 
   const currentQuestion = visibleQuestions[currentIndex] ?? visibleQuestions[0];
 
+  const loadResultState = useCallback(async () => {
+    if (!user) return;
+    setError("");
+    setPhase("result");
+  }, [user]);
+
   useEffect(() => {
-    if (!user?.suggestedMentorId) return;
-    let cancelled = false;
-    getSuggestedMentor(user.suggestedMentorId).then((mentor) => {
-      if (!cancelled && mentor) setSuggestedMentor(mentor);
-    });
-    if (forceResult || user.matchOnboardingComplete) setPhase("result");
-    return () => {
-      cancelled = true;
-    };
-  }, [user, forceResult]);
+    if (!user?.matchOnboardingComplete && !forceResult) return;
+    loadResultState();
+  }, [user, forceResult, loadResultState]);
 
   const bumpPig = useCallback(() => {
     setPigMotion("bounce");
@@ -98,9 +116,17 @@ export default function PreludeMatchOnboardingPage() {
     return <Navigate to={dashboardPathForRole(user.role)} replace />;
   }
 
-  if (!userNeedsMatchOnboarding(user) && !forceResult && user.matchDecision === "accepted") {
-    return <Navigate to={dashboardPathForRole(user.role)} replace />;
+  if (userNeedsMatchDecision(user) && !forceResult && phase === "intro") {
+    return <Navigate to={`${MATCH_ONBOARDING_PATH}?step=result`} replace />;
   }
+
+  const shouldShowProcessingStep = user.matchOnboardingComplete && userNeedsParentInviteStep(user);
+
+  if (!userNeedsMatchOnboarding(user) && !userNeedsMatchDecision(user) && !forceResult && !shouldShowProcessingStep) {
+    return <Navigate to={postAuthDestination(user)} replace />;
+  }
+
+  const renderQuestionnaireFlow = !shouldShowProcessingStep;
 
   function handleStart() {
     setAnswers(user?.questionnaireAnswers || {});
@@ -130,11 +156,8 @@ export default function PreludeMatchOnboardingPage() {
     setError("");
     try {
       if (user.authProvider === "supabase") {
-        const { suggestedMentor: suggested, error: err } = await saveMatchQuestionnaire(user.id, finalAnswers);
+        const { error: err } = await saveMatchQuestionnaire(user.id, finalAnswers);
         if (err) throw new Error(err);
-        setSuggestedMentor(suggested);
-      } else {
-        setSuggestedMentor(pickSuggestedMentor(finalAnswers));
       }
       await refreshUser();
       setProgress(100);
@@ -147,7 +170,7 @@ export default function PreludeMatchOnboardingPage() {
     }
   }
 
-  function handleContinue() {
+  function handleContinueQuestion() {
     const visible = getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, answers);
     const idx = getQuestionIndex(visible, currentQuestionId);
     if (idx >= visible.length - 1) {
@@ -169,67 +192,25 @@ export default function PreludeMatchOnboardingPage() {
     setProgress(computeQuestionProgress(idx - 1, visible.length));
   }
 
-  async function handleAccept() {
-    const mentor = suggestedMentor || (await getSuggestedMentor(user.suggestedMentorId));
-    if (!mentor) return;
-    setSaving(true);
-    try {
-      if (user.authProvider === "supabase") {
-        const { error: err } = await saveMatchDecision(user.id, { decision: "accepted", mentorId: mentor.id });
-        if (err) throw new Error(err);
-      }
-      await refreshUser();
-      navigate(PARENT_ONBOARDING_PATH, { replace: true });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDecline() {
-    const mentor = suggestedMentor || (await getSuggestedMentor(user.suggestedMentorId));
-    setSaving(true);
-    setError("");
-    try {
-      if (user.authProvider === "supabase" && mentor) {
-        const { error: err } = await saveMatchDecision(user.id, {
-          decision: "declined",
-          mentorId: mentor.id,
-          declinedIds: [mentor.id]
-        });
-        if (err) throw new Error(err);
-      }
-      await refreshUser();
-      navigate(preludeMatchPathForRole(user.role), { replace: true });
-    } catch (err) {
-      setError(err.message || "Could not decline this recommendation.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleCompare() {
-    navigate(preludeMatchPathForRole(user.role));
-  }
-
   const isLastQuestion =
     currentQuestion &&
     getQuestionIndex(visibleQuestions, currentQuestion.id) === visibleQuestions.length - 1;
 
-  const displayMentor = suggestedMentor || getMentorById(user.suggestedMentorId);
-  const showVerifyBanner = !user.emailVerified && phase === "result";
+  const showVerifyBanner = !user.emailVerified && (phase === "result" || shouldShowProcessingStep);
+  const showResultPanel = phase === "result" || shouldShowProcessingStep;
 
   return (
     <main className={`pm-onboarding-page${showVerifyBanner ? " pm-onboarding-page--verify-banner" : ""}`}>
       <div className="pm-onboarding-page__inner">
-        <AppLink href="/" className="pm-onboarding-page__back">← Back to Prelude</AppLink>
-        <AppLink href={PLAN_SELECTION_PATH} className="onboarding-flow__home-link">← Back to plan selection</AppLink>
+        <nav className="pm-onboarding-page__nav" aria-label="Onboarding navigation">
+          <AppLink href={ROLE_SELECTION_PATH} className="pm-onboarding-page__back">← Back to role selection</AppLink>
+          <AppLink href={PLAN_SELECTION_PATH} className="pm-onboarding-page__back">← Back to plan selection</AppLink>
+        </nav>
         <header className="pm-onboarding-page__head">
           <p className="plan-select-page__eyebrow">Step 2 of 2</p>
           <h1 className="pm-onboarding-page__title">Prelude Match</h1>
           <p className="pm-onboarding-page__sub">
-            Tell us about your goals — we will recommend a mentor tailored to your preferences.
+            Tell us about your goals. Our team will review your answers and follow up with your mentor match.
           </p>
         </header>
 
@@ -244,19 +225,19 @@ export default function PreludeMatchOnboardingPage() {
           <div className="pm-card-wrap__glow" aria-hidden="true" />
           <div className="pm-card pm-card--stable">
             <AnimatePresence mode="wait">
-              {phase === "intro" ? (
+              {renderQuestionnaireFlow && phase === "intro" ? (
                 <motion.div key="intro" className="pm-card__panel" exit={{ opacity: 0 }}>
                   <PreludeMatchIntro onStart={handleStart} reducedMotion={reducedMotion} />
                 </motion.div>
               ) : null}
 
-              {phase === "boot" ? (
+              {renderQuestionnaireFlow && phase === "boot" ? (
                 <motion.div key="boot" className="pm-card__panel">
                   <PreludeMatchBoot reducedMotion={reducedMotion} onComplete={handleBootComplete} />
                 </motion.div>
               ) : null}
 
-              {phase === "questions" && currentQuestion ? (
+              {renderQuestionnaireFlow && phase === "questions" && currentQuestion ? (
                 <motion.div key="questions" className="pm-card__panel" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <PreludeMatchQuestionFlow
                     question={currentQuestion}
@@ -264,8 +245,8 @@ export default function PreludeMatchOnboardingPage() {
                     progress={progress}
                     onAnswer={handleAnswer}
                     onBack={handleBack}
-                    onContinue={handleContinue}
-                    onSkip={handleContinue}
+                    onContinue={handleContinueQuestion}
+                    onSkip={handleContinueQuestion}
                     pigMotion={pigMotion}
                     reducedMotion={reducedMotion}
                     canGoBack={currentIndex > 0}
@@ -274,7 +255,7 @@ export default function PreludeMatchOnboardingPage() {
                 </motion.div>
               ) : null}
 
-              {phase === "loading" ? (
+              {renderQuestionnaireFlow && phase === "loading" ? (
                 <motion.div key="loading" className="pm-card__panel">
                   <PreludeMatchLoading
                     reducedMotion={reducedMotion}
@@ -286,24 +267,12 @@ export default function PreludeMatchOnboardingPage() {
                 </motion.div>
               ) : null}
 
-              {phase === "result" && displayMentor ? (
+              {showResultPanel ? (
                 <motion.div key="result" className="pm-card__panel pm-card__panel--results">
-                  <MatchResultPanel
-                    mentor={displayMentor}
+                  <MatchPendingPanel
                     loading={saving}
-                    onAccept={handleAccept}
-                    onCompare={handleCompare}
-                    onDecline={handleDecline}
+                    onContinue={() => navigate(PARENT_ONBOARDING_PATH, { replace: true })}
                   />
-                </motion.div>
-              ) : null}
-
-              {phase === "result" && !displayMentor ? (
-                <motion.div key="result-empty" className="pm-card__panel">
-                  <p className="pm-intro__body">We could not load your mentor match yet.</p>
-                  <button type="button" className="pm-btn pm-btn--primary pm-btn--lg" onClick={handleStart}>
-                    Start Prelude Match
-                  </button>
                 </motion.div>
               ) : null}
             </AnimatePresence>

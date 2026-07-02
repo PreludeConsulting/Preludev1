@@ -5,6 +5,10 @@ import { randomBytes, createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import {
+  LEGACY_RESET_TOKEN_MINUTES,
+  PASSWORD_RESET_GENERIC_MESSAGE
+} from "../shared/passwordResetConstants.js";
+import {
   buildAuthUrl,
   deliverAuthEmail,
   deliverAccountDeletedEmail,
@@ -24,7 +28,7 @@ const CSRF_COOKIE = "prelude_csrf";
 const ACCESS_TTL_SECONDS = 15 * 60;
 const REFRESH_TTL_DAYS = 30;
 const EMAIL_VERIFY_HOURS = 24;
-const RESET_MINUTES = 30;
+const RESET_MINUTES = LEGACY_RESET_TOKEN_MINUTES;
 const LOCK_THRESHOLD = 5;
 const LOCK_MINUTES = 15;
 
@@ -555,12 +559,26 @@ async function handleRequestReset(req, res) {
   const user = await db().user.findUnique({ where: { email: normalizeEmail(payload.email) } });
   if (user) {
     const token = randomToken(32);
-    await db().passwordResetToken.create({ data: { userId: user.id, tokenHash: sha256(token), expiresAt: plusMs(RESET_MINUTES * 60 * 1000), requestIp: getClientIp(req), userAgent: req.headers["user-agent"] || null } });
+    await db().$transaction([
+      db().passwordResetToken.updateMany({
+        where: { userId: user.id, status: "ACTIVE" },
+        data: { status: "USED", usedAt: new Date() }
+      }),
+      db().passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: sha256(token),
+          expiresAt: plusMs(RESET_MINUTES * 60 * 1000),
+          requestIp: getClientIp(req),
+          userAgent: req.headers["user-agent"] || null
+        }
+      })
+    ]);
     await securityEvent({ userId: user.id, eventType: "PASSWORD_RESET_REQUESTED", severity: "INFO", req });
     const resetUrl = buildAuthUrl(req, `/reset-password?token=${token}`);
     await deliverAuthEmail({ kind: "password-reset", to: user.email, url: resetUrl, req });
   }
-  sendJson(res, 200, { message: "If an account exists for this email, a reset link has been sent." });
+  sendJson(res, 200, { message: PASSWORD_RESET_GENERIC_MESSAGE });
 }
 
 async function handleResetPassword(req, res) {

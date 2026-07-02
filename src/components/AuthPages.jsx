@@ -1,7 +1,7 @@
 import { CheckCircle2, Loader2, LockKeyhole, Mail, RefreshCw, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { getDashboardData, getProfile, getSessions, requestPasswordReset, resetPassword, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
+import { getDashboardData, getProfile, getSessions, requestPasswordReset, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
 import { postAuthDestination } from "../lib/onboardingRoutes.js";
 import { signInWithGoogle } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
@@ -24,12 +24,14 @@ import {
   PasswordRequirements
 } from "./auth/AuthForm.jsx";
 import { friendlyAuthError, isValidEmail } from "./auth/authErrors.js";
+import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConstants.js";
 import { isTurnstileRequired } from "../lib/turnstile.js";
 import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
 import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerification.js";
+export { default as ResetPasswordPage } from "./auth/ResetPasswordPage.jsx";
 
 const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
-const RESEND_COOLDOWN_SECONDS = 60;
+const RESEND_COOLDOWN_SECONDS = 30;
 
 function validateSignupPassword(password, supabaseAuth) {
   if (supabaseAuth) {
@@ -339,7 +341,7 @@ export function RegisterPage() {
         setConfirmationEmail(form.email.trim());
         setMessage(
           result?.message ||
-            "Account created. We sent a confirmation link to your email. Please verify your address before logging in."
+            "We sent a confirmation link to your email. Please verify your address before logging in."
         );
         return;
       }
@@ -526,7 +528,7 @@ export function ForgotPasswordPage() {
         const { resetPassword: supabaseReset } = await import("../lib/supabaseAuth.js");
         const { error: resetError } = await supabaseReset(email.trim(), captchaToken);
         if (resetError) throw new Error(resetError);
-        setMessage("If an account exists for this email, a reset link has been sent.");
+        setMessage(PASSWORD_RESET_GENERIC_MESSAGE);
         return;
       }
       const result = await requestPasswordReset(email);
@@ -572,152 +574,6 @@ export function ForgotPasswordPage() {
           {loading ? "Sending link…" : "Send reset link"}
         </AuthSubmitButton>
       </form>
-    </AuthLayout>
-  );
-}
-
-export function ResetPasswordPage() {
-  const navigate = useNavigate();
-  const supabaseAuth = isSupabaseConfigured();
-  const params = new URLSearchParams(window.location.search);
-  const [token] = useState(params.get("token") || "");
-  const recoveryUrl = useMemo(() => ({ search: window.location.search, hash: window.location.hash }), []);
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [formError, setFormError] = useState("");
-  const [fieldErrors, setFieldErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [hasRecoverySession, setHasRecoverySession] = useState(false);
-  const [checkingRecovery, setCheckingRecovery] = useState(supabaseAuth);
-  const passwordRef = useRef(null);
-
-  useEffect(() => {
-    if (!supabaseAuth) return undefined;
-    let active = true;
-    let unsubscribe = () => {};
-    if (recoveryUrl.search || recoveryUrl.hash) {
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-    import("../lib/supabaseAuth.js").then(({ initializePasswordRecovery, onAuthStateChange }) => {
-      initializePasswordRecovery(recoveryUrl.search, recoveryUrl.hash).then(({ hasRecoverySession: recovered, error: recoveryError }) => {
-        if (!active) return;
-        setHasRecoverySession(Boolean(recovered));
-        if (recoveryError) setFormError(friendlyAuthError(recoveryError, "signin"));
-        setCheckingRecovery(false);
-      });
-      const { data } = onAuthStateChange((event, session) => {
-        if (active && event === "PASSWORD_RECOVERY") setHasRecoverySession(Boolean(session));
-      });
-      unsubscribe = () => data.subscription.unsubscribe();
-    });
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [recoveryUrl.hash, recoveryUrl.search, supabaseAuth]);
-
-  async function onSubmit(event) {
-    event.preventDefault();
-    const nextErrors = {};
-    const passwordError = validateSignupPassword(password, supabaseAuth);
-    if (passwordError) nextErrors.password = passwordError;
-    if (!confirmPassword) nextErrors.confirmPassword = "Confirm your new password.";
-    else if (password !== confirmPassword) nextErrors.confirmPassword = "Passwords don't match.";
-    setFieldErrors(nextErrors);
-    if (nextErrors.password) {
-      focusField(passwordRef);
-      return;
-    }
-    setFormError("");
-    setMessage("");
-    setLoading(true);
-    try {
-      if (supabaseAuth) {
-        const { updatePassword: supabaseUpdate } = await import("../lib/supabaseAuth.js");
-        const { error: updateError } = await supabaseUpdate(password);
-        if (updateError) throw new Error(updateError);
-        setMessage("Your password has been updated. You can log in with your new password.");
-        setTimeout(() => navigate("/login?reset=success", { replace: true }), 1200);
-        return;
-      }
-      if (!token) throw new Error("This reset link is missing a token. Request a new link from the forgot password page.");
-      const result = await resetPassword(token, password);
-      setMessage(result.message || "Password reset. Please log in again.");
-    } catch (err) {
-      setFormError(friendlyAuthError(err.message, "signin"));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const canSubmit = supabaseAuth ? hasRecoverySession || message : Boolean(token);
-
-  return (
-    <AuthLayout
-      title="Choose a new password"
-      subtitle={supabaseAuth ? "Use the secure link from your email to set a new password." : "All existing sessions are revoked after reset."}
-      headerLink={{ prefix: "Back to", label: "Log in", href: "/login" }}
-    >
-      {checkingRecovery ? (
-        <div className="auth-inline-loading">
-          <Loader2 className="auth-loading-spinner" aria-hidden="true" />
-          <span>Checking your reset link…</span>
-        </div>
-      ) : null}
-      {!checkingRecovery && supabaseAuth && !hasRecoverySession && !message ? (
-        <AuthBanner tone="info" reserve>
-          Open this page from the reset link in your email, or request a new link on the{" "}
-          <AuthInlineLink href="/forgot-password">forgot password</AuthInlineLink> page.
-        </AuthBanner>
-      ) : null}
-      {!supabaseAuth && !token && !message ? (
-        <AuthBanner tone="error" reserve>
-          This reset link is invalid or incomplete. Request a new link on the{" "}
-          <AuthInlineLink href="/forgot-password">forgot password</AuthInlineLink> page.
-        </AuthBanner>
-      ) : null}
-      <AuthBanner tone="success" reserve={Boolean(message)}>
-        {message || null}
-      </AuthBanner>
-      <AuthBanner tone="error" reserve={Boolean(formError)}>
-        {formError || null}
-      </AuthBanner>
-      {canSubmit ? (
-        <form className="auth-form" onSubmit={onSubmit} noValidate>
-          <AuthPasswordField
-            ref={passwordRef}
-            label="New password"
-            name="new-password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(event) => {
-              setPassword(event.target.value);
-              if (fieldErrors.password) setFieldErrors((current) => ({ ...current, password: "" }));
-            }}
-            error={fieldErrors.password}
-            required
-            minLength={supabaseAuth ? 6 : 12}
-          />
-          <AuthPasswordField
-            label="Confirm new password"
-            name="confirm-new-password"
-            autoComplete="new-password"
-            value={confirmPassword}
-            onChange={(event) => {
-              setConfirmPassword(event.target.value);
-              if (fieldErrors.confirmPassword) setFieldErrors((current) => ({ ...current, confirmPassword: "" }));
-            }}
-            error={fieldErrors.confirmPassword}
-            required
-            minLength={supabaseAuth ? 6 : 12}
-          />
-          {!supabaseAuth ? <PasswordRequirements password={password} supabaseAuth={false} /> : null}
-          <AuthSubmitButton disabled={loading || checkingRecovery || Boolean(message)} loading={loading}>
-            {loading ? "Updating password…" : "Update password"}
-          </AuthSubmitButton>
-        </form>
-      ) : null}
     </AuthLayout>
   );
 }
@@ -914,7 +770,7 @@ export function VerifyLoginPage() {
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [challengeId, setChallengeId] = useState(searchParams.get("challenge") || "");
   const [trustDevice, setTrustDevice] = useState(true);
-  const [cooldown, setCooldown] = useState(60);
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
   const [status, setStatus] = useState("waiting");
   const [message, setMessage] = useState("We sent a six-digit code to your email.");
   const [error, setError] = useState("");
@@ -984,7 +840,7 @@ export function VerifyLoginPage() {
       setChallengeId(result.challengeId || "");
       setDigits(["", "", "", "", "", ""]);
       setSubmittedCode("");
-      setCooldown(Number(result.retryAfter || 60));
+      setCooldown(Number(result.retryAfter || RESEND_COOLDOWN_SECONDS));
       setMessage(result.emailSent ? "A new verification code was sent." : "Prelude could not confirm email delivery. Please try again.");
       setStatus("waiting");
       window.requestAnimationFrame(() => inputRefs.current[0]?.focus());

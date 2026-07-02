@@ -35,10 +35,16 @@ browser automation is explicitly enabled, and it was not.) Do the steps below.
 
 8. Paste and run [`supabase/migrations/20260616000000_onboarding_progress.sql`](./supabase/migrations/20260616000000_onboarding_progress.sql) — creates `onboarding_progress`, backfills existing users, and reloads the API schema cache.
 
+**If PreludeMatch returns no mentors** for students even though mentor profiles exist, run:
+
+9. Paste and run [`supabase/migrations/20260702000000_mentor_matching_student_visibility.sql`](./supabase/migrations/20260702000000_mentor_matching_student_visibility.sql) — lets authenticated students read mentor matching profiles once `display_name`, `college`, and `major` are set (even before the mentor questionnaire is marked `completed`). See [`docs/mentor-selection-flow.md`](./docs/mentor-selection-flow.md).
+
+**If forgot-password does not send an email** in production, confirm Cloudflare Pages has `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, and `AUTH_EMAIL_FROM` set. Prelude sends reset links through Resend via `POST /api/auth/request-password-reset` (see [`docs/supabase-production-auth.md`](./docs/supabase-production-auth.md)).
+
 If login reaches `/verify-login` and then fails with `login_verification_storage_missing`, run the login-verification migration from step 7 in the Supabase project connected to production.
 
-9. Verify tables exist: **Table Editor → onboarding_progress**, **profiles**, **login_verification_challenges**, **trusted_devices**, and **login_assurances**.
-10. Verify **Row Level Security is enabled** (the `profiles` table shows an
+10. Verify tables exist: **Table Editor → onboarding_progress**, **profiles**, **login_verification_challenges**, **trusted_devices**, and **login_assurances**.
+11. Verify **Row Level Security is enabled** (the `profiles` table shows an
    "RLS enabled" badge). You can also run:
    ```sql
    select relrowsecurity from pg_class where oid = 'public.profiles'::regclass; -- true

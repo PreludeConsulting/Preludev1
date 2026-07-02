@@ -2,11 +2,23 @@ import { Link } from "react-router-dom";
 import { Flag, Gift } from "lucide-react";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { useProgressRewards } from "../../context/ProgressRewardsContext.jsx";
+import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 import { CoinBalance } from "./rewards/PreludePiggyBank.jsx";
 import { GLASS_PIGGY_IMAGE } from "./rewards/PiggyBankProgress.jsx";
+import PlanLockedFeature from "./PlanLockedFeature.jsx";
 
 export default function PreludeRewardsCard() {
+  const { canAccess } = usePlanAccess();
   const { coins, featuredReward, coinsToNext, statusGoalCoins, nextTier, coinsToNextMultiplier } = useProgressRewards();
+
+  if (!canAccess("rewards")) {
+    return (
+      <article className="dash-product-card dash-product-card--wide dash-product-card--rewards dash-prelude-rewards-preview">
+        <PlanLockedFeature feature="rewards" compact />
+      </article>
+    );
+  }
+
   const goalCoins = statusGoalCoins || featuredReward?.coins || 300;
   const progressPct = goalCoins > 0 ? Math.min(100, Math.round((coins / goalCoins) * 100)) : 100;
   const coinsAway = nextTier ? coinsToNextMultiplier : coinsToNext;

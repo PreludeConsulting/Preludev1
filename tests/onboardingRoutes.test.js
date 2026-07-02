@@ -6,6 +6,7 @@ import {
   ROLE_SELECTION_PATH,
   canAccessDashboard,
   postAuthDestination,
+  userNeedsMatchDecision,
   userNeedsRoleSelection,
   userNeedsMentorOnboarding,
   userNeedsPlanSelection
@@ -86,5 +87,18 @@ describe("onboarding route decisions", () => {
 
     expect(canAccessDashboard(user)).toBe(false);
     expect(postAuthDestination(user)).toBe("/onboarding/match");
+  });
+
+  it("allows dashboard access after PreludeMatch while match is pending review", () => {
+    const user = supabaseUser({
+      role: "student",
+      planSelected: true,
+      matchOnboardingComplete: true,
+      mentorSelectionComplete: false
+    });
+
+    expect(userNeedsMatchDecision(user)).toBe(false);
+    expect(postAuthDestination(user)).toBe("/dashboard/student/overview");
+    expect(canAccessDashboard(user)).toBe(true);
   });
 });

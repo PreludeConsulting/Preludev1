@@ -1,18 +1,23 @@
-import { Bell, ChevronDown, CircleHelp, CreditCard, LayoutDashboard, LogOut, Settings } from "lucide-react";
+import { Bell, ChevronDown, CircleHelp, CreditCard, LayoutDashboard, Lock, LogOut, Settings } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import PreludeLogo from "../../../components/PreludeLogo.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { roleFromUser } from "../../../lib/dashboardRoutes.js";
 import { cn } from "../../../lib/utils.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { usePreludeChatContextOptional } from "../../context/PreludeChatContext.jsx";
 import UnreadCountBadge, { useUnreadBadgeDismiss } from "../chat/UnreadCountBadge.jsx";
 import { Avatar } from "../ui/index.jsx";
+import { usePlanAccess } from "../../hooks/usePlanAccess.js";
+import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
 
 export default function DashboardProductNav({ navItems, basePath }) {
   const { user, signOut, planDetails } = useAuth();
   const { notifications, markNotificationsRead, profile } = useDashboardData();
   const chat = usePreludeChatContextOptional();
+  const { canAccess } = usePlanAccess();
+  const { openUpgrade } = usePlanUpgrade();
   const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -20,6 +25,8 @@ export default function DashboardProductNav({ navItems, basePath }) {
   const profileRef = useRef(null);
   const profileTriggerRef = useRef(null);
   const tabsRef = useRef(null);
+  const role = roleFromUser(user);
+  const isMentor = role === "mentor";
   const planName = planDetails?.name || user?.planName || "Basic";
   const firstName = (user?.firstName || user?.name || "Account").trim().split(/\s+/)[0] || "Account";
   const unreadCount = useMemo(
@@ -114,41 +121,78 @@ export default function DashboardProductNav({ navItems, basePath }) {
     });
   }
 
+  function renderTabContent({ Icon, label, locked, hintLocked, messageBadge }) {
+    return (
+      <>
+        {Icon ? <Icon className="dash-product-nav__tab-icon" aria-hidden="true" /> : null}
+        <span className="dash-product-nav__tab-label">{label}</span>
+        {locked || hintLocked ? (
+          <Lock
+            className={cn("dash-product-nav__lock-icon", hintLocked && !locked && "dash-product-nav__lock-icon--hint")}
+            aria-hidden="true"
+          />
+        ) : null}
+        {messageBadge}
+      </>
+    );
+  }
+
   return (
-    <header className="dash-product-nav">
+    <header className={cn("dash-product-nav", isMentor && "dash-product-nav--mentor")}>
       <Link to="/" className="dash-product-nav__logo">
         <PreludeLogo className="prelude-logo--compact" />
       </Link>
 
-      <nav className="dash-product-nav__tabs" aria-label="Dashboard sections" ref={tabsRef}>
-        {navItems.map(({ to, label, icon: Icon, end, workspaceTab }) => (
-          <NavLink
-            key={`${to}-${workspaceTab || label}`}
-            to={`${basePath}${to}`}
-            end={end}
-            state={workspaceTab ? { workspaceTab } : undefined}
-            onClick={() => {
-              if (to === "/messages" && messageUnreadCount > 0) {
-                dismissMessageBadge();
-              }
-            }}
-            className={() =>
-              cn("dash-product-nav__tab", isTabActive({ to, end, workspaceTab }) && "dash-product-nav__tab--active")
-            }
-          >
-            {Icon ? <Icon className="h-4 w-4" aria-hidden="true" /> : null}
-            {label}
-            {to === "/messages" && showMessageBadge ? (
+      <div className="dash-product-nav__nav-wrap">
+        <nav className="dash-product-nav__tabs" aria-label="Dashboard sections" ref={tabsRef}>
+        {navItems.map(({ to, label, icon: Icon, end, workspaceTab, lockFeature, hintLockFeature }) => {
+          const locked = lockFeature && !canAccess(lockFeature);
+          const hintLocked = hintLockFeature && !canAccess(hintLockFeature);
+          const messageBadge =
+            to === "/messages" && showMessageBadge ? (
               <UnreadCountBadge
                 count={messageBadgeCount}
                 dismissing={messageBadgeDismissing}
                 className="dash-unread-badge--nav-tab"
                 aria-label={`${messageBadgeCount} unread messages`}
               />
-            ) : null}
-          </NavLink>
-        ))}
-      </nav>
+            ) : null;
+
+          if (locked) {
+            return (
+              <button
+                key={`${to}-${workspaceTab || label}`}
+                type="button"
+                className="dash-product-nav__tab dash-product-nav__tab--locked"
+                aria-label={`${label} — upgrade to unlock`}
+                onClick={() => openUpgrade(lockFeature)}
+              >
+                {renderTabContent({ Icon, label, locked: true, hintLocked: false, messageBadge: null })}
+              </button>
+            );
+          }
+
+          return (
+            <NavLink
+              key={`${to}-${workspaceTab || label}`}
+              to={`${basePath}${to}`}
+              end={end}
+              state={workspaceTab ? { workspaceTab } : undefined}
+              onClick={() => {
+                if (to === "/messages" && messageUnreadCount > 0) {
+                  dismissMessageBadge();
+                }
+              }}
+              className={() =>
+                cn("dash-product-nav__tab", isTabActive({ to, end, workspaceTab }) && "dash-product-nav__tab--active")
+              }
+            >
+              {renderTabContent({ Icon, label, locked: false, hintLocked, messageBadge })}
+            </NavLink>
+          );
+        })}
+        </nav>
+      </div>
 
       <div className="dash-product-nav__right">
         <div className="dash-product-nav__notifications" ref={notificationsRef}>
@@ -217,7 +261,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
             <div className="dash-product-nav__account-summary">
               <strong>{user?.name || "Account"}</strong>
               <span>{user?.email || "Signed in"}</span>
-              <span>{planName} plan</span>
+              {isMentor ? <span>Mentor account</span> : <span>{planName} plan</span>}
             </div>
             <div className="dash-product-nav__menu-divider" role="separator" />
             <NavLink
@@ -238,15 +282,17 @@ export default function DashboardProductNav({ navItems, basePath }) {
               <Settings className="dash-product-nav__menu-icon" aria-hidden="true" />
               <span>Settings</span>
             </NavLink>
-            <NavLink
-              to={`${basePath}/billing`}
-              className="dash-product-nav__menu-item"
-              role="menuitem"
-              onClick={() => closeProfileMenu({ restoreFocus: false })}
-            >
-              <CreditCard className="dash-product-nav__menu-icon" aria-hidden="true" />
-              <span>Plans and Billing</span>
-            </NavLink>
+            {!isMentor ? (
+              <NavLink
+                to={`${basePath}/billing`}
+                className="dash-product-nav__menu-item"
+                role="menuitem"
+                onClick={() => closeProfileMenu({ restoreFocus: false })}
+              >
+                <CreditCard className="dash-product-nav__menu-icon" aria-hidden="true" />
+                <span>Plans and Billing</span>
+              </NavLink>
+            ) : null}
             <NavLink
               to={`${basePath}/help`}
               className="dash-product-nav__menu-item"

@@ -19,6 +19,15 @@ import {
 } from "./accountDeletionFlow.js";
 import { primaryOAuthProvider } from "./authSignInMethod.js";
 import { isOAuthAvatarUrl } from "./avatar.js";
+import {
+  interpretPasswordSamenessCheck,
+  SAME_PASSWORD_RESET_MESSAGE
+} from "../../shared/passwordSameness.js";
+import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConstants.js";
+import {
+  SIGNUP_VERIFICATION_GENERIC_MESSAGE,
+  SIGNUP_VERIFICATION_SENT_MESSAGE
+} from "../../shared/signupVerificationConstants.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
 const OAUTH_PROVIDERS = ["google"];
@@ -182,6 +191,9 @@ function friendlyPasswordSignInError(error) {
 export function friendlyProviderError(rawError = "") {
   const message = String(rawError || "").toLowerCase();
   if (!message) return "We couldn't finish signing you in. Please try again.";
+  if (message.includes("otp_expired") || message.includes("invalid or has expired") || message.includes("email link is invalid")) {
+    return "This password reset link has expired or was already used. Request a new reset email.";
+  }
   if (message.includes("access_denied") || message.includes("denied") || message.includes("cancel")) {
     return "Google sign-in was canceled.";
   }
@@ -239,6 +251,13 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
   if (error) return { user: null, error: friendlyError(error), rawError: error.message, needsEmailConfirmation: false };
 
   const needsEmailConfirmation = Boolean(data?.user && !data?.session);
+  if (needsEmailConfirmation) {
+    const delivery = await requestSignupVerificationEmail(normalizedEmail, captchaToken);
+    authDebug("signup_verification_email_requested", {
+      email: normalizedEmail,
+      delivered: !delivery.error
+    });
+  }
   let profile = null;
   if (data?.session?.user) {
     const result = await ensureUserProfile(data.session.user, {
@@ -254,8 +273,42 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
     user,
     userId: data?.user?.id || null,
     error: null,
-    needsEmailConfirmation
+    needsEmailConfirmation,
+    verificationEmailSent: needsEmailConfirmation
   };
+}
+
+async function requestSignupVerificationEmail(email, captchaToken) {
+  try {
+    const response = await withAuthTimeout(
+      fetch(appPath("/api/auth/send-signup-verification"), {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          email: normalizeEmail(email),
+          captchaToken: captchaToken || undefined
+        })
+      })
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        error: friendlyError({
+          message: payload.message || "Could not send verification email."
+        })
+      };
+    }
+    return {
+      error: null,
+      message: payload.message || SIGNUP_VERIFICATION_GENERIC_MESSAGE
+    };
+  } catch (error) {
+    return { error: friendlyError(error) };
+  }
 }
 
 export async function signInWithOAuth(provider = "google", options = {}) {
@@ -306,7 +359,8 @@ export async function saveUserRoleSelection(userId, role) {
   if (!safeRole) return { error: "Please choose Student, Mentor, or Parent." };
   if (!userId) return { error: "You must be signed in to choose a role." };
 
-  const { error } = await getSupabase()
+  const supabase = getSupabase();
+  const { error } = await supabase
     .from("profiles")
     .update({
       role: safeRole,
@@ -315,6 +369,11 @@ export async function saveUserRoleSelection(userId, role) {
     .eq("id", userId);
 
   if (error) {
+    if (/change your account role|role selection status/i.test(error.message || "")) {
+      const { error: rpcError } = await supabase.rpc("change_onboarding_role", { requested_role: safeRole });
+      if (!rpcError) return { error: null };
+      return { error: friendlyError(rpcError) };
+    }
     if (/role_selection_complete|column/i.test(error.message || "")) {
       return {
         error: "Role selection is not enabled in Supabase yet. Run the latest setup-dashboard-data.sql or migration."
@@ -325,7 +384,7 @@ export async function saveUserRoleSelection(userId, role) {
 
   const roleProfileTable = safeRole === "mentor" ? "mentor_profiles" : safeRole === "student" ? "student_profiles" : null;
   if (roleProfileTable) {
-    const { error: profileError } = await getSupabase()
+    const { error: profileError } = await supabase
       .from(roleProfileTable)
       .upsert({ user_id: userId }, { onConflict: "user_id" });
     if (profileError && !/relation|schema cache|does not exist/i.test(profileError.message || "")) {
@@ -350,17 +409,94 @@ export async function getCurrentSession() {
   return { session: data.session, error: null };
 }
 
-export async function resetPassword(email, captchaToken) {
-  requireTurnstileToken(captchaToken);
+export async function resetPassword(email, captchaToken, options = {}) {
+  if (!options.skipCaptcha) requireTurnstileToken(captchaToken);
+  const normalizedEmail = normalizeEmail(email);
+  authDebug("password_reset_request_started", { email: normalizedEmail });
+
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json"
+  };
+  const { session } = await getCurrentSession();
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  }
+
+  try {
+    const response = await withAuthTimeout(
+      fetch(appPath("/api/auth/request-password-reset"), {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          email: normalizedEmail,
+          captchaToken: captchaToken || undefined
+        })
+      })
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (response.ok) {
+      return { error: null, message: payload.message || PASSWORD_RESET_GENERIC_MESSAGE };
+    }
+    if (payload.error !== "password_reset_unavailable") {
+      return { error: friendlyError({ message: payload.message || "Could not send password reset email." }) };
+    }
+  } catch (error) {
+    if (!import.meta.env.DEV) {
+      return { error: friendlyError(error) };
+    }
+    authDebug("password_reset_api_unavailable", { message: error?.message || "request_failed" });
+  }
+
+  if (import.meta.env.PROD) {
+    return {
+      error: friendlyError({
+        message: "We couldn't send a password reset email right now. Please try again in a moment."
+      })
+    };
+  }
+
   const redirectTo = fullUrl("/reset-password");
-  authDebug("password_reset_request_started", { email: normalizeEmail(email), redirectTo });
+  authDebug("password_reset_fallback_to_supabase", { email: normalizedEmail, redirectTo });
   const { error } = await withAuthTimeout(
-    getSupabase().auth.resetPasswordForEmail(email, {
+    getSupabase().auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo,
       ...captchaOptions(captchaToken)
     })
   );
   if (error) return { error: friendlyError(error) };
+  return { error: null, message: PASSWORD_RESET_GENERIC_MESSAGE };
+}
+
+/**
+ * During recovery, probe whether the candidate password already works for this account.
+ * Uses an ephemeral client so the recovery session is not disturbed.
+ */
+export async function assertNewPasswordDiffersFromCurrent(email, newPassword) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail || !newPassword) return { error: null };
+
+  const tempClient = createEphemeralSupabaseClient();
+  if (!tempClient) return { error: null };
+
+  const { data, error } = await withAuthTimeout(
+    tempClient.auth.signInWithPassword({ email: normalizedEmail, password: newPassword })
+  );
+
+  const interpretation = interpretPasswordSamenessCheck({
+    hasSession: Boolean(data?.session),
+    errorMessage: error?.message
+  });
+
+  if (data?.session) {
+    await tempClient.auth.signOut();
+  }
+
+  if (interpretation.sameAsCurrent) {
+    return { error: SAME_PASSWORD_RESET_MESSAGE };
+  }
+
   return { error: null };
 }
 
@@ -368,22 +504,16 @@ export async function resendSignupConfirmation(email) {
   if (!isSupabaseConfigured()) {
     throw new Error(getSupabaseConfigError() || "Supabase is not configured for this deployment.");
   }
-  const supabase = getSupabase();
-  if (!supabase) throw new Error("Supabase client unavailable.");
 
   const normalizedEmail = normalizeEmail(email);
-  const emailRedirectTo = fullUrl("/verify-email");
-  authDebug("resend_confirmation_started", { email: normalizedEmail, emailRedirectTo });
-  const { error } = await withAuthTimeout(
-    supabase.auth.resend({
-      type: "signup",
-      email: normalizedEmail,
-      options: { emailRedirectTo }
-    })
-  );
-  authDebug("resend_confirmation_response_received", { email: normalizedEmail, error: error?.message || null });
-  if (error) throw new Error(friendlyError(error));
-  return { message: "Verification email sent. Check your inbox." };
+  authDebug("resend_confirmation_started", { email: normalizedEmail });
+  const result = await requestSignupVerificationEmail(normalizedEmail);
+  authDebug("resend_confirmation_response_received", {
+    email: normalizedEmail,
+    error: result.error || null
+  });
+  if (result.error) throw new Error(result.error);
+  return { message: SIGNUP_VERIFICATION_SENT_MESSAGE };
 }
 
 function createEphemeralSupabaseClient() {
@@ -532,6 +662,18 @@ export async function updatePassword(newPassword) {
   const { data, error } = await withAuthTimeout(getSupabase().auth.updateUser({ password: newPassword }));
   if (error) return { data: null, error: friendlyError(error) };
   return { data, error: null };
+}
+
+/** Set a new password from a recovery session, then end the temporary session. */
+export async function completePasswordReset(newPassword, options = {}) {
+  const email = options.email || (await getCurrentSession()).session?.user?.email;
+  const { error: samenessError } = await assertNewPasswordDiffersFromCurrent(email, newPassword);
+  if (samenessError) return { error: samenessError };
+
+  const { error: updateError } = await updatePassword(newPassword);
+  if (updateError) return { error: updateError };
+  await logOut();
+  return { error: null };
 }
 
 export async function getProfile(userId) {
@@ -742,33 +884,55 @@ export async function completeEmailVerification(search = window.location.search,
 
 async function processPasswordRecovery(search, hash) {
   const supabase = getSupabase();
-  if (!supabase) return { hasRecoverySession: false, error: "Supabase client unavailable." };
+  if (!supabase) return { hasRecoverySession: false, error: "Supabase client unavailable.", email: null };
   const searchParams = new URLSearchParams(search || "");
   const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
   authDebug("password_recovery_parameters_detected", {
     hasCode: Boolean(searchParams.get("code")),
+    hasTokenHash: Boolean(searchParams.get("token_hash") || hashParams.get("token_hash")),
     type: searchParams.get("type") || hashParams.get("type") || "",
     hasHashAccessToken: Boolean(hashParams.get("access_token"))
   });
-  const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
-  if (providerError) return { hasRecoverySession: false, error: friendlyProviderError(providerError) };
+  const providerError =
+    searchParams.get("error_description") ||
+    searchParams.get("error") ||
+    searchParams.get("error_code") ||
+    hashParams.get("error_description") ||
+    hashParams.get("error") ||
+    hashParams.get("error_code");
+  if (providerError) return { hasRecoverySession: false, error: friendlyProviderError(providerError), email: null };
 
-  const code = searchParams.get("code");
-  if (code) {
-    authDebug("callback_code_detected", { flow: "password-recovery" });
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return { hasRecoverySession: false, error: friendlyError(error) };
+  const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");
+  const rawType = searchParams.get("type") || hashParams.get("type") || "recovery";
+  const type = rawType === "email" ? "recovery" : rawType;
+
+  if (tokenHash) {
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (error) return { hasRecoverySession: false, error: friendlyError(error), email: null };
   } else {
-    const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
-    if (error) return { hasRecoverySession: false, error: friendlyError(error) };
+    const code = searchParams.get("code");
+    if (code) {
+      authDebug("callback_code_detected", { flow: "password-recovery" });
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) return { hasRecoverySession: false, error: friendlyError(error), email: null };
+    } else {
+      const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
+      if (error) return { hasRecoverySession: false, error: friendlyError(error), email: null };
+    }
   }
 
   const { session, error } = await getCurrentSession();
-  if (error) return { hasRecoverySession: false, error };
+  if (error) return { hasRecoverySession: false, error, email: null };
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
   const urlType = searchParams.get("type") || hashParams.get("type");
-  const hasRecoverySession = Boolean(session && (urlType === "recovery" || code || hashParams.get("access_token")));
-  authDebug("password_recovery_session_detected", { hasRecoverySession });
-  return { hasRecoverySession, error: null };
+  const hasRecoverySession = Boolean(
+    session && (type === "recovery" || urlType === "recovery" || searchParams.get("code") || hashParams.get("access_token"))
+  );
+  authDebug("password_recovery_session_detected", { hasRecoverySession, email: normalizeEmail(user?.email) });
+  return { hasRecoverySession, error: null, email: user?.email ? normalizeEmail(user.email) : null };
 }
 
 export async function initializePasswordRecovery(search = window.location.search, hash = window.location.hash) {

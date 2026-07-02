@@ -25,6 +25,9 @@ describe("auth experience helpers", () => {
 
   it("maps provider callback errors without exposing raw callback details", () => {
     expect(friendlyProviderError("access_denied")).toBe("Google sign-in was canceled.");
+    expect(friendlyProviderError("otp_expired")).toBe(
+      "This password reset link has expired or was already used. Request a new reset email."
+    );
     expect(friendlyProviderError("expired_token")).toBe(
       "This secure link is invalid or expired. Request a new link and try again."
     );

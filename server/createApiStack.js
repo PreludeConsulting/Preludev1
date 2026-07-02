@@ -4,11 +4,17 @@ import { createChatApiMiddleware } from "./chatApi.js";
 import { createDatasetsApiMiddleware } from "./datasetsApi.js";
 import { createDashboardApiMiddleware } from "./dashboardApi.js";
 import { createSupabaseLoginVerificationMiddleware } from "./supabaseLoginVerificationApi.js";
+import { createSupabasePasswordResetMiddleware } from "./supabasePasswordResetApi.js";
+import { createSupabaseSignupVerificationMiddleware } from "./supabaseSignupVerificationApi.js";
+import { createOnboardingMentorSelectionMiddleware } from "./onboardingMentorSelectionApi.js";
 
 /** Shared Prelude API middleware stack (auth → dashboard → billing → datasets → chat). */
 export function createPreludeApiStack(env = process.env) {
   return [
     createSupabaseLoginVerificationMiddleware(),
+    createSupabasePasswordResetMiddleware(env),
+    createSupabaseSignupVerificationMiddleware(env),
+    createOnboardingMentorSelectionMiddleware(),
     createAuthApiMiddleware(env),
     createDashboardApiMiddleware(async (req) => {
       try {
