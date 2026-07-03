@@ -2,10 +2,12 @@
 
 import assert from "node:assert/strict";
 import {
+  bookContactCall,
   contactBookingSchema,
   easternDateTimeToUtc,
   sendContactEmail
 } from "../../server/lib/contactBookings.js";
+import { buildContactSchedule } from "../../src/lib/contactSchedule.js";
 
 async function main() {
   assert.equal(easternDateTimeToUtc("2026-07-06", "10:00").toISOString(), "2026-07-06T14:00:00.000Z");
@@ -16,7 +18,6 @@ async function main() {
     selectedTime: "10:00",
     name: "Jordan Lee",
     email: "JORDAN@example.com",
-    phone: "",
     studentYear: "11th grade",
     topic: "Essay strategy"
   });
@@ -24,9 +25,9 @@ async function main() {
   assert.equal(parsed.email, "JORDAN@example.com");
 
   const originalFetch = globalThis.fetch;
-  let requestBody = null;
+  const requestBodies = [];
   globalThis.fetch = async (_url, init) => {
-    requestBody = JSON.parse(init.body);
+    requestBodies.push(JSON.parse(init.body));
     return new Response(JSON.stringify({ id: "email_123" }), { status: 200 });
   };
 
@@ -42,8 +43,32 @@ async function main() {
 
   assert.equal(result.delivered, true);
   assert.equal(result.id, "email_123");
-  assert.deepEqual(requestBody.to, ["student@example.com"]);
-  assert.equal(requestBody.subject, "Test email");
+  assert.deepEqual(requestBodies[0].to, ["student@example.com"]);
+  assert.equal(requestBodies[0].subject, "Test email");
+
+  const schedule = buildContactSchedule();
+  const bookingResult = await bookContactCall({
+    env: {
+      RESEND_API_KEY: "re_test_key",
+      AUTH_EMAIL_FROM: "Prelude <no-reply@example.com>",
+      CONTACT_SUPPORT_EMAIL: "support@example.com"
+    },
+    payload: {
+      selectedDate: schedule.firstAvailableDate,
+      selectedTime: schedule.firstAvailableTime,
+      name: "Jordan Lee",
+      email: "jordan@example.com",
+      studentYear: "11th grade",
+      topic: "Essay strategy"
+    }
+  });
+
+  assert.equal(bookingResult.emailSent, true);
+  assert.equal(requestBodies.length, 2);
+  assert.deepEqual(requestBodies[1].to, ["support@example.com"]);
+  assert.match(requestBodies[1].subject, /New discovery call request/);
+  assert.match(requestBodies[1].html, /Requested time/);
+  assert.doesNotMatch(requestBodies[1].html, /Your Prelude call starts soon/);
   globalThis.fetch = originalFetch;
 
   console.log("contactBookings tests passed");

@@ -1,4 +1,4 @@
-import { bookContactCall, sendDueContactReminders } from "../../server/lib/contactBookings.js";
+import { bookContactCall } from "../../server/lib/contactBookings.js";
 import { enforceIpRateLimit } from "../../server/lib/ipRateLimit.js";
 
 const BOOK_CALL_LIMIT = 8;
@@ -90,46 +90,6 @@ export async function handleContactBookCall(context) {
 
   try {
     const result = await bookContactCall({ env, payload });
-    return json(result);
-  } catch (error) {
-    return errorResponse(error);
-  }
-}
-
-function hasReminderSecret(context, env) {
-  const configured = env.CONTACT_REMINDER_SECRET?.trim();
-  if (!configured) return false;
-
-  const authorization = context.request.headers.get("Authorization") || "";
-  const bearer = authorization.replace(/^Bearer\s+/i, "").trim();
-  const headerSecret = context.request.headers.get("x-contact-reminder-secret") || "";
-  return bearer === configured || headerSecret.trim() === configured;
-}
-
-export async function handleContactSendReminders(context) {
-  if (context.request.method !== "POST" && context.request.method !== "GET") {
-    return json({ error: "method_not_allowed", message: "Method not allowed." }, 405, {
-      Allow: "GET, POST"
-    });
-  }
-
-  const env = envFromContext(context);
-  if (!env.CONTACT_REMINDER_SECRET?.trim()) {
-    return json(
-      {
-        error: "reminders_not_configured",
-        message: "Set CONTACT_REMINDER_SECRET before enabling automated reminders."
-      },
-      503
-    );
-  }
-
-  if (!hasReminderSecret(context, env)) {
-    return json({ error: "unauthorized", message: "Authentication required." }, 401);
-  }
-
-  try {
-    const result = await sendDueContactReminders({ env });
     return json(result);
   } catch (error) {
     return errorResponse(error);

@@ -88,7 +88,6 @@ export default function ContactPage() {
   const [form, setForm] = useState({
     name: "",
     email: "",
-    phone: "",
     studentYear: "",
     topic: ""
   });
@@ -108,14 +107,12 @@ export default function ContactPage() {
   const genericEmailHref = buildMailtoHref({
     name: form.name,
     email: form.email,
-    phone: form.phone,
     studentYear: form.studentYear,
     topic: form.topic
   });
   const genericGmailHref = buildGmailComposeUrl({
     name: form.name,
     email: form.email,
-    phone: form.phone,
     studentYear: form.studentYear,
     topic: form.topic
   });
@@ -373,10 +370,6 @@ export default function ContactPage() {
                   <input type="email" value={form.email} onChange={updateForm("email")} placeholder="you@example.com" autoComplete="email" />
                 </label>
                 <label>
-                  <span>Phone</span>
-                  <input type="tel" value={form.phone} onChange={updateForm("phone")} placeholder="Optional" autoComplete="tel" inputMode="tel" />
-                </label>
-                <label>
                   <span>Student year</span>
                   <select value={form.studentYear} onChange={updateForm("studentYear")}>
                     <option value="">Select one</option>
@@ -417,7 +410,7 @@ export default function ContactPage() {
               </div>
               {bookingStatus === "success" ? (
                 <p className="contact-form-status contact-form-status--success" role="status">
-                  Request received. We emailed you a confirmation and sent the details to Prelude support.
+                  Request received. We sent the appointment details to Prelude support.
                 </p>
               ) : null}
               {bookingStatus === "error" ? (

@@ -3,22 +3,16 @@ import {
   CONTACT_EMAIL,
   CONTACT_TIME_ZONE,
   CONTACT_TIME_ZONE_ID,
-  DISCOVERY_CALL_MINUTES,
   buildAvailableCallSlots,
   formatDateLabel,
   formatTimeLabel
 } from "../../src/lib/contactSchedule.js";
-import { createSupabaseAdmin } from "./supabasePasswordReset.js";
-
-const CONTACT_BOOKINGS_TABLE = "contact_call_bookings";
-const REMINDER_LEAD_MINUTES = 30;
 
 export const contactBookingSchema = z.object({
   selectedDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
   selectedTime: z.string().trim().regex(/^\d{2}:\d{2}$/),
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email().max(255),
-  phone: z.string().trim().max(40).optional().default(""),
   studentYear: z.string().trim().max(80).optional().default(""),
   topic: z.string().trim().max(2000).optional().default("")
 });
@@ -43,14 +37,6 @@ function normalizeEmail(email = "") {
 
 function getSupportEmail(env) {
   return (env.CONTACT_SUPPORT_EMAIL || CONTACT_EMAIL).trim();
-}
-
-function getSupportPhone(env) {
-  return (env.CONTACT_SUPPORT_PHONE || "").trim();
-}
-
-function getContactInstructions(env) {
-  return (env.CONTACT_INSTRUCTIONS || "").trim();
 }
 
 function getEmailFrom(env) {
@@ -116,25 +102,17 @@ function assertAvailableSlot({ selectedDate, selectedTime }, now = new Date()) {
   }
 }
 
-function buildContactRows(parsed, env) {
+function buildBookingDetails(parsed, env) {
   const supportEmail = getSupportEmail(env);
-  const appointmentStartAt = easternDateTimeToUtc(parsed.selectedDate, parsed.selectedTime);
-  const reminderSendAfterAt = new Date(appointmentStartAt.getTime() - REMINDER_LEAD_MINUTES * 60 * 1000);
 
   return {
     customer_name: parsed.name,
     customer_email: normalizeEmail(parsed.email),
-    customer_phone: parsed.phone || null,
     student_year: parsed.studentYear || null,
     topic: parsed.topic || null,
     selected_date: parsed.selectedDate,
     selected_time: parsed.selectedTime,
-    appointment_start_at: appointmentStartAt.toISOString(),
-    reminder_send_after_at: reminderSendAfterAt.toISOString(),
-    support_email: supportEmail,
-    support_phone: getSupportPhone(env) || null,
-    contact_instructions: getContactInstructions(env) || null,
-    status: "requested"
+    support_email: supportEmail
   };
 }
 
@@ -142,7 +120,6 @@ function detailRows(details) {
   return [
     ["Name", details.customer_name],
     ["Email", details.customer_email],
-    ["Phone", details.customer_phone || "Not provided"],
     ["Student year", details.student_year || "Not provided"],
     ["Requested time", `${formatDateLabel(details.selected_date)} at ${formatTimeLabel(details.selected_time)} (${CONTACT_TIME_ZONE})`],
     ["Topic", details.topic || "No topic provided"]
@@ -177,47 +154,6 @@ function buildSupportEmail(details) {
     body: `
       <p style="margin:0 0 18px;font-size:15px;line-height:1.55;color:#3f3963;">A customer requested a Prelude discovery call.</p>
       ${detailRows(details)}
-    `
-  });
-}
-
-function buildCustomerConfirmationEmail(details, env) {
-  const supportPhone = details.support_phone || getSupportPhone(env);
-  const phoneLine = supportPhone
-    ? `<p style="margin:0 0 10px;"><strong>Phone/contact:</strong> ${escapeHtml(supportPhone)}</p>`
-    : "";
-
-  return emailShell({
-    heading: "Your Prelude discovery call request",
-    body: `
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#3f3963;">Hi ${escapeHtml(details.customer_name)}, we received your request for a ${DISCOVERY_CALL_MINUTES}-minute discovery call.</p>
-      <p style="margin:0 0 10px;"><strong>Requested time:</strong> ${escapeHtml(formatDateLabel(details.selected_date))} at ${escapeHtml(formatTimeLabel(details.selected_time))} (${escapeHtml(CONTACT_TIME_ZONE)})</p>
-      <p style="margin:0 0 10px;"><strong>Support email:</strong> ${escapeHtml(details.support_email)}</p>
-      ${phoneLine}
-      <p style="margin:18px 0 0;font-size:13px;line-height:1.5;color:#6b628d;">We will send our contact information again 30 minutes before the call.</p>
-    `
-  });
-}
-
-function buildReminderEmail(details, env) {
-  const supportPhone = details.support_phone || getSupportPhone(env);
-  const contactInstructions = details.contact_instructions || getContactInstructions(env);
-  const phoneLine = supportPhone
-    ? `<p style="margin:0 0 10px;"><strong>Phone/contact:</strong> ${escapeHtml(supportPhone)}</p>`
-    : "";
-  const instructionsLine = contactInstructions
-    ? `<p style="margin:0 0 10px;"><strong>Call details:</strong> ${escapeHtml(contactInstructions)}</p>`
-    : "";
-
-  return emailShell({
-    heading: "Your Prelude call starts soon",
-    body: `
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#3f3963;">Your Prelude discovery call is scheduled in about 30 minutes.</p>
-      <p style="margin:0 0 10px;"><strong>Time:</strong> ${escapeHtml(formatDateLabel(details.selected_date))} at ${escapeHtml(formatTimeLabel(details.selected_time))} (${escapeHtml(CONTACT_TIME_ZONE)})</p>
-      <p style="margin:0 0 10px;"><strong>Support email:</strong> ${escapeHtml(details.support_email)}</p>
-      ${phoneLine}
-      ${instructionsLine}
-      <p style="margin:18px 0 0;font-size:13px;line-height:1.5;color:#6b628d;">Reply to this email if anything changes before your call.</p>
     `
   });
 }
@@ -262,128 +198,20 @@ function assertEmailDelivered(result, message) {
 
 export async function bookContactCall({ env = process.env, payload }) {
   const runtimeEnv = resolveRuntimeEnv(env);
-  const admin = createSupabaseAdmin(runtimeEnv);
-  if (!admin) {
-    const error = new Error("Booking reminders are not configured yet. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
-    error.statusCode = 503;
-    error.code = "booking_storage_unavailable";
-    throw error;
-  }
-
   const parsed = contactBookingSchema.parse(payload);
   assertAvailableSlot(parsed);
-  const row = buildContactRows(parsed, runtimeEnv);
-
-  const { data: inserted, error: insertError } = await admin
-    .from(CONTACT_BOOKINGS_TABLE)
-    .insert(row)
-    .select("id")
-    .single();
-
-  if (insertError) {
-    const error = new Error("Could not save the booking request.");
-    error.statusCode = 503;
-    error.code = "booking_storage_failed";
-    error.cause = insertError;
-    throw error;
-  }
-
-  const details = { id: inserted.id, ...row };
+  const details = buildBookingDetails(parsed, runtimeEnv);
   const supportResult = await sendContactEmail({
     env: runtimeEnv,
-    to: row.support_email,
-    subject: `New discovery call request - ${formatDateLabel(row.selected_date)} at ${formatTimeLabel(row.selected_time)}`,
+    to: details.support_email,
+    subject: `New discovery call request - ${formatDateLabel(details.selected_date)} at ${formatTimeLabel(details.selected_time)}`,
     html: buildSupportEmail(details)
   });
-  const confirmationResult = await sendContactEmail({
-    env: runtimeEnv,
-    to: row.customer_email,
-    subject: "Your Prelude discovery call request",
-    html: buildCustomerConfirmationEmail(details, runtimeEnv)
-  });
-
-  await admin
-    .from(CONTACT_BOOKINGS_TABLE)
-    .update({
-      support_email_sent_at: supportResult.delivered ? new Date().toISOString() : null,
-      confirmation_email_sent_at: confirmationResult.delivered ? new Date().toISOString() : null,
-      support_resend_id: supportResult.id || null,
-      confirmation_resend_id: confirmationResult.id || null,
-      status: supportResult.delivered && confirmationResult.delivered ? "emails_sent" : "email_failed",
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", inserted.id);
 
   assertEmailDelivered(supportResult, "We could not notify Prelude support right now. Please try again in a moment.");
-  assertEmailDelivered(confirmationResult, "We could not send your confirmation email right now. Please try again in a moment.");
 
   return {
     message: "Discovery call request received.",
-    bookingId: inserted.id,
-    emailSent: true,
-    reminderScheduled: true
-  };
-}
-
-export async function sendDueContactReminders({ env = process.env, limit = 25 } = {}) {
-  const runtimeEnv = resolveRuntimeEnv(env);
-  const admin = createSupabaseAdmin(runtimeEnv);
-  if (!admin) {
-    const error = new Error("Supabase server credentials are not configured.");
-    error.statusCode = 503;
-    error.code = "booking_storage_unavailable";
-    throw error;
-  }
-
-  const nowIso = new Date().toISOString();
-  const { data: bookings, error: queryError } = await admin
-    .from(CONTACT_BOOKINGS_TABLE)
-    .select("*")
-    .is("reminder_sent_at", null)
-    .lte("reminder_send_after_at", nowIso)
-    .gt("appointment_start_at", nowIso)
-    .neq("status", "canceled")
-    .order("appointment_start_at", { ascending: true })
-    .limit(limit);
-
-  if (queryError) {
-    const error = new Error("Could not load due contact reminders.");
-    error.statusCode = 503;
-    error.code = "reminder_query_failed";
-    error.cause = queryError;
-    throw error;
-  }
-
-  let sent = 0;
-  const failed = [];
-
-  for (const booking of bookings || []) {
-    const result = await sendContactEmail({
-      env: runtimeEnv,
-      to: booking.customer_email,
-      subject: "Your Prelude call starts soon",
-      html: buildReminderEmail(booking, runtimeEnv)
-    });
-
-    if (result.delivered) {
-      sent += 1;
-      await admin
-        .from(CONTACT_BOOKINGS_TABLE)
-        .update({
-          reminder_sent_at: new Date().toISOString(),
-          reminder_resend_id: result.id || null,
-          status: "reminder_sent",
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", booking.id);
-    } else {
-      failed.push({ id: booking.id, reason: result.reason || "email_delivery_failed" });
-    }
-  }
-
-  return {
-    checked: bookings?.length || 0,
-    sent,
-    failed
+    emailSent: true
   };
 }
