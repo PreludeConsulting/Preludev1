@@ -23,6 +23,12 @@ import {
   walletReducer,
   walletShowsDeck
 } from "../lib/planWalletMachine.js";
+import {
+  backDispatchForStatus,
+  shouldCloseWalletAfterPopup,
+  shouldNavigateAfterClose,
+  resolveBackStep
+} from "../lib/planWalletBack.js";
 import { usePlanWalletMotion } from "../lib/planWalletMotion.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
 import OnboardingShell from "./onboarding/OnboardingShell.jsx";
@@ -272,7 +278,7 @@ function PlanPopup({
 /* Wallet experience                                                    */
 /* ------------------------------------------------------------------ */
 
-export function PlanWalletExperience({ context, user }) {
+export function PlanWalletExperience({ context, user, backTo = "/", onRegisterBack }) {
   const navigate = useNavigate();
   const location = useLocation();
   const reducedMotion = useReducedMotion();
@@ -347,6 +353,7 @@ export function PlanWalletExperience({ context, user }) {
   const [busyPlan, setBusyPlan] = useState(null);
   const [notice, setNotice] = useState("");
   const previousStatusRef = useRef(state.status);
+  const pendingBackRef = useRef(false);
   const allowGuestCheckout = import.meta.env.DEV || import.meta.env.VITE_ALLOW_GUEST_CHECKOUT === "true";
 
   const showDeck = walletShowsDeck(state.status);
@@ -372,6 +379,49 @@ export function PlanWalletExperience({ context, user }) {
       setNotice("");
     }
   }, [state.status, state.selectedPlanId]);
+
+  const handleBackRequest = useCallback(
+    (event) => {
+      event?.preventDefault?.();
+
+      if (resolveBackStep(state.status) === "navigate") {
+        navigate(backTo);
+        return;
+      }
+
+      pendingBackRef.current = true;
+      const action = backDispatchForStatus(state.status);
+      if (action?.type === "PRESS_WALLET") {
+        persistDraft({ walletOpen: false, selectedPlanId: state.selectedPlanId });
+      }
+      if (action) dispatch(action);
+    },
+    [backTo, dispatch, navigate, persistDraft, state.selectedPlanId, state.status]
+  );
+
+  useEffect(() => {
+    onRegisterBack?.(handleBackRequest);
+    return () => onRegisterBack?.(null);
+  }, [handleBackRequest, onRegisterBack]);
+
+  useEffect(() => {
+    if (!pendingBackRef.current) return;
+
+    if (shouldNavigateAfterClose(state.status, pendingBackRef.current)) {
+      pendingBackRef.current = false;
+      navigate(backTo);
+      return;
+    }
+
+    if (shouldCloseWalletAfterPopup(state.status, pendingBackRef.current)) {
+      dispatch({ type: "PRESS_WALLET" });
+      persistDraft({ walletOpen: false, selectedPlanId: state.selectedPlanId });
+      return;
+    }
+
+    const action = backDispatchForStatus(state.status);
+    if (action) dispatch(action);
+  }, [backTo, dispatch, navigate, persistDraft, state.selectedPlanId, state.status]);
 
   function handleWalletOpen() {
     if (state.status === WALLET_STATES.CLOSED) {
@@ -568,13 +618,19 @@ export function PlanWalletExperience({ context, user }) {
 /* Page shells                                                          */
 /* ------------------------------------------------------------------ */
 
-function PublicPlansShell({ children }) {
+function PublicPlansShell({ children, onBack }) {
   return (
     <main className="plans-flow">
       <div className="plans-flow__inner">
-        <Link to="/" className="plans-flow__home-link">
-          ← Back to Prelude
-        </Link>
+        {onBack ? (
+          <button type="button" className="plans-flow__home-link" onClick={onBack}>
+            ← Back to Prelude
+          </button>
+        ) : (
+          <Link to="/" className="plans-flow__home-link">
+            ← Back to Prelude
+          </Link>
+        )}
         <header className="plans-flow__head">
           <p className="plans-flow__eyebrow">Plan selection</p>
           <h1>Choose your Prelude plan</h1>
@@ -621,9 +677,18 @@ export const PlanWalletSelector = PlanWalletExperience;
 
 export function PlansPage() {
   const { user } = useAuth();
+  const walletBackRef = useRef(null);
+
   return (
-    <PublicPlansShell>
-      <PlanWalletExperience context="public" user={user} />
+    <PublicPlansShell onBack={() => walletBackRef.current?.()}>
+      <PlanWalletExperience
+        context="public"
+        user={user}
+        backTo="/"
+        onRegisterBack={(handler) => {
+          walletBackRef.current = handler;
+        }}
+      />
     </PublicPlansShell>
   );
 }

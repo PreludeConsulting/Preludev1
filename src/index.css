@@ -4442,6 +4442,55 @@ html[lang="es"] .shopify-hero__headline-line {
   display: block;
 }
 
+.network-map {
+  width: min(100%, 52rem);
+  margin: 0 auto clamp(2rem, 4vw, 3rem);
+}
+
+.network-map__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.network-map__land {
+  fill: hsl(var(--muted) / 0.35);
+  stroke: hsl(var(--foreground) / 0.12);
+  stroke-width: 1.5;
+}
+
+.network-map__hub {
+  fill: hsl(var(--primary));
+  opacity: 0.9;
+}
+
+.network-map__line {
+  fill: none;
+  stroke: hsl(var(--primary) / 0.42);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.network-map__marker {
+  fill: hsl(var(--primary));
+  opacity: 0;
+}
+
+@media (max-width: 42rem) {
+  .network-map__line {
+    stroke-width: 1.1;
+  }
+
+  .network-map__marker {
+    r: 3.5;
+  }
+
+  .network-map__hub {
+    r: 4;
+  }
+}
+
 .network-section__stats {
   display: grid;
   grid-template-columns: 1fr;

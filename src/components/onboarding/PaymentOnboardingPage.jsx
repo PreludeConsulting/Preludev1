@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { useRef } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {
   PARENT_ONBOARDING_PATH,
@@ -12,6 +13,7 @@ import OnboardingShell from "./OnboardingShell.jsx";
 
 export default function PaymentOnboardingPage() {
   const { user, ready } = useAuth();
+  const walletBackRef = useRef(null);
 
   if (!ready) {
     return (
@@ -42,11 +44,18 @@ export default function PaymentOnboardingPage() {
       eyebrow="Final step"
       hideContinue
       hideHomeLink
-      backHref={PARENT_ONBOARDING_PATH}
+      onBack={() => walletBackRef.current?.()}
       footerNote="Your subscription starts after Stripe confirms payment. You cannot access your dashboard until checkout is complete."
       className="plan-select-page"
     >
-      <PlanWalletSelector context="payment" user={user} />
+      <PlanWalletSelector
+        context="payment"
+        user={user}
+        backTo={PARENT_ONBOARDING_PATH}
+        onRegisterBack={(handler) => {
+          walletBackRef.current = handler;
+        }}
+      />
     </OnboardingShell>
   );
 }
