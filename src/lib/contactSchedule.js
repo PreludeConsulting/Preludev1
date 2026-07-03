@@ -262,6 +262,7 @@ export function buildContactEmailBody({
   selectedTime = "",
   name = "",
   email = "",
+  phone = "",
   studentYear = "",
   topic = ""
 } = {}) {
@@ -275,6 +276,7 @@ export function buildContactEmailBody({
     "My details:",
     `Name: ${name.trim() || "[Your name]"}`,
     `Email: ${email.trim() || "[Your email]"}`,
+    `Phone: ${phone.trim() || "[Your phone, optional]"}`,
     `Student year: ${studentYear.trim() || "[Student year]"}`,
     "",
     "What I want help with:",

@@ -220,6 +220,7 @@
 .contact-button--disabled {
   opacity: 0.5;
   pointer-events: none;
+  cursor: not-allowed;
 }
 
 .contact-scheduler__links {
@@ -517,6 +518,22 @@
 
 .contact-confirm__button {
   flex: 0 0 auto;
+}
+
+.contact-form-status {
+  margin: -0.2rem 0 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.85rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.contact-form-status--success {
+  color: #18794e;
+}
+
+.contact-form-status--error {
+  color: #b42318;
 }
 
 @media (max-width: 900px) {

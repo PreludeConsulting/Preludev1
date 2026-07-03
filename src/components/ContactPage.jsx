@@ -88,9 +88,12 @@ export default function ContactPage() {
   const [form, setForm] = useState({
     name: "",
     email: "",
+    phone: "",
     studentYear: "",
     topic: ""
   });
+  const [bookingStatus, setBookingStatus] = useState("idle");
+  const [bookingError, setBookingError] = useState("");
 
   const safeMonthCursor = Math.min(monthCursor, Math.max(scheduleMonths.length - 1, 0));
   const month = scheduleMonths[safeMonthCursor];
@@ -102,22 +105,23 @@ export default function ContactPage() {
     () => getCalendarCells(month.year, month.monthIndex, availableCallSlots),
     [availableCallSlots, month.monthIndex, month.year]
   );
-  const emailOptions = { selectedDate: activeSelectedDate, selectedTime: activeSelectedTime, ...form };
-  const mailtoHref = buildMailtoHref(emailOptions);
-  const gmailHref = buildGmailComposeUrl(emailOptions);
   const genericEmailHref = buildMailtoHref({
     name: form.name,
     email: form.email,
+    phone: form.phone,
     studentYear: form.studentYear,
     topic: form.topic
   });
   const genericGmailHref = buildGmailComposeUrl({
     name: form.name,
     email: form.email,
+    phone: form.phone,
     studentYear: form.studentYear,
     topic: form.topic
   });
-  const canRequestCall = Boolean(activeSelectedDate && activeSelectedTime);
+  const isBookingLoading = bookingStatus === "loading";
+  const bookingCompleted = bookingStatus === "success";
+  const canRequestCall = Boolean(activeSelectedDate && activeSelectedTime && form.name.trim() && form.email.trim() && !isBookingLoading && !bookingCompleted);
 
   useEffect(() => {
     const refreshId = window.setInterval(() => setScheduleNow(new Date()), SCHEDULE_REFRESH_MS);
@@ -148,12 +152,24 @@ export default function ContactPage() {
   ]);
 
   function updateForm(field) {
-    return (event) => setForm((current) => ({ ...current, [field]: event.target.value }));
+    return (event) => {
+      setBookingStatus("idle");
+      setBookingError("");
+      setForm((current) => ({ ...current, [field]: event.target.value }));
+    };
   }
 
   function chooseDate(isoDate) {
+    setBookingStatus("idle");
+    setBookingError("");
     setSelectedDate(isoDate);
     setSelectedTime(getAvailableTimes(isoDate, availableCallSlots)[0] || "");
+  }
+
+  function chooseTime(time) {
+    setBookingStatus("idle");
+    setBookingError("");
+    setSelectedTime(time);
   }
 
   function changeMonth(direction) {
@@ -178,6 +194,33 @@ export default function ContactPage() {
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
       setCopied(false);
+    }
+  }
+
+  async function requestCall() {
+    if (!canRequestCall) return;
+
+    setBookingStatus("loading");
+    setBookingError("");
+
+    try {
+      const response = await fetch("/api/contact/book-call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selectedDate: activeSelectedDate,
+          selectedTime: activeSelectedTime,
+          ...form
+        })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.message || "Request failed.");
+      }
+      setBookingStatus("success");
+    } catch (error) {
+      setBookingStatus("error");
+      setBookingError(error.message || "Request failed.");
     }
   }
 
@@ -305,7 +348,7 @@ export default function ContactPage() {
                     key={time}
                     time={time}
                     selected={activeSelectedTime === time}
-                    onClick={() => setSelectedTime(time)}
+                    onClick={() => chooseTime(time)}
                   />
                 ))}
               </div>
@@ -328,6 +371,10 @@ export default function ContactPage() {
                 <label>
                   <span>Email</span>
                   <input type="email" value={form.email} onChange={updateForm("email")} placeholder="you@example.com" autoComplete="email" />
+                </label>
+                <label>
+                  <span>Phone</span>
+                  <input type="tel" value={form.phone} onChange={updateForm("phone")} placeholder="Optional" autoComplete="tel" inputMode="tel" />
                 </label>
                 <label>
                   <span>Student year</span>
@@ -356,16 +403,31 @@ export default function ContactPage() {
                   <p className="contact-confirm__label">Selected time</p>
                   <p>{formatDateLabel(activeSelectedDate)} at {formatTimeLabel(activeSelectedTime)}</p>
                 </div>
-                <a
-                  href={mailtoHref}
+                <button
+                  type="button"
+                  onClick={requestCall}
+                  disabled={!canRequestCall}
                   className={`contact-button contact-button--primary contact-confirm__button${canRequestCall ? "" : " contact-button--disabled"}`}
                   aria-disabled={!canRequestCall}
                 >
                   <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                  Request this time
+                  {bookingCompleted ? "Request sent" : isBookingLoading ? "Sending..." : "Request this time"}
                   <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                </a>
+                </button>
               </div>
+              {bookingStatus === "success" ? (
+                <p className="contact-form-status contact-form-status--success" role="status">
+                  Request received. We emailed you a confirmation and sent the details to Prelude support.
+                </p>
+              ) : null}
+              {bookingStatus === "error" ? (
+                <p className="contact-form-status contact-form-status--error" role="alert">
+                  {bookingError} You can still email us below.
+                </p>
+              ) : null}
+              {!canRequestCall && !isBookingLoading && !bookingCompleted ? (
+                <p className="contact-form-status" role="status">Add your name and email to request this time.</p>
+              ) : null}
             </section>
           </div>
         </section>
