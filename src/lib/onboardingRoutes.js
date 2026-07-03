@@ -2,6 +2,7 @@ import { PLAN_IDS } from "./plans.js";
 import { dashboardHomeForRole, roleFromUser, STUDENT_DASHBOARD_BASE, MENTOR_DASHBOARD_BASE, PARENT_DASHBOARD_BASE } from "./dashboardRoutes.js";
 
 export const PLAN_SELECTION_PATH = "/onboarding/plan";
+export const PAYMENT_ONBOARDING_PATH = "/onboarding/payment";
 export const ROLE_SELECTION_PATH = "/onboarding/role";
 export const MATCH_ONBOARDING_PATH = "/onboarding/match";
 export const PARENT_ONBOARDING_PATH = "/onboarding/parent";
@@ -11,6 +12,7 @@ export const ONBOARDING_STATUS = {
   NEEDS_PLAN: "needs_plan",
   NEEDS_MATCH: "needs_match",
   MATCH_COMPLETED: "match_completed",
+  NEEDS_PAYMENT: "needs_payment",
   ONBOARDING_COMPLETED: "onboarding_completed"
 };
 
@@ -89,27 +91,21 @@ export function deriveOnboardingStatus(user, onboarding, hasAcceptedMentor = fal
   if (!user) return null;
   const role = roleFromUser(user);
   if (role === "mentor" || role === "parent") return ONBOARDING_STATUS.ONBOARDING_COMPLETED;
-  if (!user.planSelected) return ONBOARDING_STATUS.NEEDS_PLAN;
   if (!onboarding?.mentor_matching_complete) return ONBOARDING_STATUS.NEEDS_MATCH;
+  if (!onboarding?.parent_invite_step_completed) return ONBOARDING_STATUS.MATCH_COMPLETED;
+  if (!onboarding?.payment_step_completed) return ONBOARDING_STATUS.NEEDS_PAYMENT;
   if (onboarding?.mentor_assignment_status || hasAcceptedMentor || onboarding?.match_decision === "accepted") {
-    return onboarding?.parent_invite_step_completed
-      ? ONBOARDING_STATUS.ONBOARDING_COMPLETED
-      : ONBOARDING_STATUS.MATCH_COMPLETED;
+    return ONBOARDING_STATUS.ONBOARDING_COMPLETED;
   }
   if (onboarding?.match_decision === "declined" || onboarding?.suggested_mentor_id || onboarding?.prelude_match_completed) {
-    return ONBOARDING_STATUS.MATCH_COMPLETED;
+    return ONBOARDING_STATUS.ONBOARDING_COMPLETED;
   }
-  return ONBOARDING_STATUS.MATCH_COMPLETED;
+  return ONBOARDING_STATUS.ONBOARDING_COMPLETED;
 }
 
+/** Legacy early plan step — students now choose and pay at the end of onboarding. */
 export function userNeedsPlanSelection(user) {
-  if (!user) return false;
-  if (userNeedsRoleSelection(user)) return false;
-  const role = roleFromUser(user);
-  if (role === "mentor" || role === "parent") return false;
-  if (user.onboardingStatus) return user.onboardingStatus === ONBOARDING_STATUS.NEEDS_PLAN;
-  if (user.authProvider === "supabase") return !user.planSelected;
-  return !user.plan;
+  return false;
 }
 
 export function userNeedsRoleSelection(user) {
@@ -121,9 +117,7 @@ export function userNeedsRoleSelection(user) {
 
 export function userNeedsMatchOnboarding(user) {
   if (!user || roleFromUser(user) !== "student") return false;
-  // Only Supabase students go through Prelude Match onboarding.
   if (user.authProvider !== "supabase") return false;
-  if (!user.planSelected) return false;
   if (user.onboardingStatus) {
     return user.onboardingStatus === ONBOARDING_STATUS.NEEDS_MATCH;
   }
@@ -145,10 +139,21 @@ export function userNeedsParentInviteStep(user) {
   if (!user || roleFromUser(user) !== "student") return false;
   if (user.authProvider === "demo" || user.authProvider === "dev") return false;
   if (user.parentInviteStepComplete) return false;
-  if (userNeedsPlanSelection(user)) return false;
   if (userNeedsMatchOnboarding(user)) return false;
   if (userNeedsMatchDecision(user)) return false;
   return true;
+}
+
+export function userNeedsPaymentStep(user) {
+  if (!user || roleFromUser(user) !== "student") return false;
+  if (user.authProvider === "demo" || user.authProvider === "dev") return false;
+  if (user.authProvider !== "supabase") return false;
+  if (userNeedsRoleSelection(user)) return false;
+  if (userNeedsMatchOnboarding(user)) return false;
+  if (userNeedsParentInviteStep(user)) return false;
+  if (user.paymentStepComplete) return false;
+  if (user.onboardingStatus === ONBOARDING_STATUS.NEEDS_PAYMENT) return true;
+  return Boolean(user.parentInviteStepComplete && !user.paymentStepComplete);
 }
 
 export function userCanChangeRoleDuringOnboarding(user) {
@@ -156,7 +161,11 @@ export function userCanChangeRoleDuringOnboarding(user) {
   if (userNeedsRoleSelection(user)) return true;
   const role = roleFromUser(user);
   if (role === "student") {
-    return userNeedsPlanSelection(user) || userNeedsMatchOnboarding(user) || userNeedsParentInviteStep(user);
+    return (
+      userNeedsMatchOnboarding(user) ||
+      userNeedsParentInviteStep(user) ||
+      userNeedsPaymentStep(user)
+    );
   }
   if (role === "mentor") return userNeedsMentorOnboarding(user);
   if (role === "parent") return true;
@@ -167,11 +176,11 @@ export function postAuthDestination(user) {
   if (!user) return "/login";
   if (roleFromUser(user) === "admin") return dashboardPathForRole(user.role);
   if (userNeedsRoleSelection(user)) return ROLE_SELECTION_PATH;
-  if (userNeedsPlanSelection(user)) return PLAN_SELECTION_PATH;
   if (userNeedsMentorOnboarding(user)) return MENTOR_ONBOARDING_PATH;
   if (userNeedsMatchOnboarding(user)) return MATCH_ONBOARDING_PATH;
   if (userNeedsMatchDecision(user)) return `${MATCH_ONBOARDING_PATH}?step=result`;
   if (userNeedsParentInviteStep(user)) return PARENT_ONBOARDING_PATH;
+  if (userNeedsPaymentStep(user)) return PAYMENT_ONBOARDING_PATH;
   return dashboardPathForRole(user.role);
 }
 
@@ -180,11 +189,11 @@ export function canAccessDashboard(user) {
   if (roleFromUser(user) === "admin") return true;
   if (userNeedsRoleSelection(user)) return false;
   if (roleFromUser(user) === "parent") return true;
-  if (userNeedsPlanSelection(user)) return false;
   if (userNeedsMentorOnboarding(user)) return false;
   if (roleFromUser(user) === "mentor") return true;
   if (userNeedsMatchOnboarding(user)) return false;
   if (userNeedsMatchDecision(user)) return false;
   if (userNeedsParentInviteStep(user)) return false;
+  if (userNeedsPaymentStep(user)) return false;
   return true;
 }

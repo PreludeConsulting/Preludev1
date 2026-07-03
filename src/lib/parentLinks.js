@@ -225,7 +225,12 @@ export async function markParentInviteStepComplete(studentId) {
       const { error } = await supabase
         .from("onboarding_progress")
         .upsert(
-          { user_id: studentId, parent_invite_step_completed: true, updated_at: new Date().toISOString() },
+          {
+            user_id: studentId,
+            parent_invite_step_completed: true,
+            onboarding_status: "needs_payment",
+            updated_at: new Date().toISOString()
+          },
           { onConflict: "user_id" }
         );
       if (!error) return;

@@ -8,13 +8,11 @@ import {
   dashboardPathForRole,
   MATCH_ONBOARDING_PATH,
   PARENT_ONBOARDING_PATH,
-  PLAN_SELECTION_PATH,
   ROLE_SELECTION_PATH,
   postAuthDestination,
   userNeedsMatchOnboarding,
   userNeedsMatchDecision,
-  userNeedsParentInviteStep,
-  userNeedsPlanSelection
+  userNeedsParentInviteStep
 } from "../../lib/onboardingRoutes.js";
 import {
   saveMatchQuestionnaire
@@ -106,10 +104,6 @@ export default function PreludeMatchOnboardingPage() {
 
   if (!user) {
     return <Navigate to="/login" replace state={{ from: MATCH_ONBOARDING_PATH }} />;
-  }
-
-  if (userNeedsPlanSelection(user)) {
-    return <Navigate to="/onboarding/plan" replace />;
   }
 
   if (roleFromUser(user) === "mentor") {
@@ -204,10 +198,9 @@ export default function PreludeMatchOnboardingPage() {
       <div className="pm-onboarding-page__inner">
         <nav className="pm-onboarding-page__nav" aria-label="Onboarding navigation">
           <AppLink href={ROLE_SELECTION_PATH} className="pm-onboarding-page__back">← Back to role selection</AppLink>
-          <AppLink href={PLAN_SELECTION_PATH} className="pm-onboarding-page__back">← Back to plan selection</AppLink>
         </nav>
         <header className="pm-onboarding-page__head">
-          <p className="plan-select-page__eyebrow">Step 2 of 2</p>
+          <p className="plan-select-page__eyebrow">Prelude Match</p>
           <h1 className="pm-onboarding-page__title">Prelude Match</h1>
           <p className="pm-onboarding-page__sub">
             Tell us about your goals. Our team will review your answers and follow up with your mentor match.

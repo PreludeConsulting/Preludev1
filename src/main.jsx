@@ -10,6 +10,7 @@ import PlanSelectionPage, { PlanDetailPage, PlansPage } from "./components/PlanS
 import RoleSelectionOnboardingPage from "./components/onboarding/RoleSelectionOnboardingPage.jsx";
 import PreludeMatchOnboardingPage from "./components/onboarding/PreludeMatchOnboardingPage.jsx";
 import ParentInviteOnboardingPage from "./components/onboarding/ParentInviteOnboardingPage.jsx";
+import PaymentOnboardingPage from "./components/onboarding/PaymentOnboardingPage.jsx";
 import MentorQuestionnaireOnboardingPage from "./components/onboarding/MentorQuestionnaireOnboardingPage.jsx";
 import RequirePlanGuard from "./components/RequirePlanGuard.jsx";
 import RequireOnboardingAccess from "./components/onboarding/RequireOnboardingAccess.jsx";
@@ -76,6 +77,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/onboarding/plan/:planId" element={<RequireOnboardingAccess><PlanDetailPage context="onboarding" /></RequireOnboardingAccess>} />
             <Route path="/onboarding/match" element={<RequireOnboardingAccess><PreludeMatchOnboardingPage /></RequireOnboardingAccess>} />
             <Route path="/onboarding/parent" element={<RequireOnboardingAccess><ParentInviteOnboardingPage /></RequireOnboardingAccess>} />
+            <Route path="/onboarding/payment" element={<RequireOnboardingAccess><PaymentOnboardingPage /></RequireOnboardingAccess>} />
+            <Route path="/onboarding/payment/:planId" element={<RequireOnboardingAccess><PlanDetailPage context="payment" /></RequireOnboardingAccess>} />
             <Route path="/onboarding/mentor" element={<RequireOnboardingAccess><MentorQuestionnaireOnboardingPage /></RequireOnboardingAccess>} />
             <Route
               path="/dashboard/*"

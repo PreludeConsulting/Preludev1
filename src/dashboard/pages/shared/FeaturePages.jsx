@@ -236,7 +236,7 @@ export function StudentBilling() {
             icon={CreditCard}
             title="No plan selected"
             description="Choose a plan to unlock your full Prelude dashboard experience."
-            action={<Link to="/onboarding/plan" className="dash-btn dash-btn--primary dash-btn--sm">Choose a plan</Link>}
+            action={<Link to="/dashboard/student/billing" className="dash-btn dash-btn--primary dash-btn--sm">Choose a plan</Link>}
           />
         )}
       </SectionCard>
@@ -252,7 +252,7 @@ export function StudentBilling() {
               {user?.plan === plan.id ? (
                 <DashBadge variant="soft">Current plan</DashBadge>
               ) : (
-                <Link to="/onboarding/plan" className="dash-btn dash-btn--secondary dash-btn--sm">Change plan</Link>
+                <Link to="/dashboard/student/billing" className="dash-btn dash-btn--secondary dash-btn--sm">Change plan</Link>
               )}
             </article>
           ))}
@@ -569,7 +569,7 @@ export function ParentBilling() {
               {user?.plan === plan.id ? (
                 <DashBadge variant="soft">Current plan</DashBadge>
               ) : (
-                <Link to="/onboarding/plan" className="dash-btn dash-btn--secondary dash-btn--sm">Change plan</Link>
+                <Link to="/dashboard/student/billing" className="dash-btn dash-btn--secondary dash-btn--sm">Change plan</Link>
               )}
             </article>
           ))}

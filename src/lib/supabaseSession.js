@@ -6,6 +6,7 @@
 import { getPlan, normalizePlanId } from "./plans.js";
 import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
 import { mapOnboardingToUserFields } from "./preludeMatchService.js";
+import { readPaymentStepComplete } from "./onboardingPayment.js";
 import { readParentInviteStepComplete } from "./parentLinks.js";
 import { normalizeAuthProviders } from "./authSignInMethod.js";
 import { resolveAvatarUrl } from "./avatar.js";
@@ -40,6 +41,8 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
   const onboardingFields = mapOnboardingToUserFields(onboarding, hasAssignedMentor);
   const parentInviteStepComplete =
     onboardingFields.parentInviteStepComplete || readParentInviteStepComplete(u.id);
+  const paymentStepComplete =
+    onboardingFields.paymentStepComplete || readPaymentStepComplete(u.id);
   const authSignInMethods = normalizeAuthProviders(u.identities || [], u);
   const roleSelectionComplete = profile?.role_selection_complete !== false;
 
@@ -48,10 +51,11 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     onboardingStatus = null;
   } else if (role === "parent") {
     onboardingStatus = ONBOARDING_STATUS.ONBOARDING_COMPLETED;
-  } else if (!planId) onboardingStatus = ONBOARDING_STATUS.NEEDS_PLAN;
-  else if (planId && onboardingStatus === ONBOARDING_STATUS.NEEDS_PLAN) {
+  } else if (!onboardingStatus) {
     onboardingStatus = ONBOARDING_STATUS.NEEDS_MATCH;
   }
+
+  const planSelected = Boolean(planId && paymentStepComplete);
 
   return {
     id: u.id,
@@ -64,7 +68,9 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     matchingTeamAccess,
     plan: planId,
     planName: plan?.name || null,
-    planSelected: Boolean(planId),
+    planSelected,
+    paymentStepComplete,
+    subscriptionStatus: profile?.subscription_status || null,
     emailVerified: Boolean(u.email_confirmed_at),
     authProvider: "supabase",
     authSignInMethods,
@@ -73,6 +79,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     roleSelectionComplete,
     ...onboardingFields,
     parentInviteStepComplete,
+    paymentStepComplete,
     mentorOnboardingComplete: role === "mentor" ? Boolean(mentorQuestionnaire?.completed) : true,
     onboardingStatus
   };

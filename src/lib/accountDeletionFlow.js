@@ -58,6 +58,7 @@ export function clearLocalUserData(userId, email = "") {
   try {
     if (userId) {
       window.localStorage.removeItem(`prelude_plan_${userId}`);
+      window.localStorage.removeItem(`prelude_payment_done_${userId}`);
       window.localStorage.removeItem(`prelude_onboarding_draft_${userId}`);
       window.localStorage.removeItem(`prelude_parent_invite_done_${userId}`);
       window.localStorage.removeItem(`prelude_parent_invites_${userId}`);

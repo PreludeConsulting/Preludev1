@@ -8,7 +8,7 @@ import {
   MATCH_ONBOARDING_PATH,
   MENTOR_ONBOARDING_PATH,
   PARENT_ONBOARDING_PATH,
-  PLAN_SELECTION_PATH,
+  PAYMENT_ONBOARDING_PATH,
   ROLE_SELECTION_PATH,
   canAccessDashboard,
   postAuthDestination,
@@ -16,7 +16,7 @@ import {
   userNeedsMatchOnboarding,
   userNeedsMentorOnboarding,
   userNeedsParentInviteStep,
-  userNeedsPlanSelection,
+  userNeedsPaymentStep,
   userNeedsRoleSelection,
   userCanChangeRoleDuringOnboarding
 } from "./onboardingRoutes.js";
@@ -25,10 +25,10 @@ const DRAFT_STORAGE_PREFIX = "prelude_onboarding_draft_";
 
 export const ONBOARDING_STEP_IDS = {
   ROLE: "role",
-  PLAN: "plan",
   MATCH: "match",
   MATCH_RESULT: "match_result",
   PARENT: "parent",
+  PAYMENT: "payment",
   MENTOR: "mentor"
 };
 
@@ -43,20 +43,12 @@ function studentSteps() {
       matchesPath: (pathname, searchParams) => pathname === ROLE_SELECTION_PATH
     },
     {
-      id: ONBOARDING_STEP_IDS.PLAN,
-      path: PLAN_SELECTION_PATH,
-      title: "Choose your plan",
-      subtitle: "Open the Prelude wallet and pick the mentorship tier that fits your goals.",
-      isComplete: (user) => !userNeedsRoleSelection(user) && !userNeedsPlanSelection(user),
-      matchesPath: (pathname) => pathname === PLAN_SELECTION_PATH
-    },
-    {
       id: ONBOARDING_STEP_IDS.MATCH,
       path: MATCH_ONBOARDING_PATH,
       title: "Prelude Match",
       subtitle: "Answer a few questions so we can suggest the right mentor.",
       isComplete: (user) =>
-        !userNeedsRoleSelection(user) && !userNeedsPlanSelection(user) && !userNeedsMatchOnboarding(user),
+        !userNeedsRoleSelection(user) && !userNeedsMatchOnboarding(user),
       matchesPath: (pathname, searchParams) =>
         pathname === MATCH_ONBOARDING_PATH && searchParams?.get("step") !== "result"
     },
@@ -67,7 +59,6 @@ function studentSteps() {
       subtitle: "Review your mentor suggestion and decide how to continue.",
       isComplete: (user) =>
         !userNeedsRoleSelection(user) &&
-        !userNeedsPlanSelection(user) &&
         !userNeedsMatchOnboarding(user) &&
         !userNeedsMatchDecision(user),
       matchesPath: (pathname, searchParams) =>
@@ -81,6 +72,15 @@ function studentSteps() {
       subtitle: "Optional — give a guardian read-only access to your progress.",
       isComplete: (user) => Boolean(user.parentInviteStepComplete),
       matchesPath: (pathname) => pathname === PARENT_ONBOARDING_PATH
+    },
+    {
+      id: ONBOARDING_STEP_IDS.PAYMENT,
+      path: PAYMENT_ONBOARDING_PATH,
+      title: "Choose your plan",
+      subtitle: "Select a Prelude mentorship tier and complete secure checkout to finish setup.",
+      isComplete: (user) => Boolean(user.paymentStepComplete),
+      matchesPath: (pathname) =>
+        pathname === PAYMENT_ONBOARDING_PATH || pathname.startsWith(`${PAYMENT_ONBOARDING_PATH}/`)
     }
   ];
 }

@@ -4,6 +4,7 @@ import { Mail, Users } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {
   MATCH_ONBOARDING_PATH,
+  PAYMENT_ONBOARDING_PATH,
   dashboardPathForRole,
   userNeedsParentInviteStep
 } from "../../lib/onboardingRoutes.js";
@@ -29,18 +30,18 @@ export default function ParentInviteOnboardingPage() {
   }
 
   if (!userNeedsParentInviteStep(user)) {
-    return <Navigate to={dashboardPathForRole(user.role)} replace />;
+    return <Navigate to={PAYMENT_ONBOARDING_PATH} replace />;
   }
 
-  async function finish(destination) {
+  async function finish() {
     setError("");
     setLoading(true);
     try {
       await markParentInviteStepComplete(user.id);
       await refreshUser();
-      navigate(destination, { replace: true });
+      navigate(PAYMENT_ONBOARDING_PATH, { replace: true });
     } catch (err) {
-      setError(err.message || "Could not finish onboarding. Please try again.");
+      setError(err.message || "Could not finish this step. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -69,10 +70,10 @@ export default function ParentInviteOnboardingPage() {
       user={user}
       title="Invite a parent or guardian"
       subtitle="Prelude can send your parent a read-only summary of your progress, calendar, and mentor updates."
-      eyebrow="Final step"
+      eyebrow="Almost there"
       hideContinue
       backHref={`${MATCH_ONBOARDING_PATH}?step=result`}
-      footerNote="You can add or update parent emails anytime in Settings."
+      footerNote="You can add or update parent emails anytime in Settings after checkout."
     >
       <div className="pm-card-wrap">
         <div className="pm-card-wrap__glow" aria-hidden="true" />
@@ -87,13 +88,14 @@ export default function ParentInviteOnboardingPage() {
           {sent ? (
             <div className="dash-parent-invite-card__success">
               <p><strong>Invitation sent!</strong> We emailed <strong>{parentEmail}</strong>.</p>
-              <p className="dash-muted">You can add or update parent emails anytime in Settings.</p>
+              <p className="dash-muted">Next, choose your Prelude plan and complete secure checkout.</p>
               <button
                 type="button"
                 className="pm-btn pm-btn--primary pm-btn--lg"
-                onClick={() => finish(dashboardPathForRole(user.role))}
+                onClick={finish}
+                disabled={loading}
               >
-                Continue to dashboard
+                {loading ? "Continuing…" : "Continue to plan selection"}
               </button>
             </div>
           ) : (
@@ -121,7 +123,7 @@ export default function ParentInviteOnboardingPage() {
                   type="button"
                   className="pm-btn pm-btn--ghost"
                   disabled={loading}
-                  onClick={() => finish(dashboardPathForRole(user.role))}
+                  onClick={finish}
                 >
                   Skip for now
                 </button>

@@ -33,7 +33,9 @@ export function buildDemoSessionUser(account) {
     authProvider: "demo",
     emailVerified: true,
     onboardingStatus: "onboarding_completed",
-    matchOnboardingComplete: true
+    matchOnboardingComplete: true,
+    paymentStepComplete: true,
+    parentInviteStepComplete: true
   };
 }
 

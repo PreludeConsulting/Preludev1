@@ -10,11 +10,22 @@ import {
   PAID_PLAN_IDS,
   STRIPE_API_VERSION
 } from "./billingConfig.js";
+import { requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
+import {
+  syncSupabaseCheckoutSession,
+  syncSupabaseSubscription
+} from "./lib/supabaseBillingSync.js";
 
 const checkoutSchema = z.object({
   planId: z.enum(["basic", "plus", "pro"]),
-  guestCheckout: z.boolean().optional()
+  guestCheckout: z.boolean().optional(),
+  context: z.enum(["onboarding", "public"]).optional()
 });
+
+const confirmSessionSchema = z.object({
+  sessionId: z.string().trim().min(1)
+});
+
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 
 function getStripeClient(config = getBillingConfig()) {
@@ -32,18 +43,73 @@ function stripeObjectId(value) {
 }
 
 function isBillingPath(pathname) {
-  return pathname === "/api/billing/config" || pathname === "/api/billing/checkout" || pathname === "/api/billing/portal" || pathname === "/api/billing/webhook";
+  return (
+    pathname === "/api/billing/config" ||
+    pathname === "/api/billing/checkout" ||
+    pathname === "/api/billing/confirm-session" ||
+    pathname === "/api/billing/portal" ||
+    pathname === "/api/billing/webhook"
+  );
 }
 
-async function ensureStripeCustomer(user, config) {
-  if (user.stripeCustomerId) return user.stripeCustomerId;
+function checkoutResultUrls(appBaseUrl, planId, context) {
+  const contextQuery = context === "onboarding" ? "&context=onboarding" : "";
+  return {
+    successUrl: `${appBaseUrl}/checkout/success?plan=${planId}${contextQuery}&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${appBaseUrl}/checkout/cancel?plan=${planId}${contextQuery}`
+  };
+}
+
+async function resolveCheckoutAuth(req, payload) {
+  const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+  if (bearer) {
+    try {
+      const { user } = await requireSupabaseUser(req);
+      return {
+        userId: user.id,
+        email: user.email,
+        name: user.user_metadata?.full_name || user.email
+      };
+    } catch (error) {
+      if (payload.context === "onboarding") throw error;
+    }
+  }
+
+  const guestCheckout = Boolean(payload.guestCheckout) && isGuestCheckoutAllowed(req);
+  if (guestCheckout) return null;
+
+  const auth = await requireAuth(req);
+  requireCsrf(req);
+  return {
+    userId: auth.user.id,
+    email: auth.user.email,
+    name: `${auth.user.firstName || ""} ${auth.user.lastName || ""}`.trim() || auth.user.email,
+    prismaUser: auth.user
+  };
+}
+
+async function ensureStripeCustomerForCheckout(authUser, config) {
+  if (authUser.prismaUser) {
+    if (authUser.prismaUser.stripeCustomerId) return authUser.prismaUser.stripeCustomerId;
+    const stripe = getStripeClient(config);
+    const customer = await stripe.customers.create({
+      email: authUser.email,
+      name: authUser.name,
+      metadata: { userId: authUser.userId }
+    });
+    await db().user.update({
+      where: { id: authUser.userId },
+      data: { stripeCustomerId: customer.id }
+    });
+    return customer.id;
+  }
+
   const stripe = getStripeClient(config);
   const customer = await stripe.customers.create({
-    email: user.email,
-    name: `${user.firstName} ${user.lastName}`.trim(),
-    metadata: { userId: user.id }
+    email: authUser.email,
+    name: authUser.name,
+    metadata: { userId: authUser.userId }
   });
-  await db().user.update({ where: { id: user.id }, data: { stripeCustomerId: customer.id } });
   return customer.id;
 }
 
@@ -63,29 +129,67 @@ async function handleCheckout(req, res) {
   if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
 
   const payload = checkoutSchema.parse(await readJsonBody(req));
-  const guestCheckout = Boolean(payload.guestCheckout) && isGuestCheckoutAllowed(req);
-  const auth = guestCheckout ? null : await requireAuth(req);
-  if (!guestCheckout) requireCsrf(req);
+  if (payload.context === "onboarding" && !req.headers.authorization) {
+    return sendJson(res, 401, { error: "unauthenticated", message: "Please sign in before checkout." });
+  }
+
+  const authUser = await resolveCheckoutAuth(req, payload);
   const priceId = getPlanPriceId(payload.planId, config);
   if (!priceId) return sendJson(res, 400, { error: "invalid_plan", message: "That paid plan is not available." });
 
   const stripe = getStripeClient(config);
-  const customerId = auth ? await ensureStripeCustomer(auth.user, config) : null;
+  const customerId = authUser ? await ensureStripeCustomerForCheckout(authUser, config) : null;
   const appBaseUrl = getAppBaseUrl(req);
+  const { successUrl, cancelUrl } = checkoutResultUrls(appBaseUrl, payload.planId, payload.context);
+
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     ...(customerId ? { customer: customerId } : {}),
-    ...(auth ? { client_reference_id: auth.user.id } : {}),
-    success_url: `${appBaseUrl}/checkout/success?plan=${payload.planId}&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appBaseUrl}/checkout/cancel?plan=${payload.planId}`,
+    ...(authUser ? { client_reference_id: authUser.userId } : {}),
+    success_url: successUrl,
+    cancel_url: cancelUrl,
     line_items: [{ price: priceId, quantity: 1 }],
-    metadata: auth ? { userId: auth.user.id, planId: payload.planId } : { planId: payload.planId, checkoutMode: "guest_test" },
+    metadata: authUser
+      ? { userId: authUser.userId, planId: payload.planId, checkoutContext: payload.context || "public" }
+      : { planId: payload.planId, checkoutMode: "guest_test" },
     subscription_data: {
-      metadata: auth ? { userId: auth.user.id, planId: payload.planId } : { planId: payload.planId, checkoutMode: "guest_test" }
+      metadata: authUser
+        ? { userId: authUser.userId, planId: payload.planId, checkoutContext: payload.context || "public" }
+        : { planId: payload.planId, checkoutMode: "guest_test" }
     }
   });
 
   sendJson(res, 200, { url: session.url });
+}
+
+async function handleConfirmSession(req, res) {
+  const config = getBillingConfig();
+  if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
+
+  const payload = confirmSessionSchema.parse(await readJsonBody(req));
+  const { user } = await requireSupabaseUser(req);
+  const stripe = getStripeClient(config);
+  const session = await stripe.checkout.sessions.retrieve(payload.sessionId);
+
+  const sessionUserId = session.metadata?.userId || session.client_reference_id;
+  if (!sessionUserId || sessionUserId !== user.id) {
+    return sendJson(res, 403, { error: "forbidden", message: "That checkout session does not belong to this account." });
+  }
+
+  if (session.payment_status !== "paid") {
+    return sendJson(res, 409, {
+      error: "payment_pending",
+      message: "Stripe has not confirmed payment for this checkout session yet.",
+      paymentStatus: session.payment_status
+    });
+  }
+
+  await syncSupabaseCheckoutSession(session);
+  sendJson(res, 200, {
+    confirmed: true,
+    planId: session.metadata?.planId || null,
+    paymentStatus: session.payment_status
+  });
 }
 
 async function handlePortal(req, res) {
@@ -144,6 +248,8 @@ async function findUserForSubscription(subscription) {
 }
 
 async function syncSubscription(subscription) {
+  await syncSupabaseSubscription(subscription);
+
   const user = await findUserForSubscription(subscription);
   if (!user) return;
 
@@ -179,21 +285,26 @@ async function processWebhookEvent(event) {
   if (["customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"].includes(event.type)) {
     await syncSubscription(object);
   }
-  if (event.type === "checkout.session.completed" && object.customer && object.subscription) {
+  if (event.type === "checkout.session.completed") {
+    await syncSupabaseCheckoutSession(object);
     const userId = object.metadata?.userId || object.client_reference_id;
     const customerId = stripeObjectId(object.customer);
     const subscriptionId = stripeObjectId(object.subscription);
     if (userId) {
       const planId = object.metadata?.planId;
-      await db().user.update({
-        where: { id: userId },
-        data: {
-          plan: normalizePlan(planId),
-          stripeCustomerId: customerId,
-          stripeSubscriptionId: subscriptionId,
-          subscriptionStatus: object.status || "checkout_completed"
-        }
-      });
+      try {
+        await db().user.update({
+          where: { id: userId },
+          data: {
+            plan: normalizePlan(planId),
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: subscriptionId,
+            subscriptionStatus: object.status || "checkout_completed"
+          }
+        });
+      } catch {
+        /* Supabase-only accounts may not exist in Prisma */
+      }
     }
   }
   if (["invoice.paid", "invoice.payment_succeeded", "invoice.payment_failed"].includes(event.type) && object.subscription) {
@@ -239,6 +350,7 @@ export function createBillingApiMiddleware() {
     try {
       if (url.pathname === "/api/billing/config" && req.method === "GET") return await handleConfig(req, res);
       if (url.pathname === "/api/billing/checkout" && req.method === "POST") return await handleCheckout(req, res);
+      if (url.pathname === "/api/billing/confirm-session" && req.method === "POST") return await handleConfirmSession(req, res);
       if (url.pathname === "/api/billing/portal" && req.method === "POST") return await handlePortal(req, res);
       if (url.pathname === "/api/billing/webhook" && req.method === "POST") return await handleWebhook(req, res);
       return sendJson(res, 404, { error: "not_found" });

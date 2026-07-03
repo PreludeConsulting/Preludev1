@@ -52,6 +52,7 @@ export default function OnboardingShell({
   continueDisabled = false,
   continueLoading = false,
   hideContinue = false,
+  hideHomeLink = false,
   footerNote = "",
   className = ""
 }) {
@@ -67,7 +68,7 @@ export default function OnboardingShell({
   );
   const showBack = Boolean(onBack || backHref || previousPath);
   const resolvedBackHref = backHref || previousPath;
-  const homeHref = user && !canAccessDashboard(user) && location.pathname !== ROLE_SELECTION_PATH
+  const homeHref = !hideHomeLink && user && !canAccessDashboard(user) && location.pathname !== ROLE_SELECTION_PATH
     ? ROLE_SELECTION_PATH
     : "/";
   const homeLabel = homeHref === ROLE_SELECTION_PATH ? "← Back to role selection" : "← Back to Prelude";
@@ -75,9 +76,11 @@ export default function OnboardingShell({
   return (
     <main className={`onboarding-flow ${className}`.trim()}>
       <div className="onboarding-flow__inner">
-        <AppLink href={homeHref} className="onboarding-flow__home-link">
-          {homeLabel}
-        </AppLink>
+        {!hideHomeLink ? (
+          <AppLink href={homeHref} className="onboarding-flow__home-link">
+            {homeLabel}
+          </AppLink>
+        ) : null}
 
         <OnboardingProgress steps={progress.steps} currentIndex={progress.currentIndex} />
 

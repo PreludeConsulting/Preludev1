@@ -3,16 +3,18 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
-  MATCH_ONBOARDING_PATH,
+  PAYMENT_ONBOARDING_PATH,
   PLAN_SELECTION_PATH,
   isValidPlanId,
   postAuthDestination,
+  userNeedsPaymentStep,
   userNeedsPlanSelection
 } from "../lib/onboardingRoutes.js";
 import { readCachedPlan } from "../lib/supabaseAuth.js";
 import { getPlan, getPricingPlans } from "../lib/plans.js";
 import { readOnboardingDraft, writeOnboardingDraft } from "../lib/onboardingFlow.js";
 import { startBillingCheckout } from "../lib/auth.js";
+import { markPendingCheckoutPlan, startOnboardingBillingCheckout } from "../lib/onboardingPayment.js";
 import {
   WALLET_STATES,
   cardsSelectable,
@@ -37,7 +39,9 @@ const MOTION_MS = {
 };
 
 function selectorPath(context) {
-  return context === "onboarding" ? PLAN_SELECTION_PATH : PUBLIC_PLANS_PATH;
+  if (context === "payment") return PAYMENT_ONBOARDING_PATH;
+  if (context === "onboarding") return PLAN_SELECTION_PATH;
+  return PUBLIC_PLANS_PATH;
 }
 
 function restoreFromLocation(location) {
@@ -150,7 +154,8 @@ function getTabbable(container) {
   ).filter((el) => el.offsetParent !== null || el === document.activeElement);
 }
 
-function PlanPopup({ plan, status, busy, notice, onSelectPlan, onViewOtherPlans, onRequestClose }) {
+function PlanPopup({ plan, status, busy, notice, context = "public", onSelectPlan, onViewOtherPlans, onRequestClose }) {
+  const isPayment = context === "payment";
   const dialogRef = useRef(null);
   const bodyRef = useRef(null);
   const priceRef = useRef(null);
@@ -265,7 +270,11 @@ function PlanPopup({ plan, status, busy, notice, onSelectPlan, onViewOtherPlans,
             </ul>
           </section>
 
-          <p className="pw-popup__supporting">Billing is not charged during this step.</p>
+          <p className="pw-popup__supporting">
+            {isPayment
+              ? "You'll be redirected to Stripe's secure payment portal. Your account activates after payment is confirmed."
+              : "Billing is not charged during this step."}
+          </p>
 
           {notice ? (
             <p className="pw-popup__notice" role="status">
@@ -283,7 +292,7 @@ function PlanPopup({ plan, status, busy, notice, onSelectPlan, onViewOtherPlans,
             disabled={busy}
             aria-busy={busy}
           >
-            {busy ? "Processing…" : "Select this plan"}
+            {busy ? "Processing…" : isPayment ? "Continue to checkout" : "Select this plan"}
           </button>
           <div className="pw-popup__actions-row">
             <button type="button" className="pw-popup__action" onClick={handleViewPrice} disabled={busy}>
@@ -303,7 +312,7 @@ function PlanPopup({ plan, status, busy, notice, onSelectPlan, onViewOtherPlans,
 /* Wallet experience                                                    */
 /* ------------------------------------------------------------------ */
 
-function PlanWalletExperience({ context, user }) {
+export function PlanWalletExperience({ context, user }) {
   const navigate = useNavigate();
   const location = useLocation();
   const reducedMotion = useReducedMotion();
@@ -407,9 +416,32 @@ function PlanWalletExperience({ context, user }) {
       await saveUserPlan(plan.id);
       await refreshUser();
       persistDraft({ selectedPlanId: plan.id, planConfirmed: true });
-      navigate(MATCH_ONBOARDING_PATH, { replace: true });
+      navigate(postAuthDestination(user), { replace: true });
     } catch (err) {
       setNotice(err.message || "Could not save your plan. Please try again.");
+    } finally {
+      setBusyPlan(null);
+    }
+  }
+
+  async function handleChoosePayment(plan) {
+    setNotice("");
+    setBusyPlan(plan.id);
+    try {
+      if (user?.id) {
+        await markPendingCheckoutPlan(user.id, plan.id);
+        persistDraft({ selectedPlanId: plan.id, checkoutStarted: true });
+      }
+      const result = await startOnboardingBillingCheckout(plan.id);
+      if (result.url) window.location.href = result.url;
+    } catch (error) {
+      if (error.payload?.error === "billing_not_configured") {
+        setNotice("Checkout is not connected yet. Please try again once billing is configured.");
+      } else if (error.status === 401 || error.status === 403) {
+        setNotice("Your session expired. Sign in again and retry checkout.");
+      } else {
+        setNotice(error.message || "Checkout is unavailable right now. Please try again.");
+      }
     } finally {
       setBusyPlan(null);
     }
@@ -447,7 +479,9 @@ function PlanWalletExperience({ context, user }) {
 
   function handleSelectPlanAction() {
     if (!popupPlan || busyPlan) return;
-    if (context === "onboarding") {
+    if (context === "payment") {
+      handleChoosePayment(popupPlan);
+    } else if (context === "onboarding") {
       handleChooseOnboarding(popupPlan);
     } else {
       handleChoosePublic(popupPlan);
@@ -520,6 +554,7 @@ function PlanWalletExperience({ context, user }) {
           status={state.status}
           busy={busyPlan === popupPlan.id}
           notice={notice}
+          context={context}
           onSelectPlan={handleSelectPlanAction}
           onViewOtherPlans={handleViewOtherPlans}
           onRequestClose={handleViewOtherPlans}
@@ -582,6 +617,8 @@ function OnboardingPlanSelector() {
   );
 }
 
+export const PlanWalletSelector = PlanWalletExperience;
+
 export function PlansPage() {
   const { user } = useAuth();
   return (
@@ -614,6 +651,27 @@ export function PlanDetailPage({ context = "public" }) {
   }
 
   if (context === "onboarding" && !userNeedsPlanSelection(user)) {
+    return <Navigate to={postAuthDestination(user)} replace />;
+  }
+
+  if (context === "payment" && !ready) {
+    return (
+      <OnboardingShell
+        user={user}
+        loading
+        title="Choose your plan"
+        subtitle="Preparing secure checkout…"
+        hideContinue
+        hideHomeLink
+      />
+    );
+  }
+
+  if (context === "payment" && !user) {
+    return <Navigate to="/login" replace state={{ from: `${PAYMENT_ONBOARDING_PATH}/${planId}` }} />;
+  }
+
+  if (context === "payment" && !userNeedsPaymentStep(user)) {
     return <Navigate to={postAuthDestination(user)} replace />;
   }
 

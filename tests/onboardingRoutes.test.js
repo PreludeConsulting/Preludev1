@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  MATCH_ONBOARDING_PATH,
   MENTOR_ONBOARDING_PATH,
   ONBOARDING_STATUS,
-  PLAN_SELECTION_PATH,
+  PARENT_ONBOARDING_PATH,
+  PAYMENT_ONBOARDING_PATH,
   ROLE_SELECTION_PATH,
   canAccessDashboard,
   postAuthDestination,
   userNeedsMatchDecision,
+  userNeedsPaymentStep,
   userNeedsRoleSelection,
   userNeedsMentorOnboarding,
   userNeedsPlanSelection
@@ -18,10 +21,11 @@ function supabaseUser(overrides = {}) {
     authProvider: "supabase",
     role: "student",
     planSelected: false,
+    paymentStepComplete: false,
     roleSelectionComplete: true,
     matchOnboardingComplete: false,
     mentorOnboardingComplete: true,
-    parentInviteStepComplete: true,
+    parentInviteStepComplete: false,
     ...overrides
   };
 }
@@ -66,37 +70,55 @@ describe("onboarding route decisions", () => {
     expect(canAccessDashboard(user)).toBe(true);
   });
 
-  it("keeps student plan onboarding unchanged", () => {
+  it("sends new students to Prelude Match before plan selection", () => {
     const user = supabaseUser({
       role: "student",
-      planSelected: false
+      planSelected: false,
+      matchOnboardingComplete: false
     });
 
-    expect(userNeedsPlanSelection(user)).toBe(true);
-    expect(postAuthDestination(user)).toBe(PLAN_SELECTION_PATH);
+    expect(userNeedsPlanSelection(user)).toBe(false);
+    expect(postAuthDestination(user)).toBe(MATCH_ONBOARDING_PATH);
   });
 
-  it("blocks dashboard access until match and parent steps are complete", () => {
+  it("blocks dashboard access until match, parent, and payment steps are complete", () => {
     const user = supabaseUser({
       role: "student",
-      planSelected: true,
       onboardingStatus: ONBOARDING_STATUS.NEEDS_MATCH,
       matchOnboardingComplete: false,
-      parentInviteStepComplete: false
+      parentInviteStepComplete: false,
+      paymentStepComplete: false
     });
 
     expect(canAccessDashboard(user)).toBe(false);
     expect(postAuthDestination(user)).toBe("/onboarding/match");
   });
 
-  it("allows dashboard access after PreludeMatch while match is pending review", () => {
+  it("routes students to payment after parent invite is complete", () => {
     const user = supabaseUser({
       role: "student",
-      planSelected: true,
       matchOnboardingComplete: true,
-      mentorSelectionComplete: false
+      parentInviteStepComplete: true,
+      paymentStepComplete: false,
+      onboardingStatus: ONBOARDING_STATUS.NEEDS_PAYMENT
     });
 
+    expect(userNeedsPaymentStep(user)).toBe(true);
+    expect(postAuthDestination(user)).toBe(PAYMENT_ONBOARDING_PATH);
+    expect(canAccessDashboard(user)).toBe(false);
+  });
+
+  it("allows dashboard access only after payment is confirmed", () => {
+    const user = supabaseUser({
+      role: "student",
+      matchOnboardingComplete: true,
+      parentInviteStepComplete: true,
+      paymentStepComplete: true,
+      planSelected: true,
+      onboardingStatus: ONBOARDING_STATUS.ONBOARDING_COMPLETED
+    });
+
+    expect(userNeedsPaymentStep(user)).toBe(false);
     expect(userNeedsMatchDecision(user)).toBe(false);
     expect(postAuthDestination(user)).toBe("/dashboard/student/overview");
     expect(canAccessDashboard(user)).toBe(true);

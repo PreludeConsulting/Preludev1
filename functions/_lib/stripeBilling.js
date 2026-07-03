@@ -120,8 +120,7 @@ async function hmacSha256Hex(secret, value) {
     false,
     ["sign"]
   );
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
-  return bytesToHex(signature);
+  return bytesToHex(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value)));
 }
 
 async function verifyStripeSignature(rawBody, signatureHeader, signingSecret) {
@@ -152,12 +151,97 @@ async function patchSupabaseProfile(context, userId, data) {
   });
 }
 
+async function patchSupabaseOnboarding(context, userId, data) {
+  const supabaseUrl = getEnv(context, "SUPABASE_URL") || getEnv(context, "VITE_SUPABASE_URL");
+  const serviceRoleKey = getEnv(context, "SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey || !userId) return;
+
+  await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/onboarding_progress?on_conflict=user_id`, {
+    method: "POST",
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=minimal"
+    },
+    body: JSON.stringify({ user_id: userId, ...data })
+  });
+}
+
+async function syncSupabasePaymentComplete(context, userId, {
+  planId,
+  stripeCustomerId = null,
+  stripeSubscriptionId = null,
+  subscriptionStatus = "active"
+} = {}) {
+  if (!userId || !planId) return;
+
+  await patchSupabaseProfile(context, userId, {
+    plan_id: planId,
+    ...(stripeCustomerId ? { stripe_customer_id: stripeCustomerId } : {}),
+    ...(stripeSubscriptionId ? { stripe_subscription_id: stripeSubscriptionId } : {}),
+    ...(subscriptionStatus ? { subscription_status: subscriptionStatus } : {})
+  });
+
+  await patchSupabaseOnboarding(context, userId, {
+    payment_step_completed: true,
+    pending_checkout_plan_id: null,
+    onboarding_status: "onboarding_completed",
+    updated_at: new Date().toISOString()
+  });
+}
+
 async function syncSubscription(context, subscription) {
   const userId = subscription.metadata?.userId;
   const planId = subscription.metadata?.planId;
   if (!userId || !planId) return;
   const active = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status);
-  await patchSupabaseProfile(context, userId, { plan_id: active ? planId : "basic" });
+  await syncSupabasePaymentComplete(context, userId, {
+    planId: active ? planId : "basic",
+    stripeCustomerId: stripeObjectId(subscription.customer),
+    stripeSubscriptionId: subscription.id,
+    subscriptionStatus: subscription.status || null
+  });
+}
+
+async function syncCheckoutSession(context, session) {
+  const userId = session.metadata?.userId || session.client_reference_id;
+  const planId = session.metadata?.planId;
+  if (!userId || !planId) return;
+  if (session.payment_status && session.payment_status !== "paid") return;
+
+  await syncSupabasePaymentComplete(context, userId, {
+    planId,
+    stripeCustomerId: stripeObjectId(session.customer),
+    stripeSubscriptionId: stripeObjectId(session.subscription),
+    subscriptionStatus: session.status || "checkout_completed"
+  });
+}
+
+async function requireSupabaseUser(context) {
+  const token = context.request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") || "";
+  if (!token) {
+    return json({ error: "unauthenticated", message: "Please sign in before checkout." }, 401);
+  }
+
+  const supabaseUrl = getEnv(context, "SUPABASE_URL") || getEnv(context, "VITE_SUPABASE_URL");
+  const anonKey = getEnv(context, "SUPABASE_ANON_KEY") || getEnv(context, "VITE_SUPABASE_PUBLISHABLE_KEY");
+  if (!supabaseUrl || !anonKey) {
+    return json({ error: "service_unavailable", message: "Supabase is not configured." }, 503);
+  }
+
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/user`, {
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${token}`
+    }
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.id) {
+    return json({ error: "unauthenticated", message: "Please sign in before checkout." }, 401);
+  }
+
+  return { user: payload, token };
 }
 
 async function processWebhookEvent(context, event) {
@@ -169,9 +253,7 @@ async function processWebhookEvent(context, event) {
   }
 
   if (event.type === "checkout.session.completed") {
-    const userId = object.metadata?.userId || object.client_reference_id;
-    const planId = object.metadata?.planId;
-    if (userId && planId) await patchSupabaseProfile(context, userId, { plan_id: planId });
+    await syncCheckoutSession(context, object);
   }
 
   if (["invoice.paid", "invoice.payment_succeeded", "invoice.payment_failed"].includes(event.type) && object.subscription) {
@@ -181,6 +263,14 @@ async function processWebhookEvent(context, event) {
       await syncSubscription(context, subscription);
     }
   }
+}
+
+function checkoutResultUrls(baseUrl, planId, context) {
+  const contextQuery = context === "onboarding" ? "&context=onboarding" : "";
+  return {
+    successUrl: `${baseUrl}/checkout/success?plan=${planId}${contextQuery}&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${baseUrl}/checkout/cancel?plan=${planId}${contextQuery}`
+  };
 }
 
 export async function handleBillingConfig(context) {
@@ -200,26 +290,87 @@ export async function handleBillingCheckout(context) {
 
   const payload = await readJson(context.request);
   const planId = String(payload.planId || "").toLowerCase();
+  const checkoutContext = payload.context === "onboarding" ? "onboarding" : "public";
   if (!PAID_PLAN_IDS.includes(planId)) {
     return json({ error: "invalid_plan", message: "That paid plan is not available." }, 400);
   }
-  if (getEnv(context, "STRIPE_ALLOW_GUEST_CHECKOUT") !== "true") {
-    return json({ error: "unauthenticated", message: "Please sign in before checkout." }, 401);
+
+  let authUser = null;
+  const authResult = await requireSupabaseUser(context);
+  if (authResult instanceof Response) {
+    if (checkoutContext === "onboarding") return authResult;
+    if (getEnv(context, "STRIPE_ALLOW_GUEST_CHECKOUT") !== "true") {
+      return json({ error: "unauthenticated", message: "Please sign in before checkout." }, 401);
+    }
+  } else {
+    authUser = authResult.user;
   }
 
+  const baseUrl = appBaseUrl(context);
+  const { successUrl, cancelUrl } = checkoutResultUrls(baseUrl, planId, checkoutContext);
   const params = new URLSearchParams();
   params.set("mode", "subscription");
-  params.set("success_url", `${appBaseUrl(context)}/checkout/success?plan=${planId}&session_id={CHECKOUT_SESSION_ID}`);
-  params.set("cancel_url", `${appBaseUrl(context)}/checkout/cancel?plan=${planId}`);
+  params.set("success_url", successUrl);
+  params.set("cancel_url", cancelUrl);
   params.set("line_items[0][price]", config.prices[planId]);
   params.set("line_items[0][quantity]", "1");
   params.set("metadata[planId]", planId);
-  params.set("metadata[checkoutMode]", "cloudflare_guest");
+  params.set("metadata[checkoutContext]", checkoutContext);
   params.set("subscription_data[metadata][planId]", planId);
-  params.set("subscription_data[metadata][checkoutMode]", "cloudflare_guest");
+  params.set("subscription_data[metadata][checkoutContext]", checkoutContext);
+
+  if (authUser) {
+    params.set("client_reference_id", authUser.id);
+    params.set("metadata[userId]", authUser.id);
+    params.set("subscription_data[metadata][userId]", authUser.id);
+    params.set("customer_email", authUser.email || "");
+  } else {
+    params.set("metadata[checkoutMode]", "cloudflare_guest");
+    params.set("subscription_data[metadata][checkoutMode]", "cloudflare_guest");
+  }
 
   const session = await stripeRequest(context, "POST", "/v1/checkout/sessions", params);
   return json({ url: session.url });
+}
+
+export async function handleBillingConfirmSession(context) {
+  const config = getBillingConfig(context);
+  if (!config.enabled) return json(billingNotConfiguredPayload(config), 503);
+
+  const authResult = await requireSupabaseUser(context);
+  if (authResult instanceof Response) return authResult;
+
+  const payload = await readJson(context.request);
+  const sessionId = String(payload.sessionId || "").trim();
+  if (!sessionId) {
+    return json({ error: "validation_error", message: "sessionId is required." }, 400);
+  }
+
+  const session = await stripeRequest(
+    context,
+    "GET",
+    `/v1/checkout/sessions/${encodeURIComponent(sessionId)}`
+  );
+
+  const sessionUserId = session.metadata?.userId || session.client_reference_id;
+  if (!sessionUserId || sessionUserId !== authResult.user.id) {
+    return json({ error: "forbidden", message: "That checkout session does not belong to this account." }, 403);
+  }
+
+  if (session.payment_status !== "paid") {
+    return json({
+      error: "payment_pending",
+      message: "Stripe has not confirmed payment for this checkout session yet.",
+      paymentStatus: session.payment_status
+    }, 409);
+  }
+
+  await syncCheckoutSession(context, session);
+  return json({
+    confirmed: true,
+    planId: session.metadata?.planId || null,
+    paymentStatus: session.payment_status
+  });
 }
 
 export async function handleBillingPortal() {

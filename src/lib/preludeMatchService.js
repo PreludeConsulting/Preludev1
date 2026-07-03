@@ -368,6 +368,7 @@ export function mapOnboardingToUserFields(onboarding, hasAssignedMentor) {
       onboardingStatus: ONBOARDING_STATUS.NEEDS_MATCH,
       suggestedMentorId: null,
       parentInviteStepComplete: false,
+      paymentStepComplete: false,
       mentorSelectionComplete: false,
       matchedMentorCount: 0,
       matchedMentorIds: [],
@@ -381,8 +382,10 @@ export function mapOnboardingToUserFields(onboarding, hasAssignedMentor) {
   const mentorSelectionComplete = Boolean(onboarding.mentor_assignment_status);
   let status = onboarding.onboarding_status || ONBOARDING_STATUS.NEEDS_MATCH;
 
-  if (onboarding.parent_invite_step_completed) {
+  if (onboarding.payment_step_completed) {
     status = ONBOARDING_STATUS.ONBOARDING_COMPLETED;
+  } else if (onboarding.parent_invite_step_completed) {
+    status = ONBOARDING_STATUS.NEEDS_PAYMENT;
   } else if (!onboarding.mentor_matching_complete) {
     status = ONBOARDING_STATUS.NEEDS_MATCH;
   } else if (!mentorSelectionComplete && !hasAssignedMentor && onboarding.match_decision !== "accepted") {
@@ -398,6 +401,7 @@ export function mapOnboardingToUserFields(onboarding, hasAssignedMentor) {
     suggestedMentorId: onboarding.suggested_mentor_id || null,
     questionnaireAnswers: onboarding.questionnaire_answers || {},
     parentInviteStepComplete: Boolean(onboarding.parent_invite_step_completed),
+    paymentStepComplete: Boolean(onboarding.payment_step_completed),
     mentorSelectionComplete,
     matchedMentorCount: onboarding.matched_mentor_count ?? (onboarding.matched_mentor_ids || []).length,
     matchedMentorIds: onboarding.matched_mentor_ids || [],

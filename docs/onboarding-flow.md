@@ -7,17 +7,47 @@ This document describes the first-time account setup path for Supabase-backed Pr
 All post-auth routing decisions flow through `src/lib/onboardingRoutes.js`:
 
 1. `/onboarding/role` when `role_selection_complete` is false (common for Google OAuth)
-2. `/onboarding/plan` for students without a saved plan
-3. `/onboarding/mentor` for mentors without a completed questionnaire
-4. `/onboarding/match` for students who still need Prelude Match
-5. `/onboarding/match?step=result` when a mentor suggestion exists but no decision was saved
-6. `/onboarding/parent` for students who have not finished the parent invite step
-7. Dashboard home for completed users
+2. `/onboarding/match` for students who still need Prelude Match
+3. `/onboarding/match?step=result` when a mentor suggestion exists but no decision was saved
+4. `/onboarding/parent` for students who have not finished the parent invite step
+5. `/onboarding/payment` for students who have not completed paid checkout
+6. Dashboard home for completed users
 
 Parent invite details (API routes, email delivery, Supabase schema): see
 [`docs/parent-invites.md`](./parent-invites.md).
 
 `postAuthDestination(user)` is the single source of truth for the next required step.
+
+## Student onboarding order
+
+```text
+register / OAuth
+  → verify email
+  → verify login
+  → role (OAuth only)
+  → Prelude Match
+  → parent invite (optional)
+  → plan selection + Stripe checkout
+  → dashboard
+```
+
+Students cannot access `/dashboard/*` until `onboarding_progress.payment_step_completed = true`.
+
+## Payment step behavior
+
+- Route: `/onboarding/payment` with deep links at `/onboarding/payment/:planId`
+- UI: Prelude wallet with all three paid tiers (`basic`, `plus`, `pro`)
+- Navigation: back goes to `/onboarding/parent` only — no dashboard/home escape hatches
+- Checkout: choosing a plan redirects to Stripe Checkout via `/api/billing/checkout`
+- Completion: Stripe webhook and `/api/billing/confirm-session` set:
+  - `profiles.plan_id`
+  - `onboarding_progress.payment_step_completed = true`
+  - `onboarding_progress.onboarding_status = 'onboarding_completed'`
+
+Checkout return URLs:
+
+- Success: `/checkout/success?plan=<id>&context=onboarding&session_id=...`
+- Cancel: `/checkout/cancel?plan=<id>&context=onboarding`
 
 ## Navigation guards
 
@@ -28,11 +58,11 @@ Parent invite details (API routes, email delivery, Supabase schema): see
 
 - `src/components/onboarding/OnboardingShell.jsx` provides progress, back/continue actions, and responsive layout
 - `src/lib/onboardingFlow.js` stores non-destructive draft state in `localStorage` under `prelude_onboarding_draft_{userId}`
-- Plan selection also writes the confirmed plan to `profiles.plan_id` and `prelude_plan_{userId}`
+- Payment step hides the global home link so students stay in the onboarding funnel
 
 ## Plan wallet
 
-The plan step (`/onboarding/plan` and public `/plans`) renders the interactive wallet in
+The plan wallet (`/onboarding/payment`, legacy `/onboarding/plan`, and public `/plans`) renders in
 `src/components/PlanSelectionPage.jsx`:
 
 - Interaction rules live in a pure state machine, `src/lib/planWalletMachine.js`
@@ -43,16 +73,27 @@ The plan step (`/onboarding/plan` and public `/plans`) renders the interactive w
 - The wallet has an explicit in-wallet Open/Close control; the Close state is disabled
   while details are opening or visible.
 - Plan data comes exclusively from `src/lib/plans.js`; the popup shows the full feature
-  list in a scrollable body with a fixed action footer (“Select this plan”, “View price”,
-  “View other plans”).
-- “Select this plan” calls `saveUserPlan` during onboarding and `startBillingCheckout`
-  on the public page — no mock actions.
+  list in a scrollable body with a fixed action footer (“Continue to checkout” on the
+  payment step, “Select this plan” elsewhere).
+- On the payment step, “Continue to checkout” calls `startOnboardingBillingCheckout`.
+  The public page calls `startBillingCheckout`.
 - The wallet footer shows the Prelude Consulting logo/name and the authenticated user's
   email (falls back to “Guest”).
-- Deep links `/plans/:planId` and `/onboarding/plan/:planId` redirect to the wallet with
-  the matching popup open (`?wallet=open&selected=<id>&details=open`).
+- Deep links `/plans/:planId`, `/onboarding/plan/:planId`, and `/onboarding/payment/:planId`
+  redirect to the wallet with the matching popup open (`?wallet=open&selected=<id>&details=open`).
 - Styles: `src/styles/plan-wallet.css` (`pw-` prefix). Motion durations are mirrored in
   `MOTION_MS` inside the page component; `prefers-reduced-motion` collapses them.
+
+## Database
+
+Run `supabase/migrations/20260704000000_onboarding_payment.sql` to add:
+
+- `onboarding_progress.payment_step_completed`
+- `onboarding_progress.pending_checkout_plan_id`
+- `profiles.stripe_customer_id`, `profiles.stripe_subscription_id`, `profiles.subscription_status`
+- `onboarding_status = 'needs_payment'`
+
+Existing completed students with a saved plan are grandfathered into `payment_step_completed = true`.
 
 ## Google OAuth recreation
 
@@ -72,11 +113,12 @@ Client-side cleanup on deletion:
 
 ## Manual verification checklist
 
-1. Google signup → role → wallet plan → match → parent → dashboard
-2. Back/forward across every step with answers and selected plan preserved
+1. Google signup → role → match → parent → payment → Stripe checkout → dashboard
+2. Back/forward across every step with answers preserved
 3. Refresh on every step
-4. Delete account → Google signup again with the same Gmail → fresh onboarding with no stale data
-5. Returning completed user goes directly to dashboard
+4. Cancel Stripe checkout → returns to `/onboarding/payment` only
+5. Successful checkout → auto-activates account and lands on dashboard
+6. Returning completed user goes directly to dashboard
 
 ## Tests
 
@@ -88,4 +130,5 @@ Focused coverage lives in:
 
 - `tests/onboardingRoutes.test.js`
 - `tests/onboardingFlow.test.js`
+- `tests/onboardingPayment.test.js`
 - `tests/planWalletMachine.test.js`
