@@ -1,4 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { isLanguageFeatureEnabled } from "../lib/languageFeature.js";
 import { DEFAULT_LANGUAGE, LANGUAGES, translations } from "../lib/translations.js";
 
 const STORAGE_KEY = "prelude-language";
@@ -19,12 +21,15 @@ function getNestedValue(source, path) {
 }
 
 export function LanguageProvider({ children }) {
+  const { pathname } = useLocation();
   const [language, setLanguageState] = useState(readStoredLanguage);
+  const languageFeatureEnabled = isLanguageFeatureEnabled(pathname);
+  const activeLanguage = languageFeatureEnabled ? language : DEFAULT_LANGUAGE;
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, language);
-    document.documentElement.lang = language;
-  }, [language]);
+    document.documentElement.lang = activeLanguage;
+  }, [language, activeLanguage]);
 
   const value = useMemo(() => {
     function setLanguage(nextLanguage) {
@@ -32,7 +37,7 @@ export function LanguageProvider({ children }) {
     }
 
     function t(path, replacements = {}) {
-      const valueForLanguage = getNestedValue(translations[language], path);
+      const valueForLanguage = getNestedValue(translations[activeLanguage], path);
       const fallback = getNestedValue(translations[DEFAULT_LANGUAGE], path);
       const resolved = valueForLanguage ?? fallback ?? path;
 
@@ -45,12 +50,14 @@ export function LanguageProvider({ children }) {
     }
 
     return {
-      language,
+      language: activeLanguage,
+      preferredLanguage: language,
+      languageFeatureEnabled,
       languages: LANGUAGES,
       setLanguage,
       t
     };
-  }, [language]);
+  }, [activeLanguage, language, languageFeatureEnabled]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }

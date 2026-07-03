@@ -1,11 +1,11 @@
 import { LayoutDashboard, Calendar, Users } from "lucide-react";
 
 export const PRODUCT_PARENT_NAV = [
-  { to: "/overview", label: "Home", icon: LayoutDashboard, end: true },
-  { to: "/children", label: "My Children", icon: Users }
+  { to: "/overview", labelKey: "parentDashboard.nav.home", icon: LayoutDashboard, end: true },
+  { to: "/children", labelKey: "parentDashboard.nav.myChildren", icon: Users }
 ];
 
 export const PARENT_CHILD_NAV = [
-  { to: "overview", label: "Summary", icon: LayoutDashboard, end: true },
-  { to: "calendar", label: "Calendar", icon: Calendar }
+  { to: "overview", labelKey: "parentDashboard.nav.summary", icon: LayoutDashboard, end: true },
+  { to: "calendar", labelKey: "parentDashboard.nav.calendar", icon: Calendar }
 ];

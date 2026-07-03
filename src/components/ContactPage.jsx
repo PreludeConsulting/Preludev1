@@ -21,7 +21,6 @@ import PreludeLogo from "./PreludeLogo.jsx";
 import PreludeChat from "./PreludeChat.jsx";
 import SignInModal from "./SignInModal.jsx";
 import AccountPanel from "./AccountPanel.jsx";
-import LanguageSwitcher from "./LanguageSwitcher.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
 import {
@@ -454,7 +453,6 @@ export default function ContactPage() {
       <PreludeChat />
       <SignInModal />
       <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
-      <LanguageSwitcher />
     </div>
   );
 }

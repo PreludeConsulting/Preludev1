@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import AccountPanel from "./AccountPanel.jsx";
-import LanguageSwitcher from "./LanguageSwitcher.jsx";
 import Navbar from "./Navbar.jsx";
 import PreludeChat from "./PreludeChat.jsx";
 import SignInModal from "./SignInModal.jsx";
@@ -135,7 +134,6 @@ function MentorsPageContent() {
       <PreludeChat />
       <SignInModal />
       <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
-      <LanguageSwitcher />
     </div>
   );
 }

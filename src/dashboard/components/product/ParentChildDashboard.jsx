@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { useLanguage } from "../../../context/LanguageContext.jsx";
 import { DashboardDataProvider } from "../../context/DashboardDataContext.jsx";
 import StudentGamificationShell from "../StudentGamificationShell.jsx";
 import { PARENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
@@ -10,13 +11,14 @@ import { StudentCalendar } from "../../pages/student/StudentPages.jsx";
 function ParentChildSwitcher({ allChildren, currentChildId }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
 
   if (!allChildren || allChildren.length <= 1) return null;
 
   return (
     <div className="dash-parent-child-switcher">
       <label className="dash-parent-child-switcher__label" htmlFor="parent-child-switcher">
-        Viewing child
+        {t("parentDashboard.child.viewingLabel")}
       </label>
       <select
         id="parent-child-switcher"
@@ -41,10 +43,11 @@ function ParentChildSwitcher({ allChildren, currentChildId }) {
 
 function ParentChildNav({ childId }) {
   const location = useLocation();
+  const { t } = useLanguage();
   const base = `${PARENT_DASHBOARD_BASE}/children/${childId}`;
   return (
-    <nav className="dash-parent-child-nav" aria-label="Student sections">
-      {PARENT_CHILD_NAV.map(({ to, label }) => {
+    <nav className="dash-parent-child-nav" aria-label={t("parentDashboard.child.navLabel")}>
+      {PARENT_CHILD_NAV.map(({ to, labelKey }) => {
         const href = `${base}/${to}`;
         const active = location.pathname.startsWith(href);
         return (
@@ -54,7 +57,7 @@ function ParentChildNav({ childId }) {
             className={`dash-parent-child-nav__link${active ? " active" : ""}`}
             aria-current={active ? "page" : undefined}
           >
-            {label}
+            {t(labelKey)}
           </Link>
         );
       })}
@@ -63,17 +66,19 @@ function ParentChildNav({ childId }) {
 }
 
 function ParentChildRoutesInner({ child, allChildren }) {
+  const { t } = useLanguage();
+
   return (
     <div className="dash-parent-child-dashboard">
       <div className="dash-parent-viewing-banner">
         <div className="dash-parent-viewing-banner__main">
           <p>
-            Viewing <strong>{child.name}</strong>&apos;s dashboard — you can add and edit calendar events, but not remove them.
+            {t("parentDashboard.child.viewingBanner", { name: child.name })}
           </p>
           <ParentChildSwitcher allChildren={allChildren} currentChildId={child.id} />
         </div>
         <Link to={`${PARENT_DASHBOARD_BASE}/overview`} className="dash-btn dash-btn--secondary dash-btn--sm">
-          Back to all children
+          {t("parentDashboard.child.backToChildren")}
         </Link>
       </div>
       <ParentChildNav childId={child.id} />
@@ -89,13 +94,14 @@ function ParentChildRoutesInner({ child, allChildren }) {
 }
 
 export default function ParentChildDashboard({ child, allChildren = [], studentUser }) {
+  const { t } = useLanguage();
   const overrides = useMemo(
     () => ({
       deleteCalendarItem: async () => {
-        throw new Error("Parents cannot remove calendar events.");
+        throw new Error(t("parentDashboard.child.cannotRemoveEvents"));
       }
     }),
-    []
+    [t]
   );
 
   return (

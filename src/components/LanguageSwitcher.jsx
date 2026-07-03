@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../context/LanguageContext.jsx";
 
 export default function LanguageSwitcher() {
-  const { language, languages, setLanguage, t } = useLanguage();
+  const { language, languages, setLanguage, t, languageFeatureEnabled } = useLanguage();
   const [open, setOpen] = useState(false);
   const switcherRef = useRef(null);
   const activeLanguage = languages.find(({ code }) => code === language) ?? languages[0];
@@ -29,6 +29,8 @@ export default function LanguageSwitcher() {
     setLanguage(nextLanguage);
     setOpen(false);
   }
+
+  if (!languageFeatureEnabled) return null;
 
   return (
     <div className="language-switcher" ref={switcherRef}>

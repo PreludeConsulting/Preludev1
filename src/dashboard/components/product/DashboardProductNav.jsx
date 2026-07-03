@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import PreludeLogo from "../../../components/PreludeLogo.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { useLanguage } from "../../../context/LanguageContext.jsx";
 import { roleFromUser } from "../../../lib/dashboardRoutes.js";
 import { cn } from "../../../lib/utils.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
@@ -14,6 +15,7 @@ import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
 
 export default function DashboardProductNav({ navItems, basePath }) {
   const { user, signOut, planDetails } = useAuth();
+  const { t } = useLanguage();
   const { notifications, markNotificationsRead, profile } = useDashboardData();
   const chat = usePreludeChatContextOptional();
   const { canAccess } = usePlanAccess();
@@ -121,6 +123,10 @@ export default function DashboardProductNav({ navItems, basePath }) {
     });
   }
 
+  function resolveNavLabel(item) {
+    return item.labelKey ? t(item.labelKey) : item.label;
+  }
+
   function renderTabContent({ Icon, label, locked, hintLocked, messageBadge }) {
     return (
       <>
@@ -145,7 +151,8 @@ export default function DashboardProductNav({ navItems, basePath }) {
 
       <div className="dash-product-nav__nav-wrap">
         <nav className="dash-product-nav__tabs" aria-label="Dashboard sections" ref={tabsRef}>
-        {navItems.map(({ to, label, icon: Icon, end, workspaceTab, lockFeature, hintLockFeature }) => {
+        {navItems.map(({ to, label, labelKey, icon: Icon, end, workspaceTab, lockFeature, hintLockFeature }) => {
+          const resolvedLabel = resolveNavLabel({ label, labelKey });
           const locked = lockFeature && !canAccess(lockFeature);
           const hintLocked = hintLockFeature && !canAccess(hintLockFeature);
           const messageBadge =
@@ -161,20 +168,20 @@ export default function DashboardProductNav({ navItems, basePath }) {
           if (locked) {
             return (
               <button
-                key={`${to}-${workspaceTab || label}`}
+                key={`${to}-${workspaceTab || resolvedLabel}`}
                 type="button"
                 className="dash-product-nav__tab dash-product-nav__tab--locked"
-                aria-label={`${label} — upgrade to unlock`}
+                aria-label={`${resolvedLabel} — upgrade to unlock`}
                 onClick={() => openUpgrade(lockFeature)}
               >
-                {renderTabContent({ Icon, label, locked: true, hintLocked: false, messageBadge: null })}
+                {renderTabContent({ Icon, label: resolvedLabel, locked: true, hintLocked: false, messageBadge: null })}
               </button>
             );
           }
 
           return (
             <NavLink
-              key={`${to}-${workspaceTab || label}`}
+              key={`${to}-${workspaceTab || resolvedLabel}`}
               to={`${basePath}${to}`}
               end={end}
               state={workspaceTab ? { workspaceTab } : undefined}
@@ -187,7 +194,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
                 cn("dash-product-nav__tab", isTabActive({ to, end, workspaceTab }) && "dash-product-nav__tab--active")
               }
             >
-              {renderTabContent({ Icon, label, locked: false, hintLocked, messageBadge })}
+              {renderTabContent({ Icon, label: resolvedLabel, locked: false, hintLocked, messageBadge })}
             </NavLink>
           );
         })}

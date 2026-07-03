@@ -68,12 +68,11 @@ export const translations = {
       heading: "Mentorship from students at top universities"
     },
     studentNetwork: {
-      headline: "How Prelude's student network changes college guidance",
+      headline: "A whole team helping you succeed.",
       subheadline: "Instead of relying on outdated consultants, students get direct access to modern college mentors who recently lived through the admissions process.",
-      insightTitle: "Real students. Real insight.",
-      insightDescription: "Prelude connects high schoolers with college students who understand today's admissions process, campus culture, majors, essays, and student life firsthand.",
-      helpTitle: "Help when you need it",
-      helpDescription: "Questions do not wait for the next scheduled meeting. Prelude mentors can step in, message back, and suggest a call when a student needs real support.",
+      insightTitle: "Learn from different experiences",
+      insightDescription: "Talk to students who understand exactly what you're going through.",
+      helpTitle: "Need help now? Your mentor is always within reach",
       graphic: {
         label: "Modern mentor network",
         you: "You",
@@ -336,6 +335,40 @@ export const translations = {
           email: "Email us"
         }
       }
+    },
+    parentDashboard: {
+      overview: {
+        greeting: "Welcome, {{name}}",
+        greetingFallback: "Welcome, there",
+        subtitle: "Follow your children's college journey with a simplified Prelude view.",
+        childrenTitle: "Your children",
+        loading: "Loading linked children…",
+        emptyTitle: "No children linked yet",
+        emptyDescription: "Ask your student to invite you from Prelude Settings → Family, or enter your email when they sign up.",
+        studentFallback: "Student"
+      },
+      child: {
+        viewingLabel: "Viewing child",
+        viewingBanner: "Viewing {{name}}'s dashboard — you can add and edit calendar events, but not remove them.",
+        backToChildren: "Back to all children",
+        navLabel: "Student sections",
+        cannotRemoveEvents: "Parents cannot remove calendar events."
+      },
+      nav: {
+        home: "Home",
+        myChildren: "My Children",
+        summary: "Summary",
+        calendar: "Calendar"
+      },
+      routeMeta: {
+        overview: { title: "Parent home", subtitle: "A simplified view of your children on Prelude." },
+        children: { title: "Linked children", subtitle: "Children connected to your parent account." },
+        calendar: { title: "Calendar", subtitle: "View and help manage your child's schedule." },
+        settings: { title: "Profile & settings", subtitle: "Manage your parent account, notifications, and preferences." },
+        notifications: { title: "Notifications", subtitle: "Updates about your children, mentors, and meetings." },
+        billing: { title: "Plans and billing", subtitle: "Your parent account subscription." },
+        help: { title: "Help and support", subtitle: "Resources for parent accounts on Prelude." }
+      }
     }
   },
   ko: {
@@ -367,6 +400,7 @@ export const translations = {
         mentoringClarity: "멘토링 및 명확성",
         mentors: "멘토",
         pricing: "가격",
+        satPrepTutoring: "SAT 준비 및 과외",
         clarity: "명확성",
         contact: "문의",
         dashboard: "대시보드"
@@ -379,7 +413,7 @@ export const translations = {
       subcopy: "또래 멘토링, 개인 맞춤 전략, 재정 가이드를 통해 학생들이 자신 있게 돋보이는 지원서를 만들 수 있도록 돕습니다.",
       emailLabel: "이메일 주소",
       emailPlaceholder: "이메일 주소를 입력하세요",
-      cta: "무료로 시작하기",
+      cta: "무료 상담 예약",
       note: "무료로 시작한 뒤 꿈꾸는 대학의 멘토와 매칭되세요."
     },
     mentors: {
@@ -397,12 +431,11 @@ export const translations = {
       heading: "최상위 대학 학생들에게 받는 멘토링"
     },
     studentNetwork: {
-      headline: "Prelude의 학생 네트워크가 대학 상담을 바꾸는 방식",
+      headline: "당신의 성공을 돕는 온 팀이 함께합니다.",
       subheadline: "오래된 방식의 컨설턴트에 의존하는 대신, 학생들은 최근 입시 과정을 직접 경험한 현대적인 대학생 멘토들과 바로 연결됩니다.",
-      insightTitle: "진짜 학생. 진짜 인사이트.",
-      insightDescription: "Prelude는 고등학생을 오늘의 입시 과정, 캠퍼스 문화, 전공, 에세이, 학생 생활을 직접 이해하는 대학생들과 연결합니다.",
-      helpTitle: "필요할 때 받는 도움",
-      helpDescription: "질문은 다음 정기 미팅까지 기다려 주지 않습니다. 학생에게 실질적인 지원이 필요할 때 Prelude 멘토가 메시지로 답하고 통화를 제안할 수 있습니다.",
+      insightTitle: "다양한 경험에서 배우세요",
+      insightDescription: "당신이 겪고 있는 상황을 정확히 이해하는 학생들과 이야기하세요.",
+      helpTitle: "지금 도움이 필요하신가요? 멘토가 항상 가까이 있습니다.",
       graphic: {
         label: "현대적인 멘토 네트워크",
         you: "나",
@@ -526,10 +559,50 @@ export const translations = {
         headline: "학부모를 위해 설계되었습니다",
         imageAlt: "학생 진행 상황, 절약, 멘토 매칭, 예정된 마일스톤을 보여주는 학부모용 대시보드 화면."
       },
+      academicPrograms: {
+        headline: "SAT 준비 및 과외",
+        subheadline: "학업과 시험 준비를 위한 맞춤형 지원.",
+        cards: [
+          {
+            id: "sat-act-prep",
+            title: "SAT 및 ACT 준비",
+            price: "$124.99/월",
+            featuredCallout: "주간 1:1 Zoom 세션",
+            description: "우수한 멘토의 안내로 맞춤형 시험 전략을 세우세요.",
+            features: [
+              "맞춤형 멘토 매칭",
+              "최상위 대학 멘토와 연결",
+              "맞춤형 학습 로드맵",
+              "모의고사 리뷰",
+              "진행 상황 점검",
+              "시험 전략 가이드"
+            ],
+            cta: "SAT 멘토 찾기",
+            ctaHref: "/register?service=sat-mentor-match&ref=academic-programs"
+          },
+          {
+            id: "academic-tutoring",
+            title: "학업 과외",
+            price: "$159.99/월",
+            featuredCallout: "주간 1:1 Zoom 과외",
+            description: "어려운 수업에서 지원을 받고 학년 내내 학업을 유지하세요.",
+            features: [
+              "맞춤형 멘토 매칭",
+              "학업 목표와 수업에 맞춰 연결",
+              "수학, 과학, 영어 및 AP 지원",
+              "숙제 도움",
+              "시험 리뷰",
+              "유연한 일정"
+            ],
+            cta: "학업 멘토 찾기",
+            ctaHref: "/register?service=academic-mentor-match&ref=academic-programs"
+          }
+        ]
+      },
       plans: {
         eyebrow: "플랜",
         headline: "목표와 함께 성장하는 지원.",
-        body: "Basic으로 시작하세요. 더 많은 세션, 에세이 지원, 재정 전략이 필요할 때 업그레이드하세요.",
+        body: "무료 상담을 예약하세요. 더 많은 세션, 에세이 지원, 재정 전략이 필요할 때 업그레이드하세요.",
         mostPopular: "가장 인기",
         bestValue: "최고의 가치",
         pleaseWait: "잠시만 기다려 주세요...",
@@ -538,7 +611,7 @@ export const translations = {
           paid: "유료",
           perMonth: "/월"
         },
-        startFree: "무료로 시작하기",
+        startFree: "Basic 선택",
         choose: "{{plan}} 선택",
         notices: {
           basicFree: "계정을 만들어 Basic 플랜을 선택한 뒤 결제를 완료하여 시작하세요.",
@@ -550,56 +623,49 @@ export const translations = {
           {
             id: "basic",
             name: "Basic",
-            description: "대학 여정을 시작하는 학생을 위한 기본 가이드.",
+            description: "실제 대학 멘토의 기본 지원.",
             features: [
-              "월 1회 그룹 멘토링 세션",
-              "PreludeMatch를 통한 맞춤 멘토 접근",
-              "제한된 직접 메시지",
-              "개인 맞춤 대학 로드맵",
-              "진행 상황 추적",
-              "일반적인 에세이 브레인스토밍 지원",
-              "재정 지원 및 장학금 리소스",
-              "일반 컨설턴트 지원"
+              "월간 그룹 멘토 세션",
+              "PreludeMatch 멘토 매칭",
+              "배정된 멘토 메시징",
+              "맞춤형 학생 로드맵",
+              "실제 입시 경험 기반 가이드"
             ]
           },
           {
             id: "plus",
             name: "Plus",
-            description: "더 개인화된 가이드와 꾸준한 지원.",
+            description: "더 많은 멘토 접근, 1:1 지원, 리워드.",
+            featureHeader: "Basic의 모든 항목과:",
             features: [
-              "Basic의 모든 항목",
-              "월 2회 1:1 멘토 세션",
-              "월 1회 추가 그룹 전략 세션",
-              "확장된 직접 메시지",
-              "맞춤형 대학 및 지원 로드맵",
-              "정체성 구축 코칭",
-              "에세이 피드백 및 수정 지원",
-              "또래 벤치마킹 인사이트"
+              "월 2회 1:1 세션",
+              "전체 멘토 네트워크 메시징",
+              "맞춤형 입시 가이드",
+              "진행에 따른 Prelude 코인 적립",
+              "코인으로 추가 세션, 멀티 멘토 에세이 피드백, 과외 등 교환"
             ]
           },
           {
             id: "pro",
             name: "Pro",
-            description: "최상위 결과를 목표로 하는 학생을 위한 전방위 지원.",
+            description: "우선 지원과 전체 지원서 검토가 포함된 최고 수준의 플랜.",
+            featureHeader: "Plus의 모든 항목과:",
             features: [
-              "Plus의 모든 항목",
-              "매주 또는 격주 1:1 멘토 세션",
-              "우선 멘토 매칭",
-              "우선 직접 메시지",
-              "종합 에세이 편집",
+              "월 4회 1:1 세션",
+              "우선 멘토 네트워크 메시징",
+              "더 깊은 맞춤 전략",
               "전체 지원서 검토",
-              "인터뷰 준비",
-              "학교별 입시 전략",
-              "고급 재정 컨설팅",
-              "학부모 전략 세션",
-              "프리미엄 게임화 진행 추적"
+              "에세이 및 활동 검토 포함",
+              "더 높은 비율의 코인 적립",
+              "고급 마일스톤 리워드",
+              "코인으로 1:1, 에세이 검토, 과외 등 교환"
             ]
           }
         ]
       },
       cta: {
         headline: "당신의 Prelude를 시작하세요.",
-        body: "무료 전략 상담을 예약하고, 예산을 존중하는 명확함과 자신감, 지원으로 입시를 시작하세요.",
+        body: "무료 상담을 예약하고 Prelude가 대학 목표 달성에 어떻게 도움이 되는지 알아보세요.",
         primary: "무료 상담 예약",
         secondary: "이메일 보내기"
       },
@@ -632,6 +698,40 @@ export const translations = {
           email: "이메일 문의"
         }
       }
+    },
+    parentDashboard: {
+      overview: {
+        greeting: "환영합니다, {{name}}",
+        greetingFallback: "환영합니다",
+        subtitle: "간소화된 Prelude 화면으로 자녀의 대학 입시 여정을 함께하세요.",
+        childrenTitle: "자녀",
+        loading: "연결된 자녀를 불러오는 중…",
+        emptyTitle: "아직 연결된 자녀가 없습니다",
+        emptyDescription: "학생에게 Prelude 설정 → 가족에서 초대를 요청하거나, 가입 시 이메일을 입력하도록 안내하세요.",
+        studentFallback: "학생"
+      },
+      child: {
+        viewingLabel: "보고 있는 자녀",
+        viewingBanner: "{{name}}의 대시보드를 보고 있습니다 — 일정 이벤트를 추가하고 수정할 수 있지만 삭제는 할 수 없습니다.",
+        backToChildren: "모든 자녀로 돌아가기",
+        navLabel: "학생 섹션",
+        cannotRemoveEvents: "학부모는 일정 이벤트를 삭제할 수 없습니다."
+      },
+      nav: {
+        home: "홈",
+        myChildren: "내 자녀",
+        summary: "요약",
+        calendar: "일정"
+      },
+      routeMeta: {
+        overview: { title: "학부모 홈", subtitle: "Prelude에서 자녀를 간단히 확인하세요." },
+        children: { title: "연결된 자녀", subtitle: "학부모 계정에 연결된 자녀입니다." },
+        calendar: { title: "일정", subtitle: "자녀의 일정을 확인하고 관리하세요." },
+        settings: { title: "프로필 및 설정", subtitle: "학부모 계정, 알림, 환경설정을 관리하세요." },
+        notifications: { title: "알림", subtitle: "자녀, 멘토, 미팅에 대한 업데이트입니다." },
+        billing: { title: "플랜 및 결제", subtitle: "학부모 계정 구독입니다." },
+        help: { title: "도움말 및 지원", subtitle: "Prelude 학부모 계정을 위한 리소스입니다." }
+      }
     }
   },
   zh: {
@@ -663,6 +763,7 @@ export const translations = {
         mentoringClarity: "导师辅导与清晰规划",
         mentors: "导师",
         pricing: "价格",
+        satPrepTutoring: "SAT 备考与辅导",
         clarity: "清晰规划",
         contact: "联系",
         dashboard: "仪表板"
@@ -675,7 +776,7 @@ export const translations = {
       subcopy: "由同龄导师驱动的辅导、个性化策略和财务规划指导，帮助学生自信打造出色的申请材料。",
       emailLabel: "电子邮箱地址",
       emailPlaceholder: "输入你的电子邮箱地址",
-      cta: "免费开始试用",
+      cta: "预约免费咨询",
       note: "先免费开始，然后匹配来自你梦想学校的导师。"
     },
     mentors: {
@@ -693,12 +794,11 @@ export const translations = {
       heading: "来自顶尖大学学生的导师辅导"
     },
     studentNetwork: {
-      headline: "Prelude 的学生网络如何改变大学申请指导",
+      headline: "一支完整团队，助你成功。",
       subheadline: "学生不必依赖过时的顾问，而是可以直接接触刚刚经历过申请过程的现代大学生导师。",
-      insightTitle: "真实学生。真实洞察。",
-      insightDescription: "Prelude 将高中生与大学生连接起来，这些大学生亲身了解当下的申请流程、校园文化、专业、文书和学生生活。",
-      helpTitle: "在你需要时获得帮助",
-      helpDescription: "问题不会等到下一次预约会议才出现。当学生需要真正的支持时，Prelude 导师可以介入、回复消息，并建议安排通话。",
+      insightTitle: "向不同经历学习",
+      insightDescription: "与真正理解你处境的学生交流。",
+      helpTitle: "现在就需要帮助？你的导师随时触手可及。",
       graphic: {
         label: "现代导师网络",
         you: "你",
@@ -822,10 +922,50 @@ export const translations = {
         headline: "为家长而打造",
         imageAlt: "家长视角的学生仪表盘，展示进度、节省金额、导师匹配和即将到来的里程碑。"
       },
+      academicPrograms: {
+        headline: "SAT 备考与辅导",
+        subheadline: "为学业和考试准备提供个性化支持。",
+        cards: [
+          {
+            id: "sat-act-prep",
+            title: "SAT 与 ACT 备考",
+            price: "$124.99/月",
+            featuredCallout: "每周 1 对 1 Zoom 课程",
+            description: "在优秀导师指导下制定个性化考试策略。",
+            features: [
+              "个性化导师匹配",
+              "匹配顶尖大学导师",
+              "个性化学习路线图",
+              "模拟考试复盘",
+              "进度跟进",
+              "考试策略指导"
+            ],
+            cta: "寻找 SAT 导师",
+            ctaHref: "/register?service=sat-mentor-match&ref=academic-programs"
+          },
+          {
+            id: "academic-tutoring",
+            title: "学业辅导",
+            price: "$159.99/月",
+            featuredCallout: "每周 1 对 1 Zoom 辅导",
+            description: "在具有挑战性的课程中获得支持，并在整个学年保持进度。",
+            features: [
+              "个性化导师匹配",
+              "根据学业目标和课程匹配",
+              "数学、科学、英语与 AP 支持",
+              "作业辅导",
+              "考试复盘",
+              "灵活排课"
+            ],
+            cta: "寻找学业导师",
+            ctaHref: "/register?service=academic-mentor-match&ref=academic-programs"
+          }
+        ]
+      },
       plans: {
         eyebrow: "方案",
         headline: "随着你的目标一起成长的支持。",
-        body: "从 Basic 开始。当你需要更多课程、文书支持和财务策略时再升级。",
+        body: "预约免费咨询。当你需要更多课程、文书支持和财务策略时再升级。",
         mostPopular: "最受欢迎",
         bestValue: "超值之选",
         pleaseWait: "请稍候...",
@@ -834,7 +974,7 @@ export const translations = {
           paid: "付费",
           perMonth: "/月"
         },
-        startFree: "免费开始",
+        startFree: "选择 Basic",
         choose: "选择 {{plan}}",
         notices: {
           basicFree: "创建账户以选择 Basic 方案，然后完成结账即可开始。",
@@ -846,56 +986,49 @@ export const translations = {
           {
             id: "basic",
             name: "Basic",
-            description: "为刚开始大学申请旅程的学生提供基础指导。",
+            description: "来自真实大学导师的基础支持。",
             features: [
-              "每月一次小组导师辅导课程",
-              "通过 PreludeMatch 获得匹配导师",
-              "有限的直接消息",
-              "个性化大学路线图",
-              "进度追踪",
-              "一般文书头脑风暴支持",
-              "经济资助和奖学金资源",
-              "一般顾问支持"
+              "每月小组导师课程",
+              "PreludeMatch 导师匹配",
+              "指定导师消息",
+              "个性化学生路线图",
+              "来自真实申请经验的指导"
             ]
           },
           {
             id: "plus",
             name: "Plus",
-            description: "更个性化的指导和持续支持。",
+            description: "更多导师接触、1 对 1 支持和奖励。",
+            featureHeader: "Basic 的全部内容，以及：",
             features: [
-              "Basic 的全部内容",
-              "每月两次 1 对 1 导师课程",
-              "每月额外一次小组策略课程",
-              "更多直接消息",
-              "定制大学与申请路线图",
-              "身份构建辅导",
-              "文书反馈和修改支持",
-              "同龄人基准洞察"
+              "每月 2 次 1 对 1 课程",
+              "完整导师网络消息",
+              "个性化申请指导",
+              "通过进度赚取 Prelude 币",
+              "用币兑换额外课程、多导师文书反馈、辅导等"
             ]
           },
           {
             id: "pro",
             name: "Pro",
-            description: "为追求顶尖结果的学生提供端到端支持。",
+            description: "我们最高接触度的方案，含优先支持和完整申请审核。",
+            featureHeader: "Plus 的全部内容，以及：",
             features: [
-              "Plus 的全部内容",
-              "每周或每两周一次 1 对 1 导师课程",
-              "优先导师匹配",
-              "优先直接消息",
-              "全面文书编辑",
+              "每月 4 次 1 对 1 课程",
+              "优先导师网络消息",
+              "更深入的个人策略",
               "完整申请审核",
-              "面试准备",
-              "学校定向申请策略",
-              "高级财务咨询",
-              "家长策略课程",
-              "高级游戏化进度追踪"
+              "含文书与活动审核",
+              "更高比例的币赚取",
+              "高级里程碑奖励",
+              "用币兑换 1 对 1、文书审核、辅导等"
             ]
           }
         ]
       },
       cta: {
         headline: "开始你的 Prelude。",
-        body: "预约一次免费策略通话，用清晰、自信和尊重预算的支持开启申请之路。",
+        body: "预约免费咨询，了解 Prelude 如何帮助你实现大学目标。",
         primary: "预约免费通话",
         secondary: "给我们发邮件"
       },
@@ -928,6 +1061,40 @@ export const translations = {
           email: "给我们发邮件"
         }
       }
+    },
+    parentDashboard: {
+      overview: {
+        greeting: "欢迎，{{name}}",
+        greetingFallback: "欢迎",
+        subtitle: "通过简化的 Prelude 视图关注孩子的大学申请旅程。",
+        childrenTitle: "你的孩子",
+        loading: "正在加载已关联的孩子…",
+        emptyTitle: "尚未关联孩子",
+        emptyDescription: "请让你的学生在 Prelude 设置 → 家庭 中邀请你，或在注册时填写你的邮箱。",
+        studentFallback: "学生"
+      },
+      child: {
+        viewingLabel: "正在查看",
+        viewingBanner: "正在查看 {{name}} 的仪表盘 — 你可以添加和编辑日历事件，但不能删除。",
+        backToChildren: "返回所有孩子",
+        navLabel: "学生版块",
+        cannotRemoveEvents: "家长无法删除日历事件。"
+      },
+      nav: {
+        home: "首页",
+        myChildren: "我的孩子",
+        summary: "概览",
+        calendar: "日历"
+      },
+      routeMeta: {
+        overview: { title: "家长首页", subtitle: "在 Prelude 上简化查看你的孩子。" },
+        children: { title: "已关联的孩子", subtitle: "连接到你家长账户的孩子。" },
+        calendar: { title: "日历", subtitle: "查看并协助管理孩子的日程。" },
+        settings: { title: "个人资料与设置", subtitle: "管理家长账户、通知和偏好。" },
+        notifications: { title: "通知", subtitle: "关于孩子、导师和会议的最新动态。" },
+        billing: { title: "方案与账单", subtitle: "你的家长账户订阅。" },
+        help: { title: "帮助与支持", subtitle: "Prelude 家长账户相关资源。" }
+      }
     }
   },
   es: {
@@ -959,6 +1126,7 @@ export const translations = {
         mentoringClarity: "Mentoría y claridad",
         mentors: "Mentores",
         pricing: "Precios",
+        satPrepTutoring: "Preparación SAT y tutoría",
         clarity: "Claridad",
         contact: "Contacto",
         dashboard: "Panel"
@@ -971,7 +1139,7 @@ export const translations = {
       subcopy: "Accede a una red de estudiantes de universidades líderes que te guían en cada paso del proceso de admisión.",
       emailLabel: "Correo electrónico",
       emailPlaceholder: "Ingresa tu correo electrónico",
-      cta: "Empieza gratis",
+      cta: "Reserva una llamada gratis",
       note: "Comienza gratis y luego encuentra un mentor de la universidad de tus sueños."
     },
     mentors: {
@@ -989,12 +1157,11 @@ export const translations = {
       heading: "Mentoría de estudiantes en universidades destacadas"
     },
     studentNetwork: {
-      headline: "Cómo la red estudiantil de Prelude transforma la orientación universitaria",
+      headline: "Un equipo completo que te ayuda a triunfar.",
       subheadline: "En lugar de depender de consultores desactualizados, los estudiantes tienen acceso directo a mentores universitarios actuales que vivieron recientemente el proceso de admisión.",
-      insightTitle: "Estudiantes reales. Perspectiva real.",
-      insightDescription: "Prelude conecta a estudiantes de preparatoria con universitarios que entienden de primera mano el proceso de admisión actual, la cultura del campus, las carreras, los ensayos y la vida estudiantil.",
-      helpTitle: "Ayuda cuando la necesitas",
-      helpDescription: "Las preguntas no esperan a la próxima reunión programada. Los mentores de Prelude pueden intervenir, responder mensajes y sugerir una llamada cuando un estudiante necesita apoyo real.",
+      insightTitle: "Aprende de experiencias diversas",
+      insightDescription: "Habla con estudiantes que entienden exactamente por lo que estás pasando.",
+      helpTitle: "¿Necesitas ayuda ahora? Tu mentor siempre está a tu alcance",
       graphic: {
         label: "Red moderna de mentores",
         you: "Tú",
@@ -1118,10 +1285,50 @@ export const translations = {
         headline: "Diseñado para padres",
         imageAlt: "Vista para padres de un panel del estudiante con progreso, ahorros, mentor asignado y próximos hitos."
       },
+      academicPrograms: {
+        headline: "Preparación SAT y tutoría",
+        subheadline: "Apoyo personalizado para los estudios y la preparación de exámenes.",
+        cards: [
+          {
+            id: "sat-act-prep",
+            title: "Preparación SAT y ACT",
+            price: "$124.99/mes",
+            featuredCallout: "Sesiones semanales 1 a 1 por Zoom",
+            description: "Crea una estrategia de exámenes personalizada con mentores de alto rendimiento.",
+            features: [
+              "Emparejamiento personalizado con mentor",
+              "Conexión con un mentor de una universidad destacada",
+              "Hoja de ruta de estudio personalizada",
+              "Revisión de exámenes de práctica",
+              "Seguimiento de responsabilidad",
+              "Orientación de estrategia de exámenes"
+            ],
+            cta: "Encontrar mi mentor SAT",
+            ctaHref: "/register?service=sat-mentor-match&ref=academic-programs"
+          },
+          {
+            id: "academic-tutoring",
+            title: "Tutoría académica",
+            price: "$159.99/mes",
+            featuredCallout: "Tutoría semanal 1 a 1 por Zoom",
+            description: "Recibe apoyo en clases difíciles y mantente al día durante todo el año escolar.",
+            features: [
+              "Emparejamiento personalizado con mentor",
+              "Conexión según metas académicas y cursos",
+              "Apoyo en matemáticas, ciencias, inglés y AP",
+              "Ayuda con tareas",
+              "Revisión de exámenes",
+              "Horarios flexibles"
+            ],
+            cta: "Encontrar mi mentor académico",
+            ctaHref: "/register?service=academic-mentor-match&ref=academic-programs"
+          }
+        ]
+      },
       plans: {
         eyebrow: "Planes",
         headline: "Apoyo que crece con tus metas.",
-        body: "Empieza con Basic. Mejora cuando necesites más sesiones, apoyo con ensayos y estrategia financiera.",
+        body: "Reserva una llamada gratis con nosotros. Mejora tu plan cuando necesites más sesiones, apoyo con ensayos y estrategia financiera.",
         mostPopular: "Más popular",
         bestValue: "Mejor valor",
         pleaseWait: "Espera un momento...",
@@ -1130,7 +1337,7 @@ export const translations = {
           paid: "De pago",
           perMonth: "/mes"
         },
-        startFree: "Empieza gratis",
+        startFree: "Elegir Basic",
         choose: "Elegir {{plan}}",
         notices: {
           basicFree: "Crea una cuenta para elegir el plan Basic y completa el pago para empezar.",
@@ -1142,56 +1349,49 @@ export const translations = {
           {
             id: "basic",
             name: "Basic",
-            description: "Orientación fundamental para estudiantes que comienzan su camino universitario.",
+            description: "Apoyo fundamental de mentores universitarios reales.",
             features: [
               "Sesión mensual de mentoría grupal",
-              "Acceso a un mentor asignado por PreludeMatch",
-              "Mensajería directa limitada",
-              "Ruta universitaria personalizada",
-              "Seguimiento del progreso",
-              "Apoyo general para lluvia de ideas de ensayos",
-              "Recursos de ayuda financiera y becas",
-              "Apoyo general de consultoría"
+              "Emparejamiento con mentor PreludeMatch",
+              "Mensajería con mentor asignado",
+              "Hoja de ruta personalizada del estudiante",
+              "Orientación basada en experiencia real de admisiones"
             ]
           },
           {
             id: "plus",
             name: "Plus",
-            description: "Orientación más personalizada y apoyo constante.",
+            description: "Más acceso a mentores, apoyo 1 a 1 y recompensas.",
+            featureHeader: "Todo lo de Basic, y además:",
             features: [
-              "Todo lo incluido en Basic",
-              "Dos sesiones 1 a 1 con mentor al mes",
-              "Sesión mensual adicional de estrategia grupal",
-              "Más mensajería directa",
-              "Ruta personalizada para universidades y solicitudes",
-              "Coaching para construir identidad",
-              "Comentarios y revisión de ensayos",
-              "Perspectivas de comparación con pares"
+              "2 sesiones 1 a 1 al mes",
+              "Mensajería con toda la red de mentores",
+              "Orientación personalizada de admisiones",
+              "Gana Prelude Coins por tu progreso",
+              "Canjea monedas por sesiones extra, comentarios de ensayos con varios mentores, tutoría y más"
             ]
           },
           {
             id: "pro",
             name: "Pro",
-            description: "Apoyo integral para estudiantes que buscan resultados de alto nivel.",
+            description: "Nuestro plan de mayor contacto con apoyo prioritario y revisión completa de solicitudes.",
+            featureHeader: "Todo lo de Plus, y además:",
             features: [
-              "Todo lo incluido en Plus",
-              "Sesiones 1 a 1 semanales o quincenales",
-              "Asignación prioritaria de mentor",
-              "Mensajería directa prioritaria",
-              "Edición completa de ensayos",
+              "4 sesiones 1 a 1 al mes",
+              "Mensajería prioritaria con la red de mentores",
+              "Estrategia personalizada más profunda",
               "Revisión completa de solicitudes",
-              "Preparación para entrevistas",
-              "Estrategia de admisión por universidad",
-              "Consultoría financiera avanzada",
-              "Sesiones estratégicas para padres",
-              "Seguimiento de progreso gamificado premium"
+              "Revisión de ensayos y actividades incluida",
+              "Gana monedas a una tasa más alta",
+              "Recompensas avanzadas por hitos",
+              "Canjea monedas por sesiones 1 a 1, revisión de ensayos, tutoría y más"
             ]
           }
         ]
       },
       cta: {
         headline: "Comienza tu Prelude.",
-        body: "Agenda una llamada estratégica gratis y empieza admisiones con claridad, confianza y apoyo que respeta tu presupuesto.",
+        body: "Reserva una llamada gratis y descubre cómo Prelude puede ayudarte a alcanzar tus metas universitarias.",
         primary: "Agenda una llamada gratis",
         secondary: "Escríbenos"
       },
@@ -1223,6 +1423,40 @@ export const translations = {
           bookCall: "Agenda una llamada",
           email: "Escríbenos"
         }
+      }
+    },
+    parentDashboard: {
+      overview: {
+        greeting: "Bienvenido, {{name}}",
+        greetingFallback: "Bienvenido",
+        subtitle: "Sigue el camino universitario de tus hijos con una vista simplificada de Prelude.",
+        childrenTitle: "Tus hijos",
+        loading: "Cargando hijos vinculados…",
+        emptyTitle: "Aún no hay hijos vinculados",
+        emptyDescription: "Pide a tu estudiante que te invite desde Prelude Configuración → Familia, o ingresa tu correo cuando se registre.",
+        studentFallback: "Estudiante"
+      },
+      child: {
+        viewingLabel: "Viendo a",
+        viewingBanner: "Viendo el panel de {{name}} — puedes agregar y editar eventos del calendario, pero no eliminarlos.",
+        backToChildren: "Volver a todos los hijos",
+        navLabel: "Secciones del estudiante",
+        cannotRemoveEvents: "Los padres no pueden eliminar eventos del calendario."
+      },
+      nav: {
+        home: "Inicio",
+        myChildren: "Mis hijos",
+        summary: "Resumen",
+        calendar: "Calendario"
+      },
+      routeMeta: {
+        overview: { title: "Inicio para padres", subtitle: "Una vista simplificada de tus hijos en Prelude." },
+        children: { title: "Hijos vinculados", subtitle: "Hijos conectados a tu cuenta de padre." },
+        calendar: { title: "Calendario", subtitle: "Consulta y ayuda a gestionar el horario de tu hijo." },
+        settings: { title: "Perfil y configuración", subtitle: "Administra tu cuenta de padre, notificaciones y preferencias." },
+        notifications: { title: "Notificaciones", subtitle: "Actualizaciones sobre tus hijos, mentores y reuniones." },
+        billing: { title: "Planes y facturación", subtitle: "La suscripción de tu cuenta de padre." },
+        help: { title: "Ayuda y soporte", subtitle: "Recursos para cuentas de padres en Prelude." }
       }
     }
   }
