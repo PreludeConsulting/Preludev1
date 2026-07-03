@@ -2,7 +2,7 @@
    Prelude plan wallet
    Closed pristine wallet → layered three-card deck → plan popup.
    Class prefix: pw-  (consumed by PlanSelectionPage.jsx)
-   Motion durations must stay in sync with MOTION_MS in that file.
+   Motion is driven by anime.js in src/lib/planWalletMotion.js.
    ================================================================== */
 
 .plan-wallet-experience {
@@ -21,32 +21,24 @@
   --pw-card-h: 8.6rem;
   --pw-card-step: 5.9rem;
   --pw-pocket-h: 9.2rem;
-  --pw-ease: cubic-bezier(0.22, 0.9, 0.24, 1);
+  --pw-closed-height: 13.5rem;
+  --pw-open-height: 29.5rem;
   position: relative;
   width: var(--pw-width);
-  height: 13.5rem;
+  height: var(--pw-closed-height);
   border-radius: var(--pw-radius);
   isolation: isolate;
   overflow: hidden;
   filter: drop-shadow(0 2rem 2.8rem rgb(17 24 64 / 0.24));
-  transition: height 0.7s var(--pw-ease), transform 0.16s ease;
 }
 
 .pw-wallet--closed:has(.pw-wallet__control:active) {
   transform: scale(0.985);
 }
 
-.pw-wallet--opening,
-.pw-wallet--open,
-.pw-wallet--selectingCard,
-.pw-wallet--popupOpening,
-.pw-wallet--popupOpen,
-.pw-wallet--popupClosing {
-  height: 29.5rem;
-}
-
 /* Back panel + closed card face */
 .pw-wallet__interior {
+  --pw-sheen-opacity: 1;
   position: absolute;
   inset: 0;
   border: 1px solid rgb(255 255 255 / 0.16);
@@ -72,8 +64,7 @@
   font-size: 3.2rem;
   font-weight: 900;
   line-height: 1;
-  opacity: 1;
-  transition: opacity 0.3s ease;
+  opacity: var(--pw-sheen-opacity);
 }
 
 .pw-wallet__interior::after {
@@ -82,13 +73,7 @@
   inset: 0 0 auto;
   height: 5rem;
   background: linear-gradient(112deg, transparent 0 30%, rgb(255 255 255 / 0.1) 46%, transparent 60%);
-  opacity: 1;
-  transition: opacity 0.3s ease;
-}
-
-.pw-wallet[data-deck-visible="true"] .pw-wallet__interior::before,
-.pw-wallet[data-deck-visible="true"] .pw-wallet__interior::after {
-  opacity: 0;
+  opacity: var(--pw-sheen-opacity);
 }
 
 /* ------------------------------------------------------------------
@@ -121,108 +106,139 @@
   flex-direction: column;
   gap: 0.28rem;
   pointer-events: auto;
+  overflow: hidden;
   /* Fixed stacking order: layers never fight while animating. */
   z-index: calc(11 + var(--pw-i));
-  opacity: 0;
-  transform: translateY(13rem) scale(0.95);
-  transition:
-    transform 0.55s var(--pw-ease),
-    opacity 0.32s ease,
-    box-shadow 0.22s ease,
-    border-color 0.22s ease;
-  transition-delay: 0ms;
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.72),
-    0 0.9rem 1.7rem rgb(17 24 64 / 0.14);
+  will-change: transform, opacity;
 }
 
 .pw-card:disabled {
   cursor: default;
 }
 
-/* Deck rises together with a slight coordinated stagger on open only. */
-.pw-wallet--opening .pw-card {
-  transition-delay: calc(var(--pw-i) * 55ms);
+.pw-card__surface,
+.pw-card__sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
 }
 
-.pw-wallet--opening .pw-card,
-.pw-wallet--open .pw-card,
-.pw-wallet--selectingCard .pw-card,
-.pw-wallet--popupOpening .pw-card,
-.pw-wallet--popupOpen .pw-card,
-.pw-wallet--popupClosing .pw-card {
-  opacity: 1;
-  transform: translateY(calc(var(--pw-i) * var(--pw-card-step))) scale(1);
+.pw-card__sheen {
+  z-index: 1;
+  opacity: 0.85;
 }
 
-/* Once settled, card moves are quick and deterministic (selection shifts). */
-.pw-wallet--open .pw-card,
-.pw-wallet--selectingCard .pw-card,
-.pw-wallet--popupOpening .pw-card,
-.pw-wallet--popupOpen .pw-card,
-.pw-wallet--popupClosing .pw-card {
-  transition-duration: 0.24s, 0.2s, 0.22s, 0.22s;
-}
-
-.pw-wallet--opening .pw-card--selected,
-.pw-wallet--open .pw-card--selected,
-.pw-wallet--selectingCard .pw-card--selected,
-.pw-wallet--popupOpening .pw-card--selected,
-.pw-wallet--popupOpen .pw-card--selected,
-.pw-wallet--popupClosing .pw-card--selected {
-  transform: translateY(calc(var(--pw-i) * var(--pw-card-step) - 0.55rem)) scale(1.015);
-}
-
-.pw-wallet--selectingCard .pw-card--selected {
-  transform: translateY(calc(var(--pw-i) * var(--pw-card-step) - 0.82rem)) scale(1.022);
-}
-
-.pw-wallet--popupOpening .pw-card--selected,
-.pw-wallet--popupOpen .pw-card--selected {
-  transform: translateY(calc(var(--pw-i) * var(--pw-card-step) - 0.9rem)) scale(1.026);
-}
-
-.pw-wallet--popupOpening .pw-card:not(.pw-card--selected),
-.pw-wallet--popupOpen .pw-card:not(.pw-card--selected),
-.pw-wallet--popupClosing .pw-card:not(.pw-card--selected) {
-  opacity: 0.68;
-  transform: translateY(calc(var(--pw-i) * var(--pw-card-step) + 0.18rem)) scale(0.992);
-}
-
-/* Tier faces — material-inspired hierarchy, no material names in copy. */
+/* Tier faces — distinct hierarchy, no material names in copy. */
 .pw-card--basic {
+  border-radius: 0.95rem;
+  border-width: 1px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    0 0.55rem 1.1rem rgb(17 24 64 / 0.1);
+}
+
+.pw-card--basic .pw-card__surface {
   background:
-    linear-gradient(112deg, transparent 0 34%, rgb(255 255 255 / 0.74) 50%, transparent 64%),
-    linear-gradient(145deg, #fbfcff, #dfe6f0 58%, #f1f4fa);
+    linear-gradient(180deg, rgb(255 255 255 / 0.42) 0%, transparent 28%),
+    linear-gradient(155deg, #f4f7fb 0%, #e3eaf3 52%, #eef2f8 100%);
+}
+
+.pw-card--basic .pw-card__sheen {
+  background: linear-gradient(108deg, transparent 0 38%, rgb(255 255 255 / 0.35) 50%, transparent 62%);
 }
 
 .pw-card--plus {
+  border-radius: 1.1rem;
+  border-width: 1.5px;
+  border-color: rgb(180 130 40 / 0.28);
+  box-shadow:
+    inset 0 1px 0 rgb(255 248 220 / 0.75),
+    inset 0 -0.6rem 1.4rem rgb(120 80 20 / 0.08),
+    0 0.85rem 1.65rem rgb(80 50 10 / 0.16);
+}
+
+.pw-card--plus .pw-card__surface {
   background:
-    linear-gradient(112deg, transparent 0 34%, rgb(255 244 194 / 0.7) 50%, transparent 64%),
-    linear-gradient(145deg, #fff1b0, #d7ab4d 54%, #f8dc82);
+    repeating-linear-gradient(
+      135deg,
+      rgb(255 255 255 / 0.06) 0 2px,
+      transparent 2px 5px
+    ),
+    radial-gradient(circle at 18% 12%, rgb(255 248 210 / 0.55), transparent 42%),
+    linear-gradient(148deg, #fff6d4 0%, #e8c56a 48%, #f5dc8e 100%);
+}
+
+.pw-card--plus .pw-card__sheen {
+  background: linear-gradient(112deg, transparent 0 32%, rgb(255 244 194 / 0.65) 48%, transparent 64%);
 }
 
 .pw-card--pro {
-  background:
-    linear-gradient(112deg, transparent 0 34%, rgb(255 255 255 / 0.68) 50%, transparent 64%),
-    linear-gradient(145deg, #ffffff, #e5f1ff 50%, #dcd6ff);
-}
-
-.pw-card--selected {
-  border-color: rgb(120 106 255 / 0.5);
+  border-radius: 1.22rem;
+  border-width: 2px;
+  border-color: rgb(120 106 255 / 0.38);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.82),
-    0 1.2rem 2.2rem rgb(17 24 64 / 0.2),
-    0 0 0 2px rgb(120 106 255 / 0.14);
+    inset 0 0 0 1px rgb(255 255 255 / 0.22),
+    0 1.1rem 2.35rem rgb(50 36 120 / 0.22),
+    0 0 0 1px rgb(120 106 255 / 0.12);
 }
 
-.pw-card:hover:not(:disabled),
-.pw-card:focus-visible {
-  border-color: rgb(120 106 255 / 0.42);
+.pw-card--pro .pw-card__surface {
+  background:
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E"),
+    radial-gradient(circle at 82% 8%, rgb(180 170 255 / 0.35), transparent 38%),
+    linear-gradient(145deg, #ffffff 0%, #ebe8ff 46%, #ddd6ff 100%);
+}
+
+.pw-card--pro .pw-card__sheen {
+  background: linear-gradient(112deg, transparent 0 30%, rgb(255 255 255 / 0.72) 46%, transparent 60%);
+}
+
+.pw-card__top,
+.pw-card__tagline,
+.pw-card__selected-mark {
+  position: relative;
+  z-index: 2;
+}
+
+.pw-card--selected.pw-card--basic {
+  border-color: rgb(100 120 160 / 0.55);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.88),
-    0 1.3rem 2.4rem rgb(17 24 64 / 0.22),
-    0 0 0 2px rgb(120 106 255 / 0.1);
+    inset 0 1px 0 rgb(255 255 255 / 0.72),
+    0 0.85rem 1.5rem rgb(17 24 64 / 0.16),
+    0 0 0 2px rgb(100 120 160 / 0.18);
+}
+
+.pw-card--selected.pw-card--plus {
+  border-color: rgb(180 130 40 / 0.62);
+  box-shadow:
+    inset 0 1px 0 rgb(255 248 220 / 0.88),
+    0 1.05rem 2rem rgb(80 50 10 / 0.2),
+    0 0 0 2px rgb(210 160 60 / 0.22);
+}
+
+.pw-card--selected.pw-card--pro {
+  border-color: rgb(120 106 255 / 0.62);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 1.25rem 2.4rem rgb(50 36 120 / 0.26),
+    0 0 0 2px rgb(120 106 255 / 0.2);
+}
+
+.pw-card--basic:hover:not(:disabled),
+.pw-card--basic:focus-visible {
+  border-color: rgb(100 120 160 / 0.45);
+}
+
+.pw-card--plus:hover:not(:disabled),
+.pw-card--plus:focus-visible {
+  border-color: rgb(180 130 40 / 0.52);
+}
+
+.pw-card--pro:hover:not(:disabled),
+.pw-card--pro:focus-visible {
+  border-color: rgb(120 106 255 / 0.55);
 }
 
 .pw-card:focus-visible {
@@ -241,6 +257,23 @@
   font-size: 1.12rem;
   font-weight: 850;
   line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.pw-card--basic .pw-card__name {
+  font-size: 1.06rem;
+  font-weight: 800;
+  color: rgb(17 24 64 / 0.88);
+}
+
+.pw-card--plus .pw-card__name {
+  font-size: 1.14rem;
+  color: rgb(60 40 8 / 0.92);
+}
+
+.pw-card--pro .pw-card__name {
+  font-size: 1.18rem;
+  color: rgb(40 32 96 / 0.95);
 }
 
 .pw-card__badge {
@@ -255,12 +288,37 @@
   transform: translateY(-0.1rem);
 }
 
+.pw-card--plus .pw-card__badge {
+  background: rgb(255 248 220 / 0.88);
+  color: rgb(120 80 20);
+}
+
+.pw-card--pro .pw-card__badge {
+  background: rgb(235 230 255 / 0.92);
+  color: rgb(80 68 200);
+}
+
 .pw-card__price {
   margin-left: auto;
   font-family: "Barlow", sans-serif;
   font-size: 1.22rem;
   font-weight: 850;
   line-height: 1;
+}
+
+.pw-card--basic .pw-card__price {
+  font-size: 1.14rem;
+  color: rgb(17 24 64 / 0.82);
+}
+
+.pw-card--plus .pw-card__price {
+  font-size: 1.24rem;
+  color: rgb(60 40 8);
+}
+
+.pw-card--pro .pw-card__price {
+  font-size: 1.28rem;
+  color: rgb(50 40 130);
 }
 
 .pw-card__price small {
@@ -280,6 +338,15 @@
   text-overflow: ellipsis;
 }
 
+.pw-card--plus .pw-card__tagline {
+  color: rgb(60 40 8 / 0.68);
+}
+
+.pw-card--pro .pw-card__tagline {
+  color: rgb(40 32 96 / 0.68);
+  font-weight: 700;
+}
+
 .pw-card__selected-mark {
   display: inline-flex;
   align-items: center;
@@ -289,6 +356,14 @@
   font-weight: 850;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+}
+
+.pw-card--plus .pw-card__selected-mark {
+  color: rgb(140 95 20);
+}
+
+.pw-card--pro .pw-card__selected-mark {
+  color: rgb(80 68 200);
 }
 
 .pw-card__selected-mark svg {
@@ -400,17 +475,11 @@
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.12),
     0 0.65rem 1.25rem rgb(9 12 36 / 0.18);
-  transition:
-    transform 0.18s ease,
-    background 0.18s ease,
-    border-color 0.18s ease,
-    opacity 0.18s ease;
 }
 
 .pw-wallet__control svg {
   width: 0.9rem;
   height: 0.9rem;
-  transition: transform 0.22s ease;
 }
 
 .pw-wallet[data-deck-visible="true"] .pw-wallet__control svg {
@@ -421,11 +490,6 @@
 .pw-wallet__control:focus-visible {
   border-color: rgb(255 255 255 / 0.42);
   background: rgb(255 255 255 / 0.18);
-  transform: translateX(-50%) translateY(-1px);
-}
-
-.pw-wallet__control:active:not(:disabled) {
-  transform: translateX(-50%) translateY(0) scale(0.98);
 }
 
 .pw-wallet__control:focus-visible {
@@ -441,7 +505,6 @@
 .pw-wallet--popupOpening .pw-wallet__control,
 .pw-wallet--popupOpen .pw-wallet__control,
 .pw-wallet--popupClosing .pw-wallet__control {
-  opacity: 0;
   pointer-events: none;
 }
 
@@ -454,15 +517,8 @@
   justify-items: center;
   gap: 0.45rem;
   opacity: 0;
-  transform: translateY(0.5rem);
   pointer-events: none;
   z-index: 31;
-  transition: opacity 0.22s ease, transform 0.26s var(--pw-ease);
-}
-
-.pw-wallet--popupOpening .pw-wallet__details-bridge {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .pw-wallet__details-bridge-line {
@@ -505,7 +561,7 @@
   inset: 0;
   background: rgb(13 16 44 / 0.46);
   backdrop-filter: blur(3px);
-  animation: pw-backdrop-in 0.32s ease both;
+  opacity: 0;
 }
 
 .pw-popup {
@@ -522,7 +578,7 @@
     0 0.4rem 1rem rgb(17 24 64 / 0.1),
     0 2.2rem 4.2rem rgb(17 24 64 / 0.26);
   transform-origin: 50% 92%;
-  animation: pw-popup-in 0.42s var(--pw-ease, cubic-bezier(0.22, 0.9, 0.24, 1)) both;
+  opacity: 0;
 }
 
 /* Tier accent strip connects the popup to the selected card. */
@@ -542,14 +598,6 @@
 
 .pw-popup--pro::before {
   background: linear-gradient(90deg, #a99bff, #6a5cff);
-}
-
-.pw-popup-layer--closing .pw-popup {
-  animation: pw-popup-out 0.24s ease both;
-}
-
-.pw-popup-layer--closing .pw-popup-backdrop {
-  animation: pw-backdrop-out 0.24s ease both;
 }
 
 .pw-popup__head {
@@ -779,46 +827,6 @@
 }
 
 /* ------------------------------------------------------------------
-   Animations
-   ------------------------------------------------------------------ */
-
-@keyframes pw-popup-in {
-  from {
-    opacity: 0;
-    transform: translateY(1.45rem) scale(0.94);
-  }
-  56% {
-    opacity: 1;
-    transform: translateY(0.18rem) scale(1.006);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes pw-popup-out {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(0.75rem) scale(0.975);
-  }
-}
-
-@keyframes pw-backdrop-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes pw-backdrop-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-/* ------------------------------------------------------------------
    Responsive
    ------------------------------------------------------------------ */
 
@@ -828,16 +836,8 @@
     --pw-card-h: 7.9rem;
     --pw-card-step: 5.35rem;
     --pw-pocket-h: 8.4rem;
-    height: 12.6rem;
-  }
-
-  .pw-wallet--opening,
-  .pw-wallet--open,
-  .pw-wallet--selectingCard,
-  .pw-wallet--popupOpening,
-  .pw-wallet--popupOpen,
-  .pw-wallet--popupClosing {
-    height: 27rem;
+    --pw-closed-height: 12.6rem;
+    --pw-open-height: 27rem;
   }
 
   .pw-card {
@@ -867,20 +867,12 @@
 }
 
 /* ------------------------------------------------------------------
-   Reduced motion
+   Reduced motion (instant layout; JS timelines also collapse)
    ------------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
-  .pw-wallet,
-  .pw-card,
-  .pw-wallet__interior::before,
-  .pw-wallet__interior::after,
-  .pw-wallet__control,
-  .pw-wallet__details-bridge,
-  .pw-popup,
-  .pw-popup-backdrop {
-    animation-duration: 0.001ms !important;
+  .pw-popup__price,
+  .pw-popup__action {
     transition-duration: 0.001ms !important;
-    transition-delay: 0ms !important;
   }
 }

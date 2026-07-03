@@ -23,20 +23,12 @@ import {
   walletReducer,
   walletShowsDeck
 } from "../lib/planWalletMachine.js";
+import { usePlanWalletMotion } from "../lib/planWalletMotion.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
 import OnboardingShell from "./onboarding/OnboardingShell.jsx";
 
 const PUBLIC_PLANS_PATH = "/plans";
 const logoSrc = `${import.meta.env.BASE_URL}media/prelude-logo.png`;
-
-/** Durations must match the CSS transition times in plan-wallet.css. */
-const MOTION_MS = {
-  open: 700,
-  selectCard: 380,
-  popupEnter: 420,
-  popupExit: 240,
-  close: 520
-};
 
 function selectorPath(context) {
   if (context === "payment") return PAYMENT_ONBOARDING_PATH;
@@ -52,46 +44,6 @@ function restoreFromLocation(location) {
     detailsOpen: search.get("details") === "open",
     selectedPlanId: isValidPlanId(selected) ? selected : null
   };
-}
-
-/* ------------------------------------------------------------------ */
-/* Wallet machine hook                                                  */
-/* ------------------------------------------------------------------ */
-
-function useWalletMachine(initialState, reducedMotion) {
-  const [state, dispatch] = useReducer(walletReducer, initialState, createWalletState);
-  const { status, selectedPlanId } = state;
-
-  useEffect(() => {
-    const scale = reducedMotion ? 0 : 1;
-    let delay = null;
-    let settle = null;
-
-    if (status === WALLET_STATES.OPENING) {
-      delay = MOTION_MS.open * scale;
-      settle = { type: "OPEN_SETTLED" };
-    } else if (status === WALLET_STATES.SELECTING_CARD) {
-      delay = MOTION_MS.selectCard * scale;
-      settle = { type: "CARD_SETTLED" };
-    } else if (status === WALLET_STATES.POPUP_OPENING) {
-      delay = MOTION_MS.popupEnter * scale;
-      settle = { type: "POPUP_SETTLED" };
-    } else if (status === WALLET_STATES.POPUP_CLOSING) {
-      delay = MOTION_MS.popupExit * scale;
-      settle = { type: "POPUP_CLOSED" };
-    } else if (status === WALLET_STATES.CLOSING) {
-      delay = MOTION_MS.close * scale;
-      settle = { type: "CLOSE_SETTLED" };
-    }
-
-    if (settle === null) return undefined;
-    // Re-selecting a card while one is settling restarts the timer, so the
-    // most recent valid selection always wins deterministically.
-    const id = window.setTimeout(() => dispatch(settle), delay);
-    return () => window.clearTimeout(id);
-  }, [status, selectedPlanId, reducedMotion]);
-
-  return [state, dispatch];
 }
 
 /* ------------------------------------------------------------------ */
@@ -124,6 +76,8 @@ function WalletPlanCard({ plan, index, selected, selectable, onSelect, buttonRef
       aria-label={`${plan.name} plan, ${plan.price} per month${selected ? ", selected" : ""}`}
       tabIndex={selectable ? 0 : -1}
     >
+      <span className="pw-card__surface" aria-hidden="true" />
+      <span className="pw-card__sheen" aria-hidden="true" />
       <span className="pw-card__top">
         <span className="pw-card__name">{plan.name}</span>
         {plan.isRecommended ? <span className="pw-card__badge">Best value</span> : null}
@@ -154,15 +108,23 @@ function getTabbable(container) {
   ).filter((el) => el.offsetParent !== null || el === document.activeElement);
 }
 
-function PlanPopup({ plan, status, busy, notice, context = "public", onSelectPlan, onViewOtherPlans, onRequestClose }) {
+function PlanPopup({
+  plan,
+  status,
+  busy,
+  notice,
+  context = "public",
+  dialogRef,
+  backdropRef,
+  onSelectPlan,
+  onViewOtherPlans,
+  onRequestClose
+}) {
   const isPayment = context === "payment";
-  const dialogRef = useRef(null);
   const bodyRef = useRef(null);
   const priceRef = useRef(null);
   const firstActionRef = useRef(null);
   const [priceFlash, setPriceFlash] = useState(false);
-  const closing = status === WALLET_STATES.POPUP_CLOSING;
-
   // Lock background scrolling for the popup's whole lifetime.
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -214,11 +176,9 @@ function PlanPopup({ plan, status, busy, notice, context = "public", onSelectPla
   }
 
   return (
-    <div
-      className={`pw-popup-layer ${closing ? "pw-popup-layer--closing" : ""}`}
-      onKeyDown={handleKeyDown}
-    >
+    <div className="pw-popup-layer" onKeyDown={handleKeyDown}>
       <div
+        ref={backdropRef}
         className="pw-popup-backdrop"
         onClick={busy ? undefined : onRequestClose}
         aria-hidden="true"
@@ -338,18 +298,54 @@ export function PlanWalletExperience({ context, user }) {
       ? WALLET_STATES.OPEN
       : WALLET_STATES.CLOSED;
 
-  const [state, dispatch] = useWalletMachine(
-    {
-      status: initialStatus,
-      selectedPlanId: initialPlanId,
-      popupPlanId: initialStatus === WALLET_STATES.POPUP_OPEN ? initialPlanId : null
-    },
-    reducedMotion
+  const planIds = useMemo(() => plans.map((plan) => plan.id), [plans]);
+
+  const walletRef = useRef(null);
+  const interiorRef = useRef(null);
+  const pocketRef = useRef(null);
+  const controlRef = useRef(null);
+  const bridgeRef = useRef(null);
+  const popupRef = useRef(null);
+  const backdropRef = useRef(null);
+  const cardRefs = useRef({});
+
+  const motionRefs = useMemo(
+    () => ({
+      walletRef,
+      interiorRef,
+      pocketRef,
+      controlRef,
+      bridgeRef,
+      popupRef,
+      backdropRef,
+      cardRefs
+    }),
+    []
   );
+
+  const [state, dispatch] = useReducer(walletReducer, {
+    status: initialStatus,
+    selectedPlanId: initialPlanId,
+    popupPlanId: initialStatus === WALLET_STATES.POPUP_OPEN ? initialPlanId : null
+  }, createWalletState);
+
+  const skipInitialMotion =
+    initialStatus === WALLET_STATES.OPEN ||
+    initialStatus === WALLET_STATES.POPUP_OPEN ||
+    initialStatus === WALLET_STATES.CLOSED;
+
+  usePlanWalletMotion({
+    status: state.status,
+    selectedPlanId: state.selectedPlanId,
+    reducedMotion,
+    refs: motionRefs,
+    dispatch,
+    planIds,
+    skipInitialMotion
+  });
 
   const [busyPlan, setBusyPlan] = useState(null);
   const [notice, setNotice] = useState("");
-  const cardRefs = useRef({});
   const previousStatusRef = useRef(state.status);
   const allowGuestCheckout = import.meta.env.DEV || import.meta.env.VITE_ALLOW_GUEST_CHECKOUT === "true";
 
@@ -496,6 +492,7 @@ export function PlanWalletExperience({ context, user }) {
   return (
     <div className="plan-wallet-experience">
       <div
+        ref={walletRef}
         className={`pw-wallet pw-wallet--${state.status}`}
         data-deck-visible={showDeck ? "true" : "false"}
         data-popup-plan={popupPlan?.id || state.selectedPlanId || ""}
@@ -503,7 +500,7 @@ export function PlanWalletExperience({ context, user }) {
         // React 18 forwards unknown attributes as strings; "" enables inert.
         inert={popupOpen ? "" : undefined}
       >
-        <div className="pw-wallet__interior" aria-hidden="true" />
+        <div ref={interiorRef} className="pw-wallet__interior" aria-hidden="true" />
 
         <div className="pw-deck" role="group" aria-label="Prelude plans">
           {plans.map((plan, index) => (
@@ -521,13 +518,14 @@ export function PlanWalletExperience({ context, user }) {
           ))}
         </div>
 
-        <div className="pw-wallet__pocket" aria-hidden="true">
+        <div ref={pocketRef} className="pw-wallet__pocket" aria-hidden="true">
           <span className="pw-wallet__pocket-lip" />
         </div>
 
         <WalletBrandFooter email={user?.email} />
 
         <button
+          ref={controlRef}
           type="button"
           className="pw-wallet__control"
           onClick={handleWalletControl}
@@ -539,7 +537,7 @@ export function PlanWalletExperience({ context, user }) {
           <ChevronRight aria-hidden="true" />
         </button>
 
-        <div className="pw-wallet__details-bridge" aria-hidden="true">
+        <div ref={bridgeRef} className="pw-wallet__details-bridge" aria-hidden="true">
           <span className="pw-wallet__details-bridge-line" />
           <span className="pw-wallet__details-bridge-copy">
             Preparing details
@@ -555,6 +553,8 @@ export function PlanWalletExperience({ context, user }) {
           busy={busyPlan === popupPlan.id}
           notice={notice}
           context={context}
+          dialogRef={popupRef}
+          backdropRef={backdropRef}
           onSelectPlan={handleSelectPlanAction}
           onViewOtherPlans={handleViewOtherPlans}
           onRequestClose={handleViewOtherPlans}

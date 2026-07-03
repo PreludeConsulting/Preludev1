@@ -81,8 +81,9 @@ The plan wallet (`/onboarding/payment`, legacy `/onboarding/plan`, and public `/
   email (falls back to “Guest”).
 - Deep links `/plans/:planId`, `/onboarding/plan/:planId`, and `/onboarding/payment/:planId`
   redirect to the wallet with the matching popup open (`?wallet=open&selected=<id>&details=open`).
-- Styles: `src/styles/plan-wallet.css` (`pw-` prefix). Motion durations are mirrored in
-  `MOTION_MS` inside the page component; `prefers-reduced-motion` collapses them.
+- Styles: `src/styles/plan-wallet.css` (`pw-` prefix). Wallet/card/popup motion runs through
+  anime.js timelines in `src/lib/planWalletMotion.js`; `prefers-reduced-motion` collapses
+  durations to instant layout snaps.
 
 ## Database
 
@@ -132,3 +133,4 @@ Focused coverage lives in:
 - `tests/onboardingFlow.test.js`
 - `tests/onboardingPayment.test.js`
 - `tests/planWalletMachine.test.js`
+- `tests/planWalletMotion.test.js`
