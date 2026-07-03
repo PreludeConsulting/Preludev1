@@ -508,6 +508,15 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
   }
 }
 
+const EDIT_WINDOW_MS = 2 * 60 * 1000;
+const EDIT_WINDOW_ERROR = "You can only edit a message within 2 minutes of sending it.";
+
+function isWithinEditWindow(row) {
+  const created = row?.created_at || row?.createdAt;
+  if (!created) return true;
+  return Date.now() - new Date(created).getTime() <= EDIT_WINDOW_MS;
+}
+
 export async function editChatMessage(user, messageId, body) {
   if (!user?.id || !messageId) return { message: null, error: "Missing message." };
   const trimmed = (body || "").trim();
@@ -523,6 +532,7 @@ export async function editChatMessage(user, messageId, body) {
       const rows = loadLocalChatMessages(thread);
       const idx = rows.findIndex((m) => m.id === messageId && (m.sender_id || m.senderId) === user.id);
       if (idx === -1) continue;
+      if (!isWithinEditWindow(rows[idx])) return { message: null, error: EDIT_WINDOW_ERROR };
       const updated = {
         ...rows[idx],
         body: trimmed,
@@ -536,6 +546,12 @@ export async function editChatMessage(user, messageId, body) {
   }
 
   const cachedThreads = loadLocalChatThreads(user.id).map(withStorageKey);
+  const cachedOwnMessage = cachedThreads
+    .flatMap((thread) => loadLocalChatMessages(thread))
+    .find((m) => m.id === messageId && (m.sender_id || m.senderId) === user.id);
+  if (cachedOwnMessage && !isWithinEditWindow(cachedOwnMessage)) {
+    return { message: null, error: EDIT_WINDOW_ERROR };
+  }
   for (const thread of cachedThreads) {
     const rows = loadLocalChatMessages(thread);
     if (!rows.some((m) => m.id === messageId)) continue;

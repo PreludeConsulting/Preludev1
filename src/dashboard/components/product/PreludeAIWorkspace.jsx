@@ -92,7 +92,7 @@ export default function PreludeAIWorkspace({ profile, studentProfileStats }) {
             Based on your profile, here are some suggested questions.
           </p>
           <div className="dash-prelude-ai__chips" role="list">
-            {SUGGESTION_CHIPS.map((chip) => (
+            {SUGGESTION_CHIPS.slice(0, 4).map((chip) => (
               <button
                 key={chip.label}
                 type="button"

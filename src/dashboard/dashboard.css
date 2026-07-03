@@ -3138,27 +3138,31 @@ img.dash-avatar {
 .dash-chat-app__messages {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 1rem 1.15rem 0.5rem;
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
-  background: linear-gradient(180deg, #fff 0%, #faf9ff 100%);
+  gap: 0.15rem;
+  background: #fff;
 }
 
 .dash-chat-date {
   align-self: center;
-  padding: 0.2rem 0.65rem;
+  margin: 0.6rem 0;
+  padding: 0.22rem 0.75rem;
   border-radius: 999px;
-  background: hsl(var(--foreground) / 0.06);
-  font-size: 0.72rem;
+  background: #ece9fb;
+  font-size: 0.7rem;
   font-weight: 700;
-  color: hsl(var(--muted-foreground));
+  letter-spacing: 0.01em;
+  color: #6b6482;
 }
 
 .dash-chat-group {
   display: flex;
-  gap: 0.45rem;
-  max-width: 88%;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: 74%;
+  margin-top: 0.5rem;
 }
 
 .dash-chat-group--me {
@@ -3173,27 +3177,56 @@ img.dash-avatar {
 .dash-chat-group__bubbles {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.dash-chat-group--me .dash-chat-group__bubbles {
+  align-items: flex-end;
+}
+
+.dash-chat-group--them .dash-chat-group__bubbles {
+  align-items: flex-start;
 }
 
 .dash-chat-bubble {
-  padding: 0.55rem 0.8rem;
-  border-radius: 1rem;
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.5rem 0.85rem;
+  border-radius: 1.35rem;
   font-family: var(--dash-font-sans);
-  font-size: 0.875rem;
-  line-height: 1.45;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .dash-chat-bubble--them {
-  background: #ede9ff;
-  color: hsl(230 25% 18%);
-  border-bottom-left-radius: 0.25rem;
+  background: #e9e9eb;
+  color: #1c1c1e;
 }
 
 .dash-chat-bubble--me {
-  background: hsl(230 25% 18%);
+  background: #0a84ff;
   color: #fff;
-  border-bottom-right-radius: 0.25rem;
+}
+
+/* iMessage-style tail: flatten the inner corner only on the last bubble of a run */
+.dash-chat-group__bubbles .dash-chat-bubble--them:last-child {
+  border-bottom-left-radius: 0.4rem;
+}
+
+.dash-chat-group__bubbles .dash-chat-bubble--me:last-child {
+  border-bottom-right-radius: 0.4rem;
+}
+
+/* Image messages shrink-wrap the preview with no colored wrapper */
+.dash-chat-bubble:has(.dash-chat-bubble__image):not(:has(> span)) {
+  padding: 0;
+  background: transparent;
+  border-radius: 1.1rem;
+  overflow: hidden;
 }
 
 .dash-chat-group__time {
@@ -3210,23 +3243,66 @@ img.dash-avatar {
 }
 
 .dash-chat-app__composer {
+  position: sticky;
+  bottom: 0;
   display: flex;
   align-items: flex-end;
-  gap: 0.4rem;
-  padding: 0.75rem 1rem;
-  border-top: 1px solid hsl(var(--foreground) / 0.08);
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-top: 1px solid hsl(var(--foreground) / 0.07);
   background: #fff;
 }
 
 .dash-chat-app__composer textarea {
   flex: 1;
   resize: none;
-  min-height: 2.25rem;
+  min-height: 2.4rem;
   max-height: 6rem;
-  border: 1px solid hsl(var(--foreground) / 0.12);
-  border-radius: 1rem;
-  padding: 0.55rem 0.85rem;
+  border: 1px solid hsl(var(--foreground) / 0.14);
+  border-radius: 1.4rem;
+  padding: 0.6rem 1rem;
   font-family: var(--dash-font-sans);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.dash-chat-app__composer textarea:focus {
+  outline: none;
+  border-color: #0a84ff;
+  box-shadow: 0 0 0 3px rgb(10 132 255 / 0.14);
+}
+
+/* Circular attachment + send buttons, iMessage style */
+.dash-chat-app__composer .dash-btn--icon {
+  flex-shrink: 0;
+  width: 2.4rem;
+  height: 2.4rem;
+  min-height: 0;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-chat-app__composer .dash-btn--secondary.dash-btn--icon {
+  border: none;
+  background: transparent;
+  color: #0a84ff;
+}
+
+.dash-chat-app__composer .dash-btn--secondary.dash-btn--icon:hover {
+  background: rgb(10 132 255 / 0.1);
+}
+
+.dash-chat-app__composer .dash-btn--primary.dash-btn--icon {
+  background: #0a84ff;
+  color: #fff;
+}
+
+.dash-chat-app__composer .dash-btn--primary.dash-btn--icon:disabled {
+  background: hsl(var(--foreground) / 0.18);
+  color: #fff;
 }
 
 .dash-chat-app__file-input {
@@ -3262,35 +3338,126 @@ img.dash-avatar {
 
 .dash-chat-bubble__image {
   display: block;
-  max-width: min(16rem, 100%);
-  border-radius: 0.65rem;
-  margin-bottom: 0.35rem;
+  width: auto;
+  max-width: min(300px, 100%);
+  height: auto;
+  border-radius: 1.1rem;
+}
+
+/* Add spacing only when an image is paired with a caption in the same bubble */
+.dash-chat-bubble:has(> span) .dash-chat-bubble__image {
+  margin-bottom: 0.4rem;
+  border-radius: 0.85rem;
 }
 
 .dash-chat-bubble__edit {
   display: inline-flex;
-  margin-left: 0.35rem;
-  padding: 0;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.4rem;
+  padding: 0.15rem;
   border: none;
-  background: transparent;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.12);
   color: inherit;
-  opacity: 0.65;
+  opacity: 0.7;
   cursor: pointer;
+  vertical-align: middle;
+}
+
+.dash-chat-bubble__edit:hover {
+  opacity: 1;
+}
+
+/* Keep the edit control visible when the bubble is a bare image */
+.dash-chat-bubble:has(.dash-chat-bubble__image):not(:has(> span)) .dash-chat-bubble__edit {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  margin: 0;
+  background: rgb(0 0 0 / 0.5);
+  color: #fff;
 }
 
 .dash-chat-edit {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  width: min(20rem, 68vw);
 }
 
 .dash-chat-edit__input {
   flex: 1;
-  min-width: 10rem;
-  border: 1px solid hsl(var(--foreground) / 0.12);
-  border-radius: 0.65rem;
-  padding: 0.45rem 0.65rem;
+  min-width: 0;
+  border: 1px solid hsl(var(--foreground) / 0.14);
+  border-radius: 1.4rem;
+  padding: 0.5rem 0.95rem;
+  font-family: var(--dash-font-sans);
+  font-size: 0.9rem;
+  background: #fff;
+}
+
+.dash-chat-edit__input:focus {
+  outline: none;
+  border-color: #0a84ff;
+  box-shadow: 0 0 0 3px rgb(10 132 255 / 0.14);
+}
+
+.dash-chat-edit__btn {
+  flex-shrink: 0;
+  width: 2.1rem;
+  height: 2.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.dash-chat-edit__btn--cancel {
+  background: #e9e9eb;
+  color: #3a3a3c;
+}
+
+.dash-chat-edit__btn--cancel:hover {
+  background: #dedee1;
+}
+
+.dash-chat-edit__btn--save {
+  background: #0a84ff;
+  color: #fff;
+}
+
+.dash-chat-edit__btn--save:hover {
+  background: #0072e6;
+}
+
+.dash-chat-edit__btn--save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.dash-chat-bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  max-width: 100%;
+}
+
+.dash-chat-group--me .dash-chat-bubble-wrap {
+  align-items: flex-end;
+}
+
+.dash-chat-group--them .dash-chat-bubble-wrap {
+  align-items: flex-start;
+}
+
+.dash-chat-edited {
+  font-size: 0.65rem;
+  color: hsl(var(--muted-foreground));
+  padding: 0 0.3rem;
 }
 
 @media (max-width: 899px) {

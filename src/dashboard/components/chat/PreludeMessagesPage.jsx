@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Calendar, ImagePlus, MessageCircle, Network, Pencil, Send, Video, X } from "lucide-react";
+import { ArrowLeft, Calendar, Check, ImagePlus, MessageCircle, Network, Pencil, Send, Video, X } from "lucide-react";
 import { findNextJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import { loadLocalChatMessages } from "../../../lib/localChatStore.js";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
@@ -21,6 +21,13 @@ function formatDateLabel(iso) {
 
 function formatTime(iso) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+const EDIT_WINDOW_MS = 2 * 60 * 1000;
+
+function canEditMessage(msg, now) {
+  if (!msg?.isMine || !msg.createdAt) return false;
+  return now - new Date(msg.createdAt).getTime() <= EDIT_WINDOW_MS;
 }
 
 function formatRelative(iso) {
@@ -81,6 +88,14 @@ function EditComposer({ message, onCancel, onSave }) {
 
   return (
     <div className="dash-chat-edit">
+      <button
+        type="button"
+        className="dash-chat-edit__btn dash-chat-edit__btn--cancel"
+        onClick={onCancel}
+        aria-label="Cancel edit"
+      >
+        <X className="h-4 w-4" />
+      </button>
       <input
         ref={inputRef}
         type="text"
@@ -93,11 +108,14 @@ function EditComposer({ message, onCancel, onSave }) {
         className="dash-chat-edit__input"
         aria-label="Edit message"
       />
-      <button type="button" className="dash-btn dash-btn--primary dash-btn--sm" onClick={() => onSave(value)}>
-        Save
-      </button>
-      <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" onClick={onCancel}>
-        Cancel
+      <button
+        type="button"
+        className="dash-chat-edit__btn dash-chat-edit__btn--save"
+        onClick={() => onSave(value)}
+        aria-label="Save edit"
+        disabled={!value.trim()}
+      >
+        <Check className="h-4 w-4" />
       </button>
     </div>
   );
@@ -169,8 +187,14 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   const [draft, setDraft] = useState("");
   const [pendingFile, setPendingFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef(null);
   const fileRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   const sortedThreads = useMemo(() => {
     const list = threads.filter((thread) => {
@@ -335,29 +359,31 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                               onSave={(body) => saveEdit(msg.id, body)}
                             />
                           ) : (
-                            <div key={msg.id} className={`dash-chat-bubble dash-chat-bubble--${g.side}`}>
-                              {msg.attachmentUrl ? (
-                                <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                  <img src={msg.attachmentUrl} alt={msg.attachmentName || "Shared image"} className="dash-chat-bubble__image" />
-                                </a>
-                              ) : null}
-                              {msg.body ? <span>{msg.body}</span> : null}
-                              {msg.isMine ? (
-                                <button
-                                  type="button"
-                                  className="dash-chat-bubble__edit"
-                                  onClick={() => setEditingId(msg.id)}
-                                  aria-label="Edit message"
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </button>
-                              ) : null}
+                            <div key={msg.id} className="dash-chat-bubble-wrap">
+                              <div className={`dash-chat-bubble dash-chat-bubble--${g.side}`}>
+                                {msg.attachmentUrl ? (
+                                  <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                    <img src={msg.attachmentUrl} alt={msg.attachmentName || "Shared image"} className="dash-chat-bubble__image" />
+                                  </a>
+                                ) : null}
+                                {msg.body ? <span>{msg.body}</span> : null}
+                                {canEditMessage(msg, now) ? (
+                                  <button
+                                    type="button"
+                                    className="dash-chat-bubble__edit"
+                                    onClick={() => setEditingId(msg.id)}
+                                    aria-label="Edit message"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                ) : null}
+                              </div>
+                              {msg.editedAt ? <span className="dash-chat-edited">edited</span> : null}
                             </div>
                           )
                         )}
                         <div className="dash-chat-group__meta">
                           <time>{formatTime(g.items[g.items.length - 1].createdAt)}</time>
-                          {g.items[g.items.length - 1].editedAt ? <span>edited</span> : null}
                         </div>
                       </div>
                     </div>
