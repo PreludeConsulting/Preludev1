@@ -91,8 +91,8 @@ export default function Navbar() {
           )}
 
           {!isAuthenticated ? (
-          <Button as={Link} to="/register" className="nav-bar__cta shrink-0 rounded-full px-4 py-3 text-xs font-extrabold uppercase tracking-[0.12em] sm:px-5">
-              {t("nav.getStarted")}
+          <Button as={Link} to="/contact#book-call" className="nav-bar__cta shrink-0 rounded-full px-4 py-3 text-xs font-extrabold uppercase tracking-[0.12em] sm:px-5">
+              {t("sections.cta.primary")}
               <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </Button>
           ) : null}
@@ -136,8 +136,9 @@ export default function Navbar() {
                   <AppLink href="/login" className="nav-bar__mobile-link ivy-nav-link" onClick={closeMobile}>
                     {t("nav.signIn")}
                   </AppLink>
-                  <Button as={Link} to="/register" className="nav-bar__mobile-cta w-full" onClick={closeMobile}>
-                    {t("nav.getStarted")}
+                  <Button as={Link} to="/contact#book-call" className="nav-bar__mobile-cta w-full" onClick={closeMobile}>
+                    {t("sections.cta.primary")}
+                    <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
               ) : (

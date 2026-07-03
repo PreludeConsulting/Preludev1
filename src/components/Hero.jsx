@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { ArrowUpRight } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import PreludeMatch from "./hero/PreludeMatch.jsx";
 import { HeroFormAnimation, HeroHeadline, HeroNote, HeroSubcopy, HeroVisualAnimation } from "./hero/HeroIntroAnimation.jsx";
 
-const registerPath = `${import.meta.env.BASE_URL}register`.replace(/\/+/g, "/");
+const contactPath = `${import.meta.env.BASE_URL}contact`.replace(/\/+/g, "/");
 
 export default function Hero() {
   const [email, setEmail] = useState("");
@@ -13,8 +14,8 @@ export default function Hero() {
     event.preventDefault();
     const trimmed = email.trim();
     const target = trimmed
-      ? `${registerPath}?email=${encodeURIComponent(trimmed)}`
-      : registerPath;
+      ? `${contactPath}?email=${encodeURIComponent(trimmed)}#book-call`
+      : `${contactPath}#book-call`;
     window.location.href = target;
   }
 
@@ -46,6 +47,7 @@ export default function Hero() {
                   />
                   <button type="submit" className="shopify-hero__cta">
                     {t("hero.cta")}
+                    <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                   </button>
                 </form>
               </HeroFormAnimation>
