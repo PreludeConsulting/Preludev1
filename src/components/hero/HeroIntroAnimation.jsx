@@ -39,7 +39,7 @@ export function HeroHeadline({ heroRefs }) {
       <h1 className="shopify-hero__headline">
         <span className="shopify-hero__headline-line">{lineOne}</span>
         {lineTwo ? <span className="shopify-hero__headline-line">{lineTwo}</span> : null}
-        <span className="shopify-hero__typing-line hero-headline-shimmer shopify-hero__headline-line">
+        <span className="shopify-hero__typing-line shopify-hero__headline-line">
           {typingPrefix ? <span>{typingPrefix}&nbsp;</span> : null}
           <TypingPhrase phrases={typingPhrases} staticPhrase={staticPhrase} />
         </span>
@@ -57,7 +57,7 @@ export function HeroHeadline({ heroRefs }) {
           {lineTwo}
         </span>
       ) : null}
-      <span ref={setLineRef(lineTwo ? 2 : 1)} className="shopify-hero__typing-line hero-headline-shimmer block">
+      <span ref={setLineRef(lineTwo ? 2 : 1)} className="shopify-hero__typing-line block">
         {typingPrefix ? <span>{typingPrefix}&nbsp;</span> : null}
         <TypingPhrase phrases={typingPhrases} staticPhrase={staticPhrase} />
       </span>
