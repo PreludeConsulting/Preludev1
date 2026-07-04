@@ -41,6 +41,10 @@ export function resolveAuthSignInMethods(user, sessionUser = null) {
     return user.authSignInMethods;
   }
 
+  if (user.oauthAvatarUrl || user.oauthAvatar_url) {
+    return ["google"];
+  }
+
   if (user.authProvider !== "supabase") return ["email"];
   return ["email"];
 }

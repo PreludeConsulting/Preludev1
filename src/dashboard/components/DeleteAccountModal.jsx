@@ -39,6 +39,7 @@ export default function DeleteAccountModal({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [methodsLoading, setMethodsLoading] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
 
@@ -52,19 +53,26 @@ export default function DeleteAccountModal({
   useEffect(() => {
     if (!open || isDemo) return undefined;
     let cancelled = false;
+    setMethodsLoading(Boolean(supabaseAuth));
 
     async function refreshSignInMethods() {
-      if (supabaseAuth) {
-        const supabase = getSupabase();
-        if (supabase) {
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          if (!cancelled && authUser) {
-            setSignInMethods(resolveAuthSignInMethods(user, authUser));
-            return;
+      try {
+        if (supabaseAuth) {
+          const supabase = getSupabase();
+          if (supabase) {
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            if (!cancelled && authUser) {
+              setSignInMethods(resolveAuthSignInMethods(user, authUser));
+              return;
+            }
           }
         }
+        if (!cancelled) setSignInMethods(resolveAuthSignInMethods(user));
+      } catch {
+        if (!cancelled) setSignInMethods(resolveAuthSignInMethods(user));
+      } finally {
+        if (!cancelled) setMethodsLoading(false);
       }
-      if (!cancelled) setSignInMethods(resolveAuthSignInMethods(user));
     }
 
     refreshSignInMethods();
@@ -152,7 +160,7 @@ export default function DeleteAccountModal({
             <SecondaryButton type="button" onClick={handleClose} disabled={loading}>
               Cancel
             </SecondaryButton>
-            {usesPassword ? (
+            {usesPassword && !methodsLoading ? (
               <button
                 type="submit"
                 form="delete-account-password-form"
@@ -172,7 +180,11 @@ export default function DeleteAccountModal({
         </p>
       ) : null}
 
-      {!isDemo && step === STEPS.CONFIRM && usesPassword ? (
+      {!isDemo && step === STEPS.CONFIRM && methodsLoading ? (
+        <p className="dash-muted">Checking how you signed in…</p>
+      ) : null}
+
+      {!isDemo && step === STEPS.CONFIRM && !methodsLoading && usesPassword ? (
         <form id="delete-account-password-form" className="dash-delete-account" onSubmit={handlePasswordDelete}>
           <div className="dash-delete-account__warning">
             <AlertTriangle className="h-5 w-5" aria-hidden="true" />
@@ -209,7 +221,7 @@ export default function DeleteAccountModal({
         </form>
       ) : null}
 
-      {!isDemo && step === STEPS.CONFIRM && usesOAuth ? (
+      {!isDemo && step === STEPS.CONFIRM && !methodsLoading && usesOAuth ? (
         <div className="dash-delete-account">
           <div className="dash-delete-account__warning">
             <AlertTriangle className="h-5 w-5" aria-hidden="true" />
@@ -232,7 +244,7 @@ export default function DeleteAccountModal({
         </div>
       ) : null}
 
-      {!isDemo && step === STEPS.CONFIRM && !usesPassword && !usesOAuth ? (
+      {!isDemo && step === STEPS.CONFIRM && !methodsLoading && !usesPassword && !usesOAuth ? (
         <p className="dash-muted">
           We couldn&apos;t determine how you signed in. Please sign out, sign back in, and try again. If the problem
           continues, contact support.
