@@ -4505,6 +4505,8 @@ html[lang="es"] .shopify-hero__headline-line {
   width: min(100%, 58rem);
   margin: 0 auto clamp(2rem, 4vw, 3rem);
   overflow: hidden;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 24rem;
 }
 
 .network-map__svg {
@@ -4546,12 +4548,30 @@ html[lang="es"] .shopify-hero__headline-line {
   stroke-linejoin: round;
 }
 
+.network-map__edges {
+  opacity: 1;
+}
+
+.network-map--animating .network-map__edges {
+  animation: network-edge-pulse 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes network-edge-pulse {
+  from {
+    opacity: 0.82;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 .network-map__edge {
   fill: none;
-  stroke: rgb(124 58 237 / 0.38);
-  stroke-width: 0.75;
+  stroke: #7c3aed;
+  stroke-width: 1;
   stroke-linecap: round;
-  opacity: 0.32;
+  opacity: 0.52;
 }
 
 .network-map__node-halo {
@@ -4567,7 +4587,13 @@ html[lang="es"] .shopify-hero__headline-line {
 
 @media (max-width: 42rem) {
   .network-map__edge {
-    stroke-width: 0.65;
+    stroke-width: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .network-map--animating .network-map__edges {
+    animation: none;
   }
 }
 

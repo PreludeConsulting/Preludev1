@@ -44,6 +44,18 @@ export const UNIVERSITY_GEO = {
   unc: { lat: 35.9049, lon: -79.0469 }
 };
 
+/** Cross-country showcase arcs merged before the per-node degree cap. */
+export const NETWORK_SHOWCASE_CONNECTIONS = [
+  ["stanford", "harvard"],
+  ["ucla", "nyu"],
+  ["uc-berkeley", "mit"],
+  ["usc", "georgetown"],
+  ["rice", "northwestern"],
+  ["duke", "ucla"],
+  ["vanderbilt", "stanford"],
+  ["michigan", "columbia"]
+];
+
 /** @deprecated Kept for legacy tests — use projectGeoPoint instead. */
 export const NETWORK_HUB = { lat: 39.8283, lon: -98.5795 };
 

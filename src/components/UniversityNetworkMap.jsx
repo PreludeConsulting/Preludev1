@@ -4,14 +4,15 @@ import {
   US_NATION_PATH,
   US_STATE_PATHS,
   US_STATES_MESH_PATH,
-  getNetworkMapPoints
+  getNetworkMapPoints,
+  NETWORK_SHOWCASE_CONNECTIONS
 } from "../data/universityGeo.js";
 import { buildNetworkEdges } from "../lib/universityNetworkGraph.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
 import {
   cancelNetworkMapTimeline,
   resetNetworkEdges,
-  runNetworkCycleLoop,
+  runNetworkDrawCycle,
   snapNetworkVisible
 } from "../lib/universityNetworkMapMotion.js";
 
@@ -24,45 +25,56 @@ export default function UniversityNetworkMap() {
   const reducedMotion = useReducedMotion();
   const sectionRef = useRef(null);
   const edgeRefs = useRef([]);
-  const cycleRef = useRef(null);
+  const drawRef = useRef(null);
   const inViewRef = useRef(false);
 
   const points = useMemo(() => getNetworkMapPoints(), []);
-  const edges = useMemo(() => buildNetworkEdges(points), [points]);
+  const edges = useMemo(
+    () => buildNetworkEdges(points, { showcasePairs: NETWORK_SHOWCASE_CONNECTIONS }),
+    [points]
+  );
 
-  const stopCycle = useCallback(() => {
-    cancelNetworkMapTimeline(cycleRef);
+  const setAnimatingClass = useCallback((active) => {
+    const node = sectionRef.current;
+    if (!node) return;
+    node.classList.toggle("network-map--animating", active);
   }, []);
+
+  const stopDraw = useCallback(() => {
+    cancelNetworkMapTimeline(drawRef);
+    setAnimatingClass(false);
+  }, [setAnimatingClass]);
 
   const resetAnimation = useCallback(() => {
     if (reducedMotion) return;
     resetNetworkEdges(edgeRefs.current);
   }, [reducedMotion]);
 
-  const startCycle = useCallback(() => {
-    stopCycle();
+  const startDraw = useCallback(() => {
+    stopDraw();
 
     if (reducedMotion) {
       snapNetworkVisible(edgeRefs.current);
       return;
     }
 
-    cycleRef.current = runNetworkCycleLoop({
+    setAnimatingClass(true);
+    drawRef.current = runNetworkDrawCycle({
       edgeEls: edgeRefs.current,
       reducedMotion
     });
-  }, [reducedMotion, stopCycle]);
+  }, [reducedMotion, setAnimatingClass, stopDraw]);
 
   useEffect(() => {
     edgeRefs.current = edgeRefs.current.slice(0, edges.length);
   }, [edges]);
 
   useEffect(() => {
-    stopCycle();
+    stopDraw();
     if (inViewRef.current) {
-      startCycle();
+      startDraw();
     }
-  }, [edges, reducedMotion, startCycle, stopCycle]);
+  }, [edges, reducedMotion, startDraw, stopDraw]);
 
   useEffect(() => {
     const node = sectionRef.current;
@@ -72,10 +84,10 @@ export default function UniversityNetworkMap() {
       ([entry]) => {
         inViewRef.current = entry.isIntersecting;
         if (entry.isIntersecting) {
-          startCycle();
+          startDraw();
           return;
         }
-        stopCycle();
+        stopDraw();
         resetAnimation();
       },
       { threshold: 0.25, rootMargin: "0px 0px -8% 0px" }
@@ -84,10 +96,10 @@ export default function UniversityNetworkMap() {
     observer.observe(node);
     return () => {
       observer.disconnect();
-      stopCycle();
+      stopDraw();
       resetAnimation();
     };
-  }, [resetAnimation, startCycle, stopCycle]);
+  }, [resetAnimation, startDraw, stopDraw]);
 
   return (
     <div ref={sectionRef} className="network-map">
@@ -108,13 +120,6 @@ export default function UniversityNetworkMap() {
           </filter>
           <filter id="network-node-glow" x="-80%" y="-80%" width="260%" height="260%">
             <feGaussianBlur stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id="network-edge-glow" x="-15%" y="-15%" width="130%" height="130%">
-            <feGaussianBlur stdDeviation="1.2" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -148,7 +153,6 @@ export default function UniversityNetworkMap() {
               }}
               className="network-map__edge"
               d={edge.d}
-              filter="url(#network-edge-glow)"
             />
           ))}
         </g>

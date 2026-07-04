@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { getNetworkMapPoints } from "../src/data/universityGeo.js";
-import { buildNetworkEdges, curvedEdgePath } from "../src/lib/universityNetworkGraph.js";
+import {
+  getNetworkMapPoints,
+  NETWORK_SHOWCASE_CONNECTIONS
+} from "../src/data/universityGeo.js";
+import {
+  buildNetworkEdges,
+  curvedEdgePath,
+  getNetworkEdgeStats,
+  MAX_DEGREE
+} from "../src/lib/universityNetworkGraph.js";
 
 describe("universityNetworkGraph", () => {
   const points = getNetworkMapPoints();
@@ -22,10 +30,16 @@ describe("universityNetworkGraph", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("connects every node to every other node", () => {
-    const edges = buildNetworkEdges(points);
-    const expected = (points.length * (points.length - 1)) / 2;
-    expect(edges.length).toBe(expected);
+  it("builds a sparse connected network with capped degree", () => {
+    const edges = buildNetworkEdges(points, { showcasePairs: NETWORK_SHOWCASE_CONNECTIONS });
+    const stats = getNetworkEdgeStats(points, { showcasePairs: NETWORK_SHOWCASE_CONNECTIONS });
+    const completeGraphCount = (points.length * (points.length - 1)) / 2;
+
+    expect(edges.length).toBeGreaterThanOrEqual(points.length - 1);
+    expect(edges.length).toBeLessThan(50);
+    expect(edges.length).toBeLessThan(completeGraphCount);
+    expect(stats.connected).toBe(true);
+    expect(stats.maxObservedDegree).toBeLessThanOrEqual(MAX_DEGREE + 1);
 
     const degree = new Map(points.map((point) => [point.id, 0]));
     for (const edge of edges) {
@@ -35,7 +49,17 @@ describe("universityNetworkGraph", () => {
     }
 
     for (const point of points) {
-      expect(degree.get(point.id)).toBe(points.length - 1);
+      expect(degree.get(point.id)).toBeGreaterThan(0);
+      expect(degree.get(point.id)).toBeLessThanOrEqual(MAX_DEGREE + 1);
+    }
+  });
+
+  it("includes showcase cross-country arcs", () => {
+    const edges = buildNetworkEdges(points, { showcasePairs: NETWORK_SHOWCASE_CONNECTIONS });
+    const keys = new Set(edges.map((edge) => edge.id));
+
+    for (const [a, b] of NETWORK_SHOWCASE_CONNECTIONS) {
+      expect(keys.has(a < b ? `${a}|${b}` : `${b}|${a}`)).toBe(true);
     }
   });
 });
