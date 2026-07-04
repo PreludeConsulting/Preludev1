@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AuthLoadingState from "../../components/AuthLoadingState.jsx";
-import { canAccessDashboardRole, dashboardHomeForRole } from "../../lib/dashboardRoutes.js";
+import { canAccessDashboardRole, dashboardHomeForUser } from "../../lib/dashboardRoutes.js";
 
 export default function RoleGuard({ role, children }) {
   const { user, ready, verificationRequired } = useAuth();
@@ -24,7 +24,7 @@ export default function RoleGuard({ role, children }) {
   }
 
   if (!canAccessDashboardRole(user, role)) {
-    return <Navigate to={dashboardHomeForRole(user.role)} replace />;
+    return <Navigate to={dashboardHomeForUser(user)} replace />;
   }
 
   return children;

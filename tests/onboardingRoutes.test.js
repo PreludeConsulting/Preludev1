@@ -70,6 +70,18 @@ describe("onboarding route decisions", () => {
     expect(canAccessDashboard(user)).toBe(true);
   });
 
+  it("sends matching team admins to the admin dashboard even when their frontend role is mentor", () => {
+    const user = supabaseUser({
+      role: "mentor",
+      systemRole: "admin",
+      matchingTeamAccess: true,
+      mentorOnboardingComplete: false
+    });
+
+    expect(postAuthDestination(user)).toBe("/dashboard/admin/matching");
+    expect(canAccessDashboard(user)).toBe(true);
+  });
+
   it("sends new students to Prelude Match before plan selection", () => {
     const user = supabaseUser({
       role: "student",

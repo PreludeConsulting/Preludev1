@@ -1,5 +1,5 @@
 import { PLAN_IDS } from "./plans.js";
-import { dashboardHomeForRole, roleFromUser, STUDENT_DASHBOARD_BASE, MENTOR_DASHBOARD_BASE, PARENT_DASHBOARD_BASE } from "./dashboardRoutes.js";
+import { dashboardHomeForRole, dashboardHomeForUser, hasAdminDashboardAccess, roleFromUser, STUDENT_DASHBOARD_BASE, MENTOR_DASHBOARD_BASE, PARENT_DASHBOARD_BASE } from "./dashboardRoutes.js";
 
 export const PLAN_SELECTION_PATH = "/onboarding/plan";
 export const PAYMENT_ONBOARDING_PATH = "/onboarding/payment";
@@ -174,7 +174,7 @@ export function userCanChangeRoleDuringOnboarding(user) {
 
 export function postAuthDestination(user) {
   if (!user) return "/login";
-  if (roleFromUser(user) === "admin") return dashboardPathForRole(user.role);
+  if (hasAdminDashboardAccess(user)) return dashboardHomeForUser(user);
   if (userNeedsRoleSelection(user)) return ROLE_SELECTION_PATH;
   if (userNeedsMentorOnboarding(user)) return MENTOR_ONBOARDING_PATH;
   if (userNeedsMatchOnboarding(user)) return MATCH_ONBOARDING_PATH;
@@ -186,7 +186,7 @@ export function postAuthDestination(user) {
 
 export function canAccessDashboard(user) {
   if (!user) return false;
-  if (roleFromUser(user) === "admin") return true;
+  if (hasAdminDashboardAccess(user)) return true;
   if (userNeedsRoleSelection(user)) return false;
   if (roleFromUser(user) === "parent") return true;
   if (userNeedsMentorOnboarding(user)) return false;

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { UserCheck } from "lucide-react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { dashboardHomeForRole, MENTOR_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
+import { dashboardHomeForUser, MENTOR_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
 import DashboardLayout from "./components/DashboardLayout.jsx";
 import RoleGuard from "./components/RoleGuard.jsx";
 import { MENTOR_NAV } from "./config/navConfig.js";
@@ -54,7 +54,7 @@ function DashboardRedirect() {
   const { user, ready } = useAuth();
   if (!ready) return <div className="dash-loading">Loading…</div>;
   if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={dashboardHomeForRole(user.role)} replace />;
+  return <Navigate to={dashboardHomeForUser(user)} replace />;
 }
 
 function LegacyStudentRedirect({ to }) {

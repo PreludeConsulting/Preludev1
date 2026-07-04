@@ -15,6 +15,15 @@ export function dashboardHomeForRole(role) {
   return `${STUDENT_DASHBOARD_BASE}/overview`;
 }
 
+export function hasAdminDashboardAccess(user) {
+  return Boolean(user?.matchingTeamAccess || user?.systemRole === "admin" || roleFromUser(user) === "admin");
+}
+
+export function dashboardHomeForUser(user) {
+  if (hasAdminDashboardAccess(user)) return `${ADMIN_DASHBOARD_BASE}/matching`;
+  return dashboardHomeForRole(user?.role);
+}
+
 export function isDashboardPath(pathname) {
   return pathname.startsWith("/dashboard");
 }
@@ -31,10 +40,10 @@ export function dashboardRoleLabel(role) {
 }
 
 export function canAccessDashboardRole(user, requiredRole) {
-  if (requiredRole === "admin") return Boolean(user?.matchingTeamAccess || user?.systemRole === "admin" || roleFromUser(user) === "admin");
+  if (requiredRole === "admin") return hasAdminDashboardAccess(user);
   return roleFromUser(user) === requiredRole;
 }
 
 export function redirectToDashboard(user) {
-  window.location.href = appPath(dashboardHomeForRole(user?.role));
+  window.location.href = appPath(dashboardHomeForUser(user));
 }
