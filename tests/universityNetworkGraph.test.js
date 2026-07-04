@@ -22,19 +22,20 @@ describe("universityNetworkGraph", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("connects every node with exactly n - 1 edges", () => {
+  it("connects every node to every other node", () => {
     const edges = buildNetworkEdges(points);
-    expect(edges.length).toBe(points.length - 1);
+    const expected = (points.length * (points.length - 1)) / 2;
+    expect(edges.length).toBe(expected);
 
-    const connected = new Set();
+    const degree = new Map(points.map((point) => [point.id, 0]));
     for (const edge of edges) {
-      connected.add(edge.fromId);
-      connected.add(edge.toId);
+      degree.set(edge.fromId, degree.get(edge.fromId) + 1);
+      degree.set(edge.toId, degree.get(edge.toId) + 1);
       expect(edge.d).toMatch(/^M .+ Q .+ .+ .+$/);
     }
 
     for (const point of points) {
-      expect(connected.has(point.id)).toBe(true);
+      expect(degree.get(point.id)).toBe(points.length - 1);
     }
   });
 });

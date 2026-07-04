@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   US_MAP_VIEWBOX,
   US_NATION_PATH,
@@ -10,96 +10,59 @@ import { buildNetworkEdges } from "../lib/universityNetworkGraph.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
 import {
   cancelNetworkMapTimeline,
-  runNetworkDrawTimeline,
-  runNetworkIdleLoops,
+  resetNetworkEdges,
+  runNetworkCycleLoop,
   snapNetworkVisible
 } from "../lib/universityNetworkMapMotion.js";
-
-const COMPACT_QUERY = "(max-width: 42rem)";
 
 const WAVE_PATHS = {
   left: "M -20 520 C 80 420, 120 320, 180 220 S 260 80, 320 -20",
   right: "M 995 520 C 895 420, 855 320, 795 220 S 715 80, 655 -20"
 };
 
-function useCompactDensity() {
-  const [compact, setCompact] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia(COMPACT_QUERY).matches : false
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia(COMPACT_QUERY);
-    const onChange = (event) => setCompact(event.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  return compact;
-}
-
 export default function UniversityNetworkMap() {
   const reducedMotion = useReducedMotion();
-  const compact = useCompactDensity();
   const sectionRef = useRef(null);
   const edgeRefs = useRef([]);
-  const drawTimelineRef = useRef(null);
-  const idleTimelineRef = useRef(null);
+  const cycleRef = useRef(null);
   const inViewRef = useRef(false);
-  const hasActivatedRef = useRef(false);
 
   const points = useMemo(() => getNetworkMapPoints(), []);
   const edges = useMemo(() => buildNetworkEdges(points), [points]);
 
-  const stopTimelines = useCallback(() => {
-    cancelNetworkMapTimeline(drawTimelineRef);
-    cancelNetworkMapTimeline(idleTimelineRef);
+  const stopCycle = useCallback(() => {
+    cancelNetworkMapTimeline(cycleRef);
   }, []);
 
-  const startIdleLoops = useCallback(() => {
-    cancelNetworkMapTimeline(idleTimelineRef);
-    if (reducedMotion || !inViewRef.current) return;
-    idleTimelineRef.current = runNetworkIdleLoops({
-      edgeEls: edgeRefs.current,
-      reducedMotion
-    });
+  const resetAnimation = useCallback(() => {
+    if (reducedMotion) return;
+    resetNetworkEdges(edgeRefs.current);
   }, [reducedMotion]);
 
-  const activateNetwork = useCallback(() => {
-    stopTimelines();
+  const startCycle = useCallback(() => {
+    stopCycle();
 
     if (reducedMotion) {
       snapNetworkVisible(edgeRefs.current);
-      hasActivatedRef.current = true;
       return;
     }
 
-    if (hasActivatedRef.current) {
-      startIdleLoops();
-      return;
-    }
-
-    drawTimelineRef.current = runNetworkDrawTimeline({
+    cycleRef.current = runNetworkCycleLoop({
       edgeEls: edgeRefs.current,
-      reducedMotion,
-      onComplete: () => {
-        hasActivatedRef.current = true;
-        drawTimelineRef.current = null;
-        startIdleLoops();
-      }
+      reducedMotion
     });
-  }, [reducedMotion, startIdleLoops, stopTimelines]);
+  }, [reducedMotion, stopCycle]);
 
   useEffect(() => {
     edgeRefs.current = edgeRefs.current.slice(0, edges.length);
   }, [edges]);
 
   useEffect(() => {
-    hasActivatedRef.current = false;
-    stopTimelines();
+    stopCycle();
     if (inViewRef.current) {
-      activateNetwork();
+      startCycle();
     }
-  }, [edges, reducedMotion, activateNetwork, stopTimelines]);
+  }, [edges, reducedMotion, startCycle, stopCycle]);
 
   useEffect(() => {
     const node = sectionRef.current;
@@ -109,10 +72,11 @@ export default function UniversityNetworkMap() {
       ([entry]) => {
         inViewRef.current = entry.isIntersecting;
         if (entry.isIntersecting) {
-          activateNetwork();
+          startCycle();
           return;
         }
-        stopTimelines();
+        stopCycle();
+        resetAnimation();
       },
       { threshold: 0.25, rootMargin: "0px 0px -8% 0px" }
     );
@@ -120,9 +84,10 @@ export default function UniversityNetworkMap() {
     observer.observe(node);
     return () => {
       observer.disconnect();
-      stopTimelines();
+      stopCycle();
+      resetAnimation();
     };
-  }, [activateNetwork, stopTimelines]);
+  }, [resetAnimation, startCycle, stopCycle]);
 
   return (
     <div ref={sectionRef} className="network-map">
@@ -195,14 +160,14 @@ export default function UniversityNetworkMap() {
                 className="network-map__node-halo"
                 cx={point.x}
                 cy={point.y}
-                r={compact ? 6.5 : 8}
+                r={8}
                 filter="url(#network-node-glow)"
               />
               <circle
                 className="network-map__node-core"
                 cx={point.x}
                 cy={point.y}
-                r={compact ? 2.6 : 3.2}
+                r={3.2}
               />
             </g>
           ))}
