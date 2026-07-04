@@ -2,20 +2,17 @@
 // Runs on the Workers runtime, so it uses only Web APIs (fetch) — no Node/fs/Prisma.
 // The full local RAG stack (server/chatHandler.js) is Node-only and cannot run here;
 // in production we call OpenAI directly using the server-only OPENAI_API_KEY.
+//
+// Prelude knowledge comes from a single committed module so the public site uses
+// the SAME knowledge as local. To add/update knowledge, edit:
+//   src/lib/ai/preludeKnowledge.js
+import { buildPreludeSystemContext } from "../../src/lib/ai/preludeKnowledge.js";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = "gpt-4o-mini";
 const MAX_HISTORY = 12;
 
-const SYSTEM_PROMPT = `You are Prelude AI, a warm, practical college admissions assistant for students and parents.
-You help with college lists, school facts, SAT/ACT planning, GPA and course rigor, extracurriculars, CS projects, summer programs, scholarships, financial aid, essays, application strategy and deadlines, majors, school fit, and general admissions questions.
-
-Guidelines:
-- Be helpful and specific first, cautious only when needed. Keep answers concise and well structured.
-- Never guarantee admission, scholarships, or aid. Never invent exact deadlines, costs, acceptance rates, or requirements.
-- When details may change or you are unsure, say so briefly and suggest verifying on the official school / FAFSA / Common App site.
-- For essays, help brainstorm, outline, and revise — do not fabricate a student's personal story.
-- Ask a short, targeted follow-up question when key info is missing (e.g. GPA, test scores, intended major, budget, grade level).`;
+const SYSTEM_PROMPT = buildPreludeSystemContext();
 
 function json(payload, status = 200, extraHeaders = {}) {
   const headers = new Headers(extraHeaders);
@@ -129,7 +126,9 @@ export async function handlePreludeChat(context) {
       text,
       provider: "openai",
       model,
-      sources: [],
+      // Signals the deployed AI used the committed Prelude knowledge (not a bare model call).
+      knowledgeSource: "prelude-committed",
+      sources: ["Prelude knowledge base"],
       retrievedRecords: []
     });
   } catch {
