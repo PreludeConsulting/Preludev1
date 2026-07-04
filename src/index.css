@@ -5859,6 +5859,269 @@ html[lang="es"] .shopify-hero__headline-line {
   color: #ffffff;
 }
 
+.admissions-cost-banner__demo-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  width: clamp(22px, 2.2vw, 32px);
+  height: clamp(22px, 2.2vw, 32px);
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: 3px 3px;
+  will-change: transform, opacity;
+}
+
+.admissions-cost-banner__demo-cursor--hidden {
+  opacity: 0 !important;
+  visibility: hidden;
+}
+
+.admissions-cost-banner__cursor-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  shape-rendering: geometricPrecision;
+}
+
+.admissions-cost-banner__cursor-trail {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 70%;
+  height: 70%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.28) 0%, transparent 72%);
+  filter: blur(3px);
+  opacity: 0.55;
+  transform: translate(-20%, -20%);
+  pointer-events: none;
+}
+
+.admissions-cost-banner__click-ring {
+  position: absolute;
+  z-index: 5;
+  width: 2.4rem;
+  height: 2.4rem;
+  margin: -1.2rem 0 0 -1.2rem;
+  border: 2px solid rgb(255 255 255 / 0.85);
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.35);
+}
+
+.admissions-cost-banner__click-ring--active {
+  animation: cost-banner-click-ring 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes cost-banner-click-ring {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.35);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+
+.admissions-cost-banner__stage {
+  position: relative;
+  width: min(100%, 36rem);
+  margin-inline: auto;
+}
+
+.admissions-cost-banner__piggy {
+  transform-origin: center bottom;
+}
+
+.admissions-cost-banner__piggy--float {
+  animation: cost-banner-piggy-float 4.2s ease-in-out infinite;
+}
+
+@keyframes cost-banner-piggy-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-6px) scale(1.012);
+  }
+}
+
+.admissions-cost-banner__badge-pulse {
+  position: absolute;
+  left: 14%;
+  top: 28%;
+  width: 34%;
+  height: 18%;
+  border-radius: 1.25rem;
+  pointer-events: none;
+  opacity: 0;
+  transform: rotate(-14deg);
+}
+
+.admissions-cost-banner__badge-pulse--active {
+  animation: cost-banner-badge-pop 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes cost-banner-badge-pop {
+  0% {
+    opacity: 0;
+    box-shadow: 0 0 0 0 rgb(255 255 255 / 0.55);
+    transform: rotate(-14deg) scale(0.94);
+  }
+
+  45% {
+    opacity: 1;
+    box-shadow: 0 0 0 10px rgb(255 255 255 / 0.18);
+    transform: rotate(-14deg) scale(1.04);
+  }
+
+  100% {
+    opacity: 0;
+    box-shadow: 0 0 0 18px rgb(255 255 255 / 0);
+    transform: rotate(-14deg) scale(1);
+  }
+}
+
+.admissions-cost-banner__hotspot {
+  position: absolute;
+  pointer-events: none;
+}
+
+.admissions-cost-banner__hotspot--entry {
+  left: 68%;
+  top: 72%;
+  width: 18%;
+  height: 16%;
+}
+
+.admissions-cost-banner__hotspot--badge {
+  left: 12%;
+  top: 26%;
+  width: 36%;
+  height: 20%;
+}
+
+.admissions-cost-banner__amount--active {
+  transform: scale(1.06);
+  box-shadow:
+    0 0.4rem 1.2rem rgb(40 28 150 / 0.22),
+    0 0 0 3px rgb(255 255 255 / 0.55),
+    0 0 22px rgb(255 255 255 / 0.45);
+}
+
+.admissions-cost-banner__stage::after {
+  content: "";
+  position: absolute;
+  right: 10%;
+  bottom: 6%;
+  width: 24%;
+  height: 20%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.22) 0%, transparent 72%);
+  opacity: 0.35;
+  pointer-events: none;
+  animation: cost-banner-coin-shimmer 3.4s ease-in-out infinite;
+}
+
+@keyframes cost-banner-coin-shimmer {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    opacity: 0.55;
+    transform: translateY(-3px) scale(1.05);
+  }
+}
+
+.admissions-cost-banner__headline-wrap {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.admissions-cost-banner__headline-wrap::after {
+  content: "";
+  position: absolute;
+  inset: -4% -2%;
+  background: linear-gradient(
+    105deg,
+    transparent 28%,
+    rgb(255 255 255 / 0.42) 48%,
+    transparent 68%
+  );
+  opacity: 0;
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+
+.admissions-cost-banner__headline-wrap--shine::after {
+  animation: cost-banner-headline-shine 900ms ease forwards;
+}
+
+@keyframes cost-banner-headline-shine {
+  0% {
+    opacity: 0;
+    transform: translateX(-120%);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(120%);
+  }
+}
+
+.admissions-cost-banner__headline--glow {
+  text-shadow:
+    0 0 18px rgb(255 255 255 / 0.28),
+    0 0 36px rgb(196 181 253 / 0.35);
+}
+
+.admissions-cost-banner__amount {
+  transition:
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 280ms ease;
+}
+
+@media (max-width: 899px) {
+  .admissions-cost-banner__hotspot--entry {
+    left: 62%;
+    top: 68%;
+  }
+
+  .admissions-cost-banner__hotspot--badge {
+    left: 10%;
+    top: 24%;
+    width: 38%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admissions-cost-banner__piggy--float,
+  .admissions-cost-banner__click-ring--active,
+  .admissions-cost-banner__badge-pulse--active,
+  .admissions-cost-banner__headline-wrap--shine::after,
+  .admissions-cost-banner__stage::after {
+    animation: none !important;
+  }
+
+  .admissions-cost-banner__demo-cursor {
+    display: none;
+  }
+}
+
 .admissions-cost-banner::before {
   content: "";
   position: absolute;

@@ -20,41 +20,14 @@ import { FOOTER_LINK_COLUMNS } from "../data/footerLinks.js";
 import AppLink from "./AppLink.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
 import ScrollReveal from "./motion/ScrollReveal.jsx";
+export { default as AdmissionsCostBanner } from "./AdmissionsCostBanner.jsx";
 
 const mediaBase = import.meta.env.BASE_URL;
 const media = {
   mentorLoop: `${mediaBase}media/mentor-lounge-loop.gif`,
-  admissionsSavings: `${mediaBase}media/admissions-savings-piggy.png`,
   parentShowcaseHq: `${mediaBase}media/parent-dashboard-showcase-hq.png`,
   parentShowcaseDuplicate: `${mediaBase}media/parent-dashboard-showcase-duplicate.png`
 };
-
-export function AdmissionsCostBanner() {
-  const { t } = useLanguage();
-
-  return (
-    <section className="admissions-cost-banner" id="about-cost" data-aura-zone>
-      <div className="admissions-cost-banner__inner">
-        <ScrollReveal className="admissions-cost-banner__visual">
-          <img
-            src={media.admissionsSavings}
-            alt={t("sections.cost.imageAlt")}
-            className="admissions-cost-banner__image"
-          />
-        </ScrollReveal>
-
-        <ScrollReveal className="admissions-cost-banner__copy" delay={0.12}>
-          <p className="admissions-cost-banner__body max-w-lg text-lg leading-7 text-white md:text-xl md:leading-8">
-            {t("sections.cost.bodyBefore")} <span className="admissions-cost-banner__amount">$6,500</span> {t("sections.cost.bodyAfter")}
-          </p>
-          <h2 className="ivy-display mt-6 max-w-xl text-5xl font-extrabold uppercase leading-[0.88] tracking-[-0.035em] text-white md:text-7xl lg:text-[5.8rem]">
-            {t("sections.cost.headline")}
-          </h2>
-        </ScrollReveal>
-      </div>
-    </section>
-  );
-}
 
 export function LowerFeatureIntro() {
   const { t } = useLanguage();
