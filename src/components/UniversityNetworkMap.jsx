@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { US_STATE_OUTLINE_PATHS } from "../data/usStateOutlines.js";
 import {
   US_MAP_VIEWBOX,
-  US_OUTLINE_PATH,
+  US_NATION_PATH,
+  US_STATE_PATHS,
+  US_STATES_MESH_PATH,
   getNetworkMapPoints
 } from "../data/universityGeo.js";
 import {
   buildNetworkEdges,
-  buildReachEdges,
   getHubNodeIds,
   nodeTone
 } from "../lib/universityNetworkGraph.js";
@@ -52,16 +52,11 @@ export default function UniversityNetworkMap() {
   const hasActivatedRef = useRef(false);
 
   const points = useMemo(() => getNetworkMapPoints(), []);
-  const meshEdges = useMemo(
+  const edges = useMemo(
     () => buildNetworkEdges(points, { density: compact ? "compact" : "default" }),
     [points, compact]
   );
-  const reachEdges = useMemo(
-    () => buildReachEdges(points, { count: 5, includeReach: !compact }),
-    [points, compact]
-  );
-  const edges = useMemo(() => [...meshEdges, ...reachEdges], [meshEdges, reachEdges]);
-  const hubIds = useMemo(() => getHubNodeIds(meshEdges), [meshEdges]);
+  const hubIds = useMemo(() => getHubNodeIds(edges), [edges]);
   const hubIndexById = useMemo(() => {
     const hubPoints = points.filter((point) => hubIds.has(point.id));
     return Object.fromEntries(hubPoints.map((point, index) => [point.id, index]));
@@ -173,7 +168,7 @@ export default function UniversityNetworkMap() {
       >
         <defs>
           <clipPath id="network-us-clip">
-            <path d={US_OUTLINE_PATH} />
+            <path d={US_NATION_PATH} />
           </clipPath>
           <filter id="network-outline-glow" x="-10%" y="-10%" width="120%" height="120%">
             <feGaussianBlur stdDeviation="2.4" result="blur" />
@@ -215,8 +210,8 @@ export default function UniversityNetworkMap() {
           </radialGradient>
         </defs>
 
-        <g className="network-map__tilt">
-          <g className="network-map__stardust" clipPath="url(#network-us-clip)" aria-hidden="true">
+        <g className="network-map__land" aria-hidden="true">
+          <g className="network-map__stardust" clipPath="url(#network-us-clip)">
             {stardust.map((dot, index) => (
               <circle
                 key={dot.id}
@@ -233,80 +228,79 @@ export default function UniversityNetworkMap() {
             ))}
           </g>
 
-          <g className="network-map__states" aria-hidden="true">
-            {US_STATE_OUTLINE_PATHS.map((d, index) => (
-              <path key={`state-${index}`} className="network-map__state" d={d} />
-            ))}
-          </g>
+          {US_STATE_PATHS.map((state) => (
+            <path key={state.id} className="network-map__state-fill" d={state.d} />
+          ))}
+
+          <path className="network-map__state-mesh" d={US_STATES_MESH_PATH} />
 
           <path
             className="network-map__outline"
-            d={US_OUTLINE_PATH}
+            d={US_NATION_PATH}
             filter="url(#network-outline-glow)"
-            aria-hidden="true"
           />
+        </g>
 
-          <g className="network-map__edges" aria-hidden="true">
-            {edges.map((edge, index) => (
-              <path
-                key={edge.id}
-                ref={(node) => {
-                  edgeRefs.current[index] = node;
-                }}
-                className={`network-map__edge network-map__edge--${edge.tone}${edge.kind === "reach" ? " network-map__edge--reach" : ""}`}
-                d={edge.d}
-                filter="url(#network-edge-glow)"
-              />
-            ))}
-          </g>
+        <g className="network-map__edges" aria-hidden="true">
+          {edges.map((edge, index) => (
+            <path
+              key={edge.id}
+              ref={(node) => {
+                edgeRefs.current[index] = node;
+              }}
+              className={`network-map__edge network-map__edge--${edge.tone}`}
+              d={edge.d}
+              filter="url(#network-edge-glow)"
+            />
+          ))}
+        </g>
 
-          <g className="network-map__nodes">
-            {points.map((point) => {
-              const tone = nodeTone(point.id);
-              const isHub = hubIds.has(point.id);
-              return (
-                <g
-                  key={point.id}
-                  className={`network-map__node network-map__node--${tone}${isHub ? " network-map__node--hub" : ""}`}
-                >
-                  {isHub ? (
-                    <g
-                      ref={(node) => {
-                        const index = hubIndexById[point.id];
-                        if (node && index !== undefined) hubRefs.current[index] = node;
-                      }}
-                      className="network-map__node-hub"
-                    >
-                      <circle
-                        className="network-map__node-burst"
-                        cx={point.x}
-                        cy={point.y}
-                        r={14}
-                        filter="url(#network-hub-glow)"
-                      />
-                      <circle className="network-map__node-ring" cx={point.x} cy={point.y} r={10} />
-                      <circle className="network-map__node-ring network-map__node-ring--inner" cx={point.x} cy={point.y} r={6.5} />
-                    </g>
-                  ) : (
+        <g className="network-map__nodes">
+          {points.map((point) => {
+            const tone = nodeTone(point.id);
+            const isHub = hubIds.has(point.id);
+            return (
+              <g
+                key={point.id}
+                className={`network-map__node network-map__node--${tone}${isHub ? " network-map__node--hub" : ""}`}
+              >
+                {isHub ? (
+                  <g
+                    ref={(node) => {
+                      const index = hubIndexById[point.id];
+                      if (node && index !== undefined) hubRefs.current[index] = node;
+                    }}
+                    className="network-map__node-hub"
+                  >
                     <circle
-                      className="network-map__node-halo"
+                      className="network-map__node-burst"
                       cx={point.x}
                       cy={point.y}
-                      r={7}
-                      filter="url(#network-node-glow)"
+                      r={14}
+                      filter="url(#network-hub-glow)"
                     />
-                  )}
+                    <circle className="network-map__node-ring" cx={point.x} cy={point.y} r={10} />
+                    <circle className="network-map__node-ring network-map__node-ring--inner" cx={point.x} cy={point.y} r={6.5} />
+                  </g>
+                ) : (
                   <circle
-                    className="network-map__node-core"
+                    className="network-map__node-halo"
                     cx={point.x}
                     cy={point.y}
-                    r={isHub ? 4.2 : 2.8}
-                    fill={`url(#network-node-core-${tone})`}
+                    r={7}
+                    filter="url(#network-node-glow)"
                   />
-                </g>
-              );
-            })}
-          </g>
+                )}
+                <circle
+                  className="network-map__node-core"
+                  cx={point.x}
+                  cy={point.y}
+                  r={isHub ? 4.2 : 2.8}
+                  fill={`url(#network-node-core-${tone})`}
+                />
+              </g>
+            );
+          })}
         </g>
       </svg>
     </div>

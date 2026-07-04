@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { getNetworkMapPoints } from "../src/data/universityGeo.js";
 import {
   buildNetworkEdges,
-  buildReachEdges,
   curvedEdgePath,
   edgeTone,
   getHubNodeIds,
@@ -48,12 +47,6 @@ describe("universityNetworkGraph", () => {
     const edges = buildNetworkEdges(points);
     const hubs = getHubNodeIds(edges, 4);
     expect(hubs.size).toBeGreaterThan(0);
-  });
-
-  it("builds reach edges for coastal nodes", () => {
-    const reach = buildReachEdges(points, { count: 5, includeReach: true });
-    expect(reach.length).toBe(5);
-    expect(reach.every((edge) => edge.kind === "reach")).toBe(true);
   });
 
   it("uses fewer edges in compact density mode", () => {

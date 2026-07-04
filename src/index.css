@@ -4450,30 +4450,31 @@ html[lang="es"] .shopify-hero__headline-line {
   background: #050a15;
   border: 1px solid rgb(0 242 255 / 0.14);
   box-shadow: 0 16px 42px rgb(0 0 0 / 0.45);
+  overflow: hidden;
 }
 
 .network-map__svg {
   display: block;
   width: 100%;
   height: auto;
-  overflow: visible;
-}
-
-.network-map__tilt {
-  transform-origin: 50% 58%;
-  transform: perspective(900px) rotateX(7deg) skewY(-3deg) scale(1.015);
+  overflow: hidden;
 }
 
 .network-map__stardust-dot {
   fill: rgb(0 242 255 / 0.55);
 }
 
-.network-map__state {
+.network-map__state-fill {
+  fill: rgb(0 242 255 / 0.03);
+  stroke: none;
+}
+
+.network-map__state-mesh {
   fill: none;
-  stroke: rgb(255 255 255 / 0.06);
-  stroke-width: 0.9;
-  stroke-dasharray: 2 6;
+  stroke: rgb(255 255 255 / 0.07);
+  stroke-width: 0.75;
   stroke-linejoin: round;
+  stroke-linecap: round;
 }
 
 .network-map__outline {
@@ -4496,11 +4497,6 @@ html[lang="es"] .shopify-hero__headline-line {
 
 .network-map__edge--magenta {
   stroke: rgb(255 0 255 / 0.68);
-}
-
-.network-map__edge--reach {
-  opacity: 0.42;
-  stroke-width: 1.05;
 }
 
 .network-map__node-halo {
@@ -4549,10 +4545,6 @@ html[lang="es"] .shopify-hero__headline-line {
   .network-map {
     padding: 0.55rem;
     border-radius: 0.65rem;
-  }
-
-  .network-map__tilt {
-    transform: perspective(700px) rotateX(4deg) skewY(-1.5deg) scale(1.01);
   }
 
   .network-map__edge {

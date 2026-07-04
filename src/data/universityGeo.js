@@ -1,16 +1,21 @@
 import { UNIVERSITIES } from "./universities.js";
+import {
+  US_MAP_VIEWBOX,
+  US_NATION_PATH,
+  US_STATE_PATHS,
+  US_STATES_MESH_PATH,
+  projectGeoPoint
+} from "../lib/usMapGeo.js";
 
-/** Continental US bounds for SVG projection. */
-export const US_MAP_BOUNDS = {
-  minLon: -125,
-  maxLon: -66.5,
-  minLat: 24.5,
-  maxLat: 49.5
+export {
+  US_MAP_VIEWBOX,
+  US_NATION_PATH,
+  US_NATION_PATH as US_OUTLINE_PATH,
+  US_STATES_MESH_PATH,
+  US_STATE_PATHS
 };
 
-export const US_MAP_VIEWBOX = { width: 960, height: 560 };
-
-/** Approximate campus coordinates for the curated 25-school network list. */
+/** Real campus coordinates for the curated 25-school network list. */
 export const UNIVERSITY_GEO = {
   stanford: { lat: 37.4275, lon: -122.1697 },
   harvard: { lat: 42.377, lon: -71.1167 },
@@ -39,82 +44,44 @@ export const UNIVERSITY_GEO = {
   unc: { lat: 35.9049, lon: -79.0469 }
 };
 
-/** Network hub — geographic center of the continental US. */
+/** @deprecated Kept for legacy tests — use projectGeoPoint instead. */
 export const NETWORK_HUB = { lat: 39.8283, lon: -98.5795 };
 
-/**
- * Project lat/lon into SVG viewBox coordinates.
- * @param {number} lat
- * @param {number} lon
- * @param {typeof US_MAP_VIEWBOX} [viewBox]
- * @param {typeof US_MAP_BOUNDS} [bounds]
- */
-export function projectLatLon(
-  lat,
-  lon,
-  viewBox = US_MAP_VIEWBOX,
-  bounds = US_MAP_BOUNDS
-) {
-  const x =
-    ((lon - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * viewBox.width;
-  const y =
-    ((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) * viewBox.height;
-  return { x, y };
+/** @deprecated Use projectGeoPoint — Albers USA replaces linear bounds projection. */
+export function projectLatLon(lat, lon) {
+  const point = projectGeoPoint(lon, lat);
+  if (!point) return { x: 0, y: 0 };
+  return point;
 }
 
-/** Curated schools with projected map coordinates. */
+/**
+ * Curated schools projected through geoAlbersUsa().
+ * @returns {Array<{ id: string, name: string, lat: number, lon: number, x: number, y: number }>}
+ */
 export function getNetworkMapPoints() {
   return UNIVERSITIES.map((school) => {
     const geo = UNIVERSITY_GEO[school.id];
     if (!geo) return null;
-    const point = projectLatLon(geo.lat, geo.lon);
-    return { id: school.id, name: school.shortName, ...point };
+    const point = projectGeoPoint(geo.lon, geo.lat);
+    if (!point) return null;
+    return {
+      id: school.id,
+      name: school.shortName,
+      lat: geo.lat,
+      lon: geo.lon,
+      ...point
+    };
   }).filter(Boolean);
 }
 
-/** Rough continental US coastline for the SVG landmass (lon/lat, clockwise). */
-const US_COAST_LATLON = [
-  [49.0, -124.7],
-  [48.4, -124.6],
-  [46.2, -124.1],
-  [43.4, -124.5],
-  [40.4, -124.4],
-  [37.8, -122.5],
-  [34.0, -120.5],
-  [32.5, -117.1],
-  [32.7, -114.7],
-  [31.3, -108.2],
-  [29.3, -103.0],
-  [26.0, -97.2],
-  [25.9, -91.0],
-  [29.0, -89.0],
-  [30.2, -87.5],
-  [30.4, -81.4],
-  [27.9, -82.4],
-  [25.1, -80.2],
-  [27.5, -79.8],
-  [32.0, -80.8],
-  [34.7, -76.0],
-  [36.9, -75.7],
-  [39.0, -74.9],
-  [41.0, -71.9],
-  [43.1, -70.7],
-  [44.8, -67.0],
-  [47.5, -69.2],
-  [47.3, -84.3],
-  [46.7, -92.0],
-  [48.2, -95.0],
-  [49.0, -95.2],
-  [49.0, -124.7]
-];
-
-function buildUSOutlinePath() {
-  const points = US_COAST_LATLON.map(([lat, lon]) => projectLatLon(lat, lon));
-  return points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
-    .join(" ")
-    .concat(" Z");
+/** Coordinate report for verification — all 25 schools with lat/lon and projected x/y. */
+export function getUniversityCoordinateReport() {
+  return getNetworkMapPoints().map((point) => ({
+    id: point.id,
+    name: point.name,
+    lat: point.lat,
+    lon: point.lon,
+    x: Number(point.x.toFixed(2)),
+    y: Number(point.y.toFixed(2))
+  }));
 }
-
-/** Simplified continental US outline path tuned to the projection bounds. */
-export const US_OUTLINE_PATH = buildUSOutlinePath();
