@@ -1,11 +1,7 @@
 /** @typedef {{ id: string, x: number, y: number }} NetworkPoint */
 
 /**
- * @typedef {'cyan' | 'magenta'} NetworkTone
- */
-
-/**
- * @typedef {{ id: string, fromId: string, toId: string, d: string, tone: NetworkTone, kind?: 'mesh' | 'reach' }} NetworkEdge
+ * @typedef {{ id: string, fromId: string, toId: string, d: string }} NetworkEdge
  */
 
 const DEFAULT_K = 3;
@@ -22,14 +18,6 @@ function distance(a, b) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function hashTone(id) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i += 1) {
-    hash = (hash + id.charCodeAt(i) * (i + 1)) % 997;
-  }
-  return hash % 2 === 0 ? "cyan" : "magenta";
-}
-
 export function curvedEdgePath(ax, ay, bx, by, seed = 0) {
   const mx = (ax + bx) / 2;
   const my = (ay + by) / 2;
@@ -43,25 +31,6 @@ export function curvedEdgePath(ax, ay, bx, by, seed = 0) {
   const cx = mx + nx * offset;
   const cy = my + ny * offset;
   return `M ${ax.toFixed(1)} ${ay.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`;
-}
-
-export function getHubNodeIds(edges, minDegree = 4) {
-  const degree = new Map();
-  for (const edge of edges) {
-    degree.set(edge.fromId, (degree.get(edge.fromId) || 0) + 1);
-    degree.set(edge.toId, (degree.get(edge.toId) || 0) + 1);
-  }
-  return new Set(
-    [...degree.entries()].filter(([, count]) => count >= minDegree).map(([id]) => id)
-  );
-}
-
-export function nodeTone(nodeId) {
-  return hashTone(nodeId);
-}
-
-export function edgeTone(fromId, toId) {
-  return hashTone(fromId) === hashTone(toId) ? hashTone(fromId) : hashTone(`${fromId}|${toId}`);
 }
 
 export function buildNetworkEdges(points, options = {}) {
@@ -92,9 +61,7 @@ export function buildNetworkEdges(points, options = {}) {
         id: key,
         fromId: point.id,
         toId: other.id,
-        d: curvedEdgePath(from.x, from.y, to.x, to.y, seed++),
-        tone: edgeTone(point.id, other.id),
-        kind: "mesh"
+        d: curvedEdgePath(from.x, from.y, to.x, to.y, seed++)
       });
 
       if (edges.length >= maxEdges) return edges;

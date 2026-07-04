@@ -4421,8 +4421,53 @@ html[lang="es"] .shopify-hero__headline-line {
 .network-section__intro {
   max-width: 100%;
   margin-inline: auto;
-  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+  margin-bottom: clamp(2rem, 4vw, 3rem);
   text-align: center;
+}
+
+.network-section__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0.35rem 0.85rem;
+  border: 1px solid rgb(124 58 237 / 0.22);
+  border-radius: 999px;
+  background: rgb(237 233 254 / 0.65);
+  color: rgb(91 33 182);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.network-section__badge-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgb(34 197 94 / 0.45);
+  animation: network-badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes network-badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(34 197 94 / 0.45);
+  }
+
+  50% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 0.35rem rgb(34 197 94 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .network-section__badge-dot {
+    animation: none;
+  }
 }
 
 .network-section__headline {
@@ -4442,14 +4487,23 @@ html[lang="es"] .shopify-hero__headline-line {
   display: block;
 }
 
+.network-section__headline-accent {
+  color: #7c3aed;
+}
+
+.network-section__subtitle {
+  max-width: 36rem;
+  margin: 1.1rem auto 0;
+  color: hsl(var(--muted-foreground));
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1rem, 1.8vw, 1.15rem);
+  line-height: 1.55;
+}
+
 .network-map {
-  width: min(100%, 52rem);
+  position: relative;
+  width: min(100%, 58rem);
   margin: 0 auto clamp(2rem, 4vw, 3rem);
-  padding: clamp(0.75rem, 2vw, 1.1rem);
-  border-radius: 0.85rem;
-  background: #050a15;
-  border: 1px solid rgb(0 242 255 / 0.14);
-  box-shadow: 0 16px 42px rgb(0 0 0 / 0.45);
   overflow: hidden;
 }
 
@@ -4460,103 +4514,60 @@ html[lang="es"] .shopify-hero__headline-line {
   overflow: hidden;
 }
 
-.network-map__stardust-dot {
-  fill: rgb(0 242 255 / 0.55);
+.network-map__waves {
+  pointer-events: none;
+}
+
+.network-map__wave {
+  fill: none;
+  stroke: rgb(124 58 237 / 0.12);
+  stroke-width: 1.2;
+  stroke-linecap: round;
 }
 
 .network-map__state-fill {
-  fill: rgb(0 242 255 / 0.03);
+  fill: #eef0f4;
   stroke: none;
 }
 
 .network-map__state-mesh {
   fill: none;
-  stroke: rgb(255 255 255 / 0.07);
+  stroke: #d8dce6;
   stroke-width: 0.75;
   stroke-linejoin: round;
   stroke-linecap: round;
+  opacity: 0.85;
 }
 
 .network-map__outline {
   fill: none;
-  stroke: rgb(0 242 255 / 0.55);
-  stroke-width: 1.45;
+  stroke: rgb(124 58 237 / 0.35);
+  stroke-width: 1.35;
   stroke-linejoin: round;
 }
 
 .network-map__edge {
   fill: none;
-  stroke-width: 1.25;
+  stroke: rgb(124 58 237 / 0.55);
+  stroke-width: 1.2;
   stroke-linecap: round;
-  opacity: 0.68;
-}
-
-.network-map__edge--cyan {
-  stroke: rgb(0 242 255 / 0.72);
-}
-
-.network-map__edge--magenta {
-  stroke: rgb(255 0 255 / 0.68);
+  opacity: 0.58;
 }
 
 .network-map__node-halo {
-  fill: rgb(0 242 255 / 0.2);
+  fill: rgb(124 58 237 / 0.22);
   stroke: none;
-}
-
-.network-map__node--magenta .network-map__node-halo {
-  fill: rgb(255 0 255 / 0.18);
-}
-
-.network-map__node-burst {
-  fill: rgb(0 242 255 / 0.16);
-  stroke: none;
-}
-
-.network-map__node--magenta .network-map__node-burst {
-  fill: rgb(255 0 255 / 0.14);
-}
-
-.network-map__node-ring {
-  fill: none;
-  stroke: rgb(0 242 255 / 0.35);
-  stroke-width: 0.7;
-}
-
-.network-map__node--magenta .network-map__node-ring {
-  stroke: rgb(255 0 255 / 0.32);
-}
-
-.network-map__node-ring--inner {
-  stroke-opacity: 0.55;
 }
 
 .network-map__node-core {
-  stroke: rgb(255 255 255 / 0.45);
-  stroke-width: 0.55;
-}
-
-.network-map__node-hub {
-  transform-box: fill-box;
-  transform-origin: center;
+  fill: #7c3aed;
+  stroke: rgb(255 255 255 / 0.85);
+  stroke-width: 0.5;
 }
 
 @media (max-width: 42rem) {
-  .network-map {
-    padding: 0.55rem;
-    border-radius: 0.65rem;
-  }
-
   .network-map__edge {
     stroke-width: 1;
-  }
-
-  .network-map__node-halo {
-    r: 5.5;
-  }
-
-  .network-map__node-core {
-    r: 2.4;
   }
 }
 

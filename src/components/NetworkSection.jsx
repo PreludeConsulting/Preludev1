@@ -16,21 +16,40 @@ function Reveal({ children, className = "", delay = 0 }) {
   );
 }
 
+function HeadlineLine({ line, accent }) {
+  if (!accent || !line.includes(accent)) {
+    return <span className="network-section__headline-line">{line}</span>;
+  }
+
+  const [before, after] = line.split(accent);
+  return (
+    <span className="network-section__headline-line">
+      {before}
+      <span className="network-section__headline-accent">{accent}</span>
+      {after}
+    </span>
+  );
+}
+
 export default function NetworkSection() {
   const { t } = useLanguage();
   const metrics = t("network.metrics");
+  const headlineAccent = t("network.headlineAccent");
 
   return (
     <section id="mentorship" className="network-section" aria-labelledby="network-section-heading">
       <div className="network-section__inner">
         <Reveal className="network-section__intro">
+          <p className="network-section__badge">
+            <span className="network-section__badge-dot" aria-hidden="true" />
+            {t("network.badge")}
+          </p>
           <h2 id="network-section-heading" className="network-section__headline">
             {t("network.headline").map((line) => (
-              <span className="network-section__headline-line" key={line}>
-                {line}
-              </span>
+              <HeadlineLine key={line} line={line} accent={headlineAccent} />
             ))}
           </h2>
+          <p className="network-section__subtitle">{t("network.subtitle")}</p>
         </Reveal>
 
         <UniversityNetworkMap />

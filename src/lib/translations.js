@@ -97,7 +97,10 @@ export const translations = {
       }
     },
     network: {
+      badge: "OUR NETWORK",
       headline: ["Access a network of students", "from top universities"],
+      headlineAccent: "top universities",
+      subtitle: "Connect with mentors and peers from leading schools across the United States.",
       subheadline: "Built on a network, not a single advisor",
       metrics: [
         {
@@ -460,7 +463,10 @@ export const translations = {
       }
     },
     network: {
+      badge: "OUR NETWORK",
       headline: ["최상위 대학 학생", "네트워크에 접근하세요"],
+      headlineAccent: "최상위 대학",
+      subtitle: "미국 전역의 주요 대학 멘토 및 동료들과 연결하세요.",
       subheadline: "한 명의 상담사가 아닌 네트워크로 만들어진 지원",
       metrics: [
         {
@@ -823,7 +829,10 @@ export const translations = {
       }
     },
     network: {
+      badge: "OUR NETWORK",
       headline: ["连接顶尖大学", "学生网络"],
+      headlineAccent: "顶尖大学",
+      subtitle: "与美国各地顶尖学校的导师和同学建立联系。",
       subheadline: "建立在网络之上，而不是只依赖一位顾问",
       metrics: [
         {
@@ -1186,7 +1195,10 @@ export const translations = {
       }
     },
     network: {
+      badge: "OUR NETWORK",
       headline: ["Accede a una red de estudiantes", "de universidades destacadas"],
+      headlineAccent: "universidades destacadas",
+      subtitle: "Conéctate con mentores y compañeros de las mejores escuelas de Estados Unidos.",
       subheadline: "Construido sobre una red, no un solo asesor",
       metrics: [
         {
