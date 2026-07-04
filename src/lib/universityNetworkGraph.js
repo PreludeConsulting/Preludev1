@@ -4,10 +4,6 @@
  * @typedef {{ id: string, fromId: string, toId: string, d: string }} NetworkEdge
  */
 
-const DEFAULT_K = 3;
-const COMPACT_K = 2;
-const MAX_EDGES = 45;
-
 function edgeKey(a, b) {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
@@ -16,6 +12,27 @@ function distance(a, b) {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
   return Math.sqrt(dx * dx + dy * dy);
+}
+
+class UnionFind {
+  constructor(ids) {
+    this.parent = Object.fromEntries(ids.map((id) => [id, id]));
+  }
+
+  find(id) {
+    if (this.parent[id] !== id) {
+      this.parent[id] = this.find(this.parent[id]);
+    }
+    return this.parent[id];
+  }
+
+  union(a, b) {
+    const rootA = this.find(a);
+    const rootB = this.find(b);
+    if (rootA === rootB) return false;
+    this.parent[rootA] = rootB;
+    return true;
+  }
 }
 
 export function curvedEdgePath(ax, ay, bx, by, seed = 0) {
@@ -33,39 +50,47 @@ export function curvedEdgePath(ax, ay, bx, by, seed = 0) {
   return `M ${ax.toFixed(1)} ${ay.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}`;
 }
 
-export function buildNetworkEdges(points, options = {}) {
-  const { density = "default", maxEdges = MAX_EDGES } = options;
-  const k = density === "compact" ? COMPACT_K : DEFAULT_K;
-  const byId = new Map(points.map((p) => [p.id, p]));
-  const seen = new Set();
+/** Connect every node via a minimum spanning tree (n nodes → n − 1 edges). */
+export function buildNetworkEdges(points) {
+  if (points.length < 2) return [];
+
+  const byId = new Map(points.map((point) => [point.id, point]));
+  const candidates = [];
+
+  for (let i = 0; i < points.length; i += 1) {
+    for (let j = i + 1; j < points.length; j += 1) {
+      const from = points[i];
+      const to = points[j];
+      candidates.push({
+        key: edgeKey(from.id, to.id),
+        fromId: from.id,
+        toId: to.id,
+        dist: distance(from, to)
+      });
+    }
+  }
+
+  candidates.sort((a, b) => a.dist - b.dist);
+
+  const uf = new UnionFind(points.map((point) => point.id));
   const edges = [];
   let seed = 0;
 
-  for (const point of points) {
-    const neighbors = points
-      .filter((other) => other.id !== point.id)
-      .map((other) => ({ other, dist: distance(point, other) }))
-      .sort((a, b) => a.dist - b.dist)
-      .slice(0, k);
+  for (const candidate of candidates) {
+    if (!uf.union(candidate.fromId, candidate.toId)) continue;
 
-    for (const { other } of neighbors) {
-      const key = edgeKey(point.id, other.id);
-      if (seen.has(key)) continue;
-      seen.add(key);
+    const from = byId.get(candidate.fromId);
+    const to = byId.get(candidate.toId);
+    if (!from || !to) continue;
 
-      const from = byId.get(point.id);
-      const to = byId.get(other.id);
-      if (!from || !to) continue;
+    edges.push({
+      id: candidate.key,
+      fromId: candidate.fromId,
+      toId: candidate.toId,
+      d: curvedEdgePath(from.x, from.y, to.x, to.y, seed++)
+    });
 
-      edges.push({
-        id: key,
-        fromId: point.id,
-        toId: other.id,
-        d: curvedEdgePath(from.x, from.y, to.x, to.y, seed++)
-      });
-
-      if (edges.length >= maxEdges) return edges;
-    }
+    if (edges.length === points.length - 1) break;
   }
 
   return edges;

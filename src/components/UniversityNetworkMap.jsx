@@ -48,10 +48,7 @@ export default function UniversityNetworkMap() {
   const hasActivatedRef = useRef(false);
 
   const points = useMemo(() => getNetworkMapPoints(), []);
-  const edges = useMemo(
-    () => buildNetworkEdges(points, { density: compact ? "compact" : "default" }),
-    [points, compact]
-  );
+  const edges = useMemo(() => buildNetworkEdges(points), [points]);
 
   const stopTimelines = useCallback(() => {
     cancelNetworkMapTimeline(drawTimelineRef);

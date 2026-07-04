@@ -22,18 +22,19 @@ describe("universityNetworkGraph", () => {
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it("produces a dense mesh for the full network", () => {
+  it("connects every node with exactly n - 1 edges", () => {
     const edges = buildNetworkEdges(points);
-    expect(edges.length).toBeGreaterThanOrEqual(30);
-    expect(edges.length).toBeLessThanOrEqual(45);
+    expect(edges.length).toBe(points.length - 1);
+
+    const connected = new Set();
     for (const edge of edges) {
+      connected.add(edge.fromId);
+      connected.add(edge.toId);
       expect(edge.d).toMatch(/^M .+ Q .+ .+ .+$/);
     }
-  });
 
-  it("uses fewer edges in compact density mode", () => {
-    const full = buildNetworkEdges(points, { density: "default" });
-    const compact = buildNetworkEdges(points, { density: "compact" });
-    expect(compact.length).toBeLessThan(full.length);
+    for (const point of points) {
+      expect(connected.has(point.id)).toBe(true);
+    }
   });
 });
