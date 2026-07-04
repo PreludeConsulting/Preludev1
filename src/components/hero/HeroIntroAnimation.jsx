@@ -1,24 +1,38 @@
-import { motion } from "motion/react";
+import { useRef } from "react";
 import { useLanguage } from "../../context/LanguageContext.jsx";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
+import { useSetPieceAnimation } from "../../lib/useAnimeScrollAnimation.js";
+import { mountHeroSetPiece } from "../../lib/animeScrollSetPieces.js";
 import TypingPhrase from "./TypingPhrase.jsx";
 
-const line = {
-  hidden: { opacity: 0, y: 14 },
-  show: (i) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: 0.06 + i * 0.06, duration: 0.45, ease: "easeOut" }
-  })
-};
+export function useHeroMotionRefs() {
+  return useRef({
+    headlineLines: [],
+    subcopy: null,
+    formWrap: null,
+    note: null,
+    visual: null,
+    section: null
+  });
+}
 
-export function HeroHeadline() {
+export function HeroMotionController({ heroRefs, children }) {
+  useSetPieceAnimation(mountHeroSetPiece, heroRefs);
+  return children;
+}
+
+export function HeroHeadline({ heroRefs }) {
   const reducedMotion = useReducedMotion();
   const { t } = useLanguage();
-  const [lineOne, lineTwo, lineThree] = t("hero.headline");
+  const [lineOne, lineTwo] = t("hero.headline");
   const typingPrefix = t("hero.typingPrefix");
   const typingPhrases = t("hero.typingPhrases");
-  const staticPhrase = typingPhrases?.[0] || lineThree || "";
+  const staticPhrase = typingPhrases?.[0] || "";
+
+  const setLineRef = (index) => (node) => {
+    if (!heroRefs?.current || !node) return;
+    heroRefs.current.headlineLines[index] = node;
+  };
 
   if (reducedMotion) {
     return (
@@ -34,76 +48,85 @@ export function HeroHeadline() {
   }
 
   return (
-    <motion.h1 className="shopify-hero__headline" initial="hidden" animate="show">
-      <motion.span className="shopify-hero__headline-line block" custom={0} variants={line}>{lineOne}</motion.span>
-      {lineTwo ? <motion.span className="shopify-hero__headline-line block" custom={1} variants={line}>{lineTwo}</motion.span> : null}
-      <motion.span className="shopify-hero__typing-line hero-headline-shimmer block" custom={lineTwo ? 2 : 1} variants={line}>
+    <h1 className="shopify-hero__headline">
+      <span ref={setLineRef(0)} className="shopify-hero__headline-line block">
+        {lineOne}
+      </span>
+      {lineTwo ? (
+        <span ref={setLineRef(1)} className="shopify-hero__headline-line block">
+          {lineTwo}
+        </span>
+      ) : null}
+      <span ref={setLineRef(lineTwo ? 2 : 1)} className="shopify-hero__typing-line hero-headline-shimmer block">
         {typingPrefix ? <span>{typingPrefix}&nbsp;</span> : null}
         <TypingPhrase phrases={typingPhrases} staticPhrase={staticPhrase} />
-      </motion.span>
-    </motion.h1>
+      </span>
+    </h1>
   );
 }
 
-export function HeroVisualAnimation({ children }) {
+export function HeroVisualAnimation({ children, heroRefs }) {
   const reducedMotion = useReducedMotion();
+  if (reducedMotion) {
+    return <div className="shopify-hero__visual">{children}</div>;
+  }
 
   return (
-    <motion.div
+    <div
+      ref={(node) => {
+        if (heroRefs?.current) heroRefs.current.visual = node;
+      }}
       className="shopify-hero__visual"
-      initial={reducedMotion ? false : { opacity: 0, x: 16, scale: 0.98 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      transition={{ delay: 0.12, duration: 0.5, ease: "easeOut" }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
-export function HeroSubcopy({ children }) {
+export function HeroSubcopy({ children, heroRefs }) {
   const reducedMotion = useReducedMotion();
   if (reducedMotion) return <p className="shopify-hero__subcopy">{children}</p>;
 
   return (
-    <motion.p
+    <p
+      ref={(node) => {
+        if (heroRefs?.current) heroRefs.current.subcopy = node;
+      }}
       className="shopify-hero__subcopy"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.22, duration: 0.4 }}
     >
       {children}
-    </motion.p>
+    </p>
   );
 }
 
-export function HeroFormAnimation({ children }) {
+export function HeroFormAnimation({ children, heroRefs }) {
   const reducedMotion = useReducedMotion();
   if (reducedMotion) return children;
 
   return (
-    <motion.div
+    <div
+      ref={(node) => {
+        if (heroRefs?.current) heroRefs.current.formWrap = node;
+      }}
       className="shopify-hero__form-wrap"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3, duration: 0.4 }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
-export function HeroNote({ children }) {
+export function HeroNote({ children, heroRefs }) {
   const reducedMotion = useReducedMotion();
   if (reducedMotion) return <p className="shopify-hero__note">{children}</p>;
 
   return (
-    <motion.p
+    <p
+      ref={(node) => {
+        if (heroRefs?.current) heroRefs.current.note = node;
+      }}
       className="shopify-hero__note"
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.34, duration: 0.4 }}
     >
       {children}
-    </motion.p>
+    </p>
   );
 }

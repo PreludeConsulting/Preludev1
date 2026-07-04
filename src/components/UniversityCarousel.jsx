@@ -1,6 +1,7 @@
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { UNIVERSITIES } from "../data/universities.js";
 import UniversityLogo from "./UniversityLogo.jsx";
+import ScrollReveal from "./motion/ScrollReveal.jsx";
 
 function MarqueeLogo({ school }) {
   return <UniversityLogo school={school} className="university-marquee__logo" loading="eager" />;
@@ -20,11 +21,11 @@ export default function UniversityCarousel() {
   const { t } = useLanguage();
 
   return (
-    <section className="university-marquee" aria-labelledby="university-marquee-heading">
+    <section id="partners" data-section-nav="partners" className="university-marquee" aria-labelledby="university-marquee-heading">
       <div className="university-marquee__header">
-        <h2 id="university-marquee-heading" className="university-marquee__heading">
+        <ScrollReveal as="h2" className="university-marquee__heading" id="university-marquee-heading">
           {t("carousel.heading")}
-        </h2>
+        </ScrollReveal>
       </div>
       <div className="university-marquee__viewport">
         <div className="university-marquee__track">

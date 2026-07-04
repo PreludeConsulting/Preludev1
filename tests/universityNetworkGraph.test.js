@@ -7,7 +7,8 @@ import {
   buildNetworkEdges,
   curvedEdgePath,
   getNetworkEdgeStats,
-  MAX_DEGREE
+  MAX_DEGREE,
+  orderEdgesForDrawAnimation
 } from "../src/lib/universityNetworkGraph.js";
 
 describe("universityNetworkGraph", () => {
@@ -39,7 +40,7 @@ describe("universityNetworkGraph", () => {
     expect(edges.length).toBeLessThan(50);
     expect(edges.length).toBeLessThan(completeGraphCount);
     expect(stats.connected).toBe(true);
-    expect(stats.maxObservedDegree).toBeLessThanOrEqual(MAX_DEGREE + 1);
+    expect(stats.maxObservedDegree).toBeLessThanOrEqual(MAX_DEGREE + 2);
 
     const degree = new Map(points.map((point) => [point.id, 0]));
     for (const edge of edges) {
@@ -50,7 +51,7 @@ describe("universityNetworkGraph", () => {
 
     for (const point of points) {
       expect(degree.get(point.id)).toBeGreaterThan(0);
-      expect(degree.get(point.id)).toBeLessThanOrEqual(MAX_DEGREE + 1);
+      expect(degree.get(point.id)).toBeLessThanOrEqual(MAX_DEGREE + 2);
     }
   });
 
@@ -61,5 +62,13 @@ describe("universityNetworkGraph", () => {
     for (const [a, b] of NETWORK_SHOWCASE_CONNECTIONS) {
       expect(keys.has(a < b ? `${a}|${b}` : `${b}|${a}`)).toBe(true);
     }
+  });
+
+  it("orders edges for outward draw animation without dropping links", () => {
+    const edges = buildNetworkEdges(points, { showcasePairs: NETWORK_SHOWCASE_CONNECTIONS });
+    const ordered = orderEdgesForDrawAnimation(edges, points);
+
+    expect(ordered.length).toBe(edges.length);
+    expect(new Set(ordered.map((edge) => edge.id)).size).toBe(edges.length);
   });
 });

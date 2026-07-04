@@ -37,7 +37,12 @@ export default function NetworkSection() {
   const headlineAccent = t("network.headlineAccent");
 
   return (
-    <section id="mentorship" className="network-section" aria-labelledby="network-section-heading">
+    <section
+      id="mentorship"
+      data-section-nav="mentorship"
+      className="network-section"
+      aria-labelledby="network-section-heading"
+    >
       <div className="network-section__inner">
         <Reveal className="network-section__intro">
           <p className="network-section__badge">

@@ -22,6 +22,29 @@ function preludeDevApiPlugin(env, embedApi) {
   };
 }
 
+const DEV_STUB_ID = "\0prelude-dev-stub";
+
+/** Build-time stub so dev-only `src/dev/` code is dropped from production bundles. */
+function excludeDevOnlyModules(isDevServer) {
+  return {
+    name: "prelude-exclude-dev-modules",
+    enforce: "pre",
+    resolveId(source) {
+      if (isDevServer) return null;
+      if (/dev\/ScrollAnimationTestPage(\.jsx)?$/.test(source)) {
+        return { id: DEV_STUB_ID, moduleSideEffects: false };
+      }
+      return null;
+    },
+    load(id) {
+      if (id === DEV_STUB_ID) {
+        return "export default function PreludeDevStub() { return null; }";
+      }
+      return null;
+    }
+  };
+}
+
 export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), "");
   Object.assign(process.env, env);
@@ -33,7 +56,11 @@ export default defineConfig(({ mode, command }) => {
 
   return {
     base: "/",
-    plugins: [react(), ...(isDevServer ? [preludeDevApiPlugin(env, embedApi)] : [])],
+    plugins: [
+      react(),
+      excludeDevOnlyModules(isDevServer),
+      ...(isDevServer ? [preludeDevApiPlugin(env, embedApi)] : [])
+    ],
     server: useStandaloneApi
       ? {
           proxy: {

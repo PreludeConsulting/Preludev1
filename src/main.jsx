@@ -1,7 +1,11 @@
-import React from "react";
+import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import App from "./App.jsx";
+
+const ScrollAnimationTestPage = import.meta.env.DEV
+  ? lazy(() => import("./dev/ScrollAnimationTestPage.jsx"))
+  : null;
 import DashboardRouter from "./dashboard/DashboardRouter.jsx";
 import MentorsPage from "./components/MentorsPage.jsx";
 import ContactPage from "./components/ContactPage.jsx";
@@ -92,6 +96,16 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/checkout/cancel" element={<CheckoutCancelPage />} />
             <Route path="/mentors" element={<MentorsPage />} />
             <Route path="/contact" element={<ContactPage />} />
+            {ScrollAnimationTestPage ? (
+              <Route
+                path="/dev/scroll-test"
+                element={
+                  <Suspense fallback={null}>
+                    <ScrollAnimationTestPage />
+                  </Suspense>
+                }
+              />
+            ) : null}
             {/* Legacy Supabase test routes redirect to main Prelude auth pages. */}
             <Route path="/auth/login" element={<Navigate to="/login" replace />} />
             <Route path="/auth/signup" element={<Navigate to="/register" replace />} />

@@ -22,11 +22,12 @@ describe("universityGeo", () => {
   });
 
   it("projects all schools inside the Albers USA viewBox", () => {
+    const { x, y, width, height } = US_MAP_VIEWBOX;
     for (const point of getNetworkMapPoints()) {
-      expect(point.x).toBeGreaterThan(0);
-      expect(point.x).toBeLessThan(US_MAP_VIEWBOX.width);
-      expect(point.y).toBeGreaterThan(0);
-      expect(point.y).toBeLessThan(US_MAP_VIEWBOX.height);
+      expect(point.x).toBeGreaterThan(x);
+      expect(point.x).toBeLessThan(x + width);
+      expect(point.y).toBeGreaterThan(y);
+      expect(point.y).toBeLessThan(y + height);
     }
   });
 

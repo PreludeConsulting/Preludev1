@@ -10,6 +10,18 @@ import {
 describe("usMapGeo", () => {
   it("fits the nation and states into the viewBox", () => {
     expect(US_MAP_VIEWBOX.width).toBeGreaterThan(900);
+    expect(US_MAP_VIEWBOX.height).toBeGreaterThan(500);
+    expect(US_MAP_VIEWBOX.x).toBeGreaterThanOrEqual(0);
+    expect(US_MAP_VIEWBOX.y).toBeGreaterThanOrEqual(0);
+    // Document computed viewBox (was hardcoded `0 0 975 610` before bounds-based fit).
+    expect(US_MAP_VIEWBOX).toMatchInlineSnapshot(`
+      {
+        "height": 578.6751231121107,
+        "width": 974.9999999999999,
+        "x": 8.526512829121202e-14,
+        "y": 15.662438443944666,
+      }
+    `);
     expect(US_STATE_PATHS.length).toBeGreaterThan(40);
     expect(US_NATION_PATH.length).toBeGreaterThan(500);
     expect(US_STATES_MESH_PATH.length).toBeGreaterThan(500);

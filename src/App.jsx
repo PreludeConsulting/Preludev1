@@ -20,6 +20,7 @@ import {
   LowerFooter,
   LowerPlans
 } from "./components/Sections.jsx";
+import HomepageScrollProgress from "./components/motion/HomepageScrollProgress.jsx";
 
 function AppContent() {
   const { requestPersonalizedAi } = useAuth();
@@ -100,6 +101,7 @@ function AppContent() {
         <LowerCta />
         <LowerFooter />
       </div>
+      <HomepageScrollProgress />
       <PreludeChat />
       <SignInModal />
       <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
