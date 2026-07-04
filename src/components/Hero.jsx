@@ -33,6 +33,7 @@ export default function Hero() {
       id="home"
       data-section-nav="home"
       className="shopify-hero"
+      data-aura-zone
       ref={(node) => {
         heroRefs.current.section = node;
       }}

@@ -33,7 +33,7 @@ export function AdmissionsCostBanner() {
   const { t } = useLanguage();
 
   return (
-    <section className="admissions-cost-banner" id="about-cost">
+    <section className="admissions-cost-banner" id="about-cost" data-aura-zone>
       <div className="admissions-cost-banner__inner">
         <ScrollReveal className="admissions-cost-banner__visual">
           <img
@@ -288,7 +288,7 @@ export function LowerCta() {
 
   return (
     <div className="lower-landing">
-      <section className="lower-landing__cta" id="contact" data-section-nav="contact">
+      <section className="lower-landing__cta" id="contact" data-section-nav="contact" data-aura-zone>
         <ScrollReveal>
           <h2 className="lower-landing__headline lower-landing__headline--center">
             {t("sections.cta.headline")}

@@ -455,3 +455,53 @@
     transition-duration: 0.01ms;
   }
 }
+
+/* Aura cursor — landing colored zones */
+[data-aura-zone].aura-zone--active {
+  cursor: none;
+}
+
+.aura-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9998;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.92) 0%, rgb(255 255 255 / 0.28) 38%, transparent 72%);
+  filter: blur(10px);
+  transform: translate3d(-9999px, -9999px, 0);
+  transition: opacity 0.16s ease;
+  will-change: transform, opacity;
+}
+
+.aura-cursor--visible {
+  opacity: 0.88;
+}
+
+/* anime.js button glow sheen */
+.prelude-btn-sheen-wrap {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.prelude-btn-sheen {
+  position: absolute;
+  inset: 0;
+  width: 42%;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    rgb(255 255 255 / 0.55) 48%,
+    transparent 100%
+  );
+  transform: translateX(-120%);
+  will-change: transform, opacity;
+}
+

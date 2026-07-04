@@ -21,6 +21,8 @@ import {
   LowerPlans
 } from "./components/Sections.jsx";
 import HomepageScrollProgress from "./components/motion/HomepageScrollProgress.jsx";
+import AuraCursor from "./components/motion/AuraCursor.jsx";
+import AnimeButtonHoverBinder from "./components/motion/AnimeButtonHoverBinder.jsx";
 
 function AppContent() {
   const { requestPersonalizedAi } = useAuth();
@@ -102,6 +104,8 @@ function AppContent() {
         <LowerFooter />
       </div>
       <HomepageScrollProgress />
+      <AuraCursor />
+      <AnimeButtonHoverBinder />
       <PreludeChat />
       <SignInModal />
       <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />

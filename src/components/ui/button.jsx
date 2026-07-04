@@ -32,6 +32,7 @@ export function Button({
   return (
     <Component
       data-press-variant={resolvedPressVariant}
+      data-anime-hover={variant === "primary" ? "primary" : undefined}
       className={cn(
         "prelude-btn-motion inline-flex min-h-[var(--control-height)] items-center justify-center gap-2 rounded-[var(--radius-control)] px-[var(--control-padding-inline)] py-2.5 font-body text-sm font-semibold leading-tight transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50",
         loading && "prelude-btn-motion--loading",
