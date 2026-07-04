@@ -733,6 +733,11 @@ export async function ensureUserProfile(user, overrides = {}) {
   const existing = await getProfile(user.id);
 
   if (existing.profile) {
+    if (existing.profile.role_selection_complete === false && !role) {
+      await ensureDependentRecords(user.id, existing.profile.role || "student");
+      return { profile: existing.profile, error: null };
+    }
+
     const existingAvatar = isOAuthAvatarUrl(existing.profile.avatar_url) ? null : existing.profile.avatar_url;
     const update = {
       email: metadata.email || overrides.email || existing.profile.email || null,
