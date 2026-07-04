@@ -1,6 +1,5 @@
 import { motion } from "motion/react";
 import { useLanguage } from "../context/LanguageContext.jsx";
-import UniversityNetworkMap from "./UniversityNetworkMap.jsx";
 
 function Reveal({ children, className = "", delay = 0 }) {
   return (
@@ -56,8 +55,6 @@ export default function NetworkSection() {
           </h2>
           <p className="network-section__subtitle">{t("network.subtitle")}</p>
         </Reveal>
-
-        <UniversityNetworkMap />
 
         <ul className="network-section__stats">
           {metrics.map((row, index) => (

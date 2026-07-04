@@ -1,9 +1,7 @@
 import { animate } from "animejs";
 
 export const BUTTON_HOVER_MS = 320;
-export const BUTTON_SHEEN_MS = 380;
 
-const GLOW_IDLE = "0 0 0 rgb(120 106 255 / 0)";
 const GLOW_ACTIVE =
   "0 10px 28px rgb(120 106 255 / 0.34), 0 0 0 1px rgb(255 255 255 / 0.14)";
 
@@ -15,16 +13,11 @@ export const BUTTON_HOVER_SELECTOR = [
   ".auth-submit"
 ].join(", ");
 
-function ensureSheen(el) {
-  let sheen = el.querySelector(".prelude-btn-sheen");
-  if (sheen) return sheen;
-
-  sheen = document.createElement("span");
-  sheen.className = "prelude-btn-sheen";
-  sheen.setAttribute("aria-hidden", "true");
-  el.classList.add("prelude-btn-sheen-wrap");
-  el.appendChild(sheen);
-  return sheen;
+function clearHoverStyles(el) {
+  if (!el) return;
+  el.style.boxShadow = "";
+  el.classList.remove("prelude-btn-sheen-wrap");
+  el.querySelector(".prelude-btn-sheen")?.remove();
 }
 
 /**
@@ -35,52 +28,31 @@ function ensureSheen(el) {
 export function bindButtonHoverGlow(el, { reducedMotion = false } = {}) {
   if (!el || reducedMotion) return () => {};
 
-  const sheen = ensureSheen(el);
+  clearHoverStyles(el);
+
   let glowMotion = null;
-  let sheenMotion = null;
   let engaged = false;
 
-  const stopMotions = () => {
-    glowMotion?.pause();
-    sheenMotion?.pause();
+  const stopGlow = () => {
+    glowMotion?.pause?.();
+    glowMotion?.revert?.();
     glowMotion = null;
-    sheenMotion = null;
+    clearHoverStyles(el);
   };
 
   const disengage = () => {
     if (!engaged) return;
     engaged = false;
-    stopMotions();
-    glowMotion = animate(el, {
-      boxShadow: GLOW_IDLE,
-      duration: BUTTON_HOVER_MS * 0.7,
-      ease: "out(2)"
-    });
-    sheenMotion = animate(sheen, {
-      opacity: 0,
-      duration: 160,
-      ease: "out(2)"
-    });
+    stopGlow();
   };
 
   const engage = () => {
-    if (engaged) {
-      stopMotions();
-    } else {
-      engaged = true;
-    }
+    if (engaged) stopGlow();
+    engaged = true;
 
     glowMotion = animate(el, {
       boxShadow: GLOW_ACTIVE,
       duration: BUTTON_HOVER_MS,
-      ease: "out(3)"
-    });
-
-    sheen.style.opacity = "0";
-    sheenMotion = animate(sheen, {
-      translateX: ["-120%", "120%"],
-      opacity: [0, 0.88, 0],
-      duration: BUTTON_SHEEN_MS,
       ease: "out(3)"
     });
   };
@@ -104,13 +76,12 @@ export function bindButtonHoverGlow(el, { reducedMotion = false } = {}) {
   el.addEventListener("focusout", onFocusOut);
 
   return () => {
-    stopMotions();
+    disengage();
     el.removeEventListener("mouseenter", onMouseEnter);
     el.removeEventListener("mouseleave", onMouseLeave);
     el.removeEventListener("focusin", onFocusIn);
     el.removeEventListener("focusout", onFocusOut);
-    sheen.remove();
-    el.classList.remove("prelude-btn-sheen-wrap");
+    clearHoverStyles(el);
   };
 }
 
