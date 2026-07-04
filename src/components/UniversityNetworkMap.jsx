@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { US_STATE_OUTLINE_PATHS } from "../data/usStateOutlines.js";
 import {
   US_MAP_VIEWBOX,
   US_OUTLINE_PATH,
   getNetworkMapPoints
 } from "../data/universityGeo.js";
-import { buildNetworkEdges } from "../lib/universityNetworkGraph.js";
+import {
+  buildNetworkEdges,
+  buildReachEdges,
+  getHubNodeIds,
+  nodeTone
+} from "../lib/universityNetworkGraph.js";
+import { buildStardustPoints } from "../lib/universityNetworkStardust.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
 import {
   cancelNetworkMapTimeline,
   runNetworkDrawTimeline,
-  runNetworkIdlePulse,
-  snapNetworkVisible
+  runNetworkIdleLoops,
+  snapHubNodesVisible,
+  snapNetworkVisible,
+  snapStardustVisible
 } from "../lib/universityNetworkMapMotion.js";
 
 const COMPACT_QUERY = "(max-width: 42rem)";
@@ -35,15 +44,38 @@ export default function UniversityNetworkMap() {
   const compact = useCompactDensity();
   const sectionRef = useRef(null);
   const edgeRefs = useRef([]);
+  const hubRefs = useRef([]);
+  const stardustRefs = useRef([]);
   const drawTimelineRef = useRef(null);
   const idleTimelineRef = useRef(null);
   const inViewRef = useRef(false);
   const hasActivatedRef = useRef(false);
 
   const points = useMemo(() => getNetworkMapPoints(), []);
-  const edges = useMemo(
+  const meshEdges = useMemo(
     () => buildNetworkEdges(points, { density: compact ? "compact" : "default" }),
     [points, compact]
+  );
+  const reachEdges = useMemo(
+    () => buildReachEdges(points, { count: 5, includeReach: !compact }),
+    [points, compact]
+  );
+  const edges = useMemo(() => [...meshEdges, ...reachEdges], [meshEdges, reachEdges]);
+  const hubIds = useMemo(() => getHubNodeIds(meshEdges), [meshEdges]);
+  const hubIndexById = useMemo(() => {
+    const hubPoints = points.filter((point) => hubIds.has(point.id));
+    return Object.fromEntries(hubPoints.map((point, index) => [point.id, index]));
+  }, [points, hubIds]);
+
+  const stardust = useMemo(
+    () =>
+      buildStardustPoints({
+        width: US_MAP_VIEWBOX.width,
+        height: US_MAP_VIEWBOX.height,
+        count: compact ? 420 : 960,
+        seed: 42
+      }),
+    [compact]
   );
 
   const stopTimelines = useCallback(() => {
@@ -51,26 +83,34 @@ export default function UniversityNetworkMap() {
     cancelNetworkMapTimeline(idleTimelineRef);
   }, []);
 
-  const startIdlePulse = useCallback(() => {
+  const startIdleLoops = useCallback(() => {
     cancelNetworkMapTimeline(idleTimelineRef);
     if (reducedMotion || !inViewRef.current) return;
-    idleTimelineRef.current = runNetworkIdlePulse({
+    idleTimelineRef.current = runNetworkIdleLoops({
       edgeEls: edgeRefs.current,
+      hubEls: hubRefs.current,
+      stardustEls: stardustRefs.current,
       reducedMotion
     });
   }, [reducedMotion]);
+
+  const snapAllVisible = useCallback(() => {
+    snapNetworkVisible(edgeRefs.current);
+    snapHubNodesVisible(hubRefs.current);
+    snapStardustVisible(stardustRefs.current);
+  }, []);
 
   const activateNetwork = useCallback(() => {
     stopTimelines();
 
     if (reducedMotion) {
-      snapNetworkVisible(edgeRefs.current);
+      snapAllVisible();
       hasActivatedRef.current = true;
       return;
     }
 
     if (hasActivatedRef.current) {
-      startIdlePulse();
+      startIdleLoops();
       return;
     }
 
@@ -80,14 +120,16 @@ export default function UniversityNetworkMap() {
       onComplete: () => {
         hasActivatedRef.current = true;
         drawTimelineRef.current = null;
-        startIdlePulse();
+        startIdleLoops();
       }
     });
-  }, [reducedMotion, startIdlePulse, stopTimelines]);
+  }, [reducedMotion, snapAllVisible, startIdleLoops, stopTimelines]);
 
   useEffect(() => {
     edgeRefs.current = edgeRefs.current.slice(0, edges.length);
-  }, [edges]);
+    hubRefs.current = hubRefs.current.slice(0, Object.keys(hubIndexById).length);
+    stardustRefs.current = stardustRefs.current.slice(0, stardust.length);
+  }, [edges, stardust, hubIndexById]);
 
   useEffect(() => {
     hasActivatedRef.current = false;
@@ -95,7 +137,7 @@ export default function UniversityNetworkMap() {
     if (inViewRef.current) {
       activateNetwork();
     }
-  }, [edges, reducedMotion, activateNetwork, stopTimelines]);
+  }, [edges, stardust, reducedMotion, activateNetwork, stopTimelines]);
 
   useEffect(() => {
     const node = sectionRef.current;
@@ -120,16 +162,6 @@ export default function UniversityNetworkMap() {
     };
   }, [activateNetwork, stopTimelines]);
 
-  const gridDots = useMemo(() => {
-    const dots = [];
-    for (let x = 40; x < US_MAP_VIEWBOX.width; x += 48) {
-      for (let y = 40; y < US_MAP_VIEWBOX.height; y += 48) {
-        dots.push({ x, y, key: `${x}-${y}` });
-      }
-    }
-    return dots;
-  }, []);
-
   return (
     <div ref={sectionRef} className="network-map">
       <svg
@@ -140,72 +172,141 @@ export default function UniversityNetworkMap() {
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
-          <filter id="network-node-glow" x="-80%" y="-80%" width="260%" height="260%">
-            <feGaussianBlur stdDeviation="3.5" result="blur" />
+          <clipPath id="network-us-clip">
+            <path d={US_OUTLINE_PATH} />
+          </clipPath>
+          <filter id="network-outline-glow" x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="2.4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="network-node-glow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="4.5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="network-hub-glow" x="-120%" y="-120%" width="340%" height="340%">
+            <feGaussianBlur stdDeviation="7" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
           <filter id="network-edge-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="1.8" result="blur" />
+            <feGaussianBlur stdDeviation="2.2" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <linearGradient id="network-edge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#5ee7ff" stopOpacity="0.85" />
-            <stop offset="100%" stopColor="#8b7cff" stopOpacity="0.75" />
-          </linearGradient>
-          <radialGradient id="network-node-core" cx="50%" cy="50%" r="50%">
+          <radialGradient id="network-node-core-cyan" cx="50%" cy="50%" r="50%">
             <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-            <stop offset="55%" stopColor="#5ee7ff" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#8b7cff" stopOpacity="0.6" />
+            <stop offset="45%" stopColor="#00f2ff" stopOpacity="0.98" />
+            <stop offset="100%" stopColor="#00f2ff" stopOpacity="0.35" />
+          </radialGradient>
+          <radialGradient id="network-node-core-magenta" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="45%" stopColor="#ff00ff" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#ff00ff" stopOpacity="0.35" />
           </radialGradient>
         </defs>
 
-        <g className="network-map__ambient" aria-hidden="true">
-          {gridDots.map((dot) => (
-            <circle key={dot.key} className="network-map__grid-dot" cx={dot.x} cy={dot.y} r={0.6} />
-          ))}
-        </g>
-
-        <path className="network-map__outline" d={US_OUTLINE_PATH} aria-hidden="true" />
-
-        <g className="network-map__edges" aria-hidden="true">
-          {edges.map((edge, index) => (
-            <path
-              key={edge.id}
-              ref={(node) => {
-                edgeRefs.current[index] = node;
-              }}
-              className="network-map__edge"
-              d={edge.d}
-              filter="url(#network-edge-glow)"
-            />
-          ))}
-        </g>
-
-        <g className="network-map__nodes">
-          {points.map((point) => (
-            <g key={point.id} className="network-map__node">
+        <g className="network-map__tilt">
+          <g className="network-map__stardust" clipPath="url(#network-us-clip)" aria-hidden="true">
+            {stardust.map((dot, index) => (
               <circle
-                className="network-map__node-halo"
-                cx={point.x}
-                cy={point.y}
-                r={8}
-                filter="url(#network-node-glow)"
+                key={dot.id}
+                ref={(node) => {
+                  stardustRefs.current[index] = node;
+                }}
+                className="network-map__stardust-dot"
+                cx={dot.x}
+                cy={dot.y}
+                r={dot.r}
+                opacity={dot.opacity}
+                data-base-opacity={dot.opacity}
               />
-              <circle
-                className="network-map__node-core"
-                cx={point.x}
-                cy={point.y}
-                r={3.2}
-                fill="url(#network-node-core)"
+            ))}
+          </g>
+
+          <g className="network-map__states" aria-hidden="true">
+            {US_STATE_OUTLINE_PATHS.map((d, index) => (
+              <path key={`state-${index}`} className="network-map__state" d={d} />
+            ))}
+          </g>
+
+          <path
+            className="network-map__outline"
+            d={US_OUTLINE_PATH}
+            filter="url(#network-outline-glow)"
+            aria-hidden="true"
+          />
+
+          <g className="network-map__edges" aria-hidden="true">
+            {edges.map((edge, index) => (
+              <path
+                key={edge.id}
+                ref={(node) => {
+                  edgeRefs.current[index] = node;
+                }}
+                className={`network-map__edge network-map__edge--${edge.tone}${edge.kind === "reach" ? " network-map__edge--reach" : ""}`}
+                d={edge.d}
+                filter="url(#network-edge-glow)"
               />
-            </g>
-          ))}
+            ))}
+          </g>
+
+          <g className="network-map__nodes">
+            {points.map((point) => {
+              const tone = nodeTone(point.id);
+              const isHub = hubIds.has(point.id);
+              return (
+                <g
+                  key={point.id}
+                  className={`network-map__node network-map__node--${tone}${isHub ? " network-map__node--hub" : ""}`}
+                >
+                  {isHub ? (
+                    <g
+                      ref={(node) => {
+                        const index = hubIndexById[point.id];
+                        if (node && index !== undefined) hubRefs.current[index] = node;
+                      }}
+                      className="network-map__node-hub"
+                    >
+                      <circle
+                        className="network-map__node-burst"
+                        cx={point.x}
+                        cy={point.y}
+                        r={14}
+                        filter="url(#network-hub-glow)"
+                      />
+                      <circle className="network-map__node-ring" cx={point.x} cy={point.y} r={10} />
+                      <circle className="network-map__node-ring network-map__node-ring--inner" cx={point.x} cy={point.y} r={6.5} />
+                    </g>
+                  ) : (
+                    <circle
+                      className="network-map__node-halo"
+                      cx={point.x}
+                      cy={point.y}
+                      r={7}
+                      filter="url(#network-node-glow)"
+                    />
+                  )}
+                  <circle
+                    className="network-map__node-core"
+                    cx={point.x}
+                    cy={point.y}
+                    r={isHub ? 4.2 : 2.8}
+                    fill={`url(#network-node-core-${tone})`}
+                  />
+                </g>
+              );
+            })}
+          </g>
         </g>
       </svg>
     </div>

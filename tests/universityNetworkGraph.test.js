@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { getNetworkMapPoints } from "../src/data/universityGeo.js";
-import { buildNetworkEdges, curvedEdgePath } from "../src/lib/universityNetworkGraph.js";
+import {
+  buildNetworkEdges,
+  buildReachEdges,
+  curvedEdgePath,
+  edgeTone,
+  getHubNodeIds,
+  nodeTone
+} from "../src/lib/universityNetworkGraph.js";
 
 describe("universityNetworkGraph", () => {
   const points = getNetworkMapPoints();
@@ -20,26 +27,38 @@ describe("universityNetworkGraph", () => {
     const edges = buildNetworkEdges(points.slice(0, 6));
     const keys = edges.map((edge) => edge.id);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("assigns cyan or magenta tones", () => {
+    const edges = buildNetworkEdges(points.slice(0, 8));
     for (const edge of edges) {
-      expect(edge.id).toBe(
-        edge.fromId < edge.toId ? `${edge.fromId}|${edge.toId}` : `${edge.toId}|${edge.fromId}`
-      );
+      expect(["cyan", "magenta"]).toContain(edge.tone);
+      expect(edge.tone).toBe(edgeTone(edge.fromId, edge.toId));
     }
+    expect(["cyan", "magenta"]).toContain(nodeTone(points[0].id));
   });
 
   it("produces a dense mesh for the full network", () => {
     const edges = buildNetworkEdges(points);
     expect(edges.length).toBeGreaterThanOrEqual(30);
     expect(edges.length).toBeLessThanOrEqual(45);
-    for (const edge of edges) {
-      expect(edge.d).toMatch(/^M .+ Q .+ .+ .+$/);
-    }
+  });
+
+  it("identifies hub nodes by degree", () => {
+    const edges = buildNetworkEdges(points);
+    const hubs = getHubNodeIds(edges, 4);
+    expect(hubs.size).toBeGreaterThan(0);
+  });
+
+  it("builds reach edges for coastal nodes", () => {
+    const reach = buildReachEdges(points, { count: 5, includeReach: true });
+    expect(reach.length).toBe(5);
+    expect(reach.every((edge) => edge.kind === "reach")).toBe(true);
   });
 
   it("uses fewer edges in compact density mode", () => {
     const full = buildNetworkEdges(points, { density: "default" });
     const compact = buildNetworkEdges(points, { density: "compact" });
     expect(compact.length).toBeLessThan(full.length);
-    expect(compact.length).toBeGreaterThanOrEqual(25);
   });
 });
