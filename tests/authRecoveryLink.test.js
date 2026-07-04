@@ -58,6 +58,15 @@ describe("auth recovery links", () => {
     ).toBe("/reset-password?token_hash=abc123hash&type=recovery");
   });
 
+  it("routes homepage signup token_hash params to verify-email", () => {
+    expect(
+      resolveAuthLandingRedirect({
+        pathname: "/",
+        search: "?token_hash=abc123hash&type=signup"
+      })
+    ).toBe("/verify-email?token_hash=abc123hash&type=signup");
+  });
+
   it("bootstraps recovery redirects before React loads", () => {
     expect(
       bootstrapAuthRecoveryRedirect("/", "?token_hash=abc123hash&type=recovery", "")
@@ -74,13 +83,22 @@ describe("auth recovery links", () => {
     ).toBe("/reset-password?error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired");
   });
 
-  it("routes homepage recovery codes to reset-password", () => {
+  it("routes explicit homepage recovery codes to reset-password", () => {
     expect(
       resolveAuthLandingRedirect({
         pathname: "/",
-        search: "?code=pkce-recovery-code"
+        search: "?code=pkce-recovery-code&type=recovery"
       })
-    ).toBe("/reset-password?code=pkce-recovery-code");
+    ).toBe("/reset-password?code=pkce-recovery-code&type=recovery");
+  });
+
+  it("does not route generic callback codes to reset-password", () => {
+    expect(
+      resolveAuthLandingRedirect({
+        pathname: "/",
+        search: "?code=oauth-or-verification-code"
+      })
+    ).toBeNull();
   });
 
   it("ignores unrelated paths", () => {

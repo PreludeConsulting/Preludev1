@@ -67,6 +67,10 @@ function friendlyVerificationError(error) {
   return error?.message || "Verification could not be completed.";
 }
 
+function isEmailUnconfirmedError(message = "") {
+  return /confirm your email|email not confirmed|email_unconfirmed|email_unconfirmed/i.test(String(message || ""));
+}
+
 function focusField(ref) {
   ref.current?.focus();
 }
@@ -80,12 +84,15 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [formError, setFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
-  const [message] = useState(() =>
+  const [message, setMessage] = useState(() =>
     new URLSearchParams(location.search).get("reset") === "success"
       ? "Your password has been updated. Log in with your new password."
       : ""
   );
   const [authAction, setAuthAction] = useState("");
+  const [confirmationEmail, setConfirmationEmail] = useState("");
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
   const emailRef = useRef(null);
@@ -94,6 +101,12 @@ export function LoginPage() {
   const loading = Boolean(authAction);
   const googleLoading = authAction === "google";
   const emailLoading = authAction === "email";
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return undefined;
+    const id = window.setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearInterval(id);
+  }, [resendCooldown]);
 
   useEffect(() => {
     if (!ready) return;
@@ -140,6 +153,7 @@ export function LoginPage() {
     if (!validateForm()) return;
     setAuthAction("email");
     setFormError("");
+    setMessage("");
     try {
       const nextUser = await signIn(loginEmail, loginPassword, { captchaToken });
       if (nextUser?.requiresLoginVerification) {
@@ -149,6 +163,22 @@ export function LoginPage() {
       }
       navigate(destination || postAuthDestination(nextUser), { replace: true });
     } catch (err) {
+      if (isEmailUnconfirmedError(err.message)) {
+        const targetEmail = loginEmail.trim();
+        setConfirmationEmail(targetEmail);
+        setAuthAction("email-confirmation");
+        try {
+          const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
+          const result = await resendSignupConfirmation(targetEmail);
+          setMessage(result.message || "We sent a confirmation link to your email. Please verify your address before logging in.");
+          setResendCooldown(RESEND_COOLDOWN_SECONDS);
+          setFormError("");
+        } catch (sendError) {
+          setMessage("Your email still needs verification, but Prelude could not send the confirmation email automatically. Use resend to try again.");
+          setFormError(friendlyAuthError(sendError.message, "signin"));
+        }
+        return;
+      }
       setFormError(friendlyAuthError(err.message, "signin"));
       setCaptchaToken("");
       turnstileRef.current?.reset();
@@ -160,6 +190,26 @@ export function LoginPage() {
   async function onSubmit(event) {
     event.preventDefault();
     await loginWithCredentials(email, password);
+  }
+
+  async function resendConfirmationEmail() {
+    const targetEmail = confirmationEmail || email.trim();
+    if (!targetEmail) {
+      setFormError("Enter your email, then request a new confirmation email.");
+      return;
+    }
+    setResending(true);
+    setFormError("");
+    try {
+      const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
+      const result = await resendSignupConfirmation(targetEmail);
+      setMessage(result.message || "Confirmation email sent. Check your inbox.");
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      setFormError(friendlyAuthError(err.message, "signin"));
+    } finally {
+      setResending(false);
+    }
   }
 
   async function continueAsDemo(accountKey) {
@@ -188,6 +238,16 @@ export function LoginPage() {
         <AuthBanner tone={formError ? "error" : "success"}>
           {formError || message}
         </AuthBanner>
+      ) : null}
+      {confirmationEmail ? (
+        <div className="auth-inline-actions">
+          {supabaseAuth ? (
+            <button type="button" disabled={resending || resendCooldown > 0} onClick={resendConfirmationEmail}>
+              {resending ? "Sending…" : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend confirmation email"}
+            </button>
+          ) : null}
+          <AuthInlineLink href="/register">Create a different account</AuthInlineLink>
+        </div>
       ) : null}
       <form className="auth-form" onSubmit={onSubmit} noValidate>
         <AuthField
@@ -339,10 +399,15 @@ export function RegisterPage() {
       const result = await signUp(payload);
       if (result?.needsEmailConfirmation || result?.verificationEmailSent) {
         setConfirmationEmail(form.email.trim());
-        setMessage(
-          result?.message ||
-            "We sent a confirmation link to your email. Please verify your address before logging in."
-        );
+        if (result?.verificationEmailError) {
+          setFormError(result.verificationEmailError);
+          setMessage("Your account was created, but Prelude could not send the verification email automatically. Use resend to try again.");
+        } else {
+          setMessage(
+            result?.message ||
+              "We sent a confirmation link to your email. Please verify your address before logging in."
+          );
+        }
         return;
       }
       if (result?.id) {
@@ -782,6 +847,7 @@ export function VerifyLoginPage() {
   const [searchParams] = useSearchParams();
   const { user, ready, signOut, refreshLoginVerification, refreshUser } = useAuth();
   const inputRefs = useRef([]);
+  const autoSendRef = useRef(false);
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [challengeId, setChallengeId] = useState(searchParams.get("challenge") || "");
   const [trustDevice, setTrustDevice] = useState(true);
@@ -800,6 +866,61 @@ export function VerifyLoginPage() {
     if (!ready) return;
     if (!user) navigate("/login", { replace: true, state: { from: nextPath } });
   }, [navigate, nextPath, ready, user]);
+
+  useEffect(() => {
+    if (!ready || !user?.id || challengeId || autoSendRef.current) return;
+    autoSendRef.current = true;
+    const storageKey = `prelude-login-code-autosent:${user.id}:${nextPath}`;
+    const alreadyRequested = (() => {
+      try {
+        return sessionStorage.getItem(storageKey) === "1";
+      } catch {
+        return false;
+      }
+    })();
+    if (alreadyRequested) return;
+
+    try {
+      sessionStorage.setItem(storageKey, "1");
+    } catch {
+      /* ignore */
+    }
+
+    let cancelled = false;
+    setStatus("sending");
+    setMessage("Sending a verification code to your email…");
+    setError("");
+
+    sendLoginVerificationCode()
+      .then((result) => {
+        if (cancelled) return;
+        setChallengeId(result.challengeId || "");
+        setCooldown(Number(result.retryAfter || RESEND_COOLDOWN_SECONDS));
+        setMessage(result.emailSent ? "Verification code sent. Check your email." : "Prelude could not confirm email delivery. Please use resend.");
+        setStatus("waiting");
+        window.requestAnimationFrame(() => inputRefs.current[0]?.focus());
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err?.payload?.error === "cooldown") {
+          setCooldown(Number(err.payload.retryAfter || RESEND_COOLDOWN_SECONDS));
+          setMessage("A verification code was just sent. Check your email or wait a moment to resend.");
+          setStatus("waiting");
+          return;
+        }
+        try {
+          sessionStorage.removeItem(storageKey);
+        } catch {
+          /* ignore */
+        }
+        setStatus("delivery_failed");
+        setError(friendlyVerificationError(err));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [challengeId, nextPath, ready, user?.id]);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;

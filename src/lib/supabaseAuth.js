@@ -251,11 +251,12 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
   if (error) return { user: null, error: friendlyError(error), rawError: error.message, needsEmailConfirmation: false };
 
   const needsEmailConfirmation = Boolean(data?.user && !data?.session);
+  let verificationDelivery = { error: null, message: null };
   if (needsEmailConfirmation) {
-    const delivery = await requestSignupVerificationEmail(normalizedEmail, captchaToken);
+    verificationDelivery = await requestSignupVerificationEmail(normalizedEmail, captchaToken);
     authDebug("signup_verification_email_requested", {
       email: normalizedEmail,
-      delivered: !delivery.error
+      delivered: !verificationDelivery.error
     });
   }
   let profile = null;
@@ -274,7 +275,9 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
     userId: data?.user?.id || null,
     error: null,
     needsEmailConfirmation,
-    verificationEmailSent: needsEmailConfirmation
+    verificationEmailSent: Boolean(needsEmailConfirmation && !verificationDelivery.error),
+    verificationEmailError: verificationDelivery.error || "",
+    message: verificationDelivery.message || ""
   };
 }
 

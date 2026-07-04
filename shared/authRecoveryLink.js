@@ -59,6 +59,28 @@ function isRecoveryContext(params) {
   return type === "recovery" || params.get("error_code") === "otp_expired";
 }
 
+function isSignupVerificationContext(params) {
+  const type = (params.get("type") || "").toLowerCase();
+  return type === "signup" || type === "email";
+}
+
+function buildSignupVerificationPageTarget(pathname = "/", search = "", hash = "") {
+  const searchParams = parseSearchParams(search);
+  const hashParams = parseHashParams(hash);
+  const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");
+  if (pathname === "/verify-email" || !tokenHash) return null;
+
+  if (isSignupVerificationContext(searchParams)) {
+    return `/verify-email?${searchParams.toString()}`;
+  }
+
+  if (isSignupVerificationContext(hashParams)) {
+    return `/verify-email?${hashParams.toString()}`;
+  }
+
+  return null;
+}
+
 function buildRecoveryPageTarget(pathname = "/", search = "", hash = "") {
   const searchParams = parseSearchParams(search);
   const hashParams = parseHashParams(hash);
@@ -91,7 +113,7 @@ function buildRecoveryPageTarget(pathname = "/", search = "", hash = "") {
     return `/reset-password${search}${hash}`;
   }
 
-  if (searchParams.get("code")) {
+  if (isRecoveryContext(searchParams) && searchParams.get("code")) {
     return `/reset-password${search}`;
   }
 
@@ -103,7 +125,7 @@ function buildRecoveryPageTarget(pathname = "/", search = "", hash = "") {
  */
 export function bootstrapAuthRecoveryRedirect(pathname = "/", search = "", hash = "") {
   if (pathname === "/reset-password") return null;
-  return buildRecoveryPageTarget(pathname, search, hash);
+  return buildSignupVerificationPageTarget(pathname, search, hash) || buildRecoveryPageTarget(pathname, search, hash);
 }
 
 /**
@@ -111,6 +133,11 @@ export function bootstrapAuthRecoveryRedirect(pathname = "/", search = "", hash 
  * with `#error=...`. Send them to the reset page (or callback) with query params.
  */
 export function resolveAuthLandingRedirect({ pathname = "/", search = "", hash = "" } = {}) {
+  const signupTarget = buildSignupVerificationPageTarget(pathname, search, hash);
+  if (signupTarget && pathname !== "/verify-email") {
+    return signupTarget;
+  }
+
   const recoveryTarget = buildRecoveryPageTarget(pathname, search, hash);
   if (recoveryTarget && pathname !== "/reset-password") {
     return recoveryTarget;
