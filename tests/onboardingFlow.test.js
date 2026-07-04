@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   canAccessOnboardingPath,
   getFirstIncompleteStepIndex,
+  getOnboardingProgress,
+  getOnboardingStepNavigation,
   getPreviousOnboardingPath,
   readOnboardingDraft,
   writeOnboardingDraft
@@ -70,12 +72,89 @@ describe("onboarding flow navigation", () => {
 
   it("resolves the previous onboarding path for the match step", () => {
     const user = student({ matchOnboardingComplete: false });
-    expect(getPreviousOnboardingPath(user, MATCH_ONBOARDING_PATH)).toBe(ROLE_SELECTION_PATH);
+    expect(getPreviousOnboardingPath(user, MATCH_ONBOARDING_PATH)).toBeNull();
   });
 
   it("allows returning to role selection while first setup is still incomplete", () => {
     const user = student({ roleSelectionComplete: true, matchOnboardingComplete: false });
     expect(canAccessOnboardingPath(user, ROLE_SELECTION_PATH)).toBe(true);
+  });
+
+  it("indexes visible student steps without counting hidden role selection", () => {
+    const user = student({ matchOnboardingComplete: false });
+    const progress = getOnboardingProgress(user, MATCH_ONBOARDING_PATH);
+
+    expect(progress.steps.map((step) => step.title)).toEqual([
+      "Prelude Match",
+      "Meet your match",
+      "Invite a parent",
+      "Choose your plan"
+    ]);
+    expect(progress.currentIndex).toBe(0);
+  });
+
+  it("keeps the match result as the second visible step after questionnaire completion", () => {
+    const user = student({
+      matchOnboardingComplete: true,
+      parentInviteStepComplete: false
+    });
+    const progress = getOnboardingProgress(user, MATCH_ONBOARDING_PATH, new URLSearchParams("step=result"));
+
+    expect(progress.steps.map((step) => step.title)).toEqual([
+      "Prelude Match",
+      "Meet your match",
+      "Invite a parent",
+      "Choose your plan"
+    ]);
+    expect(progress.currentIndex).toBe(1);
+  });
+
+  it("models Back and Next rules for the four student onboarding steps", () => {
+    const needsMatch = student({ matchOnboardingComplete: false });
+    expect(getOnboardingStepNavigation(needsMatch, MATCH_ONBOARDING_PATH)).toMatchObject({
+      showBack: false,
+      showNext: true,
+      nextDisabled: true,
+      nextReason: "Complete Prelude Match to continue."
+    });
+
+    const matchComplete = student({
+      matchOnboardingComplete: true,
+      parentInviteStepComplete: false
+    });
+    expect(getOnboardingStepNavigation(matchComplete, MATCH_ONBOARDING_PATH)).toMatchObject({
+      showBack: false,
+      showNext: true,
+      nextDisabled: false,
+      nextPath: `${MATCH_ONBOARDING_PATH}?step=result`
+    });
+    expect(
+      getOnboardingStepNavigation(matchComplete, MATCH_ONBOARDING_PATH, new URLSearchParams("step=result"))
+    ).toMatchObject({
+      showBack: true,
+      backPath: MATCH_ONBOARDING_PATH,
+      showNext: true,
+      nextDisabled: false,
+      nextPath: PARENT_ONBOARDING_PATH
+    });
+    expect(getOnboardingStepNavigation(matchComplete, PARENT_ONBOARDING_PATH)).toMatchObject({
+      showBack: true,
+      backPath: `${MATCH_ONBOARDING_PATH}?step=result`,
+      showNext: true,
+      nextDisabled: true,
+      nextReason: "Send a parent invite or choose Skip for now to continue."
+    });
+
+    const readyForPayment = student({
+      matchOnboardingComplete: true,
+      parentInviteStepComplete: true,
+      onboardingStatus: ONBOARDING_STATUS.NEEDS_PAYMENT
+    });
+    expect(getOnboardingStepNavigation(readyForPayment, PAYMENT_ONBOARDING_PATH)).toMatchObject({
+      showBack: true,
+      backPath: PARENT_ONBOARDING_PATH,
+      showNext: false
+    });
   });
 });
 

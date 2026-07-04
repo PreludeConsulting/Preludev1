@@ -6,14 +6,21 @@ const S = WALLET_STATES;
 
 /** Timeline durations (ms). */
 export const MOTION_MS = {
-  open: 700,
-  selectCard: 380,
-  popupEnter: 420,
-  popupExit: 240,
-  close: 520
+  open: 760,
+  selectCard: 430,
+  popupEnter: 520,
+  popupExit: 280,
+  close: 560
 };
 
 export const WALLET_EASE = "out(4)";
+export const WALLET_EASES = {
+  shell: "out(4)",
+  card: "out(5)",
+  settle: "outElastic(1, .72)",
+  overlay: "inOut(2)",
+  reverse: "inOut(3)"
+};
 
 export const WALLET_HEIGHT = {
   closed: "13.5rem",
@@ -239,7 +246,7 @@ function runOpenTimeline({ refs, planIds, selectedPlanId, reducedMotion, timelin
     return;
   }
 
-  const tl = createTimeline({ defaults: { ease: WALLET_EASE } });
+  const tl = createTimeline({ defaults: { ease: WALLET_EASES.shell } });
   tl.add(refs.walletRef.current, {
     height: { from: metrics.closed, to: metrics.open },
     duration
@@ -261,7 +268,8 @@ function runOpenTimeline({ refs, planIds, selectedPlanId, reducedMotion, timelin
         y: { from: `${CARD_LAYOUT.hiddenYRem}rem`, to: values.y },
         scale: { from: CARD_LAYOUT.hiddenScale, to: values.scale },
         opacity: { from: 0, to: 1 },
-        duration: duration * 0.78
+        duration: duration * 0.82,
+        ease: selectedPlanId === planId ? WALLET_EASES.settle : WALLET_EASES.card
       },
       80 + index * 55
     );
@@ -280,7 +288,7 @@ function runCloseTimeline({ refs, planIds, selectedPlanId, reducedMotion, timeli
     return;
   }
 
-  const tl = createTimeline({ defaults: { ease: WALLET_EASE } });
+  const tl = createTimeline({ defaults: { ease: WALLET_EASES.reverse } });
   planIds.forEach((planId, index) => {
     const el = refs.cardRefs.current?.[planId];
     if (!el) return;
@@ -290,7 +298,8 @@ function runCloseTimeline({ refs, planIds, selectedPlanId, reducedMotion, timeli
         y: `${CARD_LAYOUT.hiddenYRem}rem`,
         scale: CARD_LAYOUT.hiddenScale,
         opacity: 0,
-        duration: duration * 0.72
+        duration: duration * 0.68,
+        ease: WALLET_EASES.reverse
       },
       0
     );
@@ -319,13 +328,23 @@ function runSelectTimeline({ refs, planIds, selectedPlanId, reducedMotion, timel
     return;
   }
 
-  const tl = createTimeline({ defaults: { ease: WALLET_EASE } });
+  const tl = createTimeline({ defaults: { ease: WALLET_EASES.card } });
   planIds.forEach((planId, index) => {
     const el = refs.cardRefs.current?.[planId];
     if (!el) return;
     const variant = cardVariantForStatus(S.SELECTING_CARD, planId, index, selectedPlanId, planIds);
     const values = cardMotionValues(index, variant, metrics.step);
-    tl.add(el, { y: values.y, scale: values.scale, opacity: values.opacity, duration }, 0);
+    tl.add(
+      el,
+      {
+        y: values.y,
+        scale: values.scale,
+        opacity: values.opacity,
+        duration,
+        ease: planId === selectedPlanId ? WALLET_EASES.settle : WALLET_EASES.card
+      },
+      0
+    );
   });
 
   runTimeline(timelineRef, tl, () => dispatch({ type: "CARD_SETTLED" }));
@@ -352,13 +371,17 @@ function runPopupOpenTimeline({ refs, planIds, selectedPlanId, reducedMotion, ti
     return;
   }
 
-  const tl = createTimeline({ defaults: { ease: WALLET_EASE } });
-  tl.add(refs.backdropRef.current, { opacity: { from: 0, to: 1 }, duration: duration * 0.45 }, 0);
-  tl.add(refs.controlRef.current, { opacity: { to: 0 }, duration: duration * 0.25 }, 0);
+  const tl = createTimeline({ defaults: { ease: WALLET_EASES.shell } });
+  tl.add(
+    refs.backdropRef.current,
+    { opacity: { from: 0, to: 1 }, duration: duration * 0.5, ease: WALLET_EASES.overlay },
+    0
+  );
+  tl.add(refs.controlRef.current, { opacity: { to: 0 }, duration: duration * 0.24 }, 0);
   tl.add(
     refs.bridgeRef.current,
-    { opacity: { from: 0, to: 1 }, y: { from: "0.5rem", to: 0 }, duration: duration * 0.35 },
-    duration * 0.08
+    { opacity: { from: 0, to: 1 }, y: { from: "0.5rem", to: 0 }, duration: duration * 0.42 },
+    duration * 0.04
   );
 
   planIds.forEach((planId, index) => {
@@ -366,7 +389,17 @@ function runPopupOpenTimeline({ refs, planIds, selectedPlanId, reducedMotion, ti
     if (!el) return;
     const variant = cardVariantForStatus(S.POPUP_OPENING, planId, index, selectedPlanId, planIds);
     const values = cardMotionValues(index, variant, metrics.step);
-    tl.add(el, { y: values.y, scale: values.scale, opacity: values.opacity, duration: duration * 0.55 }, 0);
+    tl.add(
+      el,
+      {
+        y: values.y,
+        scale: values.scale,
+        opacity: values.opacity,
+        duration: duration * 0.7,
+        ease: planId === selectedPlanId ? WALLET_EASES.settle : WALLET_EASES.card
+      },
+      0
+    );
   });
 
   tl.add(
@@ -376,9 +409,10 @@ function runPopupOpenTimeline({ refs, planIds, selectedPlanId, reducedMotion, ti
       x: { from: origin.x, to: 0 },
       y: { from: origin.y, to: 0 },
       scale: { from: origin.scale, to: 1 },
-      duration
+      duration,
+      ease: WALLET_EASES.settle
     },
-    duration * 0.06
+    duration * 0.04
   );
 
   runTimeline(timelineRef, tl, () => dispatch({ type: "POPUP_SETTLED" }));
@@ -394,18 +428,19 @@ function runPopupCloseTimeline({ refs, planIds, selectedPlanId, reducedMotion, t
     return;
   }
 
-  const tl = createTimeline({ defaults: { ease: WALLET_EASE } });
+  const tl = createTimeline({ defaults: { ease: WALLET_EASES.reverse } });
   tl.add(
     refs.popupRef.current,
     {
       opacity: { to: 0 },
       y: { to: "0.75rem" },
       scale: { to: 0.975 },
-      duration
+      duration,
+      ease: WALLET_EASES.reverse
     },
     0
   );
-  tl.add(refs.backdropRef.current, { opacity: { to: 0 }, duration: duration * 0.85 }, 0);
+  tl.add(refs.backdropRef.current, { opacity: { to: 0 }, duration: duration * 0.85, ease: WALLET_EASES.overlay }, 0);
   tl.add(
     refs.bridgeRef.current,
     { opacity: { to: 0 }, y: { to: "0.5rem" }, duration: duration * 0.5 },
@@ -418,7 +453,17 @@ function runPopupCloseTimeline({ refs, planIds, selectedPlanId, reducedMotion, t
     if (!el) return;
     const variant = cardVariantForStatus(S.OPEN, planId, index, selectedPlanId, planIds);
     const values = cardMotionValues(index, variant, metrics.step);
-    tl.add(el, { y: values.y, scale: values.scale, opacity: values.opacity, duration: duration * 0.7 }, duration * 0.12);
+    tl.add(
+      el,
+      {
+        y: values.y,
+        scale: values.scale,
+        opacity: values.opacity,
+        duration: duration * 0.72,
+        ease: WALLET_EASES.reverse
+      },
+      duration * 0.1
+    );
   });
 
   runTimeline(timelineRef, tl, () => dispatch({ type: "POPUP_CLOSED" }));

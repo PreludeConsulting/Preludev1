@@ -71,8 +71,13 @@ export default function ParentInviteOnboardingPage() {
       title="Invite a parent or guardian"
       subtitle="Prelude can send your parent a read-only summary of your progress, calendar, and mentor updates."
       eyebrow="Almost there"
-      hideContinue
       backHref={`${MATCH_ONBOARDING_PATH}?step=result`}
+      continueLabel="Next"
+      continueDisabled={!sent}
+      continueLoading={loading}
+      continueHint={!sent ? "Send a parent invite or choose Skip for now to continue." : ""}
+      useStepCompletionGate={false}
+      onContinue={finish}
       footerNote="You can add or update parent emails anytime in Settings after checkout."
     >
       <div className="pm-card-wrap">
@@ -89,14 +94,6 @@ export default function ParentInviteOnboardingPage() {
             <div className="dash-parent-invite-card__success">
               <p><strong>Invitation sent!</strong> We emailed <strong>{parentEmail}</strong>.</p>
               <p className="dash-muted">Next, choose your Prelude plan and complete secure checkout.</p>
-              <button
-                type="button"
-                className="pm-btn pm-btn--primary pm-btn--lg"
-                onClick={finish}
-                disabled={loading}
-              >
-                {loading ? "Continuing…" : "Continue to plan selection"}
-              </button>
             </div>
           ) : (
             <form className="dash-parent-invite-form" onSubmit={handleSend}>

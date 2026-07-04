@@ -2,12 +2,12 @@ import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import AppLink from "../AppLink.jsx";
-import { getOnboardingProgress, getPreviousOnboardingPath } from "../../lib/onboardingFlow.js";
+import { getOnboardingProgress, getOnboardingStepNavigation } from "../../lib/onboardingFlow.js";
 import { ROLE_SELECTION_PATH } from "../../lib/onboardingRoutes.js";
 import { canAccessDashboard } from "../../lib/onboardingRoutes.js";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
 
-function OnboardingProgress({ steps, currentIndex }) {
+export function OnboardingProgress({ steps, currentIndex }) {
   if (!steps.length) return null;
   return (
     <div className="onboarding-flow__progress" aria-label="Onboarding progress">
@@ -50,7 +50,9 @@ export default function OnboardingShell({
   continueLabel = "Continue",
   onContinue,
   continueDisabled = false,
+  continueHint = "",
   continueLoading = false,
+  useStepCompletionGate = true,
   hideContinue = false,
   hideHomeLink = false,
   footerNote = "",
@@ -62,12 +64,16 @@ export default function OnboardingShell({
     () => getOnboardingProgress(user, location.pathname, new URLSearchParams(location.search)),
     [user, location.pathname, location.search]
   );
-  const previousPath = useMemo(
-    () => (user ? getPreviousOnboardingPath(user, location.pathname, new URLSearchParams(location.search)) : null),
+  const stepNavigation = useMemo(
+    () => (user ? getOnboardingStepNavigation(user, location.pathname, new URLSearchParams(location.search)) : null),
     [user, location.pathname, location.search]
   );
-  const showBack = Boolean(onBack || backHref || previousPath);
-  const resolvedBackHref = backHref || previousPath;
+  const showBack = Boolean(onBack || backHref || stepNavigation?.showBack);
+  const resolvedBackHref = backHref || stepNavigation?.backPath;
+  const stepGateDisabled = useStepCompletionGate ? Boolean(stepNavigation?.nextDisabled) : false;
+  const resolvedContinueDisabled = continueDisabled || stepGateDisabled;
+  const resolvedContinueHint = continueHint || (stepGateDisabled ? stepNavigation?.nextReason : "") || "";
+  const continueHintId = resolvedContinueHint ? "onboarding-continue-hint" : undefined;
   const homeHref = !hideHomeLink && user && !canAccessDashboard(user) && location.pathname !== ROLE_SELECTION_PATH
     ? ROLE_SELECTION_PATH
     : "/";
@@ -123,25 +129,33 @@ export default function OnboardingShell({
             )}
 
             {!hideContinue ? (
-              <button
-                type="button"
-                className="onboarding-flow__continue-btn"
-                onClick={onContinue}
-                disabled={continueDisabled || continueLoading}
-                aria-busy={continueLoading}
-              >
-                {continueLoading ? (
-                  <>
-                    <Loader2 className="onboarding-flow__spinner" aria-hidden="true" />
-                    Saving…
-                  </>
-                ) : (
-                  <>
-                    {continueLabel}
-                    <ArrowRight aria-hidden="true" />
-                  </>
-                )}
-              </button>
+              <div className="onboarding-flow__continue-group">
+                <button
+                  type="button"
+                  className="onboarding-flow__continue-btn"
+                  onClick={onContinue}
+                  disabled={resolvedContinueDisabled || continueLoading}
+                  aria-busy={continueLoading}
+                  aria-describedby={continueHintId}
+                >
+                  {continueLoading ? (
+                    <>
+                      <Loader2 className="onboarding-flow__spinner" aria-hidden="true" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      {continueLabel}
+                      <ArrowRight aria-hidden="true" />
+                    </>
+                  )}
+                </button>
+                {resolvedContinueHint && resolvedContinueDisabled ? (
+                  <p id={continueHintId} className="onboarding-flow__continue-hint">
+                    {resolvedContinueHint}
+                  </p>
+                ) : null}
+              </div>
             ) : null}
           </footer>
         ) : null}

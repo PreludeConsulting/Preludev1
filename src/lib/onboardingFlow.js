@@ -32,6 +32,15 @@ export const ONBOARDING_STEP_IDS = {
   MENTOR: "mentor"
 };
 
+const ONBOARDING_STEP_INCOMPLETE_REASONS = {
+  [ONBOARDING_STEP_IDS.ROLE]: "Choose your role to continue.",
+  [ONBOARDING_STEP_IDS.MATCH]: "Complete Prelude Match to continue.",
+  [ONBOARDING_STEP_IDS.MATCH_RESULT]: "Review your match to continue.",
+  [ONBOARDING_STEP_IDS.PARENT]: "Send a parent invite or choose Skip for now to continue.",
+  [ONBOARDING_STEP_IDS.PAYMENT]: "Choose a plan and complete checkout to finish setup.",
+  [ONBOARDING_STEP_IDS.MENTOR]: "Complete your mentor profile to continue."
+};
+
 function studentSteps() {
   return [
     {
@@ -128,9 +137,6 @@ export function getOnboardingSteps(user) {
     if (step.id === ONBOARDING_STEP_IDS.ROLE && !userNeedsRoleSelection(user) && user.roleSelectionComplete !== false) {
       return true;
     }
-    if (step.id === ONBOARDING_STEP_IDS.MATCH_RESULT) {
-      return userNeedsMatchDecision(user) || step.isComplete(user);
-    }
     return true;
   });
 }
@@ -140,9 +146,6 @@ export function getVisibleOnboardingSteps(user) {
   return steps.filter((step) => {
     if (step.id === ONBOARDING_STEP_IDS.ROLE && user?.roleSelectionComplete !== false && !userNeedsRoleSelection(user)) {
       return false;
-    }
-    if (step.id === ONBOARDING_STEP_IDS.MATCH_RESULT) {
-      return userNeedsMatchDecision(user) || user?.matchOnboardingComplete;
     }
     return true;
   });
@@ -154,9 +157,15 @@ export function findOnboardingStepIndex(user, pathname, searchParams) {
   return steps.findIndex((step) => step.matchesPath(pathname, params));
 }
 
+function findVisibleOnboardingStepIndex(user, pathname, searchParams) {
+  const steps = getVisibleOnboardingSteps(user);
+  const params = searchParams || new URLSearchParams();
+  return steps.findIndex((step) => step.matchesPath(pathname, params));
+}
+
 export function getOnboardingProgress(user, pathname, searchParams) {
   const steps = getVisibleOnboardingSteps(user);
-  const currentIndex = Math.max(0, findOnboardingStepIndex(user, pathname, searchParams));
+  const currentIndex = Math.max(0, findVisibleOnboardingStepIndex(user, pathname, searchParams));
   const completedCount = steps.filter((step) => step.isComplete(user)).length;
   return {
     steps,
@@ -199,15 +208,46 @@ export function isOnboardingComplete(user) {
 }
 
 export function getPreviousOnboardingPath(user, pathname, searchParams) {
-  const steps = getOnboardingSteps(user);
+  const steps = getVisibleOnboardingSteps(user);
   const params = searchParams || new URLSearchParams();
-  const index = findOnboardingStepIndex(user, pathname, params);
+  const index = findVisibleOnboardingStepIndex(user, pathname, params);
   if (index <= 0) return null;
   return steps[index - 1]?.path || null;
 }
 
 export function getNextOnboardingPath(user) {
   return postAuthDestination(user);
+}
+
+export function getOnboardingStepNavigation(user, pathname, searchParams) {
+  const steps = getVisibleOnboardingSteps(user);
+  const params = searchParams || new URLSearchParams();
+  const index = findVisibleOnboardingStepIndex(user, pathname, params);
+  if (index === -1) {
+    return {
+      showBack: false,
+      backPath: null,
+      showNext: false,
+      nextPath: null,
+      nextDisabled: false,
+      nextReason: ""
+    };
+  }
+
+  const currentStep = steps[index];
+  const previousStep = steps[index - 1] || null;
+  const nextStep = steps[index + 1] || null;
+  const showNext = Boolean(nextStep);
+  const nextDisabled = showNext ? !currentStep.isComplete(user) : false;
+
+  return {
+    showBack: Boolean(previousStep),
+    backPath: previousStep?.path || null,
+    showNext,
+    nextPath: nextStep?.path || null,
+    nextDisabled,
+    nextReason: nextDisabled ? ONBOARDING_STEP_INCOMPLETE_REASONS[currentStep.id] || "Complete this step to continue." : ""
+  };
 }
 
 export function readOnboardingDraft(userId) {

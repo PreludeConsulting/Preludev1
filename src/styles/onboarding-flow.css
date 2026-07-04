@@ -155,6 +155,14 @@
     opacity 0.15s ease;
 }
 
+.onboarding-flow__continue-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
 .onboarding-flow__back-btn {
   border: 1px solid rgb(91 79 214 / 0.2);
   background: #fff;
@@ -169,7 +177,6 @@
 }
 
 .onboarding-flow__continue-btn {
-  margin-left: auto;
   border: 1px solid transparent;
   background: linear-gradient(135deg, #5b4fd6, #6d5ce7);
   color: #fff;
@@ -187,6 +194,15 @@
 .onboarding-flow__back-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.onboarding-flow__continue-hint {
+  max-width: min(24rem, 100%);
+  margin: 0;
+  color: #6b2f16;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  text-align: right;
 }
 
 .onboarding-flow__note {
@@ -278,8 +294,17 @@
   }
 
   .onboarding-flow__continue-btn {
-    margin-left: 0;
     width: 100%;
+  }
+
+  .onboarding-flow__continue-group {
+    width: 100%;
+    margin-left: 0;
+    align-items: stretch;
+  }
+
+  .onboarding-flow__continue-hint {
+    text-align: left;
   }
 
   .onboarding-flow__back-btn {

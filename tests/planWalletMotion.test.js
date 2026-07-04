@@ -3,6 +3,7 @@ import { WALLET_STATES } from "../src/lib/planWalletMachine.js";
 import {
   CARD_LAYOUT,
   MOTION_MS,
+  WALLET_EASES,
   cardMotionValues,
   cardVariantForStatus,
   deckSheenOpacity,
@@ -19,6 +20,14 @@ describe("planWalletMotion helpers", () => {
     expect(motionDuration(MOTION_MS.open, true)).toBe(0);
     expect(motionDuration(MOTION_MS.popupEnter, true)).toBe(0);
     expect(motionDuration(MOTION_MS.open, false)).toBe(MOTION_MS.open);
+  });
+
+  it("uses connected wallet timing and named anime easing phases", () => {
+    expect(MOTION_MS.open).toBeGreaterThan(MOTION_MS.close);
+    expect(MOTION_MS.selectCard + MOTION_MS.popupEnter).toBeGreaterThanOrEqual(900);
+    expect(WALLET_EASES.shell).toBe("out(4)");
+    expect(WALLET_EASES.settle).toContain("outElastic");
+    expect(WALLET_EASES.reverse).toBe("inOut(3)");
   });
 
   it("computes deck offsets per card index", () => {
