@@ -1,15 +1,14 @@
-import { createTimeline } from "animejs";
+import { createTimeline, stagger } from "animejs";
 
 export const MAP_MOTION_MS = {
-  line: 900,
-  marker: 280,
-  stagger: 90,
-  loopPause: 2400
+  draw: 820,
+  stagger: 55,
+  idlePulse: 4000
 };
 
 export const MAP_EASE = "out(4)";
 
-function prepareLine(el) {
+function prepareEdge(el) {
   if (!el) return 0;
   const length = el.getTotalLength();
   el.style.strokeDasharray = `${length}`;
@@ -17,67 +16,75 @@ function prepareLine(el) {
   return length;
 }
 
-function snapLinesVisible(lineEls) {
-  lineEls.forEach((el) => {
-    if (!el) return;
+/**
+ * Snap all edges to fully drawn, visible state.
+ * @param {SVGPathElement[]} edgeEls
+ */
+export function snapNetworkVisible(edgeEls) {
+  edgeEls.filter(Boolean).forEach((el) => {
     const length = el.getTotalLength();
     el.style.strokeDasharray = `${length}`;
     el.style.strokeDashoffset = "0";
-  });
-}
-
-function snapMarkersVisible(markerEls) {
-  markerEls.forEach((el) => {
-    if (el) el.style.opacity = "1";
+    el.style.opacity = "0.72";
   });
 }
 
 /**
- * Streak connector lines from hub to each university marker via anime.js.
- * @param {{ lineEls: SVGPathElement[], markerEls?: SVGCircleElement[], reducedMotion?: boolean, onComplete?: () => void }} opts
+ * Staggered mesh edge draw-in via anime.js.
+ * @param {{ edgeEls: SVGPathElement[], reducedMotion?: boolean, onComplete?: () => void }} opts
  * @returns {import('animejs').Timeline | null}
  */
-export function runNetworkMapTimeline({ lineEls, markerEls = [], reducedMotion = false, onComplete }) {
-  const lines = lineEls.filter(Boolean);
-  const markers = markerEls.filter(Boolean);
+export function runNetworkDrawTimeline({ edgeEls, reducedMotion = false, onComplete }) {
+  const edges = edgeEls.filter(Boolean);
 
-  if (reducedMotion || lines.length === 0) {
-    snapLinesVisible(lines);
-    snapMarkersVisible(markers);
+  if (reducedMotion || edges.length === 0) {
+    snapNetworkVisible(edges);
     onComplete?.();
     return null;
   }
 
-  lines.forEach((el) => prepareLine(el));
-  markers.forEach((el) => {
-    el.style.opacity = "0";
-  });
+  edges.forEach((el) => prepareEdge(el));
 
   const tl = createTimeline({ defaults: { ease: MAP_EASE } });
-
-  lines.forEach((el, index) => {
-    const length = el.getTotalLength();
-    tl.add(
-      el,
-      {
-        strokeDashoffset: { from: length, to: 0 },
-        duration: MAP_MOTION_MS.line
-      },
-      index * MAP_MOTION_MS.stagger
-    );
-  });
-
-  if (markers.length) {
-    tl.add(
-      markers,
-      { opacity: { from: 0, to: 1 }, duration: MAP_MOTION_MS.marker },
-      MAP_MOTION_MS.stagger * 0.4
-    );
-  }
+  tl.add(
+    edges,
+    {
+      strokeDashoffset: (el) => ({ from: el.getTotalLength(), to: 0 }),
+      duration: MAP_MOTION_MS.draw
+    },
+    stagger(MAP_MOTION_MS.stagger)
+  );
 
   if (onComplete) {
     tl.then(onComplete);
   }
+
+  return tl;
+}
+
+/**
+ * Subtle idle opacity pulse on drawn edges — no geometry replay.
+ * @param {{ edgeEls: SVGPathElement[], reducedMotion?: boolean }} opts
+ * @returns {import('animejs').Timeline | null}
+ */
+export function runNetworkIdlePulse({ edgeEls, reducedMotion = false }) {
+  const edges = edgeEls.filter(Boolean);
+  if (reducedMotion || edges.length === 0) return null;
+
+  edges.forEach((el) => {
+    el.style.opacity = "0.72";
+  });
+
+  const tl = createTimeline({
+    defaults: { ease: "inOut(2)" },
+    loop: true,
+    alternate: true
+  });
+
+  tl.add(edges, {
+    opacity: { from: 0.55, to: 0.85 },
+    duration: MAP_MOTION_MS.idlePulse
+  });
 
   return tl;
 }

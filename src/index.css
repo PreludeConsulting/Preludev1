@@ -4445,6 +4445,13 @@ html[lang="es"] .shopify-hero__headline-line {
 .network-map {
   width: min(100%, 52rem);
   margin: 0 auto clamp(2rem, 4vw, 3rem);
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  border-radius: 1rem;
+  background: linear-gradient(165deg, #070b18 0%, #0d1430 55%, #0a1024 100%);
+  border: 1px solid rgb(94 231 255 / 0.12);
+  box-shadow:
+    0 0 0 1px rgb(139 124 255 / 0.06) inset,
+    0 18px 48px rgb(7 11 24 / 0.45);
 }
 
 .network-map__svg {
@@ -4454,40 +4461,55 @@ html[lang="es"] .shopify-hero__headline-line {
   overflow: visible;
 }
 
-.network-map__land {
-  fill: hsl(var(--muted) / 0.35);
-  stroke: hsl(var(--foreground) / 0.12);
-  stroke-width: 1.5;
+.network-map__ambient {
+  opacity: 0.35;
 }
 
-.network-map__hub {
-  fill: hsl(var(--primary));
-  opacity: 0.9;
+.network-map__grid-dot {
+  fill: rgb(94 231 255 / 0.18);
 }
 
-.network-map__line {
+.network-map__outline {
   fill: none;
-  stroke: hsl(var(--primary) / 0.42);
-  stroke-width: 1.4;
-  stroke-linecap: round;
+  stroke: rgb(94 231 255 / 0.1);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
 }
 
-.network-map__marker {
-  fill: hsl(var(--primary));
-  opacity: 0;
+.network-map__edge {
+  fill: none;
+  stroke: url(#network-edge-gradient);
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  opacity: 0.72;
+}
+
+.network-map__node-halo {
+  fill: rgb(94 231 255 / 0.22);
+  stroke: none;
+}
+
+.network-map__node-core {
+  stroke: rgb(255 255 255 / 0.35);
+  stroke-width: 0.6;
 }
 
 @media (max-width: 42rem) {
-  .network-map__line {
-    stroke-width: 1.1;
+  .network-map {
+    padding: 0.75rem;
+    border-radius: 0.75rem;
   }
 
-  .network-map__marker {
-    r: 3.5;
+  .network-map__edge {
+    stroke-width: 1.05;
   }
 
-  .network-map__hub {
-    r: 4;
+  .network-map__node-halo {
+    r: 6;
+  }
+
+  .network-map__node-core {
+    r: 2.6;
   }
 }
 
