@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { PRELUDE_MATCH_QUESTIONS } from "../../data/preludeMatchQuestions.js";
 import { useLanguage } from "../../context/LanguageContext.jsx";
@@ -19,27 +19,12 @@ import PreludeMatchResults from "./PreludeMatchResults.jsx";
 export default function PreludeMatch() {
   const reducedMotion = useReducedMotion();
   const { t } = useLanguage();
-  const demoTriggerRef = useRef(null);
   const [phase, setPhase] = useState("intro");
-  const [demoTriggerFocused, setDemoTriggerFocused] = useState(false);
   const [answers, setAnswers] = useState({});
   const [currentQuestionId, setCurrentQuestionId] = useState(null);
   const [pigMotion, setPigMotion] = useState("none");
   const [progress, setProgress] = useState(0);
   const [matchSummary, setMatchSummary] = useState("");
-
-  useEffect(() => {
-    const trigger = demoTriggerRef.current;
-    if (!trigger) return undefined;
-    const handleFocus = () => setDemoTriggerFocused(true);
-    const handleBlur = () => setDemoTriggerFocused(false);
-    trigger.addEventListener("focus", handleFocus);
-    trigger.addEventListener("blur", handleBlur);
-    return () => {
-      trigger.removeEventListener("focus", handleFocus);
-      trigger.removeEventListener("blur", handleBlur);
-    };
-  }, [phase]);
 
   const visibleQuestions = useMemo(
     () => getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, answers),
@@ -75,7 +60,6 @@ export default function PreludeMatch() {
   }, [reducedMotion]);
 
   function handleStart() {
-    setDemoTriggerFocused(false);
     setAnswers({});
     setProgress(0);
     setMatchSummary("");
@@ -155,13 +139,7 @@ export default function PreludeMatch() {
     >
       <div className="pm-card-wrap__glow" aria-hidden="true" />
 
-      <div className={`pm-card pm-card--stable${demoTriggerFocused ? " pm-card--demo-focus" : ""}`}>
-        <div className="pm-card__browser-chrome" aria-hidden="true">
-          <span className="pm-card__traffic-light pm-card__traffic-light--red" />
-          <span className="pm-card__traffic-light pm-card__traffic-light--yellow" />
-          <span className="pm-card__traffic-light pm-card__traffic-light--green" />
-        </div>
-
+      <div className="pm-card pm-card--stable">
         <AnimatePresence mode="wait">
           {phase === "intro" ? (
             <motion.div
@@ -223,26 +201,6 @@ export default function PreludeMatch() {
             </motion.div>
           ) : null}
         </AnimatePresence>
-
-        {phase === "intro" ? (
-          <>
-            <div className="pm-card__demo-overlay" aria-hidden="true" />
-            <button
-              ref={demoTriggerRef}
-              type="button"
-              className="pm-demo-trigger"
-              onClick={handleStart}
-              onFocus={() => setDemoTriggerFocused(true)}
-              onBlur={() => setDemoTriggerFocused(false)}
-              aria-label="Try PreludeMatch"
-            >
-              <span className="pm-demo-trigger__play" aria-hidden="true">
-                <span className="pm-demo-trigger__triangle" />
-              </span>
-              <span className="pm-demo-trigger__label">Try PreludeMatch</span>
-            </button>
-          </>
-        ) : null}
       </div>
     </motion.div>
   );

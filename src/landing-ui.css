@@ -392,8 +392,11 @@ img.account-menu-btn__avatar {
 }
 
 .pricing-card:hover {
-  box-shadow: var(--shadow-card);
   transform: translateY(-1px);
+  border-color: rgb(120 106 255 / 0.24);
+  box-shadow:
+    0 0 0 1px rgb(120 106 255 / 0.1),
+    0 8px 22px rgb(120 106 255 / 0.18);
 }
 
 .pricing-card--featured {

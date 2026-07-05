@@ -1,12 +1,11 @@
-/** Flat section list for nav ticks, labels, and click-to-nav (excludes testimonials). */
+/** Flat section list for the homepage section navigator. */
 export const HOMEPAGE_SCROLL_SECTIONS = [
-  { id: "home", label: "About" },
-  { id: "partners", label: "Partners" },
-  { id: "admissions-counseling", label: "Admissions Counseling" },
-  { id: "mentorship", label: "My Network" },
+  { id: "home", label: "Hero" },
+  { id: "partners", label: "Universities" },
+  { id: "how-it-works", label: "How It Works" },
+  { id: "mentorship", label: "Mentors" },
   { id: "pricing", label: "Pricing" },
-  { id: "academic-support", label: "SAT Prep & Tutoring" },
-  { id: "contact", label: "Prelude" }
+  { id: "contact", label: "Contact" }
 ];
 
 const VIEWPORT_ANCHOR = 0.42;
