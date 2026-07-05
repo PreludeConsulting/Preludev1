@@ -92,16 +92,18 @@ function AppContent() {
       <div className="pointer-events-none fixed inset-0 z-0 paper-grain" aria-hidden="true" />
       <div className="relative z-10">
         <Navbar />
-        <Hero />
-        <UniversityCarousel />
-        <AdmissionsCostBanner />
-        <StudentNetworkSection />
-        <NetworkSection />
-        <LowerBenefits />
-        <LowerPlans />
-        <LowerAcademicPrograms />
-        <LowerCta />
-        <LowerFooter />
+        <main data-landing-content>
+          <Hero />
+          <UniversityCarousel />
+          <AdmissionsCostBanner />
+          <StudentNetworkSection />
+          <NetworkSection />
+          <LowerBenefits />
+          <LowerPlans />
+          <LowerAcademicPrograms />
+          <LowerCta />
+          <LowerFooter />
+        </main>
       </div>
       <HomepageScrollProgress />
       <AuraCursor />

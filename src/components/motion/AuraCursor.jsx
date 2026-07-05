@@ -8,7 +8,7 @@ import {
 } from "../../lib/auraCursorMotion.js";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
 
-const ZONE_SELECTOR = "[data-aura-zone]";
+const BUTTON_SELECTOR = "[data-landing-content] button, [data-landing-content] a";
 
 function useFinePointer() {
   const [fine, setFine] = useState(() => {
@@ -35,6 +35,7 @@ export default function AuraCursor() {
   const targetRef = useRef({ x: 0, y: 0 });
   const positionRef = useRef({ x: 0, y: 0 });
   const frameRef = useRef(0);
+  const hoverTargetRef = useRef(null);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -68,16 +69,15 @@ export default function AuraCursor() {
       if (!frameRef.current) frameRef.current = requestAnimationFrame(paint);
     };
 
-    const onPointerMove = (event) => {
-      const coords = pointerCoords(event);
-      targetRef.current = coords;
-      if (!activeRef.current) return;
-      ensureLoop();
+    const landingButtonForEvent = (event) => {
+      const eventTarget = event.target instanceof Element ? event.target.closest(BUTTON_SELECTOR) : null;
+      if (eventTarget) return eventTarget;
+      const pointTarget = document.elementFromPoint(event.clientX, event.clientY);
+      return pointTarget instanceof Element ? pointTarget.closest(BUTTON_SELECTOR) : null;
     };
 
-    const onZoneEnter = (event) => {
-      const zone = event.currentTarget;
-      zone.classList.add("aura-zone--active");
+    const activateButton = (button, event) => {
+      hoverTargetRef.current = button;
       activeRef.current = true;
       const coords = pointerCoords(event);
       targetRef.current = coords;
@@ -86,29 +86,48 @@ export default function AuraCursor() {
       ensureLoop();
     };
 
-    const onZoneLeave = (event) => {
-      event.currentTarget.classList.remove("aura-zone--active");
+    const onPointerMove = (event) => {
+      const button = landingButtonForEvent(event);
+      if (!hoverTargetRef.current && button) {
+        activateButton(button, event);
+        return;
+      }
+      if (!hoverTargetRef.current) return;
+      const coords = pointerCoords(event);
+      targetRef.current = coords;
+      ensureLoop();
+    };
+
+    const onPointerOver = (event) => {
+      const button = landingButtonForEvent(event);
+      if (!button || button === hoverTargetRef.current) return;
+      activateButton(button, event);
+    };
+
+    const onPointerOut = (event) => {
+      const button = hoverTargetRef.current;
+      if (!button) return;
+      if (event.relatedTarget instanceof Node && button.contains(event.relatedTarget)) return;
+      const pointTarget = document.elementFromPoint(event.clientX, event.clientY);
+      const nextButton = pointTarget instanceof Element ? pointTarget.closest(BUTTON_SELECTOR) : null;
+      if (nextButton) return;
+      hoverTargetRef.current = null;
       activeRef.current = false;
       setVisible(false);
     };
 
-    const zones = Array.from(document.querySelectorAll(ZONE_SELECTOR));
-    zones.forEach((zone) => {
-      zone.addEventListener("pointerenter", onZoneEnter);
-      zone.addEventListener("pointerleave", onZoneLeave);
-      zone.addEventListener("pointermove", onPointerMove);
-    });
+    document.addEventListener("pointerover", onPointerOver, { passive: true });
+    document.addEventListener("pointerout", onPointerOut, { passive: true });
+    document.addEventListener("pointermove", onPointerMove, { passive: true });
 
     return () => {
-      zones.forEach((zone) => {
-        zone.removeEventListener("pointerenter", onZoneEnter);
-        zone.removeEventListener("pointerleave", onZoneLeave);
-        zone.removeEventListener("pointermove", onPointerMove);
-        zone.classList.remove("aura-zone--active");
-      });
+      document.removeEventListener("pointerover", onPointerOver);
+      document.removeEventListener("pointerout", onPointerOut);
+      document.removeEventListener("pointermove", onPointerMove);
       cancelAnimationFrame(frameRef.current);
       frameRef.current = 0;
       activeRef.current = false;
+      hoverTargetRef.current = null;
     };
   }, [finePointer, reducedMotion]);
 

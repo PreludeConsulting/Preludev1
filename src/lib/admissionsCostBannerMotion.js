@@ -1,199 +1,136 @@
-import { animate } from "animejs";
+import { createTimeline } from "animejs";
 
-export const COST_CURSOR_MS = {
-  enter: 620,
-  toBadge: 980,
+export const SAVINGS_TARGET_AMOUNT = 6500;
+export const SAVINGS_COUNT_DURATION_MS = 1250;
+export const COST_FAKE_CURSOR_HOTSPOT = { x: 4, y: 4 };
+export const COST_FAKE_CURSOR_MS = {
+  enter: 540,
+  toAmount: 860,
   click: 260,
-  badgeHold: 420,
-  toHeadline: 920,
-  headlineHold: 720,
-  exit: 480,
-  loopPause: 520
+  exit: 420
 };
 
-export const COST_CURSOR_HOTSPOT = { x: 3, y: 3 };
+export function easeOutCubic(progress) {
+  const clamped = Math.min(Math.max(progress, 0), 1);
+  return 1 - Math.pow(1 - clamped, 3);
+}
 
-/**
- * @param {HTMLElement} sectionEl
- * @param {HTMLElement} targetEl
- */
-export function getTargetPoint(sectionEl, targetEl) {
-  if (!sectionEl || !targetEl) return { x: 0, y: 0 };
+export function savingsCountValue(elapsedMs, durationMs = SAVINGS_COUNT_DURATION_MS, target = SAVINGS_TARGET_AMOUNT) {
+  if (durationMs <= 0) return target;
+  return Math.round(target * easeOutCubic(elapsedMs / durationMs));
+}
 
-  const sectionRect = sectionEl.getBoundingClientRect();
-  const targetRect = targetEl.getBoundingClientRect();
+export function formatSavingsAmount(value) {
+  return `$${Math.round(value).toLocaleString("en-US")}`;
+}
 
+export function elementCenterPoint(element) {
+  if (!element) return null;
+  const rect = element.getBoundingClientRect();
   return {
-    x: targetRect.left + targetRect.width / 2 - sectionRect.left - COST_CURSOR_HOTSPOT.x,
-    y: targetRect.top + targetRect.height / 2 - sectionRect.top - COST_CURSOR_HOTSPOT.y
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2
   };
 }
 
-function delay(ms, signal) {
-  return new Promise((resolve) => {
-    if (signal?.aborted) {
-      resolve();
-      return;
-    }
-
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true }
-    );
-  });
+export function pointInSection(sectionEl, xRatio, yRatio) {
+  if (!sectionEl) return { x: 0, y: 0 };
+  const rect = sectionEl.getBoundingClientRect();
+  return {
+    x: rect.width * xRatio - COST_FAKE_CURSOR_HOTSPOT.x,
+    y: rect.height * yRatio - COST_FAKE_CURSOR_HOTSPOT.y
+  };
 }
 
-function moveCursor(
-  cursorEl,
-  x,
-  y,
-  { duration, opacity = 1, scale = 1, ease = "inOut(3)", fromX, fromY, fadeIn = false } = {}
-) {
-  if (!cursorEl) return Promise.resolve(null);
-
-  const startX = fromX ?? x;
-  const startY = fromY ?? y;
-  const opacityValue = Array.isArray(opacity) ? opacity : fadeIn ? [0, opacity] : opacity;
-
-  return new Promise((resolve) => {
-    animate(cursorEl, {
-      translateX: [startX, x],
-      translateY: [startY, y],
-      opacity: opacityValue,
-      scale,
-      duration,
-      ease,
-      onComplete: resolve
-    });
-  });
+export function elementPointInSection(sectionEl, element, xRatio = 0.5, yRatio = 0.5) {
+  if (!sectionEl || !element) return pointInSection(sectionEl, xRatio, yRatio);
+  const sectionRect = sectionEl.getBoundingClientRect();
+  const rect = element.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width * xRatio - sectionRect.left - COST_FAKE_CURSOR_HOTSPOT.x,
+    y: rect.top + rect.height * yRatio - sectionRect.top - COST_FAKE_CURSOR_HOTSPOT.y
+  };
 }
 
-function pulseClick(cursorEl, ringEl, x, y) {
-  if (ringEl) {
-    ringEl.style.left = `${x + COST_CURSOR_HOTSPOT.x}px`;
-    ringEl.style.top = `${y + COST_CURSOR_HOTSPOT.y}px`;
-    ringEl.classList.remove("admissions-cost-banner__click-ring--active");
-    void ringEl.offsetWidth;
-    ringEl.classList.add("admissions-cost-banner__click-ring--active");
-  }
-
-  if (!cursorEl) return Promise.resolve(null);
-
-  return new Promise((resolve) => {
-    animate(cursorEl, {
-      scale: [1, 0.86, 1],
-      duration: COST_CURSOR_MS.click,
-      ease: "out(3)",
-      onComplete: resolve
-    });
-  });
+export function getCostFakeCursorPath(sectionEl, amountEl, headlineEl) {
+  return {
+    entry: pointInSection(sectionEl, -0.08, 0.58),
+    amount: elementPointInSection(sectionEl, amountEl, 0.5, 0.5),
+    headline: elementPointInSection(sectionEl, headlineEl, 0.58, 0.48),
+    exit: elementPointInSection(sectionEl, amountEl, 0.5, 0.5)
+  };
 }
 
-/**
- * Looped demo cursor: entry → badge click → headline hover → exit.
- */
-export function runCostBannerCursorLoop({
+export function createCostBannerFakeCursorTimeline({
   sectionEl,
   cursorEl,
-  ringEl,
-  targets,
-  onBadgeActive,
-  onHeadlineActive,
-  reducedMotion = false
+  amountEl,
+  headlineEl,
+  onReset,
+  onActivate
 } = {}) {
-  if (reducedMotion || !sectionEl || !cursorEl || !targets) {
-    cursorEl?.classList.add("admissions-cost-banner__demo-cursor--hidden");
-    onBadgeActive?.(false);
-    onHeadlineActive?.(false);
-    return { cancel() {} };
-  }
+  if (!sectionEl || !cursorEl || !amountEl || !headlineEl) return null;
 
-  const abort = new AbortController();
-  let running = false;
+  const path = getCostFakeCursorPath(sectionEl, amountEl, headlineEl);
+  cursorEl.style.transform = `translate3d(${path.entry.x}px, ${path.entry.y}px, 0)`;
+  cursorEl.style.opacity = "0";
 
-  const measure = () => ({
-    entry: getTargetPoint(sectionEl, targets.entry),
-    badge: getTargetPoint(sectionEl, targets.badge),
-    headline: getTargetPoint(sectionEl, targets.headline)
-  });
-
-  const resetVisualState = () => {
-    onBadgeActive?.(false);
-    onHeadlineActive?.(false);
-    ringEl?.classList.remove("admissions-cost-banner__click-ring--active");
+  const clearActiveState = () => {
+    amountEl.classList.remove("admissions-cost-banner__amount--fake-active");
+    headlineEl.classList.remove("admissions-cost-banner__headline--fake-active");
   };
 
-  async function cycle() {
-    running = true;
-    cursorEl.classList.remove("admissions-cost-banner__demo-cursor--hidden");
-
-    while (!abort.signal.aborted) {
-      resetVisualState();
-      const points = measure();
-
-      await moveCursor(cursorEl, points.entry.x, points.entry.y, {
-        duration: COST_CURSOR_MS.enter,
-        fromX: points.entry.x - 40,
-        fromY: points.entry.y + 36,
-        fadeIn: true
-      });
-      if (abort.signal.aborted) break;
-
-      await moveCursor(cursorEl, points.badge.x, points.badge.y, {
-        duration: COST_CURSOR_MS.toBadge,
-        fromX: points.entry.x,
-        fromY: points.entry.y
-      });
-      if (abort.signal.aborted) break;
-
-      onBadgeActive?.(true);
-      await pulseClick(cursorEl, ringEl, points.badge.x, points.badge.y);
-      if (abort.signal.aborted) break;
-
-      await delay(COST_CURSOR_MS.badgeHold, abort.signal);
-      if (abort.signal.aborted) break;
-
-      onBadgeActive?.(false);
-      await moveCursor(cursorEl, points.headline.x, points.headline.y, {
-        duration: COST_CURSOR_MS.toHeadline,
-        fromX: points.badge.x,
-        fromY: points.badge.y
-      });
-      if (abort.signal.aborted) break;
-
-      onHeadlineActive?.(true);
-      await delay(COST_CURSOR_MS.headlineHold, abort.signal);
-      if (abort.signal.aborted) break;
-
-      onHeadlineActive?.(false);
-      await moveCursor(cursorEl, points.headline.x + 36, points.headline.y - 48, {
-        duration: COST_CURSOR_MS.exit,
-        opacity: [1, 0],
-        ease: "in(2)"
-      });
-      if (abort.signal.aborted) break;
-
-      await delay(COST_CURSOR_MS.loopPause, abort.signal);
-    }
-
-    running = false;
-  }
-
-  cycle();
+  const timeline = createTimeline({
+    autoplay: false,
+    loop: false,
+    defaults: { ease: "inOut(3)" }
+  })
+    .call(() => {
+      clearActiveState();
+      onReset?.();
+    }, 0)
+    .add(cursorEl, {
+      translateX: [path.entry.x - 34, path.entry.x],
+      translateY: [path.entry.y + 28, path.entry.y],
+      opacity: [0, 1],
+      scale: 1,
+      duration: COST_FAKE_CURSOR_MS.enter
+    })
+    .add(cursorEl, {
+      translateX: path.amount.x,
+      translateY: path.amount.y,
+      duration: COST_FAKE_CURSOR_MS.toAmount
+    }, "+=140")
+    .call(() => {
+      amountEl.classList.add("admissions-cost-banner__amount--fake-active");
+      onActivate?.();
+    }, "+=80")
+    .add(cursorEl, {
+      scale: [1, 0.86, 1],
+      duration: COST_FAKE_CURSOR_MS.click,
+      ease: "out(3)"
+    }, "<")
+    .call(() => {
+      amountEl.classList.remove("admissions-cost-banner__amount--fake-active");
+      headlineEl.classList.add("admissions-cost-banner__headline--fake-active");
+    }, "+=520")
+    .add(cursorEl, {
+      translateX: path.exit.x,
+      translateY: path.exit.y,
+      opacity: [1, 0],
+      duration: COST_FAKE_CURSOR_MS.exit,
+      ease: "out(2)"
+    }, "+=120")
+    .call(clearActiveState);
 
   return {
-    cancel() {
-      abort.abort();
-      resetVisualState();
-      cursorEl.classList.add("admissions-cost-banner__demo-cursor--hidden");
+    play() {
+      timeline.play();
     },
-    isRunning() {
-      return running;
+    cancel() {
+      timeline.cancel();
+      clearActiveState();
+      cursorEl.style.opacity = "0";
     }
   };
 }

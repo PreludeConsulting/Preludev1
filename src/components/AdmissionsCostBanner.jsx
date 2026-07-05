@@ -1,89 +1,151 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLanguage } from "../context/LanguageContext.jsx";
-import { runCostBannerCursorLoop } from "../lib/admissionsCostBannerMotion.js";
+import {
+  createCostBannerFakeCursorTimeline,
+  elementCenterPoint,
+  formatSavingsAmount,
+  savingsCountValue,
+  SAVINGS_COUNT_DURATION_MS,
+  SAVINGS_TARGET_AMOUNT
+} from "../lib/admissionsCostBannerMotion.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
+import CoinBurst from "./interaction/CoinBurst.jsx";
 import ScrollReveal from "./motion/ScrollReveal.jsx";
 
 const mediaBase = import.meta.env.BASE_URL;
 const PIGGY_IMAGE = `${mediaBase}media/admissions-savings-piggy.png`;
 
-function DemoCursorIcon({ shadowId }) {
+function FakeCursorIcon() {
   return (
     <svg
-      className="admissions-cost-banner__cursor-svg"
+      className="admissions-cost-banner__fake-cursor-svg"
       viewBox="0 0 28 28"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      <defs>
-        <filter id={shadowId} x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="1.5" stdDeviation="1.4" floodColor="#1e1b4b" floodOpacity="0.5" />
-        </filter>
-      </defs>
-      <g filter={`url(#${shadowId})`}>
-        <path
-          d="M5.5 3.5L5.5 20.5L11.8 14.6L15.8 24.2L19.2 22.8L14.8 13.4L21.5 13.4L5.5 3.5Z"
-          fill="#FFFFFF"
-          stroke="#312E81"
-          strokeWidth="1.25"
-          strokeLinejoin="round"
-        />
-      </g>
+      <path
+        d="M5.5 3.5L5.5 20.5L11.8 14.6L15.8 24.2L19.2 22.8L14.8 13.4L21.5 13.4L5.5 3.5Z"
+        fill="#111111"
+        stroke="#FFFFFF"
+        strokeWidth="1.35"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 export default function AdmissionsCostBanner() {
   const { t } = useLanguage();
-  const cursorShadowId = useId().replace(/:/g, "");
   const reducedMotion = useReducedMotion();
   const sectionRef = useRef(null);
-  const cursorRef = useRef(null);
-  const ringRef = useRef(null);
-  const entryRef = useRef(null);
-  const badgeRef = useRef(null);
+  const savingsButtonRef = useRef(null);
   const headlineRef = useRef(null);
-  const loopRef = useRef(null);
+  const fakeCursorRef = useRef(null);
+  const frameRef = useRef(0);
+  const fakeTimelineRef = useRef(null);
+  const demoCompleteRef = useRef(false);
 
-  const [badgeActive, setBadgeActive] = useState(false);
-  const [headlineActive, setHeadlineActive] = useState(false);
+  const [savingsValue, setSavingsValue] = useState(0);
+  const [counting, setCounting] = useState(false);
+  const [coinBurst, setCoinBurst] = useState(null);
   const [demoLive, setDemoLive] = useState(false);
+
+  const triggerCoinBurst = useCallback(() => {
+    setCoinBurst({
+      id: Date.now(),
+      origin: elementCenterPoint(savingsButtonRef.current)
+    });
+  }, []);
+
+  const runSavingsCount = useCallback(() => {
+    window.cancelAnimationFrame(frameRef.current);
+    setCoinBurst(null);
+    setSavingsValue(0);
+
+    if (reducedMotion) {
+      setCounting(false);
+      setSavingsValue(SAVINGS_TARGET_AMOUNT);
+      triggerCoinBurst();
+      return;
+    }
+
+    setCounting(true);
+    const start = performance.now();
+
+    const tick = (now) => {
+      const elapsed = now - start;
+      const next = savingsCountValue(elapsed);
+      setSavingsValue(next);
+
+      if (elapsed < SAVINGS_COUNT_DURATION_MS) {
+        frameRef.current = window.requestAnimationFrame(tick);
+        return;
+      }
+
+      frameRef.current = 0;
+      setCounting(false);
+      setSavingsValue(SAVINGS_TARGET_AMOUNT);
+      demoCompleteRef.current = true;
+      triggerCoinBurst();
+    };
+
+    frameRef.current = window.requestAnimationFrame(tick);
+  }, [reducedMotion, triggerCoinBurst]);
+
+  const stopFakeCursor = useCallback(() => {
+    fakeTimelineRef.current?.cancel();
+    fakeTimelineRef.current = null;
+  }, []);
+
+  const resetSavingsDemo = useCallback(() => {
+    window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = 0;
+    setCoinBurst(null);
+    setCounting(false);
+    demoCompleteRef.current = false;
+    setSavingsValue(0);
+  }, []);
+
+  const startFakeCursor = useCallback(() => {
+    stopFakeCursor();
+    if (reducedMotion || demoCompleteRef.current) {
+      setSavingsValue(SAVINGS_TARGET_AMOUNT);
+      return;
+    }
+
+    resetSavingsDemo();
+
+    fakeTimelineRef.current = createCostBannerFakeCursorTimeline({
+      sectionEl: sectionRef.current,
+      cursorEl: fakeCursorRef.current,
+      amountEl: savingsButtonRef.current,
+      headlineEl: headlineRef.current,
+      onReset: resetSavingsDemo,
+      onActivate: runSavingsCount
+    });
+    fakeTimelineRef.current?.play();
+  }, [reducedMotion, resetSavingsDemo, runSavingsCount, stopFakeCursor]);
 
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return undefined;
 
-    const startLoop = () => {
-      loopRef.current?.cancel();
-      loopRef.current = runCostBannerCursorLoop({
-        sectionEl: section,
-        cursorEl: cursorRef.current,
-        ringEl: ringRef.current,
-        targets: {
-          entry: entryRef.current,
-          badge: badgeRef.current,
-          headline: headlineRef.current
-        },
-        onBadgeActive: setBadgeActive,
-        onHeadlineActive: setHeadlineActive,
-        reducedMotion
-      });
-    };
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) {
-          loopRef.current?.cancel();
-          loopRef.current = null;
           setDemoLive(false);
-          setBadgeActive(false);
-          setHeadlineActive(false);
+          stopFakeCursor();
+          if (reducedMotion || demoCompleteRef.current) {
+            setSavingsValue(SAVINGS_TARGET_AMOUNT);
+          } else {
+            resetSavingsDemo();
+          }
           return;
         }
 
         setDemoLive(true);
-        startLoop();
+        startFakeCursor();
       },
       { threshold: 0.35, rootMargin: "0px 0px -8% 0px" }
     );
@@ -91,9 +153,8 @@ export default function AdmissionsCostBanner() {
     observer.observe(section);
 
     const onResize = () => {
-      if (!loopRef.current) return;
-      loopRef.current.cancel();
-      startLoop();
+      if (!fakeTimelineRef.current) return;
+      startFakeCursor();
     };
 
     window.addEventListener("resize", onResize, { passive: true });
@@ -101,10 +162,11 @@ export default function AdmissionsCostBanner() {
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", onResize);
-      loopRef.current?.cancel();
-      loopRef.current = null;
+      stopFakeCursor();
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
     };
-  }, [reducedMotion]);
+  }, [resetSavingsDemo, startFakeCursor, stopFakeCursor]);
 
   return (
     <section
@@ -113,21 +175,17 @@ export default function AdmissionsCostBanner() {
       id="about-cost"
       aria-labelledby="admissions-cost-headline"
     >
-      <span
-        ref={cursorRef}
-        className="admissions-cost-banner__demo-cursor admissions-cost-banner__demo-cursor--hidden"
-        aria-hidden="true"
-      >
-        <span className="admissions-cost-banner__cursor-trail" />
-        <DemoCursorIcon shadowId={`cost-cursor-shadow-${cursorShadowId}`} />
-      </span>
-
-      <span
-        ref={ringRef}
-        className="admissions-cost-banner__click-ring"
-        aria-hidden="true"
-      />
-
+      {!reducedMotion ? (
+        <>
+          <span
+            ref={fakeCursorRef}
+            className="admissions-cost-banner__fake-cursor"
+            aria-hidden="true"
+          >
+            <FakeCursorIcon />
+          </span>
+        </>
+      ) : null}
       <div className="admissions-cost-banner__inner">
         <ScrollReveal className="admissions-cost-banner__visual">
           <div className="admissions-cost-banner__stage">
@@ -136,34 +194,41 @@ export default function AdmissionsCostBanner() {
               alt={t("sections.cost.imageAlt")}
               className={`admissions-cost-banner__image admissions-cost-banner__piggy${demoLive ? " admissions-cost-banner__piggy--float" : ""}`}
             />
-            <span
-              className={`admissions-cost-banner__badge-pulse${badgeActive ? " admissions-cost-banner__badge-pulse--active" : ""}`}
-              aria-hidden="true"
-            />
-            <span ref={entryRef} className="admissions-cost-banner__hotspot admissions-cost-banner__hotspot--entry" aria-hidden="true" />
-            <span ref={badgeRef} className="admissions-cost-banner__hotspot admissions-cost-banner__hotspot--badge" aria-hidden="true" />
           </div>
         </ScrollReveal>
 
         <ScrollReveal className="admissions-cost-banner__copy" delay={0.12}>
           <p className="admissions-cost-banner__body max-w-lg text-lg leading-7 text-white md:text-xl md:leading-8">
             {t("sections.cost.bodyBefore")}{" "}
-            <span className="admissions-cost-banner__amount">$6,500</span>{" "}
+            <button
+              ref={savingsButtonRef}
+              type="button"
+              className={`admissions-cost-banner__amount${counting ? " admissions-cost-banner__amount--counting" : ""}`}
+              onClick={runSavingsCount}
+              aria-label="Animate savings from zero to $6,500"
+            >
+              <span aria-live="polite">{formatSavingsAmount(savingsValue)}</span>
+            </button>{" "}
             {t("sections.cost.bodyAfter")}
           </p>
-          <div
-            className={`admissions-cost-banner__headline-wrap${headlineActive ? " admissions-cost-banner__headline-wrap--shine" : ""}`}
-          >
+          <div className="admissions-cost-banner__headline-wrap">
             <h2
               ref={headlineRef}
               id="admissions-cost-headline"
-              className={`admissions-cost-banner__headline ivy-display mt-6 max-w-xl text-5xl font-extrabold uppercase leading-[0.88] tracking-[-0.035em] text-white md:text-7xl lg:text-[5.8rem]${headlineActive ? " admissions-cost-banner__headline--glow" : ""}`}
+              className="admissions-cost-banner__headline ivy-display mt-6 max-w-xl text-5xl font-extrabold uppercase leading-[0.88] tracking-[-0.035em] text-white md:text-7xl lg:text-[5.8rem]"
             >
               {t("sections.cost.headline")}
             </h2>
           </div>
         </ScrollReveal>
       </div>
+      <CoinBurst
+        key={coinBurst?.id}
+        active={Boolean(coinBurst)}
+        amount={null}
+        origin={coinBurst?.origin}
+        onDone={() => setCoinBurst(null)}
+      />
     </section>
   );
 }

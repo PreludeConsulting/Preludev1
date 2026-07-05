@@ -31,6 +31,7 @@ function Coin({ index, origin }) {
 export default function CoinBurst({ active, amount, origin, onDone }) {
   const { reducedMotion } = usePreludeMotion();
   const coins = useMemo(() => Array.from({ length: COIN_COUNT }, (_, i) => i), []);
+  const label = amount ? `+${amount} coins` : "Coins earned";
 
   useEffect(() => {
     if (!active) return undefined;
@@ -43,7 +44,7 @@ export default function CoinBurst({ active, amount, origin, onDone }) {
   if (reducedMotion) {
     return createPortal(
       <div className="prelude-coin-burst prelude-coin-burst--static" role="status" aria-live="polite">
-        <span className="prelude-coin-burst__label">+{amount} coins</span>
+        <span className="prelude-coin-burst__label">{label}</span>
       </div>,
       document.body
     );

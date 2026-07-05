@@ -1,5 +1,5 @@
 export const AURA_LERP = 0.18;
-export const AURA_SIZE_PX = 56;
+export const AURA_SIZE_PX = 68;
 
 /**
  * Linear interpolation for smooth cursor follow.
