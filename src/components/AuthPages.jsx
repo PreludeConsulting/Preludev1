@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2, LockKeyhole, Mail, RefreshCw, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
@@ -18,6 +18,7 @@ import {
   AuthField,
   AuthInlineLink,
   AuthLegalAcknowledgment,
+  OtpInput,
   AuthPasswordField,
   AuthSubmitButton,
   AuthTermsCheckbox,
@@ -28,6 +29,7 @@ import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConsta
 import { isTurnstileRequired } from "../lib/turnstile.js";
 import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
 import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerification.js";
+import { maskEmail } from "../../shared/passwordValidation.js";
 export { default as ResetPasswordPage } from "./auth/ResetPasswordPage.jsx";
 
 const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
@@ -44,13 +46,6 @@ function validateSignupPassword(password, supabaseAuth) {
   if (!/[0-9]/.test(password)) return "Password must contain a number.";
   if (!/[^A-Za-z0-9]/.test(password)) return "Password must contain a symbol.";
   return "";
-}
-
-function maskEmail(email) {
-  if (!email || !email.includes("@")) return "";
-  const [name, domain] = email.split("@");
-  const visible = name.slice(0, 1);
-  return `${visible}${"•".repeat(Math.min(Math.max(name.length - 1, 4), 8))}@${domain}`;
 }
 
 function friendlyVerificationError(error) {
@@ -169,8 +164,8 @@ export function LoginPage() {
         setAuthAction("email-confirmation");
         try {
           const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
-          const result = await resendSignupConfirmation(targetEmail);
-          setMessage(result.message || "We sent a confirmation link to your email. Please verify your address before logging in.");
+          await resendSignupConfirmation(targetEmail);
+          setMessage(`We sent a confirmation email to ${maskEmail(targetEmail)}. Verify your address before logging in.`);
           setResendCooldown(RESEND_COOLDOWN_SECONDS);
           setFormError("");
         } catch (sendError) {
@@ -202,8 +197,8 @@ export function LoginPage() {
     setFormError("");
     try {
       const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
-      const result = await resendSignupConfirmation(targetEmail);
-      setMessage(result.message || "Confirmation email sent. Check your inbox.");
+      await resendSignupConfirmation(targetEmail);
+      setMessage(`A new confirmation email was sent to ${maskEmail(targetEmail)}.`);
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       setFormError(friendlyAuthError(err.message, "signin"));
@@ -404,8 +399,7 @@ export function RegisterPage() {
           setMessage("Your account was created, but Prelude could not send the verification email automatically. Use resend to try again.");
         } else {
           setMessage(
-            result?.message ||
-              "We sent a confirmation link to your email. Please verify your address before logging in."
+            `We sent a confirmation email to ${maskEmail(form.email.trim())}. Verify your address before logging in.`
           );
         }
         return;
@@ -447,8 +441,8 @@ export function RegisterPage() {
     setFormError("");
     try {
       const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
-      const result = await resendSignupConfirmation(targetEmail);
-      setMessage(result.message || "Confirmation email sent. Check your inbox.");
+      await resendSignupConfirmation(targetEmail);
+      setMessage(`A new confirmation email was sent to ${maskEmail(targetEmail)}.`);
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       setFormError(friendlyAuthError(err.message, "signup"));
@@ -731,11 +725,12 @@ export function VerifyEmailPage() {
 
   const continuePath = user ? postAuthDestination(user) : "/login";
   const continueLabel = user ? "Continue to dashboard" : "Continue to login";
+  const verified = !state.loading && !state.error && state.message;
 
   return (
     <AuthLayout
-      title="Email verification"
-      subtitle="Confirm your email address so Prelude can protect account updates and recovery."
+      title={verified ? "Email verified" : "Email verification"}
+      subtitle={verified ? "Your account is confirmed. Continuing to Prelude…" : "Confirm your email address so Prelude can protect account updates and recovery."}
       headerLink={{ prefix: "Need help?", label: "Log in", href: "/login" }}
     >
       {state.loading ? (
@@ -747,9 +742,14 @@ export function VerifyEmailPage() {
       <AuthBanner tone="error" reserve={Boolean(state.error)}>
         {state.error || null}
       </AuthBanner>
-      <AuthBanner tone="success" reserve={Boolean(!state.loading && !state.error && state.message)}>
-        {!state.loading && !state.error && state.message ? state.message : null}
-      </AuthBanner>
+      {verified ? (
+        <div className="auth-success-state" role="status" aria-live="polite">
+          <span className="auth-success-state__icon" aria-hidden="true">
+            <CheckCircle2 size={28} />
+          </span>
+          <p>{state.alreadyVerified ? "Email already verified." : "Email verified."}</p>
+        </div>
+      ) : null}
       {!state.loading && !state.error ? (
         <AuthSubmitButton type="button" onClick={() => navigate(continuePath, { replace: true })}>
           {continueLabel}
@@ -846,7 +846,6 @@ export function VerifyLoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, ready, signOut, refreshLoginVerification, refreshUser } = useAuth();
-  const inputRefs = useRef([]);
   const autoSendRef = useRef(false);
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [challengeId, setChallengeId] = useState(searchParams.get("challenge") || "");
@@ -861,6 +860,12 @@ export function VerifyLoginPage() {
   const code = digits.join("");
   const loading = status === "sending" || status === "verifying" || status === "success";
   const maskedEmail = maskEmail(user?.email || "");
+
+  function focusFirstOtpInput() {
+    window.requestAnimationFrame(() => {
+      document.querySelector(".auth-otp__input")?.focus();
+    });
+  }
 
   useEffect(() => {
     if (!ready) return;
@@ -898,7 +903,7 @@ export function VerifyLoginPage() {
         setCooldown(Number(result.retryAfter || RESEND_COOLDOWN_SECONDS));
         setMessage(result.emailSent ? "Verification code sent. Check your email." : "Prelude could not confirm email delivery. Please use resend.");
         setStatus("waiting");
-        window.requestAnimationFrame(() => inputRefs.current[0]?.focus());
+        focusFirstOtpInput();
       })
       .catch((err) => {
         if (cancelled) return;
@@ -929,44 +934,16 @@ export function VerifyLoginPage() {
   }, [cooldown]);
 
   useEffect(() => {
-    inputRefs.current[0]?.focus();
+    focusFirstOtpInput();
   }, []);
 
   useEffect(() => {
     if (code.length !== 6 || loading || submittedCode === code) return;
     const id = window.setTimeout(() => {
-      const form = inputRefs.current[0]?.form;
-      form?.requestSubmit();
+      document.getElementById("verify-login-form")?.requestSubmit();
     }, 180);
     return () => window.clearTimeout(id);
   }, [code, loading, submittedCode]);
-
-  function setCodeValue(value) {
-    const next = value.replace(/\D/g, "").slice(0, 6).padEnd(6, " ").split("").map((char) => (/\d/.test(char) ? char : ""));
-    setDigits(next);
-    const nextIndex = Math.min(value.replace(/\D/g, "").length, 5);
-    window.requestAnimationFrame(() => inputRefs.current[nextIndex]?.focus());
-  }
-
-  function onDigitChange(index, value) {
-    const clean = value.replace(/\D/g, "");
-    if (clean.length > 1) {
-      setCodeValue(clean);
-      return;
-    }
-    setDigits((current) => {
-      const next = [...current];
-      next[index] = clean;
-      return next;
-    });
-    if (clean && index < 5) inputRefs.current[index + 1]?.focus();
-  }
-
-  function onKeyDown(index, event) {
-    if (event.key === "Backspace" && !digits[index] && index > 0) inputRefs.current[index - 1]?.focus();
-    if (event.key === "ArrowLeft" && index > 0) inputRefs.current[index - 1]?.focus();
-    if (event.key === "ArrowRight" && index < 5) inputRefs.current[index + 1]?.focus();
-  }
 
   async function onResend() {
     setStatus("sending");
@@ -979,7 +956,7 @@ export function VerifyLoginPage() {
       setCooldown(Number(result.retryAfter || RESEND_COOLDOWN_SECONDS));
       setMessage(result.emailSent ? "A new verification code was sent." : "Prelude could not confirm email delivery. Please try again.");
       setStatus("waiting");
-      window.requestAnimationFrame(() => inputRefs.current[0]?.focus());
+      focusFirstOtpInput();
     } catch (err) {
       setStatus("delivery_failed");
       setError(friendlyVerificationError(err));
@@ -1008,92 +985,68 @@ export function VerifyLoginPage() {
       window.setTimeout(() => setShake(false), 420);
       if (err?.payload?.error === "incorrect_code" || err?.payload?.error === "expired_code" || err?.payload?.error === "locked_challenge") {
         setDigits(["", "", "", "", "", ""]);
-        window.requestAnimationFrame(() => inputRefs.current[0]?.focus());
+        focusFirstOtpInput();
       }
     }
   }
 
   return (
-    <main className="verify-login-page">
-      <section className={`verify-card${shake ? " verify-card--shake" : ""}${status === "success" ? " verify-card--success" : ""}`} aria-labelledby="verify-heading">
-        <div className="verify-logo-wrap">
-          <img src="/prelude-email-logo.png" alt="Prelude" className="verify-logo" />
+    <AuthLayout
+      title={status === "success" ? "Email verified" : "Check your email"}
+      subtitle={
+        maskedEmail
+          ? `We sent a 6-digit code to ${maskedEmail}.`
+          : "We sent a 6-digit code to your confirmed email."
+      }
+      headerLink={{ prefix: "Not your account?", label: "Use a different email", href: "/login" }}
+    >
+      {user?.email ? <span className="sr-only">Full destination email: {user.email}</span> : null}
+      {status === "success" ? (
+        <div className="auth-success-state" role="status" aria-live="polite">
+          <span className="auth-success-state__icon" aria-hidden="true">
+            <CheckCircle2 size={28} />
+          </span>
+          <p>Opening Prelude…</p>
         </div>
-        <div className="verify-badge">
-          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-          Secure sign-in
-        </div>
-        <h1 id="verify-heading" className="verify-title">Check your email</h1>
-        <p className="verify-copy">
-          We sent a six-digit code to <strong>{maskedEmail || "your confirmed email"}</strong>. Enter it below to finish signing in.
-        </p>
+      ) : null}
 
-        <form className="verify-form" onSubmit={onSubmit}>
-          <fieldset className="verify-otp-fieldset">
-            <legend className="sr-only">Six-digit verification code</legend>
-            <p id="verify-code-help" className="sr-only">Enter the six digits from your Prelude verification email. Paste is supported.</p>
-            <div
-              className="verify-otp-row"
-              aria-describedby="verify-code-help"
-              onPaste={(event) => {
-                event.preventDefault();
-                setCodeValue(event.clipboardData.getData("text"));
-              }}
-            >
-              {digits.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(node) => {
-                    inputRefs.current[index] = node;
-                  }}
-                  className="verify-otp-input"
-                  value={digit}
-                  inputMode="numeric"
-                  autoComplete={index === 0 ? "one-time-code" : "off"}
-                  aria-label={`Verification code digit ${index + 1}`}
-                  maxLength={1}
-                  onChange={(event) => onDigitChange(index, event.target.value)}
-                  onKeyDown={(event) => onKeyDown(index, event)}
-                  onFocus={(event) => event.target.select()}
-                />
-              ))}
-            </div>
-          </fieldset>
+      {status !== "success" ? (
+        <form id="verify-login-form" className={`auth-form auth-verify-form${shake ? " auth-verify-form--shake" : ""}`} onSubmit={onSubmit} noValidate>
+          <OtpInput
+            value={digits}
+            onChange={(nextDigits) => {
+              setDigits(nextDigits);
+              if (error) setError("");
+            }}
+            disabled={loading}
+            error={error}
+            label="Six-digit email verification code"
+          />
 
-          <button type="submit" disabled={loading || code.length !== 6} className="verify-submit">
-            {status === "success" ? <CheckCircle2 className="h-5 w-5" aria-hidden="true" /> : loading ? <span className="verify-spinner" aria-hidden="true" /> : <LockKeyhole className="h-5 w-5" aria-hidden="true" />}
-            <span>{status === "success" ? "Verified" : status === "verifying" ? "Verifying code" : "Verify login"}</span>
-          </button>
+          <AuthSubmitButton disabled={loading || code.length !== 6} loading={status === "verifying"}>
+            {status === "verifying" ? "Verifying email…" : "Verify email"}
+          </AuthSubmitButton>
 
-          <label className="verify-trust">
+          <label className="auth-trust-device">
             <input type="checkbox" checked={trustDevice} onChange={(event) => setTrustDevice(event.target.checked)} />
             <span>
-              <span>Trust this device for 30 days</span>
-              <small>Skip verification codes on this browser. Do not use this on a shared device.</small>
+              <strong>Trust this device for 30 days</strong>
+              <small>Use this only on a private browser.</small>
             </span>
           </label>
         </form>
+      ) : null}
 
-        <div className="verify-status" aria-live="polite">
-          {error ? (
-            <div className="verify-status__error">
-              <Mail className="h-4 w-4" aria-hidden="true" />
-              <span>{error}</span>
-            </div>
-          ) : (
-            <span>{message}</span>
-          )}
-        </div>
-
-        <div className="verify-actions">
-          <button type="button" className="verify-link-button" disabled={loading || cooldown > 0} onClick={onResend}>
-            <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+      <div className="auth-resend" aria-live="polite">
+        <p>{error ? "Check the code and try again." : message}</p>
+        <div className="auth-resend__actions">
+          <button type="button" disabled={loading || cooldown > 0} onClick={onResend}>
+            {cooldown > 0 ? `Resend code in ${cooldown}s` : status === "sending" ? "Sending…" : "Resend code"}
           </button>
-          <button type="button" className="verify-link-button" onClick={signOut}>Use another account</button>
+          <button type="button" onClick={signOut}>Use a different email</button>
         </div>
-      </section>
-    </main>
+      </div>
+    </AuthLayout>
   );
 }
 

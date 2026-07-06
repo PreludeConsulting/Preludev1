@@ -2,14 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import {
   createCostBannerFakeCursorTimeline,
-  elementCenterPoint,
   formatSavingsAmount,
   savingsCountValue,
   SAVINGS_COUNT_DURATION_MS,
   SAVINGS_TARGET_AMOUNT
 } from "../lib/admissionsCostBannerMotion.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
-import CoinBurst from "./interaction/CoinBurst.jsx";
 import ScrollReveal from "./motion/ScrollReveal.jsx";
 
 const mediaBase = import.meta.env.BASE_URL;
@@ -49,25 +47,15 @@ export default function AdmissionsCostBanner() {
 
   const [savingsValue, setSavingsValue] = useState(0);
   const [counting, setCounting] = useState(false);
-  const [coinBurst, setCoinBurst] = useState(null);
   const [demoLive, setDemoLive] = useState(false);
-
-  const triggerCoinBurst = useCallback(() => {
-    setCoinBurst({
-      id: Date.now(),
-      origin: elementCenterPoint(savingsButtonRef.current)
-    });
-  }, []);
 
   const runSavingsCount = useCallback(() => {
     window.cancelAnimationFrame(frameRef.current);
-    setCoinBurst(null);
     setSavingsValue(0);
 
     if (reducedMotion) {
       setCounting(false);
       setSavingsValue(SAVINGS_TARGET_AMOUNT);
-      triggerCoinBurst();
       return;
     }
 
@@ -88,11 +76,10 @@ export default function AdmissionsCostBanner() {
       setCounting(false);
       setSavingsValue(SAVINGS_TARGET_AMOUNT);
       demoCompleteRef.current = true;
-      triggerCoinBurst();
     };
 
     frameRef.current = window.requestAnimationFrame(tick);
-  }, [reducedMotion, triggerCoinBurst]);
+  }, [reducedMotion]);
 
   const stopFakeCursor = useCallback(() => {
     fakeTimelineRef.current?.cancel();
@@ -102,7 +89,6 @@ export default function AdmissionsCostBanner() {
   const resetSavingsDemo = useCallback(() => {
     window.cancelAnimationFrame(frameRef.current);
     frameRef.current = 0;
-    setCoinBurst(null);
     setCounting(false);
     demoCompleteRef.current = false;
     setSavingsValue(0);
@@ -223,13 +209,6 @@ export default function AdmissionsCostBanner() {
           </div>
         </ScrollReveal>
       </div>
-      <CoinBurst
-        key={coinBurst?.id}
-        active={Boolean(coinBurst)}
-        amount={null}
-        origin={coinBurst?.origin}
-        onDone={() => setCoinBurst(null)}
-      />
     </section>
   );
 }

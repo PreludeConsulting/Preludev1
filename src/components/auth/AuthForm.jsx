@@ -1,5 +1,5 @@
 import { Check, Eye, EyeOff, Loader2 } from "lucide-react";
-import { forwardRef, useId, useState } from "react";
+import { forwardRef, useId, useRef, useState } from "react";
 import AppLink from "../AppLink.jsx";
 import { useLegalModal } from "../../context/LegalModalContext.jsx";
 import {
@@ -117,6 +117,129 @@ export function AuthSubmitButton({ children, loading = false, className = "", ..
       {loading ? <Loader2 className="auth-submit__spinner" aria-hidden="true" /> : null}
       <span>{children}</span>
     </button>
+  );
+}
+
+export function normalizeOtpDigits(value, length = 6) {
+  return String(value || "")
+    .replace(/\D/g, "")
+    .slice(0, length)
+    .padEnd(length, " ")
+    .split("")
+    .map((char) => (/\d/.test(char) ? char : ""));
+}
+
+export function OtpInput({
+  value,
+  onChange,
+  length = 6,
+  disabled = false,
+  error = "",
+  label = "Six-digit verification code",
+  helpText = "Enter the six digits from your Prelude email. Paste is supported.",
+  describedBy,
+  onComplete
+}) {
+  const inputRefs = useRef([]);
+  const id = useId();
+  const digits = Array.from({ length }, (_, index) => value?.[index] || "");
+  const helpId = `${id}-help`;
+  const errorId = `${id}-error`;
+  const describedByIds = [helpId, describedBy, error ? errorId : ""].filter(Boolean).join(" ");
+
+  function focusIndex(index) {
+    const target = Math.max(0, Math.min(index, length - 1));
+    window.requestAnimationFrame(() => inputRefs.current[target]?.focus());
+  }
+
+  function commit(nextDigits, nextFocusIndex) {
+    onChange(nextDigits);
+    if (nextDigits.every(Boolean)) onComplete?.(nextDigits.join(""));
+    if (typeof nextFocusIndex === "number") focusIndex(nextFocusIndex);
+  }
+
+  function setFromText(text) {
+    const nextDigits = normalizeOtpDigits(text, length);
+    const filled = nextDigits.filter(Boolean).length;
+    commit(nextDigits, Math.min(filled, length - 1));
+  }
+
+  function onDigitChange(index, rawValue) {
+    const clean = rawValue.replace(/\D/g, "");
+    if (clean.length > 1) {
+      setFromText(clean);
+      return;
+    }
+    const nextDigits = [...digits];
+    nextDigits[index] = clean;
+    commit(nextDigits, clean && index < length - 1 ? index + 1 : index);
+  }
+
+  function onKeyDown(index, event) {
+    if (event.key === "Backspace") {
+      if (!digits[index] && index > 0) {
+        event.preventDefault();
+        focusIndex(index - 1);
+      }
+      return;
+    }
+    if (event.key === "ArrowLeft" && index > 0) {
+      event.preventDefault();
+      focusIndex(index - 1);
+      return;
+    }
+    if (event.key === "ArrowRight" && index < length - 1) {
+      event.preventDefault();
+      focusIndex(index + 1);
+    }
+  }
+
+  return (
+    <fieldset className={`auth-otp${error ? " auth-otp--error" : ""}`} aria-invalid={error ? "true" : undefined}>
+      <legend className="sr-only">{label}</legend>
+      <p id={helpId} className="sr-only">
+        {helpText}
+      </p>
+      <div
+        className="auth-otp__row"
+        aria-describedby={describedByIds}
+        onPaste={(event) => {
+          event.preventDefault();
+          setFromText(event.clipboardData.getData("text"));
+        }}
+      >
+        {digits.map((digit, index) => (
+          <input
+            key={index}
+            ref={(node) => {
+              inputRefs.current[index] = node;
+            }}
+            className="auth-otp__input"
+            type="text"
+            value={digit}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete={index === 0 ? "one-time-code" : "off"}
+            aria-label={`Verification code digit ${index + 1}`}
+            aria-invalid={error ? "true" : undefined}
+            aria-describedby={describedByIds}
+            maxLength={1}
+            disabled={disabled}
+            onChange={(event) => onDigitChange(index, event.target.value)}
+            onKeyDown={(event) => onKeyDown(index, event)}
+            onFocus={(event) => event.target.select()}
+          />
+        ))}
+      </div>
+      <p
+        id={errorId}
+        className={`auth-otp__message${error ? " auth-otp__message--error" : ""}`}
+        role={error ? "alert" : undefined}
+        aria-live="polite"
+      >
+        {error || "\u00a0"}
+      </p>
+    </fieldset>
   );
 }
 
