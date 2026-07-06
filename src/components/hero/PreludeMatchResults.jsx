@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 import { PRELUDE_MATCH_MENTORS } from "../../data/preludeMatchMentors.js";
 import PreludeMentorCard from "./PreludeMentorCard.jsx";
 import PreludePigAvatar from "./PreludePigAvatar.jsx";
+import { HERO_RESULT_PAYOFF } from "./preludeMatchDemoContent.js";
 
 export default function PreludeMatchResults({ reducedMotion, onRestart, matchSummary = "" }) {
   return (
@@ -35,12 +36,48 @@ export default function PreludeMatchResults({ reducedMotion, onRestart, matchSum
       ) : null}
 
       <div className="pm-results__scroll">
+        <motion.section
+          className="pm-results__payoff"
+          initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.32 }}
+        >
+          <div className="pm-results__payoff-head">
+            <div>
+              <p>Student dashboard</p>
+              <h3>{HERO_RESULT_PAYOFF.title}</h3>
+            </div>
+            <strong>+{HERO_RESULT_PAYOFF.coinsEarned} coins</strong>
+          </div>
+          <p className="pm-results__payoff-copy">{HERO_RESULT_PAYOFF.subtitle}</p>
+
+          <div className="pm-results__task-list" aria-label="First dashboard tasks">
+            {HERO_RESULT_PAYOFF.tasks.map((task) => (
+              <span key={task.label}>
+                <b>{task.label}</b>
+                <small>{task.status}</small>
+                <em>+{task.coins} coins</em>
+              </span>
+            ))}
+          </div>
+
+          <div className="pm-results__reward-row" aria-label="Reward targets">
+            {HERO_RESULT_PAYOFF.rewards.map((reward) => (
+              <article key={reward.title}>
+                <span>{reward.label}</span>
+                <strong>{reward.title}</strong>
+                <small>{reward.coins} coins</small>
+              </article>
+            ))}
+          </div>
+        </motion.section>
+
         {PRELUDE_MATCH_MENTORS.map((mentor, index) => (
           <motion.div
             key={mentor.id}
             initial={reducedMotion ? false : { opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.06, duration: 0.3 }}
+            transition={{ delay: 0.08 + index * 0.06, duration: 0.3 }}
           >
             <PreludeMentorCard mentor={mentor} />
           </motion.div>

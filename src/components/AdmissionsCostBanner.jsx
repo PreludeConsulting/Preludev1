@@ -19,16 +19,17 @@ function FakeCursorIcon() {
   return (
     <svg
       className="admissions-cost-banner__fake-cursor-svg"
-      viewBox="0 0 28 28"
+      viewBox="0 0 36 36"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
       <path
-        d="M5.5 3.5L5.5 20.5L11.8 14.6L15.8 24.2L19.2 22.8L14.8 13.4L21.5 13.4L5.5 3.5Z"
-        fill="#111111"
-        stroke="#FFFFFF"
-        strokeWidth="1.35"
+        className="admissions-cost-banner__fake-cursor-pointer"
+        d="M15.1 12.2C14.6 10.9 16 9.8 17.1 10.6L31.1 20.8C32.4 21.8 32 23.9 30.4 24.2L23.7 25.5L20.5 32C19.8 33.4 17.8 33.2 17.4 31.7L15.1 12.2Z"
+        fill="currentColor"
+        stroke="rgb(255 255 255 / 0.86)"
+        strokeWidth="1.2"
         strokeLinejoin="round"
       />
     </svg>

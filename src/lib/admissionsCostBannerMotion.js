@@ -2,7 +2,7 @@ import { createTimeline } from "animejs";
 
 export const SAVINGS_TARGET_AMOUNT = 6500;
 export const SAVINGS_COUNT_DURATION_MS = 1250;
-export const COST_FAKE_CURSOR_HOTSPOT = { x: 4, y: 4 };
+export const COST_FAKE_CURSOR_HOTSPOT = { x: 17, y: 14 };
 export const COST_FAKE_CURSOR_MS = {
   enter: 540,
   toAmount: 860,
