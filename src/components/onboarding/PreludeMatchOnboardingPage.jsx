@@ -111,9 +111,13 @@ export default function PreludeMatchOnboardingPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!forceResult) return;
-    loadResultState();
-  }, [forceResult, loadResultState]);
+    if (forceResult) {
+      loadResultState();
+      return;
+    }
+    setPhase(user?.matchOnboardingComplete ? "intro" : "intro");
+    setError("");
+  }, [forceResult, loadResultState, user?.matchOnboardingComplete]);
 
   const bumpPig = useCallback(() => {
     setPigMotion("bounce");
