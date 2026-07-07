@@ -205,6 +205,14 @@
   text-align: right;
 }
 
+.onboarding-flow__footer--back-only {
+  justify-content: flex-start;
+}
+
+.onboarding-flow__footer--next-only {
+  justify-content: flex-end;
+}
+
 .onboarding-flow__note {
   margin: 0;
   font-size: 0.8125rem;

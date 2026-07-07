@@ -785,7 +785,11 @@ button.plans-flow__home-link {
 /* Prelude Match onboarding + email verification banner */
 .pm-onboarding-page {
   min-height: 100vh;
-  padding: clamp(1.5rem, 4vw, 2.5rem) clamp(1rem, 3vw, 1.5rem);
+  padding: clamp(1.25rem, 3vw, 2.5rem) clamp(1rem, 3vw, 1.5rem) 2.5rem;
+  background:
+    radial-gradient(circle at top right, rgb(91 79 214 / 0.08), transparent 42%),
+    linear-gradient(180deg, #f7f5ff 0%, #eceaf3 100%);
+  color: hsl(230 28% 16%);
 }
 
 .pm-onboarding-page--verify-banner {
@@ -793,8 +797,11 @@ button.plans-flow__home-link {
 }
 
 .pm-onboarding-page__inner {
-  max-width: 42rem;
+  width: min(52rem, 100%);
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
 .pm-onboarding-page__nav {
@@ -822,26 +829,29 @@ button.plans-flow__home-link {
 }
 
 .pm-onboarding-page__head {
-  margin-bottom: 1.5rem;
-  text-align: center;
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0;
+  text-align: left;
 }
 
 .pm-onboarding-page__title {
-  margin: 0.35rem 0 0;
+  margin: 0;
   font-family: "Barlow", sans-serif;
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
-  font-weight: 800;
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 700;
+  line-height: 1.1;
   letter-spacing: -0.02em;
-  color: hsl(var(--foreground));
+  color: hsl(230 28% 16%);
 }
 
 .pm-onboarding-page__sub {
-  margin: 0.65rem auto 0;
-  max-width: 36rem;
+  margin: 0;
+  max-width: 42rem;
   font-family: "Barlow", sans-serif;
   font-size: 1rem;
-  line-height: 1.5;
-  color: hsl(var(--muted-foreground));
+  line-height: 1.55;
+  color: hsl(230 14% 34%);
 }
 
 .pm-onboarding-page .pm-card-wrap {
@@ -902,7 +912,7 @@ button.plans-flow__home-link {
   }
 
   .pm-onboarding-page__head {
-    margin-bottom: 1rem;
+    margin-bottom: 0;
   }
 
   .pm-onboarding-page .pm-card--stable {

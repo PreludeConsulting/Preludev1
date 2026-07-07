@@ -104,20 +104,15 @@ export default function PreludeMatchOnboardingPage() {
 
   const currentQuestion = visibleQuestions[currentIndex] ?? visibleQuestions[0];
 
-  const loadResultState = useCallback(async () => {
-    if (!user) return;
-    setError("");
-    setPhase("result");
-  }, [user]);
-
   useEffect(() => {
     if (forceResult) {
-      loadResultState();
+      setError("");
+      setPhase("result");
       return;
     }
-    setPhase(user?.matchOnboardingComplete ? "intro" : "intro");
+    setPhase((current) => (current === "result" ? "intro" : current));
     setError("");
-  }, [forceResult, loadResultState, user?.matchOnboardingComplete]);
+  }, [forceResult]);
 
   const bumpPig = useCallback(() => {
     setPigMotion("bounce");
@@ -325,7 +320,11 @@ export default function PreludeMatchOnboardingPage() {
             </AnimatePresence>
           </div>
         </motion.div>
-        <footer className="onboarding-flow__footer pm-onboarding-page__footer">
+        <footer
+          className={`onboarding-flow__footer pm-onboarding-page__footer${
+            !navigation.showBack && navigation.showNext ? " onboarding-flow__footer--next-only" : ""
+          }${navigation.showBack && !navigation.showNext ? " onboarding-flow__footer--back-only" : ""}`}
+        >
           {navigation.showBack && navigation.backPath ? (
             <AppLink href={navigation.backPath} className="onboarding-flow__back-btn">
               <ArrowLeft aria-hidden="true" />

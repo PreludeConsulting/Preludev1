@@ -111,7 +111,11 @@ export default function OnboardingShell({
         </div>
 
         {!hideContinue || showBack ? (
-          <footer className="onboarding-flow__footer">
+          <footer
+            className={`onboarding-flow__footer${
+              hideContinue && showBack ? " onboarding-flow__footer--back-only" : ""
+            }${!hideContinue && !showBack ? " onboarding-flow__footer--next-only" : ""}`}
+          >
             {showBack ? (
               resolvedBackHref ? (
                 <AppLink href={resolvedBackHref} className="onboarding-flow__back-btn" onClick={onBack}>
