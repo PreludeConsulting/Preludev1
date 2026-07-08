@@ -65,11 +65,10 @@ export function createDashboardApiMiddleware(getSession) {
           return sendJson(res, 200, { integrations });
         }
         if (url.pathname === "/api/integrations/google-calendar/connect" && req.method === "POST") {
-          integrations.googleCalendar = { connected: true, connectedAt: new Date().toISOString() };
-          writeIntegrations(user.id, integrations);
-          return sendJson(res, 200, {
-            integrations,
-            message: "Google Calendar connected (placeholder)."
+          return sendJson(res, 501, {
+            error: "integration_setup_required",
+            message: "Google Calendar OAuth is not configured for this deployment yet.",
+            integrations
           });
         }
         if (url.pathname === "/api/integrations/google-calendar/disconnect" && req.method === "POST") {
@@ -78,11 +77,10 @@ export function createDashboardApiMiddleware(getSession) {
           return sendJson(res, 200, { integrations });
         }
         if (url.pathname === "/api/integrations/zoom/connect" && req.method === "POST") {
-          integrations.zoom = { connected: true, connectedAt: new Date().toISOString() };
-          writeIntegrations(user.id, integrations);
-          return sendJson(res, 200, {
-            integrations,
-            message: "Meetings use mentor-provided Zoom links. Create a meeting in Zoom and paste the join link when scheduling."
+          return sendJson(res, 501, {
+            error: "integration_setup_required",
+            message: "Zoom account OAuth is not configured for this deployment yet. Meetings still support pasted meeting links.",
+            integrations
           });
         }
         if (url.pathname === "/api/integrations/zoom/disconnect" && req.method === "POST") {

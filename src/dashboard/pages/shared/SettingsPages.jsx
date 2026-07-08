@@ -36,6 +36,7 @@ import SecuritySettingsPanel from "../../components/settings/SecuritySettingsPan
 import { SaveRow, SettingSelect, SettingToggle } from "../../components/settings/SettingsControls.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { loadPreferences, savePreferences } from "../../lib/dashboardPreferences.js";
+import { getDisplaySettings, getIntegrationCards, getNotificationGroups } from "../../lib/settingsExperience.js";
 import { SecondaryButton, SectionCard } from "../../components/ui/index.jsx";
 
 const AVATAR_EXPORT_SIZE = 512;
@@ -836,6 +837,137 @@ const PARENT_SETTINGS_TABS = [
   { id: "support", label: "Support", icon: HelpCircle, description: "Help and contact" }
 ];
 
+const NOTIFICATION_PREF_KEYS = [
+  "emailUpdates",
+  "securityAlerts",
+  "meetingReminders",
+  "deadlineReminders",
+  "mentorMessages",
+  "weeklyDigest",
+  "quietHoursEnabled",
+  "quietHoursStart",
+  "quietHoursEnd"
+];
+
+const DISPLAY_PREF_KEYS = ["density", "reduceMotion", "interfaceSounds", "hapticFeedback"];
+const CALENDAR_PREF_KEYS = ["defaultCalendarView", "reminderLeadTime", "weekStart"];
+const PRIVACY_PREF_KEYS = ["profileVisibility", "dataExportRequestedAt"];
+
+function sectionDirty(current, initial, keys) {
+  return keys.some((key) => current?.[key] !== initial?.[key]);
+}
+
+function renderSetting(setting, prefs, setPref) {
+  if (setting.type === "select") {
+    return (
+      <SettingSelect
+        key={setting.id}
+        id={setting.id}
+        label={setting.label}
+        description={setting.description}
+        value={prefs[setting.id]}
+        onChange={(value) => setPref(setting.id, value)}
+        options={setting.options}
+      />
+    );
+  }
+  return (
+    <SettingToggle
+      key={setting.id}
+      id={setting.id}
+      label={setting.label}
+      description={setting.description}
+      checked={Boolean(prefs[setting.id])}
+      onChange={(value) => setPref(setting.id, value)}
+    />
+  );
+}
+
+function NotificationsSettingsSection({ role = "student", prefs, setPref, dirty, saveState, onSave }) {
+  const groups = getNotificationGroups(role);
+  return (
+    <SectionCard title="Notifications" className="dash-panel dash-settings-card">
+      <p className="dash-muted">A shorter notification setup: essentials, student progress, and quiet hours.</p>
+      <div className="dash-settings-groups">
+        {groups.map((group) => (
+          <section key={group.id} className="dash-settings-group" aria-labelledby={`settings-group-${group.id}`}>
+            <h4 id={`settings-group-${group.id}`}>{group.title}</h4>
+            {group.items.map((item) => (
+              <SettingToggle
+                key={item.id}
+                id={`${role}-${item.id}`}
+                label={item.label}
+                description={item.description}
+                checked={Boolean(prefs[item.id])}
+                onChange={(value) => setPref(item.id, value)}
+              />
+            ))}
+            {group.id === "quiet" && prefs.quietHoursEnabled ? (
+              <div className="dash-setting-row dash-setting-row--stacked">
+                <div className="dash-setting-row__text">
+                  <span className="dash-setting-row__label">Quiet hours window</span>
+                  <p className="dash-setting-row__desc">Urgent security alerts still come through.</p>
+                </div>
+                <div className="dash-setting-row__inline">
+                  <input className="dash-input" type="time" value={prefs.quietHoursStart} onChange={(e) => setPref("quietHoursStart", e.target.value)} aria-label="Quiet hours start" />
+                  <span>to</span>
+                  <input className="dash-input" type="time" value={prefs.quietHoursEnd} onChange={(e) => setPref("quietHoursEnd", e.target.value)} aria-label="Quiet hours end" />
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ))}
+      </div>
+      <SaveRow section="notifications" saveState={saveState} onSave={onSave} dirty={dirty} />
+    </SectionCard>
+  );
+}
+
+function DisplaySettingsSection({ prefs, setPref, dirty, saveState, onSave }) {
+  return (
+    <SectionCard title="Display &amp; accessibility" className="dash-panel dash-settings-card">
+      <p className="dash-muted">Keep Prelude’s visual style and tune only the display controls that affect the dashboard.</p>
+      <div className="dash-settings-groups">
+        <section className="dash-settings-group">
+          {getDisplaySettings().map((setting) => renderSetting(setting, prefs, setPref))}
+        </section>
+      </div>
+      <SaveRow section="display" saveState={saveState} onSave={onSave} dirty={dirty} />
+    </SectionCard>
+  );
+}
+
+function ConnectedAccountsSection({ integrations, connectGoogle, disconnectGoogle, connectZoomAccount, disconnectZoomAccount, role = "student" }) {
+  const cards = getIntegrationCards(integrations, { integrationsAvailable: false });
+  const handlers = {
+    googleCalendar: { onConnect: connectGoogle, onDisconnect: disconnectGoogle },
+    zoom: { onConnect: connectZoomAccount, onDisconnect: disconnectZoomAccount }
+  };
+  return (
+    <SectionCard title="Connected accounts" className="dash-panel dash-settings-card">
+      <p className="dash-muted">
+        Prelude currently supports meeting links inside calendars. Direct Google Calendar and Zoom account OAuth will appear here when setup is ready.
+      </p>
+      <div className="dash-integration-grid">
+        {cards.map((card) => (
+          <IntegrationConnect
+            key={card.id}
+            label={card.label}
+            connectLabel={card.actionLabel}
+            connected={card.connected}
+            status={card.status}
+            available={card.available}
+            unavailableNote={card.unavailableNote}
+            onConnect={handlers[card.id]?.onConnect}
+            onDisconnect={handlers[card.id]?.onDisconnect}
+            description={role === "parent" && card.id === "googleCalendar" ? "Keep family planning dates visible when calendar sync is enabled." : card.purpose}
+          />
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
 export function StudentSettingsPage() {
   const { user, planDetails, openAccount } = useAuth();
   const {
@@ -852,6 +984,7 @@ export function StudentSettingsPage() {
   } = useDashboardData();
   const [tab, setTab] = useState("profile");
   const [prefs, setPrefs] = useState(() => loadPreferences());
+  const [initialPrefs, setInitialPrefs] = useState(() => loadPreferences());
   const [saveState, setSaveState] = useState(null);
 
   useEffect(() => {
@@ -863,7 +996,9 @@ export function StudentSettingsPage() {
 
   useEffect(() => {
     if (loadedPreferences) {
-      setPrefs((current) => ({ ...current, ...loadedPreferences }));
+      const next = { ...loadPreferences(), ...loadedPreferences };
+      setPrefs(next);
+      setInitialPrefs(next);
     }
   }, [loadedPreferences]);
 
@@ -881,6 +1016,7 @@ export function StudentSettingsPage() {
         await savePrefsToBackend(prefs);
       }
       savePreferences(prefs);
+      setInitialPrefs(prefs);
       setSaveState({ section, status: "saved", message: "" });
       window.setTimeout(() => setSaveState((current) => current?.section === section ? null : current), 2600);
     } catch (error) {
@@ -927,45 +1063,14 @@ export function StudentSettingsPage() {
       ) : null}
 
       {tab === "notifications" ? (
-        <SectionCard title="Email &amp; notifications" className="dash-panel">
-          <p className="dash-muted">Choose what Prelude notifies you about. Signed-in accounts sync these preferences to Prelude.</p>
-          <SettingToggle id="emailUpdates" label="Product &amp; account emails" description="Important updates about your account." checked={prefs.emailUpdates} onChange={(v) => setPref("emailUpdates", v)} />
-          <SettingToggle id="meetingReminders" label="Meeting reminders" description="Reminders before mentor sessions." checked={prefs.meetingReminders} onChange={(v) => setPref("meetingReminders", v)} />
-          <SettingToggle id="mentorMessages" label="Mentor message alerts" description="Notify me when my mentor sends a message." checked={prefs.mentorMessages} onChange={(v) => setPref("mentorMessages", v)} />
-          <SettingToggle id="studentMessages" label="Student message alerts" description="Notify me when a student or peer message needs attention." checked={prefs.studentMessages} onChange={(v) => setPref("studentMessages", v)} />
-          <SettingToggle id="deadlineReminders" label="Deadline reminders" description="Admissions, scholarship, and task deadline reminders." checked={prefs.deadlineReminders} onChange={(v) => setPref("deadlineReminders", v)} />
-          <SettingToggle id="progressReminders" label="Progress reminders" description="Light nudges when a planning area has stalled." checked={prefs.progressReminders} onChange={(v) => setPref("progressReminders", v)} />
-          <SettingToggle id="rewardUpdates" label="Reward updates" description="Reward unlocks, redemptions, and milestone updates." checked={prefs.rewardUpdates} onChange={(v) => setPref("rewardUpdates", v)} />
-          <SettingToggle id="essayComments" label="Essay comments" description="Notes and feedback added to essay drafts." checked={prefs.essayComments} onChange={(v) => setPref("essayComments", v)} />
-          <SettingToggle id="collegeApplicationUpdates" label="College application updates" description="Status changes, decisions, and application checklist reminders." checked={prefs.collegeApplicationUpdates} onChange={(v) => setPref("collegeApplicationUpdates", v)} />
-          <SettingToggle id="scholarshipReminders" label="Scholarship reminders" description="Scholarship deadlines and result updates." checked={prefs.scholarshipReminders} onChange={(v) => setPref("scholarshipReminders", v)} />
-          <SettingToggle id="weeklyDigest" label="Progress digest" description="A summary of deadlines and progress." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />
-          <SettingSelect
-            id="digestFrequency"
-            label="Digest frequency"
-            value={prefs.digestFrequency}
-            onChange={(v) => setPref("digestFrequency", v)}
-            options={[
-              { value: "daily", label: "Daily" },
-              { value: "weekly", label: "Weekly" },
-              { value: "never", label: "Never" }
-            ]}
-          />
-          <SettingToggle id="productTips" label="Product announcements" description="Occasional admissions tips and Prelude updates." checked={prefs.productTips} onChange={(v) => setPref("productTips", v)} />
-          <SettingToggle id="quietHoursEnabled" label="Quiet hours" description="Pause non-urgent notifications during your chosen hours." checked={prefs.quietHoursEnabled} onChange={(v) => setPref("quietHoursEnabled", v)} />
-          <div className="dash-setting-row dash-setting-row--stacked">
-            <div className="dash-setting-row__text">
-              <span className="dash-setting-row__label">Quiet hours window</span>
-              <p className="dash-setting-row__desc">Urgent security messages are still delivered.</p>
-            </div>
-            <div className="dash-setting-row__inline">
-              <input className="dash-input" type="time" value={prefs.quietHoursStart} onChange={(e) => setPref("quietHoursStart", e.target.value)} aria-label="Quiet hours start" />
-              <span>to</span>
-              <input className="dash-input" type="time" value={prefs.quietHoursEnd} onChange={(e) => setPref("quietHoursEnd", e.target.value)} aria-label="Quiet hours end" />
-            </div>
-          </div>
-          <SaveRow section="notifications" saveState={saveState} onSave={saveSection} />
-        </SectionCard>
+        <NotificationsSettingsSection
+          role="student"
+          prefs={prefs}
+          setPref={setPref}
+          dirty={sectionDirty(prefs, initialPrefs, NOTIFICATION_PREF_KEYS)}
+          saveState={saveState}
+          onSave={saveSection}
+        />
       ) : null}
 
       {tab === "calendar" ? (
@@ -1006,86 +1111,28 @@ export function StudentSettingsPage() {
               { value: "monday", label: "Monday" }
             ]}
           />
-          <SaveRow section="calendar" saveState={saveState} onSave={saveSection} />
+          <SaveRow section="calendar" saveState={saveState} onSave={saveSection} dirty={sectionDirty(prefs, initialPrefs, CALENDAR_PREF_KEYS)} />
         </SectionCard>
       ) : null}
 
       {tab === "display" ? (
-        <SectionCard title="Display &amp; accessibility" className="dash-panel">
-          <SettingSelect
-            id="theme"
-            label="Theme"
-            description="Use system mode unless you prefer a fixed display theme."
-            value={prefs.theme}
-            onChange={(v) => setPref("theme", v)}
-            options={[
-              { value: "system", label: "System" },
-              { value: "light", label: "Light" },
-              { value: "dark", label: "Dark" }
-            ]}
-          />
-          <SettingSelect
-            id="density"
-            label="Layout density"
-            description="Comfortable adds more spacing; compact fits more on screen."
-            value={prefs.density}
-            onChange={(v) => setPref("density", v)}
-            options={[
-              { value: "comfortable", label: "Comfortable" },
-              { value: "compact", label: "Compact" }
-            ]}
-          />
-          <SettingToggle
-            id="reduceMotion"
-            label="Reduce motion"
-            description="Minimize animations across the dashboard."
-            checked={prefs.reduceMotion}
-            onChange={(v) => setPref("reduceMotion", v)}
-          />
-          <SettingToggle
-            id="interfaceSounds"
-            label="Interface sounds"
-            description="Play subtle sounds for clicks, messages, calendar actions, and rewards."
-            checked={prefs.interfaceSounds}
-            onChange={(v) => setPref("interfaceSounds", v)}
-          />
-          <SettingToggle
-            id="notificationSounds"
-            label="Notification sounds"
-            description="Play a short sound for live alerts and messages."
-            checked={prefs.notificationSounds}
-            onChange={(v) => setPref("notificationSounds", v)}
-          />
-          <SettingToggle
-            id="hapticFeedback"
-            label="Haptic feedback"
-            description="Use subtle vibration on supported mobile devices for confirmations."
-            checked={prefs.hapticFeedback}
-            onChange={(v) => setPref("hapticFeedback", v)}
-          />
-          <SaveRow section="display" saveState={saveState} onSave={saveSection} />
-        </SectionCard>
+        <DisplaySettingsSection
+          prefs={prefs}
+          setPref={setPref}
+          dirty={sectionDirty(prefs, initialPrefs, DISPLAY_PREF_KEYS)}
+          saveState={saveState}
+          onSave={saveSection}
+        />
       ) : null}
 
       {tab === "integrations" ? (
-        <SectionCard title="Connected accounts" className="dash-panel">
-          <IntegrationConnect
-            label="Google Calendar"
-            connectLabel="Connect Google Calendar"
-            connected={integrations.googleCalendar?.connected}
-            onConnect={connectGoogle}
-            onDisconnect={disconnectGoogle}
-            description="Sync Prelude meetings and deadlines to your Google Calendar."
-          />
-          <IntegrationConnect
-            label="Zoom"
-            connectLabel="Connect Zoom Account"
-            connected={integrations.zoom?.connected}
-            onConnect={connectZoomAccount}
-            onDisconnect={disconnectZoomAccount}
-            description="Required for virtual mentor meetings."
-          />
-        </SectionCard>
+        <ConnectedAccountsSection
+          integrations={integrations}
+          connectGoogle={connectGoogle}
+          disconnectGoogle={disconnectGoogle}
+          connectZoomAccount={connectZoomAccount}
+          disconnectZoomAccount={disconnectZoomAccount}
+        />
       ) : null}
 
       {tab === "family" ? <ParentGuardianSettingsPanel user={user} /> : null}
@@ -1123,7 +1170,7 @@ export function StudentSettingsPage() {
           <p className="dash-muted">
             Account deletion and session revocation stay in Security so they can use the stricter confirmation flow.
           </p>
-          <SaveRow section="privacy" saveState={saveState} onSave={saveSection} />
+          <SaveRow section="privacy" saveState={saveState} onSave={saveSection} dirty={sectionDirty(prefs, initialPrefs, PRIVACY_PREF_KEYS)} />
         </SectionCard>
       ) : null}
 
@@ -1193,22 +1240,14 @@ export function MentorSettingsPage() {
       ) : null}
 
       {tab === "integrations" ? (
-        <SectionCard title="Connected accounts" className="dash-panel">
-          <IntegrationConnect
-            label="Google Calendar"
-            connectLabel="Connect Google Calendar"
-            connected={integrations.googleCalendar?.connected}
-            onConnect={connectGoogle}
-            onDisconnect={disconnectGoogle}
-          />
-          <IntegrationConnect
-            label="Zoom"
-            connectLabel="Connect Zoom Account"
-            connected={integrations.zoom?.connected}
-            onConnect={connectZoomAccount}
-            onDisconnect={disconnectZoomAccount}
-          />
-        </SectionCard>
+        <ConnectedAccountsSection
+          integrations={integrations}
+          connectGoogle={connectGoogle}
+          disconnectGoogle={disconnectGoogle}
+          connectZoomAccount={connectZoomAccount}
+          disconnectZoomAccount={disconnectZoomAccount}
+          role="mentor"
+        />
       ) : null}
 
       {tab === "security" ? <SecuritySettingsPanel user={user} onOpenAccount={openAccount} /> : null}
@@ -1244,6 +1283,7 @@ export function ParentSettingsPage() {
   } = useDashboardData();
   const [tab, setTab] = useState("profile");
   const [prefs, setPrefs] = useState(() => loadPreferences());
+  const [initialPrefs, setInitialPrefs] = useState(() => loadPreferences());
   const [saveState, setSaveState] = useState(null);
   const [linkedChildren, setLinkedChildren] = useState([]);
   const [childrenLoading, setChildrenLoading] = useState(true);
@@ -1257,7 +1297,9 @@ export function ParentSettingsPage() {
 
   useEffect(() => {
     if (loadedPreferences) {
-      setPrefs((current) => ({ ...current, ...loadedPreferences }));
+      const next = { ...loadPreferences(), ...loadedPreferences };
+      setPrefs(next);
+      setInitialPrefs(next);
     }
   }, [loadedPreferences]);
 
@@ -1301,6 +1343,7 @@ export function ParentSettingsPage() {
         await savePrefsToBackend(prefs);
       }
       savePreferences(prefs);
+      setInitialPrefs(prefs);
       setSaveState({ section, status: "saved", message: "" });
       window.setTimeout(() => setSaveState((current) => current?.section === section ? null : current), 2600);
     } catch (error) {
@@ -1371,46 +1414,14 @@ export function ParentSettingsPage() {
       ) : null}
 
       {tab === "notifications" ? (
-        <SectionCard title="Email &amp; notifications" className="dash-panel">
-          <p className="dash-muted">Choose what Prelude notifies you about as a parent.</p>
-          <SettingToggle id="emailUpdates" label="Product &amp; account emails" description="Important updates about your account." checked={prefs.emailUpdates} onChange={(v) => setPref("emailUpdates", v)} />
-          <SettingToggle id="meetingReminders" label="Children's meeting reminders" description="Reminders before your children's mentor sessions." checked={prefs.meetingReminders} onChange={(v) => setPref("meetingReminders", v)} />
-          <SettingToggle id="interfaceSounds" label="Interface sounds" description="Play subtle sounds for clicks, messages, calendar actions, and rewards." checked={prefs.interfaceSounds} onChange={(v) => setPref("interfaceSounds", v)} />
-          <SettingToggle id="notificationSounds" label="In-app notification sounds" description="Play a short sound for live alerts and messages." checked={prefs.notificationSounds} onChange={(v) => setPref("notificationSounds", v)} />
-          <SettingToggle id="mentorMessages" label="Mentor message alerts" description="Notify me when a mentor messages me about my children." checked={prefs.mentorMessages} onChange={(v) => setPref("mentorMessages", v)} />
-          <SettingToggle id="deadlineReminders" label="Deadline reminders" description="Admissions, scholarship, and task deadline reminders for linked students." checked={prefs.deadlineReminders} onChange={(v) => setPref("deadlineReminders", v)} />
-          <SettingToggle id="progressReminders" label="Progress reminders" description="Light nudges when a linked student planning area has stalled." checked={prefs.progressReminders} onChange={(v) => setPref("progressReminders", v)} />
-          <SettingToggle id="rewardUpdates" label="Reward updates" description="Reward unlocks, redemptions, and milestone updates for linked students." checked={prefs.rewardUpdates} onChange={(v) => setPref("rewardUpdates", v)} />
-          <SettingToggle id="essayComments" label="Essay comments" description="Notes and feedback added to student essay drafts." checked={prefs.essayComments} onChange={(v) => setPref("essayComments", v)} />
-          <SettingToggle id="collegeApplicationUpdates" label="College application updates" description="Status changes, decisions, and application checklist reminders." checked={prefs.collegeApplicationUpdates} onChange={(v) => setPref("collegeApplicationUpdates", v)} />
-          <SettingToggle id="scholarshipReminders" label="Scholarship reminders" description="Scholarship deadlines and result updates." checked={prefs.scholarshipReminders} onChange={(v) => setPref("scholarshipReminders", v)} />
-          <SettingToggle id="weeklyDigest" label="Weekly progress digest" description="A summary of deadlines and progress for your linked children." checked={prefs.weeklyDigest} onChange={(v) => setPref("weeklyDigest", v)} />
-          <SettingSelect
-            id="digestFrequency"
-            label="Digest frequency"
-            value={prefs.digestFrequency}
-            onChange={(v) => setPref("digestFrequency", v)}
-            options={[
-              { value: "daily", label: "Daily" },
-              { value: "weekly", label: "Weekly" },
-              { value: "never", label: "Never" }
-            ]}
-          />
-          <SettingToggle id="productTips" label="Tips for parents" description="Occasional admissions tips and family resources from Prelude." checked={prefs.productTips} onChange={(v) => setPref("productTips", v)} />
-          <SettingToggle id="quietHoursEnabled" label="Quiet hours" description="Pause non-urgent notifications during your chosen hours." checked={prefs.quietHoursEnabled} onChange={(v) => setPref("quietHoursEnabled", v)} />
-          <div className="dash-setting-row dash-setting-row--stacked">
-            <div className="dash-setting-row__text">
-              <span className="dash-setting-row__label">Quiet hours window</span>
-              <p className="dash-setting-row__desc">Urgent security messages are still delivered.</p>
-            </div>
-            <div className="dash-setting-row__inline">
-              <input className="dash-input" type="time" value={prefs.quietHoursStart} onChange={(e) => setPref("quietHoursStart", e.target.value)} aria-label="Quiet hours start" />
-              <span>to</span>
-              <input className="dash-input" type="time" value={prefs.quietHoursEnd} onChange={(e) => setPref("quietHoursEnd", e.target.value)} aria-label="Quiet hours end" />
-            </div>
-          </div>
-          <SaveRow section="notifications" saveState={saveState} onSave={saveSection} />
-        </SectionCard>
+        <NotificationsSettingsSection
+          role="parent"
+          prefs={prefs}
+          setPref={setPref}
+          dirty={sectionDirty(prefs, initialPrefs, NOTIFICATION_PREF_KEYS)}
+          saveState={saveState}
+          onSave={saveSection}
+        />
       ) : null}
 
       {tab === "calendar" ? (
@@ -1451,79 +1462,29 @@ export function ParentSettingsPage() {
               { value: "monday", label: "Monday" }
             ]}
           />
-          <SaveRow section="calendar" saveState={saveState} onSave={saveSection} />
+          <SaveRow section="calendar" saveState={saveState} onSave={saveSection} dirty={sectionDirty(prefs, initialPrefs, CALENDAR_PREF_KEYS)} />
         </SectionCard>
       ) : null}
 
       {tab === "display" ? (
-        <SectionCard title="Display &amp; accessibility" className="dash-panel">
-          <SettingSelect
-            id="theme"
-            label="Theme"
-            description="Use system mode unless you prefer a fixed display theme."
-            value={prefs.theme}
-            onChange={(v) => setPref("theme", v)}
-            options={[
-              { value: "system", label: "System" },
-              { value: "light", label: "Light" },
-              { value: "dark", label: "Dark" }
-            ]}
-          />
-          <SettingSelect
-            id="density"
-            label="Layout density"
-            description="Comfortable adds more spacing; compact fits more on screen."
-            value={prefs.density}
-            onChange={(v) => setPref("density", v)}
-            options={[
-              { value: "comfortable", label: "Comfortable" },
-              { value: "compact", label: "Compact" }
-            ]}
-          />
-          <SettingToggle
-            id="reduceMotion"
-            label="Reduce motion"
-            description="Minimize animations across the dashboard."
-            checked={prefs.reduceMotion}
-            onChange={(v) => setPref("reduceMotion", v)}
-          />
-          <SettingToggle
-            id="interfaceSounds"
-            label="Interface sounds"
-            description="Play subtle sounds for clicks, messages, calendar actions, and rewards."
-            checked={prefs.interfaceSounds}
-            onChange={(v) => setPref("interfaceSounds", v)}
-          />
-          <SettingToggle
-            id="hapticFeedback"
-            label="Haptic feedback"
-            description="Use subtle vibration on supported mobile devices for confirmations."
-            checked={prefs.hapticFeedback}
-            onChange={(v) => setPref("hapticFeedback", v)}
-          />
-          <SaveRow section="display" saveState={saveState} onSave={saveSection} />
-        </SectionCard>
+        <DisplaySettingsSection
+          prefs={prefs}
+          setPref={setPref}
+          dirty={sectionDirty(prefs, initialPrefs, DISPLAY_PREF_KEYS)}
+          saveState={saveState}
+          onSave={saveSection}
+        />
       ) : null}
 
       {tab === "integrations" ? (
-        <SectionCard title="Connected accounts" className="dash-panel">
-          <IntegrationConnect
-            label="Google Calendar"
-            connectLabel="Connect Google Calendar"
-            connected={integrations.googleCalendar?.connected}
-            onConnect={connectGoogle}
-            onDisconnect={disconnectGoogle}
-            description="Sync your children's Prelude meetings and deadlines to your Google Calendar."
-          />
-          <IntegrationConnect
-            label="Zoom"
-            connectLabel="Connect Zoom Account"
-            connected={integrations.zoom?.connected}
-            onConnect={connectZoomAccount}
-            onDisconnect={disconnectZoomAccount}
-            description="Join virtual mentor meetings with your children when mentors share Zoom links."
-          />
-        </SectionCard>
+        <ConnectedAccountsSection
+          integrations={integrations}
+          connectGoogle={connectGoogle}
+          disconnectGoogle={disconnectGoogle}
+          connectZoomAccount={connectZoomAccount}
+          disconnectZoomAccount={disconnectZoomAccount}
+          role="parent"
+        />
       ) : null}
 
       {tab === "security" ? <SecuritySettingsPanel user={user} onOpenAccount={openAccount} /> : null}

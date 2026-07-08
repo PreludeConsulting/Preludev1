@@ -3,6 +3,7 @@ import { Check, ChevronRight, Laptop, Lock, Trash2 } from "lucide-react";
 import { requestPasswordReset } from "../../../lib/auth.js";
 import { isSupabaseConfigured } from "../../../lib/supabaseConfig.js";
 import { listTrustedDevices, revokeOtherTrustedDevices, revokeTrustedDevice } from "../../../lib/loginVerification.js";
+import { getTrustedDeviceSections } from "../../lib/trustedDevices.js";
 import { DeleteAccountSection } from "../DeleteAccountSection.jsx";
 import { SectionCard, SecondaryButton } from "../ui/index.jsx";
 
@@ -11,6 +12,8 @@ export default function SecuritySettingsPanel({ user, onOpenAccount }) {
   const [devices, setDevices] = useState([]);
   const [devicesState, setDevicesState] = useState("idle");
   const [devicesError, setDevicesError] = useState("");
+  const [devicesMessage, setDevicesMessage] = useState("");
+  const deviceSections = getTrustedDeviceSections(devices);
 
   async function loadDevices() {
     if (!isSupabaseConfigured()) return;
@@ -49,9 +52,11 @@ export default function SecuritySettingsPanel({ user, onOpenAccount }) {
 
   async function revokeDevice(id) {
     setDevicesError("");
+    setDevicesMessage("");
     try {
       await revokeTrustedDevice(id);
-      await loadDevices();
+      setDevices((current) => current.filter((device) => device.id !== id));
+      setDevicesMessage("Trusted device revoked.");
     } catch (error) {
       setDevicesError(error.message || "Could not revoke that trusted device.");
     }
@@ -59,9 +64,11 @@ export default function SecuritySettingsPanel({ user, onOpenAccount }) {
 
   async function revokeOthers() {
     setDevicesError("");
+    setDevicesMessage("");
     try {
       await revokeOtherTrustedDevices();
       await loadDevices();
+      setDevicesMessage("Other trusted devices revoked.");
     } catch (error) {
       setDevicesError(error.message || "Could not revoke trusted devices.");
     }
@@ -100,30 +107,41 @@ export default function SecuritySettingsPanel({ user, onOpenAccount }) {
         <SectionCard title="Trusted devices" className="dash-panel">
           <p className="dash-muted">Devices you trusted after login can skip verification codes until they expire or are revoked.</p>
           {devicesError ? <span className="dash-save-state dash-save-state--err">{devicesError}</span> : null}
+          {devicesMessage ? <span className="dash-save-state dash-save-state--ok" role="status"><Check className="h-4 w-4" aria-hidden="true" /> {devicesMessage}</span> : null}
           {devicesState === "loading" ? <p className="dash-muted">Loading trusted devices…</p> : null}
-          <div className="space-y-3">
-            {devices.map((device) => (
-              <div key={device.id} className="dash-setting-row">
+          <div className="dash-trusted-devices">
+            {deviceSections.active.map((device) => (
+              <div key={device.id} className="dash-setting-row dash-trusted-device">
                 <div className="dash-setting-row__text">
                   <span className="dash-setting-row__label">
                     <Laptop className="h-4 w-4" aria-hidden="true" /> {device.device_name || device.user_agent_summary || "Trusted device"}
+                    {device.current ? <span className="dash-badge dash-badge--soft">Current device</span> : null}
                   </span>
                   <p className="dash-setting-row__desc">
-                    Trusted {new Date(device.created_at).toLocaleDateString()} · Last used {device.last_used_at ? new Date(device.last_used_at).toLocaleDateString() : "not yet"} · Expires {new Date(device.expires_at).toLocaleDateString()}
-                    {device.revoked_at ? " · Revoked" : ""}
+                    Browser / OS: {device.browserOs} · Last used {device.lastUsedLabel} · Expires {device.expiresLabel}
                   </p>
                 </div>
-                {!device.revoked_at ? (
-                  <SecondaryButton type="button" className="dash-btn--sm" onClick={() => revokeDevice(device.id)}>
-                    <Trash2 className="h-4 w-4" aria-hidden="true" /> Revoke
-                  </SecondaryButton>
-                ) : null}
+                <SecondaryButton type="button" className="dash-btn--sm" onClick={() => revokeDevice(device.id)}>
+                  <Trash2 className="h-4 w-4" aria-hidden="true" /> Revoke
+                </SecondaryButton>
               </div>
             ))}
-            {!devices.length && devicesState !== "loading" ? <p className="dash-muted">No trusted devices yet.</p> : null}
+            {!deviceSections.active.length && devicesState !== "loading" ? (
+              <p className="dash-muted dash-empty-inline">No trusted devices yet.</p>
+            ) : null}
           </div>
+          {deviceSections.revoked.length ? (
+            <details className="dash-revoked-devices">
+              <summary>Recently revoked</summary>
+              <ul>
+                {deviceSections.revoked.slice(0, 3).map((device) => (
+                  <li key={device.id}>{device.label} · Revoked {device.revokedLabel}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
           <div className="mt-4">
-            <SecondaryButton type="button" className="dash-btn--sm" onClick={revokeOthers}>
+            <SecondaryButton type="button" className="dash-btn--sm" onClick={revokeOthers} disabled={deviceSections.active.length <= 1}>
               Revoke all other devices
             </SecondaryButton>
           </div>

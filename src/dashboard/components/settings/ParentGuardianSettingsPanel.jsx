@@ -3,14 +3,19 @@ import { Link } from "react-router-dom";
 import { Check, Mail, Plus, Users } from "lucide-react";
 import { inviteParent, listParentInvites } from "../../../lib/parentLinks.js";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { canSubmitParentInvite, isValidParentInviteEmail } from "../../lib/settingsExperience.js";
 import { SectionCard, SecondaryButton } from "../ui/index.jsx";
 
 export default function ParentGuardianSettingsPanel({ user }) {
   const [invites, setInvites] = useState([]);
   const [parentEmail, setParentEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const emailValid = isValidParentInviteEmail(parentEmail);
+  const canSubmit = canSubmitParentInvite({ email: parentEmail, loading });
+  const emailError = touched && !emailValid ? "Enter a valid parent or guardian email address." : "";
 
   useEffect(() => {
     if (!user?.id) return;
@@ -21,6 +26,10 @@ export default function ParentGuardianSettingsPanel({ user }) {
     event.preventDefault();
     setError("");
     setSuccess("");
+    setTouched(true);
+    if (!emailValid) {
+      return;
+    }
     setLoading(true);
     try {
       await inviteParent({
@@ -48,18 +57,26 @@ export default function ParentGuardianSettingsPanel({ user }) {
       <form className="dash-parent-invite-form dash-parent-invite-form--settings" onSubmit={handleInvite}>
         <label className="prelude-field">
           <span>Parent email</span>
-          <div className="dash-parent-invite-form__input-wrap">
+          <div className={`dash-parent-invite-form__input-wrap${emailError ? " dash-parent-invite-form__input-wrap--invalid" : ""}`}>
             <Mail className="h-4 w-4" aria-hidden="true" />
             <input
               type="email"
               value={parentEmail}
-              onChange={(e) => setParentEmail(e.target.value)}
+              onChange={(e) => {
+                setParentEmail(e.target.value);
+                if (error) setError("");
+                if (success) setSuccess("");
+              }}
+              onBlur={() => setTouched(true)}
               placeholder="parent@example.com"
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={emailError ? "parent-email-error" : undefined}
               required
             />
           </div>
+          {emailError ? <em id="parent-email-error">{emailError}</em> : null}
         </label>
-        <SecondaryButton type="submit" className="dash-btn--sm" disabled={loading}>
+        <SecondaryButton type="submit" className="dash-btn--sm" disabled={!canSubmit}>
           <Plus className="h-4 w-4" aria-hidden="true" /> {loading ? "Sending…" : "Send invitation"}
         </SecondaryButton>
       </form>
