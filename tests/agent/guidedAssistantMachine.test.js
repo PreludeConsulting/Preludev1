@@ -12,7 +12,7 @@ describe("guided assistant finite-state machine", () => {
     expect(view.id).toBe("main_menu");
     expect(view.message).toBe("Hi, I’m Prelude Guide. What would you like help with today?");
     expect(view.choices.map((choice) => choice.id)).toContain("essays");
-    expect(view.choices.find((choice) => choice.id === "find_mentor")?.action).toEqual({ type: "navigate", href: "#preludematch" });
+    expect(view.choices.find((choice) => choice.id === "find_mentor")?.action).toEqual({ type: "navigate", href: "/mentors" });
   });
 
   it("runs the essay flow using predefined choices", () => {
@@ -22,7 +22,7 @@ describe("guided assistant finite-state machine", () => {
     snapshot = transitionGuidedAssistant(snapshot, { type: "CHOOSE", choiceId: "essay_brainstorm" });
     expect(snapshot.state).toBe("essay_brainstorm");
     expect(getGuidedAssistantView(snapshot).message).toMatch(/mentor/i);
-    expect(getGuidedAssistantView(snapshot).choices[0].action).toEqual({ type: "navigate", href: "#preludematch" });
+    expect(getGuidedAssistantView(snapshot).choices[0].action).toEqual({ type: "navigate", href: "/mentors" });
   });
 
   it("offers every mentor-focused essay pathway", () => {
@@ -40,7 +40,7 @@ describe("guided assistant finite-state machine", () => {
       const path = transitionGuidedAssistant(essay, { type: "CHOOSE", choiceId });
       const pathView = getGuidedAssistantView(path);
       expect(pathView.message).toMatch(/mentor/i);
-      expect(pathView.choices[0].action).toEqual({ type: "navigate", href: "#preludematch" });
+      expect(pathView.choices[0].action).toEqual({ type: "navigate", href: "/mentors" });
     }
     const supplemental = transitionGuidedAssistant(essay, { type: "CHOOSE", choiceId: "essay_supplemental" });
     expect(getGuidedAssistantView(supplemental).choices[0].label).toBe("Work on supplementals with a mentor");
@@ -67,7 +67,7 @@ describe("guided assistant finite-state machine", () => {
     const essay = transitionGuidedAssistant(menu, { type: "CHOOSE", choiceId: "essays" });
     expect(transitionGuidedAssistant(essay, { type: "BACK" }).state).toBe("main_menu");
     expect(transitionGuidedAssistant(essay, { type: "MAIN_MENU" }).state).toBe("main_menu");
-    expect(transitionGuidedAssistant(essay, { type: "FIND_MENTOR" }).action).toEqual({ type: "navigate", href: "#preludematch" });
+    expect(transitionGuidedAssistant(essay, { type: "FIND_MENTOR" }).action).toEqual({ type: "navigate", href: "/mentors" });
   });
 
   it("provides official resources before optional mentor support", () => {
@@ -87,7 +87,7 @@ describe("guided assistant finite-state machine", () => {
     for (const [state, href] of Object.entries(resourceStates)) {
       const view = getGuidedAssistantView({ state, history: [], fallback: false });
       expect(view.choices[0].action).toEqual({ type: "external", href });
-      expect(view.choices.some((choice) => choice.action?.href === "#preludematch")).toBe(true);
+      expect(view.choices.some((choice) => choice.action?.href === "/mentors")).toBe(true);
     }
 
     const fafsa = { state: "aid_fafsa", history: [], fallback: false };

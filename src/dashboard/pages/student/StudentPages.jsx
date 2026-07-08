@@ -142,11 +142,10 @@ export function StudentOverview() {
 }
 
 export function StudentProgressRewards() {
-  return (
-    <PlanFeatureGate feature="rewards">
-      <StudentProgressRewardsProduct />
-    </PlanFeatureGate>
-  );
+  const { isMentorStudentView } = useDashboardData();
+  const content = <StudentProgressRewardsProduct />;
+  if (isMentorStudentView) return content;
+  return <PlanFeatureGate feature="rewards">{content}</PlanFeatureGate>;
 }
 
 export function StudentCalendar() {

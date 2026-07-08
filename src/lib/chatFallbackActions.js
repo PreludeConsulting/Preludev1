@@ -3,7 +3,7 @@ import { navigateChatHref } from "./chatLinkSecurity.js";
 /** Mirrors server/preludeLinks.js and server/rag/fallback.js — keep in sync. */
 export const CHAT_FALLBACK_LINKS = {
   open_plans: "#pricing",
-  open_mentor_match: "#preludematch",
+  open_mentor_match: "/mentors",
   open_mentorship: "#how-it-works",
   sign_up: "/register",
   sign_in: "/login",

@@ -10,8 +10,9 @@ import {
   Ticket,
   Zap
 } from "lucide-react";
-import { EARN_CATEGORY_ORDER, MILESTONE_CATEGORY_LABELS } from "../../lib/progressRewards.js";
+import { REWARD_TASK_OWNERSHIP, REWARD_TASK_STATUS } from "../../../lib/rewardTaskCatalog.js";
 import { useProgressRewards } from "../../context/ProgressRewardsContext.jsx";
+import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { CoinBalance, CoinIcon, Sparkles } from "./rewards/PreludePiggyBank.jsx";
 import PiggyBankProgress from "./rewards/PiggyBankProgress.jsx";
 import MyStatusProgressBar from "./rewards/MyStatusProgressBar.jsx";
@@ -166,29 +167,99 @@ function MyRewardsTab() {
   );
 }
 
-function EarnMilestoneRow({ milestone, onComplete }) {
-  const { status, title, coins, progress } = milestone;
-  const statusLabel = status === "completed" ? "Completed" : status === "in_progress" ? "In Progress" : "Locked";
+function EarnMilestoneRow({ milestone, onComplete, isMentorStudentView, canMentorCompleteTask, isMainAssignedMentor }) {
+  const { status, title, coins, progress, progressCurrent, progressTarget, ownershipType, claimable, locked, taskTemplateId } = milestone;
+  const statusLabel =
+    status === REWARD_TASK_STATUS.CLAIMED
+      ? "Claimed"
+      : claimable
+        ? "Ready to claim"
+        : status === REWARD_TASK_STATUS.COMPLETED_BY_MENTOR
+          ? "Ready to claim"
+          : status === REWARD_TASK_STATUS.IN_PROGRESS
+            ? "In Progress"
+            : "Locked";
   const [completing, setCompleting] = useState(false);
+  const mentorCanComplete = isMentorStudentView && canMentorCompleteTask?.(milestone);
+  const mentorMeetingLocked = isMentorStudentView && taskTemplateId === "mentor-meeting-completed" && !isMainAssignedMentor;
 
   return (
     <div className={`dash-rewards-earn-row dash-rewards-earn-row--${status}`}>
       <span className="dash-rewards-earn-row__icon" aria-hidden="true">
-        {status === "completed" ? <CheckCircle2 className="h-4 w-4" /> : status === "in_progress" ? <Circle className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+        {status === REWARD_TASK_STATUS.CLAIMED ? (
+          <CheckCircle2 className="h-4 w-4" />
+        ) : locked ? (
+          <Lock className="h-4 w-4" />
+        ) : claimable ? (
+          <Sparkles className="h-4 w-4" />
+        ) : (
+          <Circle className="h-4 w-4" />
+        )}
       </span>
       <div className="dash-rewards-earn-row__main">
         <span className="dash-rewards-earn-row__title">{title}</span>
-        <span className="dash-rewards-earn-row__meta">+{coins} Prelude Coins · {statusLabel}</span>
-        {status === "in_progress" ? <ProgressBar pct={progress} className="dash-rewards-progress--compact" /> : null}
+        <span className="dash-rewards-earn-row__meta">
+          +{coins} Prelude Coins · {statusLabel}
+          {ownershipType === REWARD_TASK_OWNERSHIP.DASHBOARD_CONTROLLED ? " · Auto-tracked" : ""}
+        </span>
+        {status === REWARD_TASK_STATUS.IN_PROGRESS ? (
+          <>
+            <ProgressBar pct={progress} className="dash-rewards-progress--compact" />
+            <span className="dash-rewards-earn-row__meta">{progressCurrent} / {progressTarget}</span>
+          </>
+        ) : null}
       </div>
-      {status === "in_progress" ? (
+      {!isMentorStudentView && claimable ? (
+        <InteractiveButton
+          type="button"
+          className="dash-btn dash-btn--primary dash-btn--sm"
+          loading={completing}
+          onClick={async () => {
+            setCompleting(true);
+            await onComplete(milestone.id, "claim");
+            window.setTimeout(() => setCompleting(false), 500);
+          }}
+        >
+          Claim
+        </InteractiveButton>
+      ) : null}
+      {isMentorStudentView && mentorCanComplete ? (
+        <InteractiveButton
+          type="button"
+          className="dash-btn dash-btn--primary dash-btn--sm"
+          loading={completing}
+          onClick={async () => {
+            setCompleting(true);
+            await onComplete(milestone.id, "complete");
+            window.setTimeout(() => setCompleting(false), 500);
+          }}
+        >
+          Complete
+        </InteractiveButton>
+      ) : null}
+      {ownershipType === REWARD_TASK_OWNERSHIP.DASHBOARD_CONTROLLED ? (
+        <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" disabled>
+          Auto-tracked
+        </button>
+      ) : null}
+      {!isMentorStudentView && status === REWARD_TASK_STATUS.IN_PROGRESS && ownershipType === REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED ? (
+        <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" disabled>
+          Mentor controlled
+        </button>
+      ) : null}
+      {isMentorStudentView && mentorMeetingLocked && ownershipType === REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED ? (
+        <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" disabled title="Only the main assigned mentor can complete this task">
+          Main mentor only
+        </button>
+      ) : null}
+      {!isMentorStudentView && status === REWARD_TASK_STATUS.IN_PROGRESS && !ownershipType ? (
         <InteractiveButton
           type="button"
           className="dash-btn dash-btn--secondary dash-btn--sm"
           loading={completing}
-          onClick={() => {
+          onClick={async () => {
             setCompleting(true);
-            onComplete(milestone.id);
+            await onComplete(milestone.id, "complete");
             window.setTimeout(() => setCompleting(false), 500);
           }}
         >
@@ -202,9 +273,18 @@ function EarnMilestoneRow({ milestone, onComplete }) {
 }
 
 function EarnTab() {
-  const { milestones, completeMilestone } = useProgressRewards();
+  const {
+    milestones,
+    completeMilestone,
+    claimMilestone,
+    earnCategoryOrder,
+    milestoneCategoryLabels,
+    isMentorStudentView,
+    canMentorCompleteTask,
+    isMainAssignedMentor
+  } = useProgressRewards();
 
-  const grouped = EARN_CATEGORY_ORDER.reduce((acc, cat) => {
+  const grouped = earnCategoryOrder.reduce((acc, cat) => {
     const items = milestones.filter((m) => m.category === cat);
     if (items.length) acc[cat] = items;
     return acc;
@@ -212,13 +292,26 @@ function EarnTab() {
 
   return (
     <div className="dash-rewards-tab-panel dash-rewards-earn" id="earn">
-      <p className="dash-rewards-earn__intro">Complete milestones to fill your Piggy Bank and save toward free rewards.</p>
+      {isMentorStudentView ? (
+        <p className="dash-rewards-earn__intro">
+          Complete eligible reward tasks for this student. Coins are added only after the student claims the reward.
+        </p>
+      ) : (
+        <p className="dash-rewards-earn__intro">Complete milestones to fill your Piggy Bank and save toward free rewards.</p>
+      )}
       {Object.entries(grouped).map(([category, items]) => (
         <details key={category} className="dash-rewards-earn-group" open={category === "momentum" || category === "admissions"}>
-          <summary className="dash-rewards-earn-group__summary">{MILESTONE_CATEGORY_LABELS[category]}</summary>
+          <summary className="dash-rewards-earn-group__summary">{milestoneCategoryLabels[category]}</summary>
           <div className="dash-rewards-earn-group__list">
             {items.map((m) => (
-              <EarnMilestoneRow key={m.id} milestone={m} onComplete={completeMilestone} />
+              <EarnMilestoneRow
+                key={m.id}
+                milestone={m}
+                isMentorStudentView={isMentorStudentView}
+                canMentorCompleteTask={canMentorCompleteTask}
+                isMainAssignedMentor={isMainAssignedMentor}
+                onComplete={(id, mode) => (mode === "claim" ? claimMilestone(id) : completeMilestone(id))}
+              />
             ))}
           </div>
         </details>
@@ -228,7 +321,8 @@ function EarnTab() {
 }
 
 export default function StudentProgressRewardsProduct() {
-  const [activeTab, setActiveTab] = useState("redeem");
+  const { isMentorStudentView } = useDashboardData();
+  const [activeTab, setActiveTab] = useState(isMentorStudentView ? "earn" : "redeem");
   const { canAccess } = usePlanAccess();
 
   useEffect(() => {
@@ -253,16 +347,16 @@ export default function StudentProgressRewardsProduct() {
           {activeTab === "my-rewards" ? <MyRewardsTab /> : null}
           {activeTab === "earn" ? <EarnTab /> : null}
 
-          {!canAccess("advancedRewards") ? (
+          {!isMentorStudentView && !canAccess("advancedRewards") ? (
             <PlanLockedFeature feature="advancedRewards" compact className="dash-rewards-pro-boost" />
-          ) : (
+          ) : !isMentorStudentView ? (
             <div className="dash-rewards-pro-boost dash-rewards-pro-boost--active" role="status">
               <Zap className="h-4 w-4" aria-hidden="true" />
               <p>Pro earning boost active — you earn coins faster on every milestone.</p>
             </div>
-          )}
+          ) : null}
         </div>
-        <RewardsSidebarBottom />
+        <RewardsSidebarBottom onViewAllChallenges={() => setActiveTab("earn")} />
       </div>
     </div>
   );

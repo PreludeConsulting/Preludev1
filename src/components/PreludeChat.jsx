@@ -16,7 +16,7 @@ export default function PreludeChat() {
 
   function handleNavigate(href) {
     const navigated = navigateChatHref(href);
-    if (navigated && href === "#preludematch") setOpen(false);
+    if (navigated && href === "/mentors") setOpen(false);
   }
 
   return (

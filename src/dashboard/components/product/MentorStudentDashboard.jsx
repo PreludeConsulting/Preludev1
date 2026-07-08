@@ -14,6 +14,7 @@ import {
   StudentCalendar,
   StudentOverview,
   StudentProfileStats,
+  StudentProgressRewards,
   StudentWorkspace
 } from "../../pages/student/StudentPages.jsx";
 
@@ -55,6 +56,7 @@ function MentorStudentDashboardRoutes({ student, studentUser }) {
                   </MentorStudentReadOnlyPage>
                 )}
               />
+              <Route path="progress-rewards" element={<StudentProgressRewards />} />
               <Route index element={<Navigate to="overview" replace />} />
             </Routes>
           </div>

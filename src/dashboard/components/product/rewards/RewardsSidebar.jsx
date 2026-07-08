@@ -58,10 +58,10 @@ export function RewardsSidebarTop() {
   );
 }
 
-export function RewardsSidebarBottom() {
+export function RewardsSidebarBottom({ onViewAllChallenges = null }) {
   return (
     <aside className="dash-rewards-loyalty__sidebar-bottom" aria-label="Rewards progress">
-      <ChallengesCard />
+      <ChallengesCard onViewAll={onViewAllChallenges} />
       <HowItWorksCard />
     </aside>
   );

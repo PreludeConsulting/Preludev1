@@ -290,7 +290,6 @@ export const MILESTONE_CATALOG = [
   { id: "first-college-applied", title: "First College Applied To", category: "admissions", coins: 50, grades: [12], priority: [12] },
   { id: "first-essay-submitted", title: "First Essay Submitted", category: "admissions", coins: 35, grades: [11, 12], priority: [11, 12] },
   { id: "application-submitted-early", title: "Application Submitted Early", category: "admissions", coins: 45, grades: [12], priority: [12] },
-  { id: "interview-completed", title: "Interview Completed", category: "admissions", coins: 30, grades: [11, 12], priority: [12] },
   { id: "fafsa-completed", title: "FAFSA Completed", category: "admissions", coins: 35, grades: [12], priority: [12] },
   { id: "acceptance-received", title: "Acceptance Received", category: "admissions", coins: 60, grades: [12], priority: [12] },
   { id: "momentum-3-day", title: "3-Day Momentum Streak", category: "momentum", coins: 15, grades: ALL_GRADES, priority: ALL_GRADES },
@@ -298,12 +297,10 @@ export const MILESTONE_CATALOG = [
   { id: "momentum-14-day", title: "14-Day Momentum Streak", category: "momentum", coins: 50, grades: ALL_GRADES, priority: ALL_GRADES },
   { id: "weekly-check-in", title: "Weekly Check-In Completed", category: "momentum", coins: 20, grades: ALL_GRADES, priority: ALL_GRADES },
   { id: "mentor-meeting-completed", title: "Mentor Meeting Completed", category: "momentum", coins: 25, grades: ALL_GRADES, priority: ALL_GRADES },
-  { id: "roadmap-task-completed", title: "Roadmap Task Completed", category: "momentum", coins: 20, grades: ALL_GRADES, priority: ALL_GRADES },
   { id: "diagnostic-test", title: "Diagnostic Test Completed", category: "sat_act", coins: 25, grades: [10, 11, 12], priority: [11], requiresService: "satActPrep" },
   { id: "first-practice-review", title: "First Practice Test Reviewed", category: "sat_act", coins: 30, grades: [10, 11, 12], priority: [11], requiresService: "satActPrep" },
   { id: "study-roadmap-created", title: "Study Roadmap Created", category: "sat_act", coins: 25, grades: [10, 11, 12], priority: [11], requiresService: "satActPrep" },
   { id: "sat-prep-7-day", title: "7-Day SAT Prep Streak", category: "sat_act", coins: 35, grades: [10, 11, 12], priority: [11], requiresService: "satActPrep" },
-  { id: "score-goal-set", title: "Score Goal Set", category: "sat_act", coins: 20, grades: [10, 11, 12], priority: [11], requiresService: "satActPrep" },
   { id: "testing-strategy-session", title: "Testing Strategy Session Completed", category: "sat_act", coins: 40, grades: [10, 11, 12], priority: [11], requiresService: "satActPrep" },
   { id: "first-tutoring-session", title: "First Tutoring Session Completed", category: "academic_tutoring", coins: 30, grades: ALL_GRADES, priority: ALL_GRADES, requiresService: "academicTutoring" },
   { id: "homework-review", title: "Homework Review Completed", category: "academic_tutoring", coins: 20, grades: ALL_GRADES, priority: ALL_GRADES, requiresService: "academicTutoring" },
@@ -626,16 +623,6 @@ export const CHALLENGE_CARDS = [
     hint: "Completed!",
     status: "completed",
     type: "checks"
-  },
-  {
-    id: "workshop",
-    title: "Attend a Workshop",
-    coins: 30,
-    total: 1,
-    completed: 0,
-    hint: "0 / 1",
-    status: "active",
-    type: "chevron"
   }
 ];
 

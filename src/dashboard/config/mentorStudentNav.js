@@ -1,4 +1,5 @@
 import {
+  Bot,
   Building2,
   Calendar,
   LayoutDashboard,
@@ -11,6 +12,6 @@ export const MENTOR_STUDENT_NAV = [
   { to: "overview", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "workspace", label: "Colleges", icon: Building2, workspaceTab: "colleges" },
   { to: "calendar", label: "Meetings", icon: Calendar },
-  { to: "profile-stats", label: "Progress", icon: TrendingUp },
-  { to: "ai", label: "Prelude AI", icon: Sparkles }
+  { to: "progress-rewards", label: "Progress Rewards", icon: Sparkles },
+  { to: "ai", label: "Prelude AI", icon: Bot }
 ];

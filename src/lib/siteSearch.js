@@ -34,7 +34,7 @@ export const SITE_SEARCH_ITEMS = [
   {
     id: "mentor-matching",
     labelKey: "nav.searchItems.mentorMatching",
-    href: "#preludematch",
+    href: "/mentors",
     keywords: ["preludematch", "match", "mentors", "questionnaire"]
   }
 ];
