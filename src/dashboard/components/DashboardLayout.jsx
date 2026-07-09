@@ -42,7 +42,12 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
         setShowMatchingNav(false);
         return;
       }
-      if (user.matchingTeamAccess !== true && roleFromUser(user) !== "admin") {
+      const userRole = roleFromUser(user);
+      const canCheckMatchingAccess =
+        user.matchingTeamAccess === true ||
+        user.systemRole === "admin" ||
+        userRole === "admin";
+      if (!canCheckMatchingAccess) {
         setShowMatchingNav(false);
         return;
       }
