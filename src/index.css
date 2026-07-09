@@ -6968,12 +6968,13 @@ html[lang="es"] .shopify-hero__headline-line {
 
 .prelude-legal-modal__summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  gap: 0.75rem;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
   margin: 0 0 1.5rem;
 }
 
 .prelude-legal-modal__summary-item {
+  min-width: 0;
   padding: 0.85rem;
   border: 1px solid hsl(var(--primary) / 0.12);
   border-radius: 0.75rem;
@@ -6996,6 +6997,21 @@ html[lang="es"] .shopify-hero__headline-line {
   font-size: 0.875rem;
   line-height: 1.45;
   color: hsl(var(--foreground) / 0.82);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (min-width: 700px) {
+  .prelude-legal-modal__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .prelude-legal-modal__summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .prelude-legal-modal__section {

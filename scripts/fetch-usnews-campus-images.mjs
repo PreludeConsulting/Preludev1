@@ -1,3 +1,8 @@
+/**
+ * Fetches US News profile hero images for schools mapped in USNEWS_SLUGS.
+ * Prefer scripts/fetch-college-campus-images.mjs for campus-only aerial/landmark photos.
+ * See scripts/campusImagePolicy.mjs for image requirements.
+ */
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";

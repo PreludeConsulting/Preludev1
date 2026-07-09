@@ -26,7 +26,9 @@
     "test": "vitest run && node --test tests/server/*.node.test.js && node scripts/test-api-routes.mjs",
     "test:api:live": "node scripts/test-api-live.mjs",
     "test:watch": "vitest",
-    "train:agent": "node scripts/train-agent.mjs"
+    "train:agent": "node scripts/train-agent.mjs",
+    "fetch:campus-images": "node scripts/fetch-college-campus-images.mjs",
+    "fetch:campus-images:force": "node scripts/fetch-college-campus-images.mjs --force"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",

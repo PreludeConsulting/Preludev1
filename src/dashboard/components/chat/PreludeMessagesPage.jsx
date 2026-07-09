@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Check, ImagePlus, MessageCircle, Network, Pencil, Send, Video, X } from "lucide-react";
+import { ArrowLeft, Calendar, Check, ImagePlus, MessageCircle, Pencil, Send, Video, X } from "lucide-react";
 import { findNextJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import { loadLocalChatMessages } from "../../../lib/localChatStore.js";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { Avatar, EmptyState, SearchInput } from "../ui/index.jsx";
+import { useAuth } from "../../../context/AuthContext.jsx";
 import MessagesMentorNetworkPanel from "./MessagesMentorNetworkPanel.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
-import UnreadCountBadge, { useUnreadBadgeDismiss } from "./UnreadCountBadge.jsx";
+import { roleFromUser } from "../../../lib/dashboardRoutes.js";
 function formatDateLabel(iso) {
   const d = new Date(iso);
   const today = new Date();
@@ -122,14 +123,11 @@ function EditComposer({ message, onCancel, onSave }) {
 }
 
 function ConvoRow({ thread, active, unreadCount, preview, lastAt, onSelect }) {
-  const { showBadge, badgeCount, dismissing, dismissBadge } = useUnreadBadgeDismiss(unreadCount);
-
   return (
     <button
       type="button"
-      className={active ? "dash-convo-row dash-convo-row--active" : "dash-convo-row"}
+      className={active ? "dash-convo-row dash-convo-row--active" : unreadCount > 0 ? "dash-convo-row dash-convo-row--unread" : "dash-convo-row"}
       onClick={() => {
-        if (unreadCount > 0) dismissBadge();
         onSelect(thread.id);
       }}
     >
@@ -144,19 +142,13 @@ function ConvoRow({ thread, active, unreadCount, preview, lastAt, onSelect }) {
         </span>
         {preview ? <p className="dash-convo-row__preview">{preview}</p> : null}
       </div>
-      {showBadge ? (
-        <UnreadCountBadge
-          count={badgeCount}
-          dismissing={dismissing}
-          className="dash-unread-badge--convo"
-          aria-label={`${badgeCount} unread`}
-        />
-      ) : null}
+      {unreadCount > 0 ? <span className="dash-chat-unread-dot dash-chat-unread-dot--thread" aria-hidden="true" /> : null}
     </button>
   );
 }
 
 export default function PreludeMessagesPage({ schedulePath, placeholder = "Write a message…" }) {
+  const { user } = useAuth();
   const {
     enabled,
     threads,
@@ -180,6 +172,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   const { meetings } = useDashboardData();
   const { canAccess } = usePlanAccess();
   const canMessageNetwork = canAccess("fullMentorNetworkMessaging");
+  const isMentor = roleFromUser(user) === "mentor";
 
   const [q, setQ] = useState("");
   const [panel, setPanel] = useState("inbox");
@@ -268,14 +261,14 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   }
 
   return (
-    <div className={`dash-chat-app ${mobileShowChat || panel === "network" ? "dash-chat-app--mobile-chat" : ""}`}>
-      <aside className={`dash-chat-app__list ${mobileShowChat || panel === "network" ? "dash-chat-app__list--hidden-mobile" : ""}`}>
+    <div className={`dash-chat-app ${mobileShowChat || (!isMentor && panel === "network") ? "dash-chat-app--mobile-chat" : ""}`}>
+      <aside className={`dash-chat-app__list ${mobileShowChat || (!isMentor && panel === "network") ? "dash-chat-app__list--hidden-mobile" : ""}`}>
         <SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search conversations…" />
         <div className="dash-chat-app__threads">
           {loadingThreads ? (
             <p className="dash-muted dash-chat-app__status">Loading conversations…</p>
           ) : sortedThreads.length === 0 ? (
-            <EmptyState icon={MessageCircle} title="No conversations" description="Messages with your assigned mentor will appear here." />
+            <EmptyState icon={MessageCircle} title="No conversations" description={isMentor ? "Student conversations will appear here." : "Messages with your assigned mentor will appear here."} />
           ) : (
             sortedThreads.map((thread) => (
               <ConvoRow
@@ -290,21 +283,22 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
             ))
           )}
         </div>
-        <button
-          type="button"
-          className={`dash-chat-app__network-link${panel === "network" ? " dash-chat-app__network-link--active" : ""}`}
-          onClick={() => {
-            setPanel("network");
-            setMobileShowChat(true);
-          }}
-        >
-          <Network className="h-4 w-4" aria-hidden="true" />
-          View full mentor network
-        </button>
+        {!isMentor ? (
+          <button
+            type="button"
+            className={`dash-chat-app__network-link${panel === "network" ? " dash-chat-app__network-link--active" : ""}`}
+            onClick={() => {
+              setPanel("network");
+              setMobileShowChat(true);
+            }}
+          >
+            View full mentor network
+          </button>
+        ) : null}
       </aside>
 
-      <div className={`dash-chat-app__panel ${!mobileShowChat && sortedThreads.length && panel !== "network" ? "" : "dash-chat-app__panel--mobile"}`}>
-        {panel === "network" ? (
+      <div className={`dash-chat-app__panel ${!mobileShowChat && sortedThreads.length && (isMentor || panel !== "network") ? "" : "dash-chat-app__panel--mobile"}`}>
+        {!isMentor && panel === "network" ? (
           <MessagesMentorNetworkPanel
             canMessage={canMessageNetwork}
             onBack={() => {
@@ -456,7 +450,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
             </form>
           </>
         ) : (
-          <EmptyState icon={MessageCircle} title="Select a conversation" description="Choose a thread with your mentor, or browse the full mentor network." />
+          <EmptyState icon={MessageCircle} title="Select a conversation" description={isMentor ? "Choose a student conversation." : "Choose a thread with your mentor, or browse the full mentor network."} />
         )}
       </div>
     </div>

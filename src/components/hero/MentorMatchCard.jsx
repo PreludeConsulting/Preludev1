@@ -47,7 +47,7 @@ export default function MentorMatchCard({ mentor, reducedMotion, onView, onBook 
         <MatchPercent value={mentor.matchPercent} reducedMotion={reducedMotion} />
       </div>
       <div className="hero-mm-mentor__tags">
-        {mentor.tags.map((tag) => (
+        {(mentor.tags || mentor.specialties || []).map((tag) => (
           <span key={tag} className="hero-mm-mentor__tag" title={tag}>
             {tag}
           </span>

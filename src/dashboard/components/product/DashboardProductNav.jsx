@@ -8,7 +8,6 @@ import { roleFromUser } from "../../../lib/dashboardRoutes.js";
 import { cn } from "../../../lib/utils.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { usePreludeChatContextOptional } from "../../context/PreludeChatContext.jsx";
-import UnreadCountBadge, { useUnreadBadgeDismiss } from "../chat/UnreadCountBadge.jsx";
 import { Avatar } from "../ui/index.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
@@ -36,12 +35,6 @@ export default function DashboardProductNav({ navItems, basePath }) {
     [notifications]
   );
   const messageUnreadCount = chat?.unreadTotal ?? 0;
-  const {
-    showBadge: showMessageBadge,
-    badgeCount: messageBadgeCount,
-    dismissing: messageBadgeDismissing,
-    dismissBadge: dismissMessageBadge
-  } = useUnreadBadgeDismiss(messageUnreadCount);
 
   useEffect(() => {
     if (!profileOpen && !notificationsOpen) return undefined;
@@ -156,13 +149,8 @@ export default function DashboardProductNav({ navItems, basePath }) {
           const locked = lockFeature && !canAccess(lockFeature);
           const hintLocked = hintLockFeature && !canAccess(hintLockFeature);
           const messageBadge =
-            to === "/messages" && showMessageBadge ? (
-              <UnreadCountBadge
-                count={messageBadgeCount}
-                dismissing={messageBadgeDismissing}
-                className="dash-unread-badge--nav-tab"
-                aria-label={`${messageBadgeCount} unread messages`}
-              />
+            to === "/messages" && messageUnreadCount > 0 ? (
+              <span className="dash-chat-unread-dot dash-chat-unread-dot--nav" aria-hidden="true" />
             ) : null;
 
           if (locked) {
@@ -185,11 +173,6 @@ export default function DashboardProductNav({ navItems, basePath }) {
               to={`${basePath}${to}`}
               end={end}
               state={workspaceTab ? { workspaceTab } : undefined}
-              onClick={() => {
-                if (to === "/messages" && messageUnreadCount > 0) {
-                  dismissMessageBadge();
-                }
-              }}
               className={() =>
                 cn("dash-product-nav__tab", isTabActive({ to, end, workspaceTab }) && "dash-product-nav__tab--active")
               }

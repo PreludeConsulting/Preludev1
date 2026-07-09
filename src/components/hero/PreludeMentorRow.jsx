@@ -21,7 +21,7 @@ export default function PreludeMentorRow({ mentor, onView, onBook }) {
       <div className="pm-row__match">
         <p className="pm-row__percent">{mentor.matchPercent}% match</p>
         <div className="pm-row__tags">
-          {mentor.tags.slice(0, 2).map((tag) => (
+          {(mentor.tags || mentor.specialties || []).slice(0, 2).map((tag) => (
             <span key={tag} className="pm-row__tag">
               {tag}
             </span>

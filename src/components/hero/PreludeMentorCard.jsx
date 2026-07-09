@@ -27,7 +27,7 @@ export default function PreludeMentorCard({ mentor, showAction = true }) {
       </div>
 
       <div className="pm-mentor-card__tags">
-        {mentor.tags.slice(0, 2).map((tag) => (
+        {(mentor.tags || mentor.specialties || []).slice(0, 2).map((tag) => (
           <span key={tag} className="pm-mentor-card__tag">
             {tag}
           </span>

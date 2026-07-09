@@ -69,6 +69,7 @@ export function mapMentorMatchingProfile(row, matchPercent = null, reasons = [])
     university: row.college || "College mentor",
     major: row.major || "Admissions mentor",
     matchPercent: matchPercent ?? 88,
+    specialties,
     tags: specialties.slice(0, 3),
     reason: reasons[0] || row.bio || "Strong fit based on your questionnaire.",
     availability: row.availability || "Availability shared after matching",

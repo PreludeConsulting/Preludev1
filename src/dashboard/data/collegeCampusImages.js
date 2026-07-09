@@ -1,17 +1,21 @@
 const mediaBase = import.meta.env.BASE_URL;
 
-/** Verified remote campus scenes used only if a local asset fails to load. */
-const REMOTE_CAMPUS_PHOTOS = [
-  "https://images.unsplash.com/photo-1562774053-701939374585?w=960&h=600&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=960&h=600&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=960&h=600&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=960&h=600&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=960&h=600&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1564981797816-1043664bf78d?w=960&h=600&fit=crop&q=80"
-];
+/**
+ * Campus image policy for college explore cards:
+ * - Prefer bird's-eye / aerial views of the actual campus.
+ * - Otherwise use clear campus-only photos (buildings, quads, libraries, towers).
+ * - Never use city skylines, generic student photos, logos, or people-focused shots.
+ *
+ * Local assets live in public/media/campuses/{id}.jpg (refreshed via
+ * scripts/fetch-college-campus-images.mjs).
+ */
+
+/** Local campus assets used as last-resort fallbacks (verified campus scenes). */
+const FALLBACK_CAMPUS_IDS = ["stanford", "princeton", "yale", "duke", "mit", "harvard"];
 
 export function getCollegeCampusFallback(rank = 1) {
-  return REMOTE_CAMPUS_PHOTOS[(rank - 1) % REMOTE_CAMPUS_PHOTOS.length];
+  const id = FALLBACK_CAMPUS_IDS[(rank - 1) % FALLBACK_CAMPUS_IDS.length];
+  return `${mediaBase}media/campuses/${id}.jpg`;
 }
 
 export function getCollegeCampusImage(id) {

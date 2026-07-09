@@ -11,11 +11,12 @@ import { filterMatchedMentors, finalizeMatchedMentors, MIN_MATCH_SCORE, resolveM
 const MENTOR_CATALOG = PRELUDE_MATCH_MENTORS.map((m) => ({
   ...m,
   university: m.school,
-  expertise: m.tags || [],
+  tags: m.specialties || m.tags || [],
+  expertise: m.specialties || m.tags || [],
   bio: m.reason,
   meetingFormat: "Video or in-person",
   language: "English",
-  supportAreas: m.tags || []
+  supportAreas: m.specialties || m.tags || []
 }));
 
 export function getMentorCatalog() {
@@ -36,7 +37,7 @@ export function rankMentors(answers = {}) {
   return [...MENTOR_CATALOG]
     .map((mentor) => {
       let score = mentor.matchPercent || 80;
-      const tags = (mentor.tags || []).map((t) => t.toLowerCase());
+      const tags = (mentor.specialties || mentor.tags || []).map((t) => t.toLowerCase());
       interestList.forEach((item) => {
         const lower = String(item).toLowerCase();
         if (tags.some((t) => lower.includes(t) || t.includes(lower.split(" ")[0]))) score += 4;
@@ -178,7 +179,7 @@ export async function saveMatchDecision(userId, { decision, mentorId, declinedId
         mentor_email: null,
         mentor_college: mentor.school || mentor.university,
         mentor_major: mentor.major,
-        expertise: mentor.tags || [],
+        expertise: mentor.specialties || mentor.tags || [],
         availability: mentor.availability,
         status: "assigned",
         notes: mentor.reason
@@ -201,7 +202,7 @@ export async function requestMentorMatch(userId, mentorId) {
     mentor_name: mentor.name,
     mentor_college: mentor.school || mentor.university,
     mentor_major: mentor.major,
-    expertise: mentor.tags || [],
+    expertise: mentor.specialties || mentor.tags || [],
     availability: mentor.availability,
     status: "saved",
     notes: mentor.reason
@@ -287,7 +288,7 @@ async function assignSelectedMentorMatch(userId, mentorId, notes) {
     mentor_email: null,
     mentor_college: mentor.school || mentor.university,
     mentor_major: mentor.major,
-    expertise: mentor.tags || [],
+    expertise: mentor.specialties || mentor.tags || [],
     availability: mentor.availability,
     status: "assigned",
     notes

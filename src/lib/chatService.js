@@ -155,16 +155,6 @@ function buildDemoThreadsForUser(user) {
       sublabel: "Student",
       participantRole: "Student"
     }));
-    threads.push(withStorageKey({
-      id: "demo-thread-mp-sam",
-      chatType: CHAT_TYPE.MENTOR_PARENT,
-      mentorId: DEMO_IDS.mentor,
-      studentId: DEMO_IDS.student,
-      parentId: DEMO_IDS.parent,
-      label: `${demoDisplayName(DEMO_PARENT)} (Jordan's parent)`,
-      sublabel: "Parent",
-      participantRole: "Parent"
-    }));
     return threads;
   }
 
@@ -250,44 +240,37 @@ async function resolveMentorThreads(mentorId) {
     .eq("mentor_id", mentorId)
     .in("status", ["assigned", "accepted", "active"]);
 
-  const threads = [];
+  const assignedStudentIds = new Set((matches || []).map((match) => match.student_id).filter(Boolean));
+  const discoveredStudentIds = new Set();
 
-  for (const match of matches || []) {
-    if (!match.student_id) continue;
-    const studentName = (await fetchProfileName(match.student_id)) || "Student";
+  const { data: mentorStudentThreads } = await db()
+    .from("chat_threads")
+    .select("id, mentor_id, student_id, parent_id, chat_type")
+    .eq("mentor_id", mentorId)
+    .eq("chat_type", CHAT_TYPE.MENTOR_STUDENT);
+
+  for (const row of mentorStudentThreads || []) {
+    if (row.student_id) discoveredStudentIds.add(row.student_id);
+  }
+
+  const studentIds = Array.from(new Set([...assignedStudentIds, ...discoveredStudentIds]));
+  if (!studentIds.length) return [];
+
+  const threads = [];
+  for (const studentId of studentIds) {
+    const studentName = (await fetchProfileName(studentId)) || "Student";
     const studentThread = await ensureThread({
       chatType: CHAT_TYPE.MENTOR_STUDENT,
       mentorId,
-      studentId: match.student_id,
+      studentId,
       parentId: null
     });
     threads.push({
       ...studentThread,
       label: studentName,
-      sublabel: "Student",
+      sublabel: assignedStudentIds.has(studentId) ? "Assigned student" : "Student",
       participantRole: "Student"
     });
-
-    const { data: parentLinks } = await db()
-      .from("parent_student_links")
-      .select("parent_id")
-      .eq("student_id", match.student_id);
-
-    for (const pl of parentLinks || []) {
-      const parentName = (await fetchProfileName(pl.parent_id)) || "Parent";
-      const parentThread = await ensureThread({
-        chatType: CHAT_TYPE.MENTOR_PARENT,
-        mentorId,
-        studentId: match.student_id,
-        parentId: pl.parent_id
-      });
-      threads.push({
-        ...parentThread,
-        label: `${parentName} (${studentName.split(" ")[0]}'s parent)`,
-        sublabel: "Parent",
-        participantRole: "Parent"
-      });
-    }
   }
 
   return threads;
