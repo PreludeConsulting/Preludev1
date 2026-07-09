@@ -208,14 +208,16 @@
     top: 0.45rem;
     bottom: 1.05rem;
     transform: translateX(-50%);
-    width: min-content;
-    max-width: min(100%, 44rem);
+    width: min(100%, 58rem);
+    max-width: calc(100% - 16rem);
     padding-inline: 0;
     align-items: center;
     pointer-events: none;
   }
 
   .dash-product-nav--mentor .dash-product-nav__tabs {
+    width: 100%;
+    justify-content: center;
     pointer-events: auto;
   }
 }
