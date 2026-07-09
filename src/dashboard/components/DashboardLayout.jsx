@@ -43,12 +43,25 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
         return;
       }
       const userRole = roleFromUser(user);
-      const canCheckMatchingAccess =
+      const canShowMatchingForRole = userRole === "mentor" || userRole === "admin";
+      const hasKnownMatchingAccess =
         user.matchingTeamAccess === true ||
-        user.systemRole === "admin" ||
-        userRole === "admin";
-      if (!canCheckMatchingAccess) {
+        user.isMatchingTeam === true ||
+        user.systemRole === "admin";
+      if (!canShowMatchingForRole) {
         setShowMatchingNav(false);
+        return;
+      }
+      if (import.meta.env.DEV) {
+        console.debug("[prelude-dashboard] matching nav access check", {
+          role: user.role,
+          systemRole: user.systemRole,
+          matchingTeamAccess: user.matchingTeamAccess,
+          isMatchingTeam: user.isMatchingTeam
+        });
+      }
+      if (hasKnownMatchingAccess) {
+        setShowMatchingNav(true);
         return;
       }
       try {

@@ -1008,6 +1008,25 @@ export function onAuthStateChange(callback) {
   return supabase.auth.onAuthStateChange(callback);
 }
 
+async function resolveMatchingTeamAccess(accessToken) {
+  if (!accessToken) return false;
+  try {
+    const response = await fetch(appPath("/api/admin/mentor-review/access"), {
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+    if (!response.ok) return false;
+    const payload = await response.json().catch(() => ({}));
+    return payload?.allowed === true;
+  } catch (error) {
+    authDebug("matching_team_access_lookup_failed", { message: error?.message || String(error) });
+    return false;
+  }
+}
+
 /** Load profile + onboarding + assigned mentor flag for AuthContext. */
 export async function resolveSupabaseAppUser() {
   if (!isSupabaseConfigured()) return null;
@@ -1025,10 +1044,13 @@ export async function resolveSupabaseAppUser() {
   const userId = authUser.id;
   const { profile } = await ensureUserProfile(authUser);
 
-  const [onboardingRes, mentorRes, mentorQuestionnaireRes] = await Promise.all([
+  const profileRole = (profile?.role || authUser.user_metadata?.role || "student").toLowerCase();
+  const shouldCheckMatchingTeamAccess = profileRole === "mentor" || profileRole === "admin";
+  const [onboardingRes, mentorRes, mentorQuestionnaireRes, matchingTeamAccess] = await Promise.all([
     supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle(),
     supabase.from("mentor_matches").select("id").eq("user_id", userId).eq("status", "assigned").limit(1),
-    supabase.from("mentor_questionnaires").select("completed").eq("user_id", userId).maybeSingle()
+    supabase.from("mentor_questionnaires").select("completed").eq("user_id", userId).maybeSingle(),
+    shouldCheckMatchingTeamAccess ? resolveMatchingTeamAccess(session.access_token) : false
   ]);
 
   const hasAssignedMentor = (mentorRes.data || []).length > 0;
@@ -1036,8 +1058,16 @@ export async function resolveSupabaseAppUser() {
     userId,
     hasProfile: Boolean(profile),
     hasOnboarding: Boolean(onboardingRes.data),
-    hasAssignedMentor
+    hasAssignedMentor,
+    matchingTeamAccess
   });
   const hydratedSession = { ...session, user: authUser };
-  return mapSupabaseUser(hydratedSession, profile, onboardingRes.data, hasAssignedMentor, mentorQuestionnaireRes.data);
+  return mapSupabaseUser(
+    hydratedSession,
+    profile,
+    onboardingRes.data,
+    hasAssignedMentor,
+    mentorQuestionnaireRes.data,
+    { matchingTeamAccess }
+  );
 }

@@ -11,7 +11,14 @@ import { readParentInviteStepComplete } from "./parentLinks.js";
 import { normalizeAuthProviders } from "./authSignInMethod.js";
 import { resolveAvatarUrl } from "./avatar.js";
 
-export function mapSupabaseUser(session, profile = null, onboarding = null, hasAssignedMentor = false, mentorQuestionnaire = null) {
+export function mapSupabaseUser(
+  session,
+  profile = null,
+  onboarding = null,
+  hasAssignedMentor = false,
+  mentorQuestionnaire = null,
+  options = {}
+) {
   if (!session?.user) return null;
   const u = session.user;
   const meta = u.user_metadata || {};
@@ -25,7 +32,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
   const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
   const storedRole = (profile?.role || meta.role || "student").toLowerCase();
   const metadataRole = (meta.role || "").toLowerCase();
-  const matchingTeamAccess = storedRole === "admin";
+  const matchingTeamAccess = Boolean(options.matchingTeamAccess || storedRole === "admin");
   const role = matchingTeamAccess
     ? (
       ["student", "mentor", "parent"].includes(metadataRole)
@@ -66,6 +73,7 @@ export function mapSupabaseUser(session, profile = null, onboarding = null, hasA
     role,
     systemRole: storedRole,
     matchingTeamAccess,
+    isMatchingTeam: matchingTeamAccess,
     plan: planId,
     planName: plan?.name || null,
     planSelected,

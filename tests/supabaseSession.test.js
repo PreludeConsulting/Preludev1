@@ -70,4 +70,30 @@ describe("mapSupabaseUser", () => {
 
     expect(user.avatarUrl).toBe("https://accounts.google.com/photo.jpg");
   });
+
+  it("preserves a mentor role while adding Matching Team access from the server", () => {
+    const user = mapSupabaseUser(
+      session({
+        user_metadata: {
+          role: "mentor"
+        }
+      }),
+      {
+        id: "user-1",
+        full_name: "Alex Huang",
+        role: "mentor",
+        role_selection_complete: true,
+        avatar_url: null
+      },
+      null,
+      false,
+      { completed: true },
+      { matchingTeamAccess: true }
+    );
+
+    expect(user.role).toBe("mentor");
+    expect(user.systemRole).toBe("mentor");
+    expect(user.matchingTeamAccess).toBe(true);
+    expect(user.isMatchingTeam).toBe(true);
+  });
 });
