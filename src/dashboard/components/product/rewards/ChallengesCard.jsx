@@ -1,5 +1,6 @@
 import { Check, ChevronRight } from "lucide-react";
-import { CHALLENGE_CARDS } from "../../../lib/progressRewards.js";
+import { useProgressRewards } from "../../../context/ProgressRewardsContext.jsx";
+import { REWARD_TASK_STATUS } from "../../../../lib/rewardTaskCatalog.js";
 
 function CircleProgress({ total, completed }) {
   return (
@@ -53,15 +54,45 @@ function ChallengeRow({ challenge }) {
   );
 }
 
-export default function ChallengesCard() {
+export default function ChallengesCard({ onViewAll = null }) {
+  const { milestones } = useProgressRewards();
+  const challengeCards = milestones
+    .filter((task) => task.category === "momentum" || task.category === "admissions")
+    .slice(0, 4)
+    .map((task) => ({
+      id: task.id,
+      title: task.title,
+      coins: task.coins,
+      total: task.progressTarget || 1,
+      completed: task.status === REWARD_TASK_STATUS.CLAIMED ? task.progressTarget || 1 : task.progressCurrent || 0,
+      hint:
+        task.status === REWARD_TASK_STATUS.CLAIMED
+          ? "Claimed"
+          : task.claimable
+            ? "Ready to claim"
+            : `${task.progressCurrent || 0} / ${task.progressTarget || 1}`,
+      status: task.status === REWARD_TASK_STATUS.CLAIMED ? "completed" : "active",
+      type: (task.progressTarget || 1) > 1 ? "circles" : "chevron"
+    }));
+
   return (
     <section className="dash-rewards-sidebar__card dash-rewards-challenges">
       <div className="dash-rewards-challenges__head">
         <h3 className="dash-rewards-sidebar__title">Challenges / Tasks</h3>
-        <button type="button" className="dash-rewards-challenges__view-all">View all</button>
+        <button
+          type="button"
+          className="dash-rewards-challenges__view-all"
+          onClick={() => {
+            if (typeof onViewAll === "function") onViewAll();
+            const earnSection = document.getElementById("earn");
+            earnSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        >
+          View all
+        </button>
       </div>
       <div className="dash-rewards-challenges__list">
-        {CHALLENGE_CARDS.map((challenge) => (
+        {challengeCards.map((challenge) => (
           <ChallengeRow key={challenge.id} challenge={challenge} />
         ))}
       </div>

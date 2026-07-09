@@ -15,7 +15,7 @@ export const FOOTER_LINK_COLUMNS = [
     links: [
       { labelKey: "sections.footer.links.parentDashboard", href: "#how-it-works" },
       { labelKey: "sections.footer.links.academicSupport", href: "#academic-support" },
-      { labelKey: "sections.footer.links.preludeMatch", href: "#preludematch" }
+      { labelKey: "sections.footer.links.preludeMatch", href: "/mentors" }
     ]
   },
   {
@@ -23,7 +23,7 @@ export const FOOTER_LINK_COLUMNS = [
     ariaLabelKey: "sections.footer.supportLabel",
     links: [
       { labelKey: "sections.footer.links.contact", href: "/contact" },
-      { labelKey: "sections.footer.links.bookCall", href: "/contact#book-call" },
+      { labelKey: "sections.footer.links.bookCall", href: "/contact" },
       { labelKey: "sections.footer.links.email", href: "/contact#email-us" }
     ]
   }

@@ -8,7 +8,7 @@ export const MENTORS = [
     major: "Computer Science",
     focus: "STEM apps & essays",
     image: `${mediaBase}media/mentor-lounge.png`,
-    href: "#preludematch"
+    href: "/mentors"
   },
   {
     id: "m2",
@@ -17,7 +17,7 @@ export const MENTORS = [
     major: "Pre-Med / Public Health",
     focus: "Activities & supplements",
     image: `${mediaBase}media/roadmap-dashboard.png`,
-    href: "#preludematch"
+    href: "/mentors"
   },
   {
     id: "m3",
@@ -26,7 +26,7 @@ export const MENTORS = [
     major: "Business Economics",
     focus: "College list & fit",
     image: `${mediaBase}media/impact-desk.png`,
-    href: "#preludematch"
+    href: "/mentors"
   },
   {
     id: "m4",
@@ -35,7 +35,7 @@ export const MENTORS = [
     major: "Film & Media",
     focus: "Personal statement",
     image: `${mediaBase}media/mentor-lounge-loop.gif`,
-    href: "#preludematch"
+    href: "/mentors"
   },
   {
     id: "m5",
@@ -44,7 +44,7 @@ export const MENTORS = [
     major: "Mechanical Engineering",
     focus: "First-gen support",
     image: `${mediaBase}media/roadmap-dashboard-loop.gif`,
-    href: "#preludematch"
+    href: "/mentors"
   },
   {
     id: "m6",
@@ -53,7 +53,7 @@ export const MENTORS = [
     major: "Finance",
     focus: "Scholarships & aid",
     image: `${mediaBase}media/impact-desk-loop.gif`,
-    href: "#preludematch"
+    href: "/mentors"
   }
 ];
 
@@ -63,7 +63,7 @@ export const SERVICES = [
     title: "PreludeMatch",
     subtitle: "Mentor matching",
     description: "Pair with students at your target schools.",
-    href: "#preludematch",
+    href: "/mentors",
     icon: "users"
   },
   {

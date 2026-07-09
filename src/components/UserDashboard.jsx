@@ -53,7 +53,7 @@ export default function UserDashboard() {
             <MessageCircle className="h-4 w-4" />
             Open {PRELUDE_AI_NAME}
           </Button>
-          <Button href="#preludematch">
+          <Button href="/mentors">
             PreludeMatch
             <ArrowUpRight className="h-4 w-4" />
           </Button>

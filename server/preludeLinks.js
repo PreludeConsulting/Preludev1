@@ -6,7 +6,7 @@
 export const PRELUDE_LINKS = {
   home: "/",
   plans: "#pricing",
-  mentorMatch: "#preludematch",
+  mentorMatch: "/mentors",
   mentorship: "#mentorship",
   roadmap: "#roadmap",
   howItWorks: "#how-it-works",

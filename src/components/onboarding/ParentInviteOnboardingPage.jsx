@@ -5,8 +5,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import {
   MATCH_ONBOARDING_PATH,
   PAYMENT_ONBOARDING_PATH,
-  dashboardPathForRole,
-  userNeedsParentInviteStep
+  dashboardPathForRole
 } from "../../lib/onboardingRoutes.js";
 import { inviteParent, markParentInviteStepComplete } from "../../lib/parentLinks.js";
 import OnboardingShell from "./OnboardingShell.jsx";
@@ -29,9 +28,7 @@ export default function ParentInviteOnboardingPage() {
     return <Navigate to={dashboardPathForRole(user?.role || "student")} replace />;
   }
 
-  if (!userNeedsParentInviteStep(user)) {
-    return <Navigate to={PAYMENT_ONBOARDING_PATH} replace />;
-  }
+  const stepAlreadyComplete = Boolean(user.parentInviteStepComplete);
 
   async function finish() {
     setError("");
@@ -73,11 +70,17 @@ export default function ParentInviteOnboardingPage() {
       eyebrow="Almost there"
       backHref={`${MATCH_ONBOARDING_PATH}?step=result`}
       continueLabel="Next"
-      continueDisabled={!sent}
+      continueDisabled={!sent && !stepAlreadyComplete}
       continueLoading={loading}
-      continueHint={!sent ? "Send a parent invite or choose Skip for now to continue." : ""}
+      continueHint={!sent && !stepAlreadyComplete ? "Send a parent invite or choose Skip for now to continue." : ""}
       useStepCompletionGate={false}
-      onContinue={finish}
+      onContinue={() => {
+        if (stepAlreadyComplete) {
+          navigate(PAYMENT_ONBOARDING_PATH);
+          return;
+        }
+        finish();
+      }}
       footerNote="You can add or update parent emails anytime in Settings after checkout."
     >
       <div className="pm-card-wrap">
@@ -90,7 +93,12 @@ export default function ParentInviteOnboardingPage() {
             We&apos;ll email them a secure link to create a Prelude parent account linked to yours.
           </p>
 
-          {sent ? (
+          {stepAlreadyComplete ? (
+            <div className="dash-parent-invite-card__success">
+              <p><strong>Parent invite step complete.</strong></p>
+              <p className="dash-muted">Continue to choose your Prelude plan, or go back to review your mentor match.</p>
+            </div>
+          ) : sent ? (
             <div className="dash-parent-invite-card__success">
               <p><strong>Invitation sent!</strong> We emailed <strong>{parentEmail}</strong>.</p>
               <p className="dash-muted">Next, choose your Prelude plan and complete secure checkout.</p>

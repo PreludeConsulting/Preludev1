@@ -156,6 +156,21 @@ describe("onboarding flow navigation", () => {
       showNext: false
     });
   });
+
+  it("allows returning to completed parent invite step for Back navigation", () => {
+    const user = student({
+      matchOnboardingComplete: true,
+      parentInviteStepComplete: true,
+      paymentStepComplete: false,
+      onboardingStatus: ONBOARDING_STATUS.NEEDS_PAYMENT
+    });
+
+    expect(canAccessOnboardingPath(user, PARENT_ONBOARDING_PATH)).toBe(true);
+    expect(getOnboardingStepNavigation(user, PAYMENT_ONBOARDING_PATH)).toMatchObject({
+      showBack: true,
+      backPath: PARENT_ONBOARDING_PATH
+    });
+  });
 });
 
 describe("onboarding draft persistence", () => {

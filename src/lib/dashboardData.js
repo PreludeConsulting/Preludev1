@@ -3,6 +3,15 @@
  */
 
 import { getSupabase } from "./supabase.js";
+import {
+  EARN_CATEGORY_ORDER,
+  MOMENTUM_TASK_DEFS,
+  REWARD_TASK_CATEGORY,
+  REWARD_TASK_OWNERSHIP,
+  REWARD_TASK_STATUS,
+  getTaskDefinition,
+  taskTemplateIdsForCategory
+} from "./rewardTaskCatalog.js";
 
 function db() {
   const client = getSupabase();
@@ -420,6 +429,395 @@ export async function saveMyCollegeList(userId, colleges) {
     colleges: Array.isArray(data?.colleges) ? data.colleges : colleges,
     error: error?.message || null
   };
+}
+
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function mapRewardTaskInstance(row) {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    taskTemplateId: row.task_template_id,
+    category: row.category,
+    title: row.title,
+    ownership: row.ownership_type,
+    status: row.status,
+    coins: row.coin_value,
+    progressCurrent: row.progress_current || 0,
+    progressTarget: row.progress_target || 1,
+    completedByMentorId: row.completed_by_mentor_id || null,
+    completedAt: row.completed_at || null,
+    claimableAt: row.claimable_at || null,
+    claimedAt: row.claimed_at || null,
+    metadata: row.metadata || {}
+  };
+}
+
+export async function getRewardWallet(userId) {
+  const id = requireUserId(userId);
+  const { data, error } = await db()
+    .from("reward_wallets")
+    .select("*")
+    .eq("user_id", id)
+    .maybeSingle();
+  return {
+    wallet: data || { user_id: id, coin_balance: 0, lifetime_earned: 0, lifetime_claimed: 0 },
+    error: error?.message || null
+  };
+}
+
+export async function ensureRewardTaskInstances(userId, { satActUnlocked = false, tutoringUnlocked = false } = {}) {
+  const id = requireUserId(userId);
+  const categoriesWithFixedCount = [
+    { category: REWARD_TASK_CATEGORY.ADMISSIONS, count: 5 },
+    { category: REWARD_TASK_CATEGORY.SAT_ACT, count: 5 },
+    { category: REWARD_TASK_CATEGORY.ACADEMIC_TUTORING, count: 5 }
+  ];
+
+  const { data: existingRows } = await db()
+    .from("reward_task_instances")
+    .select("*")
+    .eq("user_id", id);
+  const existing = (existingRows || []).map(mapRewardTaskInstance);
+  const existingTemplateIds = new Set(existing.map((row) => row.taskTemplateId));
+
+  const insertRows = [];
+
+  for (const momentumTask of MOMENTUM_TASK_DEFS) {
+    if (existingTemplateIds.has(momentumTask.id)) continue;
+    insertRows.push({
+      user_id: id,
+      task_template_id: momentumTask.id,
+      category: momentumTask.category,
+      title: momentumTask.title,
+      ownership_type: momentumTask.ownership,
+      status: REWARD_TASK_STATUS.IN_PROGRESS,
+      coin_value: momentumTask.coins,
+      progress_current: 0,
+      progress_target: momentumTask.targetCount,
+      metadata: { mainMentorOnly: Boolean(momentumTask.mainMentorOnly) }
+    });
+  }
+
+  for (const group of categoriesWithFixedCount) {
+    const templateIds = taskTemplateIdsForCategory(group.category);
+    const activeUnclaimed = existing.filter(
+      (task) =>
+        task.category === group.category &&
+        task.status !== REWARD_TASK_STATUS.CLAIMED
+    );
+    const needed = Math.max(0, group.count - activeUnclaimed.length);
+    if (!needed) continue;
+    const usedInCategory = new Set(existing.filter((task) => task.category === group.category).map((task) => task.taskTemplateId));
+    const available = templateIds.filter((taskTemplateId) => !usedInCategory.has(taskTemplateId)).slice(0, needed);
+    for (const taskTemplateId of available) {
+      const def = getTaskDefinition(taskTemplateId);
+      if (!def) continue;
+      const lockForPlan =
+        (group.category === REWARD_TASK_CATEGORY.SAT_ACT && !satActUnlocked) ||
+        (group.category === REWARD_TASK_CATEGORY.ACADEMIC_TUTORING && !tutoringUnlocked);
+      insertRows.push({
+        user_id: id,
+        task_template_id: taskTemplateId,
+        category: def.category,
+        title: def.title,
+        ownership_type: def.ownership,
+        status: lockForPlan ? REWARD_TASK_STATUS.LOCKED : REWARD_TASK_STATUS.IN_PROGRESS,
+        coin_value: def.coins,
+        progress_current: 0,
+        progress_target: def.targetCount,
+        metadata: {}
+      });
+    }
+  }
+
+  if (insertRows.length) {
+    await db().from("reward_task_instances").insert(insertRows);
+  }
+
+  const { data, error } = await db()
+    .from("reward_task_instances")
+    .select("*")
+    .eq("user_id", id)
+    .order("created_at", { ascending: true });
+  return { tasks: (data || []).map(mapRewardTaskInstance), error: error?.message || null };
+}
+
+export async function listRewardTaskInstances(userId) {
+  const id = requireUserId(userId);
+  const { data, error } = await db()
+    .from("reward_task_instances")
+    .select("*")
+    .eq("user_id", id)
+    .order("created_at", { ascending: true });
+  return { tasks: (data || []).map(mapRewardTaskInstance), error: error?.message || null };
+}
+
+export async function claimRewardTask(userId, taskInstanceId) {
+  const id = requireUserId(userId);
+  const { data: taskRow, error: taskErr } = await db()
+    .from("reward_task_instances")
+    .select("*")
+    .eq("id", taskInstanceId)
+    .eq("user_id", id)
+    .maybeSingle();
+  if (taskErr) return { error: taskErr.message, task: null, wallet: null };
+  if (!taskRow) return { error: "Reward task not found.", task: null, wallet: null };
+  if (taskRow.status === REWARD_TASK_STATUS.CLAIMED) return { error: "Reward already claimed.", task: mapRewardTaskInstance(taskRow), wallet: null };
+  if (![REWARD_TASK_STATUS.READY_TO_CLAIM, REWARD_TASK_STATUS.COMPLETED_BY_MENTOR].includes(taskRow.status)) {
+    return { error: "Reward is not claimable yet.", task: mapRewardTaskInstance(taskRow), wallet: null };
+  }
+
+  const now = new Date().toISOString();
+  const { data: updatedTask, error: updateErr } = await db()
+    .from("reward_task_instances")
+    .update({ status: REWARD_TASK_STATUS.CLAIMED, claimed_at: now, updated_at: now })
+    .eq("id", taskInstanceId)
+    .eq("user_id", id)
+    .in("status", [REWARD_TASK_STATUS.READY_TO_CLAIM, REWARD_TASK_STATUS.COMPLETED_BY_MENTOR])
+    .select("*")
+    .maybeSingle();
+  if (updateErr) return { error: updateErr.message, task: null, wallet: null };
+  if (!updatedTask) return { error: "Reward claim already processed.", task: null, wallet: null };
+
+  const { wallet } = await getRewardWallet(id);
+  const nextBalance = Number(wallet.coin_balance || 0) + Number(updatedTask.coin_value || 0);
+  const { data: nextWallet, error: walletErr } = await db()
+    .from("reward_wallets")
+    .upsert(
+      {
+        user_id: id,
+        coin_balance: nextBalance,
+        lifetime_earned: Number(wallet.lifetime_earned || 0) + Number(updatedTask.coin_value || 0),
+        lifetime_claimed: Number(wallet.lifetime_claimed || 0) + 1,
+        updated_at: now
+      },
+      { onConflict: "user_id" }
+    )
+    .select("*")
+    .maybeSingle();
+  return { task: mapRewardTaskInstance(updatedTask), wallet: nextWallet || null, error: walletErr?.message || null };
+}
+
+export async function isMainMentorForStudent(mentorUserId, studentUserId) {
+  const mentorId = requireUserId(mentorUserId);
+  const studentId = requireUserId(studentUserId);
+  const { data: assigned, error: assignedErr } = await db()
+    .from("mentor_matches")
+    .select("mentor_id")
+    .eq("student_id", studentId)
+    .eq("mentor_id", mentorId)
+    .in("status", ["assigned", "accepted", "active"])
+    .limit(1);
+  if (assignedErr) return { isMain: false, isAssigned: false, error: assignedErr.message };
+  if (!assigned?.length) return { isMain: false, isAssigned: false, error: null };
+
+  const { data: mainMentor, error: mainErr } = await db()
+    .from("mentor_matches")
+    .select("mentor_id")
+    .eq("student_id", studentId)
+    .eq("status", "assigned")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (mainErr) return { isMain: false, isAssigned: true, error: mainErr.message };
+  return { isMain: mainMentor?.mentor_id === mentorId, isAssigned: true, error: null };
+}
+
+export async function completeMentorControlledRewardTask(mentorUserId, studentUserId, taskInstanceId) {
+  const mentorId = requireUserId(mentorUserId);
+  const studentId = requireUserId(studentUserId);
+  const now = new Date().toISOString();
+
+  const { data: taskRow, error: taskErr } = await db()
+    .from("reward_task_instances")
+    .select("*")
+    .eq("id", taskInstanceId)
+    .eq("user_id", studentId)
+    .maybeSingle();
+  if (taskErr) return { error: taskErr.message, task: null };
+  if (!taskRow) return { error: "Task not found.", task: null };
+  if (taskRow.ownership_type !== REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED) {
+    return { error: "This task is auto-tracked and cannot be completed by mentors.", task: null };
+  }
+  if (taskRow.status === REWARD_TASK_STATUS.LOCKED) {
+    return { error: "Task is locked for this student plan.", task: null };
+  }
+
+  const { data: assigned } = await db()
+    .from("mentor_matches")
+    .select("*")
+    .eq("student_id", studentId)
+    .eq("status", "assigned")
+    .eq("mentor_id", mentorId)
+    .limit(1);
+  if (!assigned?.length) return { error: "You are not assigned to this student.", task: null };
+
+  if (taskRow.task_template_id === "mentor-meeting-completed") {
+    const { data: mainMentor } = await db()
+      .from("mentor_matches")
+      .select("mentor_id")
+      .eq("student_id", studentId)
+      .eq("status", "assigned")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (mainMentor?.mentor_id && mainMentor.mentor_id !== mentorId) {
+      return { error: "Only the student's main assigned mentor can complete this task.", task: null };
+    }
+  }
+
+  const { data: updated, error: updateErr } = await db()
+    .from("reward_task_instances")
+    .update({
+      status: REWARD_TASK_STATUS.COMPLETED_BY_MENTOR,
+      completed_by_mentor_id: mentorId,
+      completed_at: now,
+      claimable_at: now,
+      progress_current: taskRow.progress_target || 1,
+      updated_at: now
+    })
+    .eq("id", taskInstanceId)
+    .eq("user_id", studentId)
+    .in("status", [REWARD_TASK_STATUS.IN_PROGRESS, REWARD_TASK_STATUS.READY_TO_COMPLETE])
+    .select("*")
+    .maybeSingle();
+  return { task: updated ? mapRewardTaskInstance(updated) : null, error: updateErr?.message || null };
+}
+
+export async function upsertStudentDailyActivity(userId, patch = {}) {
+  const id = requireUserId(userId);
+  const date = patch.activityDate || todayIsoDate();
+  const payload = {
+    user_id: id,
+    activity_date: date,
+    logged_in: patch.loggedIn ?? false,
+    mentors_messaged_count: patch.mentorsMessagedCount ?? 0,
+    network_message_goal_met: patch.networkMessageGoalMet ?? false,
+    updated_at: new Date().toISOString()
+  };
+  const { data, error } = await db()
+    .from("student_daily_activity")
+    .upsert(payload, { onConflict: "user_id,activity_date" })
+    .select("*")
+    .maybeSingle();
+  return { activity: data, error: error?.message || null };
+}
+
+function calculateConsecutiveDays(rows = [], predicate) {
+  if (!rows.length) return 0;
+  const sorted = [...rows].sort((a, b) => String(b.activity_date).localeCompare(String(a.activity_date)));
+  let streak = 0;
+  let cursor = new Date(`${sorted[0].activity_date}T00:00:00.000Z`);
+  for (const row of sorted) {
+    const rowDate = new Date(`${row.activity_date}T00:00:00.000Z`);
+    if (rowDate.getTime() !== cursor.getTime()) break;
+    if (!predicate(row)) break;
+    streak += 1;
+    cursor = new Date(cursor.getTime() - 24 * 60 * 60 * 1000);
+  }
+  return streak;
+}
+
+export async function syncDashboardControlledRewardTasks(userId) {
+  const id = requireUserId(userId);
+  await upsertStudentDailyActivity(id, { activityDate: todayIsoDate(), loggedIn: true });
+  const { data: activityRows } = await db()
+    .from("student_daily_activity")
+    .select("*")
+    .eq("user_id", id)
+    .order("activity_date", { ascending: false })
+    .limit(30);
+  const loginStreak = calculateConsecutiveDays(activityRows || [], (row) => Boolean(row.logged_in));
+  const messageStreak = calculateConsecutiveDays(activityRows || [], (row) => Boolean(row.network_message_goal_met));
+
+  const { data: taskRows } = await db()
+    .from("reward_task_instances")
+    .select("*")
+    .eq("user_id", id)
+    .eq("ownership_type", REWARD_TASK_OWNERSHIP.DASHBOARD_CONTROLLED);
+
+  const updates = [];
+  for (const row of taskRows || []) {
+    const now = new Date().toISOString();
+    let progressCurrent = row.progress_current || 0;
+    if (row.task_template_id === "momentum-7-day-login-streak") progressCurrent = Math.min(7, loginStreak);
+    if (row.task_template_id === "mentor-network-3-day-streak") progressCurrent = Math.min(3, messageStreak);
+    if (row.task_template_id === "mentor-network-7-day-streak") progressCurrent = Math.min(7, messageStreak);
+    const target = row.progress_target || 1;
+    const ready = progressCurrent >= target;
+    const nextStatus = row.status === REWARD_TASK_STATUS.CLAIMED
+      ? REWARD_TASK_STATUS.CLAIMED
+      : ready
+        ? REWARD_TASK_STATUS.READY_TO_CLAIM
+        : REWARD_TASK_STATUS.IN_PROGRESS;
+    if (progressCurrent !== row.progress_current || nextStatus !== row.status) {
+      updates.push({
+        id: row.id,
+        progress_current: progressCurrent,
+        status: nextStatus,
+        claimable_at: ready ? now : null,
+        updated_at: now
+      });
+    }
+  }
+
+  for (const update of updates) {
+    await db().from("reward_task_instances").update(update).eq("id", update.id);
+  }
+  return { loginStreak, messageStreak, error: null };
+}
+
+export async function syncStudentNetworkMessageActivity(userId) {
+  const id = requireUserId(userId);
+  const { data } = await db()
+    .from("messages")
+    .select("receiver_id,created_at,sender_role")
+    .eq("sender_id", id)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  const dayToMentors = new Map();
+  for (const row of data || []) {
+    const day = String(row.created_at || "").slice(0, 10);
+    if (!day) continue;
+    if (!dayToMentors.has(day)) dayToMentors.set(day, new Set());
+    if (row.receiver_id) dayToMentors.get(day).add(row.receiver_id);
+  }
+  for (const [day, mentorIds] of dayToMentors.entries()) {
+    await upsertStudentDailyActivity(id, {
+      activityDate: day,
+      loggedIn: day === todayIsoDate(),
+      mentorsMessagedCount: mentorIds.size,
+      networkMessageGoalMet: mentorIds.size >= 3
+    });
+  }
+  return { error: null };
+}
+
+export async function listMentorRewardStudents(mentorUserId) {
+  const mentorId = requireUserId(mentorUserId);
+  const { data: matches, error } = await db()
+    .from("mentor_matches")
+    .select("*")
+    .eq("mentor_id", mentorId)
+    .in("status", ["assigned", "accepted", "active"])
+    .order("created_at", { ascending: false });
+  if (error) return { students: [], error: error.message };
+
+  const studentIds = [...new Set((matches || []).map((row) => row.student_id).filter(Boolean))];
+  if (!studentIds.length) return { students: [], error: null };
+  const { data: profiles } = await db().from("profiles").select("id,full_name,grade_level").in("id", studentIds);
+  const nameById = Object.fromEntries((profiles || []).map((row) => [row.id, row.full_name || "Student"]));
+  const gradeById = Object.fromEntries((profiles || []).map((row) => [row.id, row.grade_level || ""]));
+  const students = studentIds.map((studentId) => ({
+    id: studentId,
+    name: nameById[studentId] || "Student",
+    grade: gradeById[studentId] || "",
+    isMainMentor: (matches || []).some((row) => row.student_id === studentId && row.status === "assigned")
+  }));
+  return { students, error: null };
 }
 
 export { mapTask, mapEssay, mapDeadline, mapSettings, mapMentorMatch, mapScholarship };

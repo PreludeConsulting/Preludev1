@@ -45,6 +45,7 @@ export const translations = {
     },
     hero: {
       headline: ["College admissions,", "", "made simple."],
+      cinematicOpener: ["Four minutes of context.", "One mentor who actually fits."],
       typingPrefix: "made",
       typingPhrases: ["simple.", "personal.", "clearer.", "possible.", "less stressful."],
       subcopy: "Access a network of students from top universities who guide you through every step of the admissions process.",
@@ -411,6 +412,7 @@ export const translations = {
     },
     hero: {
       headline: ["대학 입시,", "", "새롭게."],
+      cinematicOpener: ["4분이면 충분해요.", "당신에게 맞는 멘토를 찾아드려요."],
       typingPrefix: "",
       typingPhrases: ["더 간단하게.", "더 개인적으로.", "더 명확하게.", "더 가능하게.", "덜 부담스럽게."],
       subcopy: "또래 멘토링, 개인 맞춤 전략, 재정 가이드를 통해 학생들이 자신 있게 돋보이는 지원서를 만들 수 있도록 돕습니다.",
@@ -777,6 +779,7 @@ export const translations = {
     },
     hero: {
       headline: ["大学申请，", "", "更简单。"],
+      cinematicOpener: ["四分钟了解你。", "匹配真正合适的导师。"],
       typingPrefix: "",
       typingPhrases: ["更简单。", "更个性化。", "更清晰。", "更可实现。", "更少压力。"],
       subcopy: "由同龄导师驱动的辅导、个性化策略和财务规划指导，帮助学生自信打造出色的申请材料。",
@@ -1143,6 +1146,7 @@ export const translations = {
     },
     hero: {
       headline: ["Admisiones,", "", "más simples."],
+      cinematicOpener: ["Cuatro minutos de contexto.", "Un mentor que realmente encaja."],
       typingPrefix: "",
       typingPhrases: ["más simples.", "más personales.", "más claras.", "más posibles.", "menos estresantes."],
       subcopy: "Accede a una red de estudiantes de universidades líderes que te guían en cada paso del proceso de admisión.",

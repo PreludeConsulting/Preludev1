@@ -4,6 +4,7 @@ import MentorMatchCard from "./MentorMatchCard.jsx";
 import PreludePigAvatar from "./PreludePigAvatar.jsx";
 
 const registerPath = `${import.meta.env.BASE_URL}register`.replace(/\/+/g, "/");
+const mentorsPath = `${import.meta.env.BASE_URL}mentors`.replace(/\/+/g, "/");
 
 export default function MentorMatchResults({ reducedMotion, onRestart }) {
   return (
@@ -34,7 +35,7 @@ export default function MentorMatchResults({ reducedMotion, onRestart }) {
               mentor={mentor}
               reducedMotion={reducedMotion}
               onView={() => {
-                window.location.hash = "preludematch";
+                window.location.href = mentorsPath;
               }}
               onBook={() => {
                 window.location.href = registerPath;
@@ -48,7 +49,7 @@ export default function MentorMatchResults({ reducedMotion, onRestart }) {
         <button type="button" className="hero-mm-link-btn" onClick={onRestart}>
           Restart demo
         </button>
-        <a className="hero-mm-link-btn" href="#preludematch">
+        <a className="hero-mm-link-btn" href={mentorsPath}>
           View all mentors
         </a>
         <a className="hero-mm-btn hero-mm-btn--primary hero-mm-btn--sm" href={registerPath}>

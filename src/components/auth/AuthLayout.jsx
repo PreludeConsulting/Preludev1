@@ -11,13 +11,6 @@ export default function AuthLayout({
 }) {
   return (
     <main className="auth-shell">
-      <div className="auth-shell__backdrop" aria-hidden="true">
-        <div className="auth-shell__orb auth-shell__orb--primary" />
-        <div className="auth-shell__orb auth-shell__orb--secondary" />
-        <div className="auth-shell__orb auth-shell__orb--accent" />
-        <div className="auth-shell__grain" />
-      </div>
-
       <div className={`auth-shell__frame${panel ? " auth-shell__frame--panel" : ""}`}>
         <div className="auth-shell__brand">
           <AppLink href="/" className="auth-shell__logo" aria-label="Prelude home">

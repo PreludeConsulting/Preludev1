@@ -18,7 +18,7 @@ export default function MentorViewingBanner({ student }) {
             Viewing {possessiveName} Dashboard as Mentor
           </h2>
           <p className="dash-mentor-viewing-banner__subtitle">
-            You can edit calendar events and tasks only. All other sections are view-only.
+            You can edit calendar events and complete eligible Progress Rewards tasks for this student. Coins are added only after the student claims.
           </p>
         </div>
       </div>

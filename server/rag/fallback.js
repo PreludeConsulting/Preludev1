@@ -3,7 +3,7 @@ import { detectChatIntent, getIntentFallbackText, getMentorReferralDetails, hasR
 /** Verified site anchors — must match src/lib/preludeChatData.js and Navbar. */
 export const FALLBACK_LINKS = {
   plans: "#pricing",
-  mentorMatch: "#preludematch",
+  mentorMatch: "/mentors",
   mentorship: "#mentorship"
 };
 

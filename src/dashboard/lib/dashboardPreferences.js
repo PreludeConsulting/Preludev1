@@ -14,6 +14,7 @@ const STORAGE_KEY = "prelude_dashboard_prefs";
 export const DEFAULT_PREFERENCES = {
   // Email & notifications
   emailUpdates: true,
+  securityAlerts: true,
   meetingReminders: true,
   mentorMessages: true,
   studentMessages: true,
@@ -76,6 +77,6 @@ export function applyPreferences(prefs = loadPreferences()) {
   const root = document.documentElement;
   root.dataset.dashDensity = prefs.density === "compact" ? "compact" : "comfortable";
   root.dataset.dashMotion = prefs.reduceMotion ? "reduced" : "full";
-  root.dataset.dashTheme = prefs.theme === "dark" || prefs.theme === "light" ? prefs.theme : "system";
-  root.style.colorScheme = prefs.theme === "dark" ? "dark" : "light";
+  root.dataset.dashTheme = "system";
+  root.style.colorScheme = "light";
 }

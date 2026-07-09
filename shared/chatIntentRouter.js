@@ -124,7 +124,7 @@ export function getMentorReferralDetails(category = "personal_guidance") {
     category,
     reason: category,
     ctaLabel: "Match me with a mentor",
-    ctaTarget: "#preludematch",
+    ctaTarget: "/mentors",
     text: FALLBACK_TEXT.mentor
   };
 }

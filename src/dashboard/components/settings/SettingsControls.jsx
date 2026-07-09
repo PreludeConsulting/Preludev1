@@ -40,20 +40,25 @@ export function SettingSelect({ id, label, description, value, onChange, options
   );
 }
 
-export function SaveRow({ section, saveState, onSave }) {
+export function SaveRow({ section, saveState, onSave, dirty = true }) {
   const isCurrent = saveState?.section === section;
   const isSaving = isCurrent && saveState.status === "saving";
+  const showButton = dirty || isSaving;
   return (
-    <div className="dash-form-actions">
+    <div className={`dash-form-actions${dirty ? " dash-form-actions--dirty" : ""}`}>
+      {dirty ? <span className="dash-save-state" role="status">Unsaved changes</span> : null}
       {isCurrent && saveState.status === "saved" ? (
         <span className="dash-save-state dash-save-state--ok" role="status" aria-live="polite"><Check className="h-4 w-4" /> Saved</span>
       ) : null}
       {isCurrent && saveState.status === "error" ? (
         <span className="dash-save-state dash-save-state--error" role="alert"><AlertCircle className="h-4 w-4" /> {saveState.message}</span>
       ) : null}
-      <PrimaryButton type="button" className="dash-btn--sm" onClick={() => onSave(section)} disabled={isSaving}>
-        {isSaving ? "Saving…" : "Save changes"}
-      </PrimaryButton>
+      {dirty || isCurrent ? null : <span className="dash-save-state dash-save-state--ok" role="status"><Check className="h-4 w-4" /> Saved</span>}
+      {showButton ? (
+        <PrimaryButton type="button" className="dash-btn--sm" onClick={() => onSave(section)} disabled={!dirty || isSaving}>
+          {isSaving ? "Saving…" : "Save changes"}
+        </PrimaryButton>
+      ) : null}
     </div>
   );
 }

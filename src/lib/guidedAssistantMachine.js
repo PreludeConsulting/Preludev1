@@ -1,6 +1,6 @@
 export const MAIN_MENU_STATE = "main_menu";
 
-const FIND_MENTOR_ACTION = { type: "navigate", href: "#preludematch" };
+const FIND_MENTOR_ACTION = { type: "navigate", href: "/mentors" };
 const externalResourceAction = (href) => ({ type: "external", href });
 
 const RESOURCE_URLS = {

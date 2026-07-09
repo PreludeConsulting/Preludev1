@@ -1,8 +1,18 @@
 import { Check, Flame } from "lucide-react";
-import { DAILY_MOMENTUM_STREAK } from "../../../lib/progressRewards.js";
+import { useProgressRewards } from "../../../context/ProgressRewardsContext.jsx";
+import { REWARD_TASK_STATUS } from "../../../../lib/rewardTaskCatalog.js";
 
 export default function DailyMomentumCard() {
-  const { title, description, weekDays, streakDays, rewardCoins } = DAILY_MOMENTUM_STREAK;
+  const { milestones } = useProgressRewards();
+  const loginTask = milestones.find((task) => task.taskTemplateId === "momentum-7-day-login-streak");
+  const streakDays = loginTask?.progressCurrent || 0;
+  const rewardCoins = loginTask?.coins || 30;
+  const weekDays = Array.from({ length: 7 }, (_, i) => ({
+    label: ["M", "T", "W", "T", "F", "S", "S"][i],
+    status: i < streakDays ? "done" : "pending"
+  }));
+  const title = "7-Day Momentum Streak";
+  const description = "Log in every day to build momentum and unlock claimable coins.";
 
   return (
     <section className="dash-rewards-sidebar__card dash-rewards-streak">
@@ -23,7 +33,9 @@ export default function DailyMomentumCard() {
           <Flame className="h-3.5 w-3.5" aria-hidden="true" />
           {streakDays} day streak
         </span>
-        <span className="dash-rewards-streak__reward">+{rewardCoins} Coins</span>
+        <span className="dash-rewards-streak__reward">
+          +{rewardCoins} Coins {loginTask?.status === REWARD_TASK_STATUS.READY_TO_CLAIM ? "· Ready to claim" : ""}
+        </span>
       </div>
     </section>
   );

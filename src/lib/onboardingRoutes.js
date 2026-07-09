@@ -174,22 +174,22 @@ export function userCanChangeRoleDuringOnboarding(user) {
 
 export function postAuthDestination(user) {
   if (!user) return "/login";
-  if (hasAdminDashboardAccess(user)) return dashboardHomeForUser(user);
   if (userNeedsRoleSelection(user)) return ROLE_SELECTION_PATH;
   if (userNeedsMentorOnboarding(user)) return MENTOR_ONBOARDING_PATH;
   if (userNeedsMatchOnboarding(user)) return MATCH_ONBOARDING_PATH;
   if (userNeedsMatchDecision(user)) return `${MATCH_ONBOARDING_PATH}?step=result`;
   if (userNeedsParentInviteStep(user)) return PARENT_ONBOARDING_PATH;
   if (userNeedsPaymentStep(user)) return PAYMENT_ONBOARDING_PATH;
+  if (hasAdminDashboardAccess(user)) return dashboardHomeForUser(user);
   return dashboardPathForRole(user.role);
 }
 
 export function canAccessDashboard(user) {
   if (!user) return false;
-  if (hasAdminDashboardAccess(user)) return true;
   if (userNeedsRoleSelection(user)) return false;
   if (roleFromUser(user) === "parent") return true;
   if (userNeedsMentorOnboarding(user)) return false;
+  if (hasAdminDashboardAccess(user)) return true;
   if (roleFromUser(user) === "mentor") return true;
   if (userNeedsMatchOnboarding(user)) return false;
   if (userNeedsMatchDecision(user)) return false;

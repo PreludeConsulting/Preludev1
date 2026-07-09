@@ -9,7 +9,7 @@ import { createRagChatCompletion } from "../../server/chatHandler.js";
 describe("Prelude route registry", () => {
   it("exposes verified routes only", () => {
     assert.equal(getPreludeLink("plans"), "#pricing");
-    assert.equal(getPreludeLink("mentorMatch"), "#preludematch");
+    assert.equal(getPreludeLink("mentorMatch"), "/mentors");
     assert.equal(getPreludeLink("signUp"), "/register");
     assert.equal(getPreludeLink("consultation"), null);
     assert.equal(getPreludeLink("financialAidResources"), null);
@@ -67,7 +67,7 @@ describe("Prelude business answers", () => {
     });
     assert.match(answer.text, /messaging/i);
     assert.match(answer.text, /Basic|Plus|Pro/);
-    assert.ok(answer.actions.some((action) => action.href === "#preludematch"));
+    assert.ok(answer.actions.some((action) => action.href === "/mentors"));
   });
 
   it("answers FAFSA with trusted external link", () => {

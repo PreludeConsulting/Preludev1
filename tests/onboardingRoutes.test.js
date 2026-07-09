@@ -70,7 +70,7 @@ describe("onboarding route decisions", () => {
     expect(canAccessDashboard(user)).toBe(true);
   });
 
-  it("sends matching team admins to the admin dashboard even when their frontend role is mentor", () => {
+  it("sends matching team mentors through mentor onboarding before dashboard access", () => {
     const user = supabaseUser({
       role: "mentor",
       systemRole: "admin",
@@ -78,7 +78,19 @@ describe("onboarding route decisions", () => {
       mentorOnboardingComplete: false
     });
 
-    expect(postAuthDestination(user)).toBe("/dashboard/admin/matching");
+    expect(postAuthDestination(user)).toBe(MENTOR_ONBOARDING_PATH);
+    expect(canAccessDashboard(user)).toBe(false);
+  });
+
+  it("lets completed matching team mentors continue to the mentor dashboard", () => {
+    const user = supabaseUser({
+      role: "mentor",
+      systemRole: "admin",
+      matchingTeamAccess: true,
+      mentorOnboardingComplete: true
+    });
+
+    expect(postAuthDestination(user)).toBe("/dashboard/mentor/overview");
     expect(canAccessDashboard(user)).toBe(true);
   });
 

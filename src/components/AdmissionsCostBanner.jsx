@@ -2,14 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import {
   createCostBannerFakeCursorTimeline,
-  elementCenterPoint,
   formatSavingsAmount,
   savingsCountValue,
   SAVINGS_COUNT_DURATION_MS,
   SAVINGS_TARGET_AMOUNT
 } from "../lib/admissionsCostBannerMotion.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
-import CoinBurst from "./interaction/CoinBurst.jsx";
 import ScrollReveal from "./motion/ScrollReveal.jsx";
 
 const mediaBase = import.meta.env.BASE_URL;
@@ -19,16 +17,17 @@ function FakeCursorIcon() {
   return (
     <svg
       className="admissions-cost-banner__fake-cursor-svg"
-      viewBox="0 0 28 28"
+      viewBox="0 0 36 36"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
       <path
-        d="M5.5 3.5L5.5 20.5L11.8 14.6L15.8 24.2L19.2 22.8L14.8 13.4L21.5 13.4L5.5 3.5Z"
-        fill="#111111"
-        stroke="#FFFFFF"
-        strokeWidth="1.35"
+        className="admissions-cost-banner__fake-cursor-pointer"
+        d="M15.1 12.2C14.6 10.9 16 9.8 17.1 10.6L31.1 20.8C32.4 21.8 32 23.9 30.4 24.2L23.7 25.5L20.5 32C19.8 33.4 17.8 33.2 17.4 31.7L15.1 12.2Z"
+        fill="currentColor"
+        stroke="rgb(255 255 255 / 0.86)"
+        strokeWidth="1.2"
         strokeLinejoin="round"
       />
     </svg>
@@ -48,25 +47,15 @@ export default function AdmissionsCostBanner() {
 
   const [savingsValue, setSavingsValue] = useState(0);
   const [counting, setCounting] = useState(false);
-  const [coinBurst, setCoinBurst] = useState(null);
   const [demoLive, setDemoLive] = useState(false);
-
-  const triggerCoinBurst = useCallback(() => {
-    setCoinBurst({
-      id: Date.now(),
-      origin: elementCenterPoint(savingsButtonRef.current)
-    });
-  }, []);
 
   const runSavingsCount = useCallback(() => {
     window.cancelAnimationFrame(frameRef.current);
-    setCoinBurst(null);
     setSavingsValue(0);
 
     if (reducedMotion) {
       setCounting(false);
       setSavingsValue(SAVINGS_TARGET_AMOUNT);
-      triggerCoinBurst();
       return;
     }
 
@@ -87,11 +76,10 @@ export default function AdmissionsCostBanner() {
       setCounting(false);
       setSavingsValue(SAVINGS_TARGET_AMOUNT);
       demoCompleteRef.current = true;
-      triggerCoinBurst();
     };
 
     frameRef.current = window.requestAnimationFrame(tick);
-  }, [reducedMotion, triggerCoinBurst]);
+  }, [reducedMotion]);
 
   const stopFakeCursor = useCallback(() => {
     fakeTimelineRef.current?.cancel();
@@ -101,7 +89,6 @@ export default function AdmissionsCostBanner() {
   const resetSavingsDemo = useCallback(() => {
     window.cancelAnimationFrame(frameRef.current);
     frameRef.current = 0;
-    setCoinBurst(null);
     setCounting(false);
     demoCompleteRef.current = false;
     setSavingsValue(0);
@@ -222,13 +209,6 @@ export default function AdmissionsCostBanner() {
           </div>
         </ScrollReveal>
       </div>
-      <CoinBurst
-        key={coinBurst?.id}
-        active={Boolean(coinBurst)}
-        amount={null}
-        origin={coinBurst?.origin}
-        onDone={() => setCoinBurst(null)}
-      />
     </section>
   );
 }

@@ -31,6 +31,7 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ onTokenChange, dis
   const widgetIdRef = useRef(null);
   const callbackRef = useRef(onTokenChange);
   const [error, setError] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   callbackRef.current = onTokenChange;
 
@@ -64,6 +65,7 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ onTokenChange, dis
             setError("The security check expired or failed. Please try it again.");
           }
         });
+        setLoaded(true);
       })
       .catch((loadError) => {
         if (!cancelled) setError(loadError.message);
@@ -83,7 +85,10 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ onTokenChange, dis
 
   return (
     <div className={`auth-turnstile${disabled ? " auth-turnstile--disabled" : ""}`} aria-busy={disabled || undefined}>
-      <div ref={containerRef} />
+      <div className="auth-turnstile__frame">
+        <div ref={containerRef} className="auth-turnstile__widget" />
+        {!loaded ? <span className="auth-turnstile__placeholder">Loading security check…</span> : null}
+      </div>
       {error ? <p className="auth-turnstile__error" role="alert">{error}</p> : null}
     </div>
   );

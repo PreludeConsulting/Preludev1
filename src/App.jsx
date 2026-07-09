@@ -10,7 +10,6 @@ import Hero from "./components/Hero.jsx";
 import NetworkSection from "./components/NetworkSection.jsx";
 import StudentNetworkSection from "./components/StudentNetworkSection.jsx";
 import UniversityCarousel from "./components/UniversityCarousel.jsx";
-import QuestionnairePage from "./components/QuestionnairePage.jsx";
 import { SCROLL_STORAGE_KEY } from "./lib/siteSearch.js";
 import {
   AdmissionsCostBanner,
@@ -47,10 +46,6 @@ function AppContent() {
   }, []);
   
   useEffect(() => {
-    if (hash === "#preludematch") {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-      return;
-    }
     if (hash === "#dashboard" && !sessionStorage.getItem(SCROLL_STORAGE_KEY)) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       return;
@@ -64,27 +59,18 @@ function AppContent() {
 
 
   useEffect(() => {
+    if (hash === "#preludematch") {
+      navigate("/mentors", { replace: true });
+      return;
+    }
+  }, [hash, navigate]);
+
+  useEffect(() => {
     if (hash === "#dashboard") navigate("/dashboard", { replace: true });
   }, [hash, navigate]);
 
   if (hash === "#dashboard") {
     return null;
-  }
-
-  if (hash === "#preludematch") {
-    return (
-      <div className="min-h-screen bg-background text-foreground">
-        <div className="pointer-events-none fixed inset-0 z-0 paper-grain" aria-hidden="true" />
-        <div className="relative z-10">
-          <Navbar />
-          <QuestionnairePage />
-        </div>
-        <PreludeChat />
-        <SignInModal />
-        <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />
-        <LanguageSwitcher />
-      </div>
-    );
   }
 
   return (

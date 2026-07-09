@@ -8,12 +8,6 @@ export default function AuthLoadingState({
 }) {
   return (
     <main className="auth-loading-screen" aria-busy="true">
-      <div className="auth-shell__backdrop" aria-hidden="true">
-        <div className="auth-shell__orb auth-shell__orb--primary" />
-        <div className="auth-shell__orb auth-shell__orb--secondary" />
-        <div className="auth-shell__orb auth-shell__orb--accent" />
-        <div className="auth-shell__grain" />
-      </div>
       <section className="auth-loading-card" aria-live="polite">
         <AppLink href="/" className="auth-shell__logo" aria-label="Prelude home">
           <img src="/prelude-email-logo.png" alt="" width={40} height={40} />

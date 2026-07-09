@@ -19,6 +19,7 @@ import { startBillingCheckout } from "../lib/auth.js";
 import { FOOTER_LINK_COLUMNS } from "../data/footerLinks.js";
 import AppLink from "./AppLink.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
+import { dashboardPathForRole } from "../lib/onboardingRoutes.js";
 import ScrollReveal from "./motion/ScrollReveal.jsx";
 export { default as AdmissionsCostBanner } from "./AdmissionsCostBanner.jsx";
 
@@ -290,7 +291,10 @@ export function LowerCta() {
 
 export function LowerFooter() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const { openLegal } = useLegalModal();
+  const isParent = String(user?.role || "").toLowerCase() === "parent";
+  const parentDashboardHref = isParent ? dashboardPathForRole(user.role) : "/register";
   const followLinks = [
     { label: "Instagram", href: "https://www.instagram.com/preludellc/" },
     { label: "X", href: "https://x.com/PreludeLLC" },
@@ -320,7 +324,19 @@ export function LowerFooter() {
                 <ul className="lower-landing__footer-links">
                   {column.links.map(({ labelKey, href }) => (
                     <li key={`${column.headingKey}-${labelKey}`}>
-                      <AppLink href={href} className="lower-landing__footer-link">
+                      <AppLink
+                        href={
+                          labelKey === "sections.footer.links.parentDashboard"
+                            ? parentDashboardHref
+                            : href
+                        }
+                        className="lower-landing__footer-link"
+                        onClick={() => {
+                          if (labelKey === "sections.footer.links.bookCall") {
+                            window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+                          }
+                        }}
+                      >
                         {t(labelKey)}
                       </AppLink>
                     </li>

@@ -453,6 +453,8 @@ async function handleListDevices(req, res) {
     .from("trusted_devices")
     .select("id, device_name, user_agent_summary, created_at, last_used_at, expires_at, revoked_at")
     .eq("user_id", user.id)
+    .is("revoked_at", null)
+    .gt("expires_at", new Date().toISOString())
     .order("created_at", { ascending: false });
   if (error) return sendJson(res, 500, { error: "device_list_failed", message: "Could not load trusted devices." });
   sendJson(res, 200, { devices: data || [] });

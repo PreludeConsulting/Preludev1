@@ -44,9 +44,8 @@ export default function PaymentOnboardingPage() {
       eyebrow="Final step"
       hideContinue
       hideHomeLink
-      onBack={() => walletBackRef.current?.()}
+      onBack={(event) => walletBackRef.current?.(event)}
       footerNote="Your subscription starts after Stripe confirms payment. You cannot access your dashboard until checkout is complete."
-      className="plan-select-page"
     >
       <PlanWalletSelector
         context="payment"

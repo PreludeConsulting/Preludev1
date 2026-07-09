@@ -33,23 +33,34 @@ import PreludePigAvatar from "../hero/PreludePigAvatar.jsx";
 import EmailVerificationBanner from "../EmailVerificationBanner.jsx";
 import { OnboardingProgress } from "./OnboardingShell.jsx";
 
-export function MatchPendingPanel({ loading = false, onContinue, showAction = true }) {
+export function MatchPendingPanel({ loading = false, onContinue, showAction = true, onEdit = null }) {
   return (
     <div className="pm-match-pending">
       <PreludePigAvatar size="lg" variant="intro" animate className="pm-match-pending__mascot" />
-      <header className="pm-match-pending__head">
-        <h2 className="pm-results__title">Your mentor match is being processed</h2>
-        <p className="pm-results__sub">
+      <div className="pm-match-pending__body">
+        <p className="pm-match-pending__eyebrow">Questionnaire submitted</p>
+        <h2 className="pm-match-pending__title">Your mentor match is being processed</h2>
+        <p className="pm-match-pending__lead">
           Thanks for completing the PreludeMatch questionnaire. Our team is reviewing your goals and preferences so we
-          can find the best mentor for you. You'll receive an email soon with your recommended match.
+          can find the best mentor for you.
         </p>
-      </header>
-      <p className="pm-match-pending__note">We'll reach out as soon as your match is ready.</p>
-      {showAction ? (
-        <div className="pm-match-result__actions">
-          <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onContinue}>
-            Continue to parent invite
-          </button>
+        <p className="pm-match-pending__lead">
+          You&apos;ll receive an email soon with your recommended match.
+        </p>
+        <p className="pm-match-pending__status">We&apos;ll reach out as soon as your match is ready.</p>
+      </div>
+      {showAction || onEdit ? (
+        <div className="pm-match-pending__actions">
+          {onEdit ? (
+            <button type="button" className="dash-btn dash-btn--secondary" onClick={onEdit}>
+              Update answers
+            </button>
+          ) : null}
+          {showAction ? (
+            <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onContinue}>
+              Continue to parent invite
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -60,13 +71,14 @@ function MatchCompletePanel({ onEdit }) {
   return (
     <div className="pm-match-pending">
       <PreludePigAvatar size="lg" variant="intro" animate className="pm-match-pending__mascot" />
-      <header className="pm-match-pending__head">
-        <h2 className="pm-results__title">Prelude Match is complete</h2>
-        <p className="pm-results__sub">
+      <div className="pm-match-pending__body">
+        <p className="pm-match-pending__eyebrow">Step complete</p>
+        <h2 className="pm-match-pending__title">Prelude Match is complete</h2>
+        <p className="pm-match-pending__lead">
           Your questionnaire responses are saved. Continue to meet your match, or update your answers before moving on.
         </p>
-      </header>
-      <div className="pm-match-result__actions">
+      </div>
+      <div className="pm-match-pending__actions">
         <button type="button" className="dash-btn dash-btn--secondary" onClick={onEdit}>
           Update answers
         </button>
@@ -85,6 +97,7 @@ export default function PreludeMatchOnboardingPage() {
 
   const [phase, setPhase] = useState(forceResult ? "result" : "intro");
   const [answers, setAnswers] = useState(user?.questionnaireAnswers || {});
+  const [editingAnswers, setEditingAnswers] = useState(false);
   const [currentQuestionId, setCurrentQuestionId] = useState(null);
   const [pigMotion, setPigMotion] = useState("none");
   const [progress, setProgress] = useState(0);
@@ -104,16 +117,23 @@ export default function PreludeMatchOnboardingPage() {
 
   const currentQuestion = visibleQuestions[currentIndex] ?? visibleQuestions[0];
 
-  const loadResultState = useCallback(async () => {
-    if (!user) return;
-    setError("");
-    setPhase("result");
-  }, [user]);
+  useEffect(() => {
+    if (user?.questionnaireAnswers && Object.keys(user.questionnaireAnswers).length) {
+      setAnswers(user.questionnaireAnswers);
+    }
+  }, [user?.questionnaireAnswers]);
 
   useEffect(() => {
-    if (!forceResult) return;
-    loadResultState();
-  }, [forceResult, loadResultState]);
+    if (forceResult) {
+      setError("");
+      setEditingAnswers(false);
+      setPhase("result");
+      return;
+    }
+    setPhase((current) => (current === "result" ? "intro" : current));
+    setEditingAnswers(false);
+    setError("");
+  }, [forceResult]);
 
   const bumpPig = useCallback(() => {
     setPigMotion("bounce");
@@ -182,6 +202,7 @@ export default function PreludeMatchOnboardingPage() {
       }
       await refreshUser();
       setProgress(100);
+      setEditingAnswers(false);
       setPhase("result");
       navigate(`${MATCH_ONBOARDING_PATH}?step=result`, { replace: true });
     } catch (err) {
@@ -220,8 +241,26 @@ export default function PreludeMatchOnboardingPage() {
 
   const showResultPanel = phase === "result";
   const showVerifyBanner = !user.emailVerified && showResultPanel;
-  const showCompletedPanel = user.matchOnboardingComplete && !showResultPanel;
+  const showCompletedPanel = user.matchOnboardingComplete && !showResultPanel && !editingAnswers;
+  const cardVariant =
+    phase === "questions" || phase === "boot"
+      ? "questionnaire"
+      : phase === "intro"
+        ? "intro"
+        : "panel";
   const nextHint = navigation.nextDisabled ? navigation.nextReason : "";
+
+  function beginEditingAnswers() {
+    const savedAnswers = user?.questionnaireAnswers || answers;
+    const visible = getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, savedAnswers);
+    setAnswers(savedAnswers);
+    setEditingAnswers(true);
+    setError("");
+    setPhase("questions");
+    setCurrentQuestionId(visible[0]?.id || PRELUDE_MATCH_QUESTIONS[0].id);
+    setProgress(computeQuestionProgress(0, visible.length));
+    bumpPig();
+  }
 
   function handleStepNext() {
     if (navigation.nextDisabled) {
@@ -252,18 +291,11 @@ export default function PreludeMatchOnboardingPage() {
           transition={{ duration: 0.45, ease: "easeOut" }}
         >
           <div className="pm-card-wrap__glow" aria-hidden="true" />
-          <div className="pm-card pm-card--stable">
+          <div className={`pm-card pm-card--stable pm-card--${cardVariant}`}>
             <AnimatePresence mode="wait">
               {showCompletedPanel ? (
-                <motion.div key="match-complete" className="pm-card__panel" exit={{ opacity: 0 }}>
-                  <MatchCompletePanel
-                    onEdit={() => {
-                      setAnswers(user?.questionnaireAnswers || {});
-                      setPhase("questions");
-                      setCurrentQuestionId(PRELUDE_MATCH_QUESTIONS[0].id);
-                      setProgress(computeQuestionProgress(0, visibleQuestions.length));
-                    }}
-                  />
+                <motion.div key="match-complete" className="pm-card__panel pm-card__panel--summary" exit={{ opacity: 0 }}>
+                  <MatchCompletePanel onEdit={beginEditingAnswers} />
                 </motion.div>
               ) : null}
 
@@ -310,10 +342,11 @@ export default function PreludeMatchOnboardingPage() {
               ) : null}
 
               {showResultPanel ? (
-                <motion.div key="result" className="pm-card__panel pm-card__panel--results">
+                <motion.div key="result" className="pm-card__panel pm-card__panel--summary">
                   <MatchPendingPanel
                     loading={saving}
                     onContinue={() => navigate(PARENT_ONBOARDING_PATH)}
+                    onEdit={beginEditingAnswers}
                     showAction={false}
                   />
                 </motion.div>
@@ -321,7 +354,11 @@ export default function PreludeMatchOnboardingPage() {
             </AnimatePresence>
           </div>
         </motion.div>
-        <footer className="onboarding-flow__footer pm-onboarding-page__footer">
+        <footer
+          className={`onboarding-flow__footer pm-onboarding-page__footer${
+            !navigation.showBack && navigation.showNext ? " onboarding-flow__footer--next-only" : ""
+          }${navigation.showBack && !navigation.showNext ? " onboarding-flow__footer--back-only" : ""}`}
+        >
           {navigation.showBack && navigation.backPath ? (
             <AppLink href={navigation.backPath} className="onboarding-flow__back-btn">
               <ArrowLeft aria-hidden="true" />
