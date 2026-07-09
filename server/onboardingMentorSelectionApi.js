@@ -6,6 +6,7 @@ import {
   effectiveMatchedMentorCount,
   resolveMentorSelection
 } from "../shared/mentorSelectionLogic.js";
+import { hasMatchingTeamAccess } from "../shared/matchingTeamAccess.js";
 import { readJsonBody, sendJson } from "./http.js";
 
 function initialsFor(name) {
@@ -109,14 +110,14 @@ function matchingTeamEmails() {
 }
 
 function isMatchingTeamProfile(profile, user) {
-  if (profile?.role === "admin") return true;
+  if (hasMatchingTeamAccess(profile)) return true;
   const email = String(user?.email || "").trim().toLowerCase();
   return Boolean(email && matchingTeamEmails().includes(email));
 }
 
 async function requireMatchingTeam(req) {
   const { supabase, user } = await requireSupabaseUser(req);
-  const { data: profile, error } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).maybeSingle();
+  const { data: profile, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
   if (error || !isMatchingTeamProfile(profile, user)) {
     const authError = new Error("Matching Team access required.");
     authError.statusCode = 403;

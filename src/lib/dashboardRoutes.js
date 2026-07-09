@@ -1,4 +1,5 @@
 import { appPath } from "./appPaths.js";
+import { hasMatchingTeamAccess } from "../../shared/matchingTeamAccess.js";
 
 /** Role-based dashboard paths and redirects. */
 
@@ -16,7 +17,7 @@ export function dashboardHomeForRole(role) {
 }
 
 export function hasAdminDashboardAccess(user) {
-  return Boolean(user?.matchingTeamAccess || user?.systemRole === "admin" || roleFromUser(user) === "admin");
+  return hasMatchingTeamAccess(user);
 }
 
 export function dashboardHomeForUser(user) {

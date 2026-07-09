@@ -49,6 +49,7 @@ import { PreludeMatchBrowsePage } from "./pages/shared/PreludeMatchPages.jsx";
 import MatchingTeamPage from "./pages/admin/AdminPages.jsx";
 import { ADMIN_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
 import { checkMatchingTeamAccess } from "../lib/mentorSelectionApi.js";
+import { hasMatchingTeamAccess } from "../../shared/matchingTeamAccess.js";
 
 function DashboardRedirect() {
   const { user, ready } = useAuth();
@@ -62,11 +63,16 @@ function LegacyStudentRedirect({ to }) {
 }
 
 function MatchingTeamGuard({ children }) {
+  const { user } = useAuth();
   const [state, setState] = useState({ loading: true, allowed: false });
 
   useEffect(() => {
     let cancelled = false;
     async function checkAccess() {
+      if (hasMatchingTeamAccess(user)) {
+        setState({ loading: false, allowed: true });
+        return;
+      }
       try {
         await checkMatchingTeamAccess();
         if (!cancelled) setState({ loading: false, allowed: true });
@@ -78,7 +84,7 @@ function MatchingTeamGuard({ children }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user]);
 
   if (state.loading) return <div className="dash-loading">Checking Matching Team access...</div>;
   if (!state.allowed) {

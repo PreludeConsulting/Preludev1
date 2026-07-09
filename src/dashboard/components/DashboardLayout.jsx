@@ -15,6 +15,7 @@ import { PreludeChatProvider } from "../context/PreludeChatContext.jsx";
 import { PlanUpgradeProvider } from "../context/PlanUpgradeContext.jsx";
 import { MotionPage } from "../../components/motion/MotionPrimitives.jsx";
 import { checkMatchingTeamAccess } from "../../lib/mentorSelectionApi.js";
+import { hasMatchingTeamAccess } from "../../../shared/matchingTeamAccess.js";
 
 export default function DashboardLayout({ navItems, basePath, productNav }) {
   const location = useLocation();
@@ -44,8 +45,13 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
       }
       const userRole = roleFromUser(user);
       const canShowMatchingForRole = userRole === "mentor" || userRole === "admin";
+      const hasKnownMatchingAccess = hasMatchingTeamAccess(user);
       if (!canShowMatchingForRole) {
         setShowMatchingNav(false);
+        return;
+      }
+      if (hasKnownMatchingAccess) {
+        setShowMatchingNav(true);
         return;
       }
       try {

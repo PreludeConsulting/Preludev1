@@ -10,6 +10,7 @@ import { readPaymentStepComplete } from "./onboardingPayment.js";
 import { readParentInviteStepComplete } from "./parentLinks.js";
 import { normalizeAuthProviders } from "./authSignInMethod.js";
 import { resolveAvatarUrl } from "./avatar.js";
+import { hasMatchingTeamAccess } from "../../shared/matchingTeamAccess.js";
 
 export function mapSupabaseUser(
   session,
@@ -32,7 +33,11 @@ export function mapSupabaseUser(
   const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
   const storedRole = (profile?.role || meta.role || "student").toLowerCase();
   const metadataRole = (meta.role || "").toLowerCase();
-  const matchingTeamAccess = Boolean(options.matchingTeamAccess || storedRole === "admin");
+  const matchingTeamAccess = hasMatchingTeamAccess({
+    ...profile,
+    matchingTeamAccess: options.matchingTeamAccess,
+    systemRole: storedRole
+  });
   const role = matchingTeamAccess
     ? (
       ["student", "mentor", "parent"].includes(metadataRole)
