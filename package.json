@@ -28,7 +28,8 @@
     "test:watch": "vitest",
     "train:agent": "node scripts/train-agent.mjs",
     "fetch:campus-images": "node scripts/fetch-college-campus-images.mjs",
-    "fetch:campus-images:force": "node scripts/fetch-college-campus-images.mjs --force"
+    "fetch:campus-images:force": "node scripts/fetch-college-campus-images.mjs --force",
+    "import:campus-images:pdf": "python3 scripts/import-college-images-from-pdf.py"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.20",
