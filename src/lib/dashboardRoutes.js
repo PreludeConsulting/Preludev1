@@ -20,7 +20,7 @@ export function hasAdminDashboardAccess(user) {
 }
 
 export function dashboardHomeForUser(user) {
-  if (hasAdminDashboardAccess(user)) return `${ADMIN_DASHBOARD_BASE}/matching`;
+  if (roleFromUser(user) === "admin") return `${ADMIN_DASHBOARD_BASE}/matching`;
   return dashboardHomeForRole(user?.role);
 }
 

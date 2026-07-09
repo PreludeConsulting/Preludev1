@@ -42,6 +42,10 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
         setShowMatchingNav(false);
         return;
       }
+      if (user.matchingTeamAccess !== true && roleFromUser(user) !== "admin") {
+        setShowMatchingNav(false);
+        return;
+      }
       try {
         await checkMatchingTeamAccess();
         if (!cancelled) setShowMatchingNav(true);
