@@ -2,9 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bell,
-  BookOpen,
   Calendar,
-  Check,
   CheckCircle2,
   CreditCard,
   GraduationCap,
@@ -19,6 +17,8 @@ import { useAuth } from "../../../context/AuthContext.jsx";
 import { getPlan, getPricingPlans } from "../../../lib/plans.js";
 import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
+import StudentHelpSupport from "../../components/product/StudentHelpSupport.jsx";
+import StudentBillingPage from "../../components/product/StudentBillingPage.jsx";
 import {
   DashBadge,
   DashboardPageHeader,
@@ -27,49 +27,6 @@ import {
   SecondaryButton,
   SectionCard
 } from "../../components/ui/index.jsx";
-
-const RESOURCE_CATEGORIES = [
-  {
-    id: "planning",
-    title: "College Planning",
-    items: [
-      { title: "Building your college list", description: "How to balance reach, target, and safety schools." },
-      { title: "Timeline for junior year", description: "Key milestones from testing through applications." }
-    ]
-  },
-  {
-    id: "applications",
-    title: "Applications",
-    items: [
-      { title: "Common App walkthrough", description: "Section-by-section guidance for a strong application." },
-      { title: "Activity list best practices", description: "Describe impact, leadership, and time commitment clearly." }
-    ]
-  },
-  {
-    id: "essays",
-    title: "Essays",
-    items: [
-      { title: "Finding your personal statement topic", description: "Exercises to uncover stories only you can tell." },
-      { title: "Supplemental essay strategy", description: "Tailor each essay to the school without repeating yourself." }
-    ]
-  },
-  {
-    id: "aid",
-    title: "Scholarships and Financial Aid",
-    items: [
-      { title: "FAFSA and CSS Profile overview", description: "What families need to prepare before deadlines." },
-      { title: "Merit scholarship search tips", description: "Where to look beyond the obvious national awards." }
-    ]
-  },
-  {
-    id: "choosing",
-    title: "Choosing a School",
-    items: [
-      { title: "Comparing financial aid packages", description: "Look beyond sticker price to net cost." },
-      { title: "Campus visit checklist", description: "Questions to ask students, faculty, and admissions." }
-    ]
-  }
-];
 
 const MATCHING_QUESTIONS = [
   "What are your top intended majors or fields of study?",
@@ -132,193 +89,12 @@ export function StudentNotifications() {
   );
 }
 
-export function StudentResources() {
-  const { savedResources, saveUserResource, useSupabaseData } = useDashboardData();
-  const [savedId, setSavedId] = useState(null);
-
-  async function handleSave(category, item) {
-    if (!useSupabaseData) {
-      setSavedId(`${category}-${item.title}`);
-      return;
-    }
-    await saveUserResource({ category, title: item.title, description: item.description });
-    setSavedId(`${category}-${item.title}`);
-  }
-
-  return (
-    <div className="dash-page dash-page--premium">
-      <DashboardPageHeader
-        title="Resources"
-        subtitle="Guides and references to support your college journey."
-      />
-
-      {savedResources.length > 0 ? (
-        <SectionCard title="Saved resources" className="dash-panel">
-          <ul className="dash-resource-saved-list">
-            {savedResources.map((r) => (
-              <li key={r.id}>
-                <DashBadge variant="soft">{r.category}</DashBadge>
-                <strong>{r.title}</strong>
-                {r.description ? <span className="dash-muted">{r.description}</span> : null}
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
-      ) : null}
-
-      <div className="dash-resource-grid">
-        {RESOURCE_CATEGORIES.map((cat) => (
-          <SectionCard key={cat.id} title={cat.title} className="dash-panel">
-            <ul className="dash-resource-list">
-              {cat.items.map((item) => (
-                <li key={item.title} className="dash-resource-card">
-                  <div>
-                    <h3 className="dash-resource-card__title">{item.title}</h3>
-                    <p className="dash-muted">{item.description}</p>
-                  </div>
-                  <SecondaryButton
-                    type="button"
-                    className="dash-btn--sm"
-                    onClick={() => handleSave(cat.title, item)}
-                  >
-                    {savedId === `${cat.title}-${item.title}` ? (
-                      <><Check className="h-4 w-4" /> Saved</>
-                    ) : (
-                      "Save"
-                    )}
-                  </SecondaryButton>
-                </li>
-              ))}
-            </ul>
-          </SectionCard>
-        ))}
-      </div>
-
-      {!useSupabaseData ? (
-        <p className="dash-demo-note">Resource saves are stored locally in demo mode. Sign in with Supabase to persist saves to your account.</p>
-      ) : null}
-    </div>
-  );
-}
-
 export function StudentBilling() {
-  const { user, planDetails, openAccount } = useAuth();
-  const plans = getPricingPlans();
-  const current = planDetails || (user?.plan ? getPlan(user.plan) : null);
-
-  return (
-    <div className="dash-page dash-page--premium">
-      <DashboardPageHeader
-        title="Plans and Billing"
-        subtitle="Your subscription and billing details."
-      />
-
-      <SectionCard title="Current plan" className="dash-panel dash-billing-current">
-        {current ? (
-          <>
-            <div className="dash-billing-current__head">
-              <CreditCard className="h-8 w-8 text-primary" aria-hidden="true" />
-              <div>
-                <h2 className="dash-billing-current__name">{current.name}</h2>
-                <p className="dash-billing-current__price">{current.price}<span>/mo</span></p>
-              </div>
-              <DashBadge variant="lavender">Active</DashBadge>
-            </div>
-            <p className="dash-muted">{current.tagline}</p>
-            <ul className="dash-billing-features">
-              {current.features.slice(0, 4).map((f) => (
-                <li key={f}><CheckCircle2 className="h-4 w-4" /> {f}</li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <EmptyState
-            icon={CreditCard}
-            title="No plan selected"
-            description="Choose a plan to unlock your full Prelude dashboard experience."
-            action={<Link to="/dashboard/student/billing" className="dash-btn dash-btn--primary dash-btn--sm">Choose a plan</Link>}
-          />
-        )}
-      </SectionCard>
-
-      <SectionCard title="Compare plans" className="dash-panel">
-        <div className="dash-billing-plans">
-          {plans.map((plan) => (
-            <article key={plan.id} className={`dash-billing-plan ${plan.isRecommended ? "dash-billing-plan--featured" : ""}`}>
-              {plan.isRecommended ? <span className="dash-billing-plan__badge">Best value</span> : null}
-              <h3>{plan.name}</h3>
-              <p className="dash-billing-plan__price">{plan.price}/mo</p>
-              <p className="dash-muted">{plan.tagline}</p>
-              {user?.plan === plan.id ? (
-                <DashBadge variant="soft">Current plan</DashBadge>
-              ) : (
-                <Link to="/dashboard/student/billing" className="dash-btn dash-btn--secondary dash-btn--sm">Change plan</Link>
-              )}
-            </article>
-          ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Billing status" className="dash-panel">
-        <p className="dash-muted">
-          Payment processing is not connected yet. Your plan selection is saved to your profile.
-          When Stripe billing is enabled, you will be able to manage payment methods and invoices here.
-        </p>
-        <SecondaryButton type="button" className="dash-btn--sm" onClick={openAccount}>
-          Open account drawer
-        </SecondaryButton>
-      </SectionCard>
-    </div>
-  );
+  return <StudentBillingPage />;
 }
 
 export function StudentHelp() {
-  return (
-    <div className="dash-page dash-page--premium">
-      <DashboardPageHeader
-        title="Help and Support"
-        subtitle="Get answers and contact the Prelude team."
-      />
-
-      <div className="dash-help-grid">
-        <SectionCard title="Contact us" className="dash-panel">
-          <a href="mailto:preludesupport@preludeconsultingllc.com" className="dash-help-card">
-            <Mail className="h-5 w-5" />
-            <div>
-              <strong>Email support</strong>
-              <p className="dash-muted">preludesupport@preludeconsultingllc.com — we typically respond within one business day.</p>
-            </div>
-          </a>
-        </SectionCard>
-
-        <SectionCard title="Common questions" className="dash-panel">
-          <dl className="dash-faq">
-            <div>
-              <dt>How do I schedule a mentor session?</dt>
-              <dd>Go to Calendar or My Mentor and submit a meeting request. Your mentor will confirm the time.</dd>
-            </div>
-            <div>
-              <dt>Can I change my plan?</dt>
-              <dd>Yes — visit Plans and Billing or Account settings to select a different plan.</dd>
-            </div>
-            <div>
-              <dt>Where are my messages?</dt>
-              <dd>Open Messages from the dashboard menu to view conversations with your mentor.</dd>
-            </div>
-          </dl>
-        </SectionCard>
-
-        <SectionCard title="Quick links" className="dash-panel">
-          <nav className="dash-help-links">
-            <Link to={`${STUDENT_DASHBOARD_BASE}/settings`}><HelpCircle className="h-4 w-4" /> Settings</Link>
-            <Link to={`${STUDENT_DASHBOARD_BASE}/billing`}><CreditCard className="h-4 w-4" /> Plans and Billing</Link>
-            <Link to={`${STUDENT_DASHBOARD_BASE}/resources`}><BookOpen className="h-4 w-4" /> Resources</Link>
-            <Link to="/"><Sparkles className="h-4 w-4" /> Back to Prelude homepage</Link>
-          </nav>
-        </SectionCard>
-      </div>
-    </div>
-  );
+  return <StudentHelpSupport />;
 }
 
 export function StudentMentorMatching() {

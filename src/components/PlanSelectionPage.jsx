@@ -56,7 +56,7 @@ function restoreFromLocation(location) {
 /* Wallet pieces                                                        */
 /* ------------------------------------------------------------------ */
 
-function WalletBrandFooter({ email }) {
+export function WalletBrandFooter({ email }) {
   return (
     <div className="pw-wallet__footer" aria-hidden="true">
       <span className="pw-wallet__brand">
@@ -68,20 +68,21 @@ function WalletBrandFooter({ email }) {
   );
 }
 
-function WalletPlanCard({ plan, index, selected, selectable, onSelect, buttonRef }) {
-  return (
-    <button
-      ref={buttonRef}
-      type="button"
-      className={`pw-card pw-card--${plan.id} ${selected ? "pw-card--selected" : ""}`}
-      style={{ "--pw-i": index }}
-      onClick={() => onSelect(plan.id)}
-      disabled={!selectable}
-      aria-haspopup="dialog"
-      aria-pressed={selected}
-      aria-label={`${plan.name} plan, ${plan.price} per month${selected ? ", selected" : ""}`}
-      tabIndex={selectable ? 0 : -1}
-    >
+export function WalletPlanCard({
+  plan,
+  index,
+  selected,
+  selectable,
+  onSelect,
+  buttonRef,
+  style,
+  displayOnly = false
+}) {
+  const className = `pw-card pw-card--${plan.id} ${selected ? "pw-card--selected" : ""}`;
+  const cardStyle = { "--pw-i": index, ...style };
+
+  const content = (
+    <>
       <span className="pw-card__surface" aria-hidden="true" />
       <span className="pw-card__sheen" aria-hidden="true" />
       <span className="pw-card__top">
@@ -99,6 +100,35 @@ function WalletPlanCard({ plan, index, selected, selectable, onSelect, buttonRef
           Selected
         </span>
       ) : null}
+    </>
+  );
+
+  if (displayOnly) {
+    return (
+      <article
+        className={className}
+        style={cardStyle}
+        aria-label={`${plan.name} plan, ${plan.price} per month${selected ? ", current plan" : ""}`}
+      >
+        {content}
+      </article>
+    );
+  }
+
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      className={className}
+      style={cardStyle}
+      onClick={() => onSelect(plan.id)}
+      disabled={!selectable}
+      aria-haspopup="dialog"
+      aria-pressed={selected}
+      aria-label={`${plan.name} plan, ${plan.price} per month${selected ? ", selected" : ""}`}
+      tabIndex={selectable ? 0 : -1}
+    >
+      {content}
     </button>
   );
 }
@@ -114,7 +144,48 @@ function getTabbable(container) {
   ).filter((el) => el.offsetParent !== null || el === document.activeElement);
 }
 
-function PlanPopup({
+export function PlanDetailsPanel({ plan, className = "", supporting }) {
+  return (
+    <article
+      className={`pw-popup pw-popup--${plan.id} pw-popup--inline ${className}`.trim()}
+      aria-label={`${plan.name} plan details`}
+    >
+      <header className="pw-popup__head">
+        <div className="pw-popup__head-row">
+          <h2>{plan.name}</h2>
+          {plan.isRecommended ? <span className="pw-popup__badge">Best value</span> : null}
+        </div>
+        <p className="pw-popup__head-sub">{plan.tagline}</p>
+      </header>
+
+      <div className="pw-popup__body" role="region" aria-label={`Included in ${plan.name}`}>
+        <section className="pw-popup__price" aria-label={`${plan.name} pricing`}>
+          <span className="pw-popup__price-amount">{plan.price}</span>
+          <span className="pw-popup__price-period">per month</span>
+          <span className="pw-popup__price-label">{plan.priceLabel}</span>
+        </section>
+
+        <p className="pw-popup__description">{plan.description}</p>
+
+        <section className="pw-popup__features" aria-label={`Included in ${plan.name}`}>
+          <h3>What&apos;s included</h3>
+          <ul>
+            {plan.features.map((feature) => (
+              <li key={feature}>
+                <Check aria-hidden="true" />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {supporting ? <p className="pw-popup__supporting">{supporting}</p> : null}
+      </div>
+    </article>
+  );
+}
+
+export function PlanPopup({
   plan,
   status,
   busy,
@@ -127,6 +198,8 @@ function PlanPopup({
   onRequestClose
 }) {
   const isPayment = context === "payment";
+  const isBilling = context === "billing";
+  const isBillingCurrent = context === "billing-current";
   const bodyRef = useRef(null);
   const priceRef = useRef(null);
   const firstActionRef = useRef(null);
@@ -239,7 +312,11 @@ function PlanPopup({
           <p className="pw-popup__supporting">
             {isPayment
               ? "You'll be redirected to Stripe's secure payment portal. Your account activates after payment is confirmed."
-              : "Billing is not charged during this step."}
+              : isBillingCurrent
+                ? "This is your active Prelude mentorship tier. Use Compare plans below to review other tiers."
+              : isBilling
+                ? "You'll be redirected to Stripe to confirm your plan change. Your new rate applies on your next billing cycle."
+                : "Billing is not charged during this step."}
           </p>
 
           {notice ? (
@@ -255,10 +332,18 @@ function PlanPopup({
             type="button"
             className="pw-popup__action pw-popup__action--primary"
             onClick={onSelectPlan}
-            disabled={busy}
+            disabled={busy || isBillingCurrent}
             aria-busy={busy}
           >
-            {busy ? "Processing…" : isPayment ? "Continue to checkout" : "Select this plan"}
+            {busy
+              ? "Processing…"
+              : isPayment
+                ? "Continue to checkout"
+                : isBillingCurrent
+                  ? "Current plan"
+                  : isBilling
+                    ? "Switch to this plan"
+                    : "Select this plan"}
           </button>
           <div className="pw-popup__actions-row">
             <button type="button" className="pw-popup__action" onClick={handleViewPrice} disabled={busy}>
@@ -278,31 +363,55 @@ function PlanPopup({
 /* Wallet experience                                                    */
 /* ------------------------------------------------------------------ */
 
-export function PlanWalletExperience({ context, user, backTo = "/", onRegisterBack }) {
+export function PlanWalletExperience({
+  context,
+  user,
+  backTo = "/",
+  onRegisterBack,
+  plans: plansProp,
+  initialSelectedPlanId = null,
+  initialWalletOpen = false,
+  persistState = true,
+  experienceClassName = ""
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const reducedMotion = useReducedMotion();
-  const plans = getPricingPlans();
+  const plans = plansProp ?? getPricingPlans();
   const { isAuthenticated, openRegister, saveUserPlan, refreshUser } = useAuth();
+  const isBillingContext = context === "billing" || context === "billing-current";
 
   const restored = useMemo(() => restoreFromLocation(location), [location]);
-  const draft = useMemo(() => (user?.id ? readOnboardingDraft(user.id) : {}), [user?.id]);
-  const cachedPlan = useMemo(() => (user?.id ? readCachedPlan(user.id) : null), [user?.id]);
+  const draft = useMemo(
+    () => (persistState && user?.id ? readOnboardingDraft(user.id) : {}),
+    [persistState, user?.id]
+  );
+  const cachedPlan = useMemo(
+    () => (persistState && user?.id ? readCachedPlan(user.id) : null),
+    [persistState, user?.id]
+  );
 
-  const initialPlanId =
-    restored.selectedPlanId ||
-    (isValidPlanId(draft.selectedPlanId)
-      ? draft.selectedPlanId
-      : isValidPlanId(cachedPlan)
-        ? cachedPlan
-        : null);
+  const initialPlanId = isBillingContext
+    ? (isValidPlanId(initialSelectedPlanId) ? initialSelectedPlanId : null)
+    : restored.selectedPlanId ||
+      (isValidPlanId(draft.selectedPlanId)
+        ? draft.selectedPlanId
+        : isValidPlanId(cachedPlan)
+          ? cachedPlan
+          : null);
 
-  const initialOpen = restored.walletOpen || Boolean(draft.walletOpen);
-  const initialStatus = restored.detailsOpen && initialPlanId
-    ? WALLET_STATES.POPUP_OPEN
-    : initialOpen
+  const initialOpen = isBillingContext
+    ? initialWalletOpen
+    : restored.walletOpen || Boolean(draft.walletOpen);
+  const initialStatus = isBillingContext
+    ? initialOpen
       ? WALLET_STATES.OPEN
-      : WALLET_STATES.CLOSED;
+      : WALLET_STATES.CLOSED
+    : restored.detailsOpen && initialPlanId
+      ? WALLET_STATES.POPUP_OPEN
+      : initialOpen
+        ? WALLET_STATES.OPEN
+        : WALLET_STATES.CLOSED;
 
   const planIds = useMemo(() => plans.map((plan) => plan.id), [plans]);
 
@@ -363,10 +472,10 @@ export function PlanWalletExperience({ context, user, backTo = "/", onRegisterBa
 
   const persistDraft = useCallback(
     (patch) => {
-      if (!user?.id) return;
+      if (!persistState || !user?.id) return;
       writeOnboardingDraft(user.id, patch);
     },
-    [user?.id]
+    [persistState, user?.id]
   );
 
   // Restore focus to the selected card when the popup fully closes.
@@ -400,12 +509,13 @@ export function PlanWalletExperience({ context, user, backTo = "/", onRegisterBa
   );
 
   useEffect(() => {
+    if (isBillingContext) return undefined;
     onRegisterBack?.(handleBackRequest);
     return () => onRegisterBack?.(null);
-  }, [handleBackRequest, onRegisterBack]);
+  }, [handleBackRequest, isBillingContext, onRegisterBack]);
 
   useEffect(() => {
-    if (!pendingBackRef.current) return;
+    if (isBillingContext || !pendingBackRef.current) return;
 
     if (shouldNavigateAfterClose(state.status, pendingBackRef.current)) {
       pendingBackRef.current = false;
@@ -421,7 +531,7 @@ export function PlanWalletExperience({ context, user, backTo = "/", onRegisterBa
 
     const action = backDispatchForStatus(state.status);
     if (action) dispatch(action);
-  }, [backTo, dispatch, navigate, persistDraft, state.selectedPlanId, state.status]);
+  }, [backTo, dispatch, isBillingContext, navigate, persistDraft, state.selectedPlanId, state.status]);
 
   function handleWalletOpen() {
     if (state.status === WALLET_STATES.CLOSED) {
@@ -493,6 +603,23 @@ export function PlanWalletExperience({ context, user, backTo = "/", onRegisterBa
     }
   }
 
+  async function handleChooseBilling(plan) {
+    setNotice("");
+    setBusyPlan(plan.id);
+    try {
+      const result = await startBillingCheckout(plan.id);
+      if (result.url) window.location.href = result.url;
+    } catch (error) {
+      if (error.payload?.error === "billing_not_configured") {
+        setNotice("Plan checkout will turn on after billing is connected.");
+      } else {
+        setNotice(error.message || "Checkout is unavailable right now. Please try again.");
+      }
+    } finally {
+      setBusyPlan(null);
+    }
+  }
+
   async function handleChoosePublic(plan) {
     setNotice("");
     const requiresRealAccount = user?.authProvider === "demo" || user?.authProvider === "dev";
@@ -525,10 +652,13 @@ export function PlanWalletExperience({ context, user, backTo = "/", onRegisterBa
 
   function handleSelectPlanAction() {
     if (!popupPlan || busyPlan) return;
+    if (context === "billing-current") return;
     if (context === "payment") {
       handleChoosePayment(popupPlan);
     } else if (context === "onboarding") {
       handleChooseOnboarding(popupPlan);
+    } else if (context === "billing") {
+      handleChooseBilling(popupPlan);
     } else {
       handleChoosePublic(popupPlan);
     }
@@ -540,10 +670,10 @@ export function PlanWalletExperience({ context, user, backTo = "/", onRegisterBa
   const walletControlLabel = state.status === WALLET_STATES.CLOSED ? "Open wallet" : "Close wallet";
 
   return (
-    <div className="plan-wallet-experience">
+    <div className={`plan-wallet-experience ${experienceClassName}`.trim()}>
       <div
         ref={walletRef}
-        className={`pw-wallet pw-wallet--${state.status}`}
+        className={`pw-wallet pw-wallet--${state.status} pw-wallet--count-${plans.length}`}
         data-deck-visible={showDeck ? "true" : "false"}
         data-popup-plan={popupPlan?.id || state.selectedPlanId || ""}
         aria-hidden={popupOpen ? "true" : undefined}

@@ -32,6 +32,18 @@
   filter: drop-shadow(0 2rem 2.8rem rgb(17 24 64 / 0.24));
 }
 
+.pw-wallet--count-1 {
+  --pw-open-height: 17.7rem;
+}
+
+.pw-wallet--count-2 {
+  --pw-open-height: 23.6rem;
+}
+
+.pw-wallet--count-3 {
+  --pw-open-height: 29.5rem;
+}
+
 .pw-wallet--closed:has(.pw-wallet__control:active) {
   transform: scale(0.985);
 }
@@ -547,6 +559,11 @@
    Plan details popup
    ------------------------------------------------------------------ */
 
+.pw-popup--inline {
+  width: min(26.5rem, 100%);
+  pointer-events: auto;
+}
+
 .pw-popup-layer {
   position: fixed;
   inset: 0;
@@ -582,6 +599,16 @@
   transform-origin: 50% 92%;
   opacity: 0;
   pointer-events: auto;
+}
+
+.pw-popup.pw-popup--inline {
+  opacity: 1;
+  transform: none;
+  max-height: none;
+}
+
+.pw-popup.pw-popup--inline .pw-popup__body {
+  overflow: visible;
 }
 
 /* Tier accent strip connects the popup to the selected card. */
@@ -840,6 +867,18 @@
     --pw-card-step: 5.35rem;
     --pw-pocket-h: 8.4rem;
     --pw-closed-height: 12.6rem;
+    --pw-open-height: 27rem;
+  }
+
+  .pw-wallet--count-1 {
+    --pw-open-height: 16.2rem;
+  }
+
+  .pw-wallet--count-2 {
+    --pw-open-height: 21.6rem;
+  }
+
+  .pw-wallet--count-3 {
     --pw-open-height: 27rem;
   }
 

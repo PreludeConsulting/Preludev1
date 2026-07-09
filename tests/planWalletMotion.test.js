@@ -28,6 +28,8 @@ describe("planWalletMotion helpers", () => {
     expect(WALLET_EASES.shell).toBe("out(4)");
     expect(WALLET_EASES.settle).toContain("outElastic");
     expect(WALLET_EASES.reverse).toBe("inOut(3)");
+    expect(WALLET_EASES.tuck).toBe("in(4)");
+    expect(WALLET_EASES.collapse).toBe("inOut(4)");
   });
 
   it("computes deck offsets per card index", () => {

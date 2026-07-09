@@ -90,6 +90,7 @@ export function mapSupabaseUser(
     avatarUrl,
     oauthAvatarUrl,
     roleSelectionComplete,
+    createdAt: u.created_at || null,
     ...onboardingFields,
     parentInviteStepComplete,
     paymentStepComplete,

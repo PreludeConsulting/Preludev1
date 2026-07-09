@@ -10,7 +10,7 @@ export const MOTION_MS = {
   selectCard: 430,
   popupEnter: 520,
   popupExit: 280,
-  close: 560
+  close: 720
 };
 
 export const WALLET_EASE = "out(4)";
@@ -19,7 +19,9 @@ export const WALLET_EASES = {
   card: "out(5)",
   settle: "outElastic(1, .72)",
   overlay: "inOut(2)",
-  reverse: "inOut(3)"
+  reverse: "inOut(3)",
+  tuck: "in(4)",
+  collapse: "inOut(4)"
 };
 
 export const WALLET_HEIGHT = {
@@ -105,7 +107,9 @@ export function motionDuration(ms, reducedMotion) {
   return reducedMotion ? 0 : ms;
 }
 
-export function walletHeightForStatus(status) {
+export function walletHeightForStatus(status, metrics = null) {
+  const closed = metrics?.closed ?? WALLET_HEIGHT.closed;
+  const open = metrics?.open ?? WALLET_HEIGHT.open;
   if (
     status === S.OPENING ||
     status === S.OPEN ||
@@ -114,9 +118,9 @@ export function walletHeightForStatus(status) {
     status === S.POPUP_OPEN ||
     status === S.POPUP_CLOSING
   ) {
-    return WALLET_HEIGHT.open;
+    return open;
   }
-  return WALLET_HEIGHT.closed;
+  return closed;
 }
 
 export function deckSheenOpacity(status) {
@@ -151,7 +155,8 @@ function applyCardStates({ cardRefs, planIds, status, selectedPlanId, stepRem })
 }
 
 function applyWalletShell({ refs, status, stepRem, planIds, selectedPlanId }) {
-  setInstant(refs.walletRef.current, { height: walletHeightForStatus(status) });
+  const metrics = readWalletMetrics(refs.walletRef.current);
+  setInstant(refs.walletRef.current, { height: walletHeightForStatus(status, metrics) });
   setInstant(refs.interiorRef.current, {
     "--pw-sheen-opacity": deckSheenOpacity(status)
   });
@@ -288,31 +293,54 @@ function runCloseTimeline({ refs, planIds, selectedPlanId, reducedMotion, timeli
     return;
   }
 
-  const tl = createTimeline({ defaults: { ease: WALLET_EASES.reverse } });
-  planIds.forEach((planId, index) => {
+  const cardDuration = duration * 0.76;
+  const cardStaggerMs = 52;
+  const heightDelay = duration * 0.14;
+  const heightDuration = duration * 0.9;
+
+  const tl = createTimeline({ defaults: { ease: WALLET_EASES.collapse } });
+
+  for (let reverseIndex = 0; reverseIndex < planIds.length; reverseIndex += 1) {
+    const index = planIds.length - 1 - reverseIndex;
+    const planId = planIds[index];
     const el = refs.cardRefs.current?.[planId];
-    if (!el) return;
+    if (!el) continue;
+
+    const variant = planId === selectedPlanId ? "deckSelected" : "deck";
+    const fromValues = cardMotionValues(index, variant, metrics.step);
+    const tuckY = Math.min(parseFloat(fromValues.y) + 3.8, CARD_LAYOUT.hiddenYRem);
+
     tl.add(
       el,
       {
-        y: `${CARD_LAYOUT.hiddenYRem}rem`,
-        scale: CARD_LAYOUT.hiddenScale,
-        opacity: 0,
-        duration: duration * 0.68,
-        ease: WALLET_EASES.reverse
+        y: { from: fromValues.y, to: `${tuckY}rem` },
+        scale: { from: fromValues.scale, to: CARD_LAYOUT.hiddenScale },
+        opacity: { from: fromValues.opacity, to: 0 },
+        duration: cardDuration,
+        ease: WALLET_EASES.tuck
       },
-      0
+      reverseIndex * cardStaggerMs
     );
-  });
+  }
+
   tl.add(
     refs.walletRef.current,
-    { height: { to: metrics.closed }, duration },
-    duration * 0.35
+    {
+      height: { from: metrics.open, to: metrics.closed },
+      duration: heightDuration,
+      ease: WALLET_EASES.collapse
+    },
+    heightDelay
   );
+
   tl.add(
     refs.interiorRef.current,
-    { "--pw-sheen-opacity": { to: 1 }, duration: duration * 0.4 },
-    duration * 0.55
+    {
+      "--pw-sheen-opacity": { from: 0, to: 1 },
+      duration: heightDuration * 0.72,
+      ease: WALLET_EASES.overlay
+    },
+    heightDelay + duration * 0.06
   );
 
   runTimeline(timelineRef, tl, () => dispatch({ type: "CLOSE_SETTLED" }));

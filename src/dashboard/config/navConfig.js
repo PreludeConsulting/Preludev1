@@ -7,8 +7,7 @@ import {
   LayoutDashboard,
   MessageCircle,
   Search,
-  Settings,
-  BookOpen
+  Settings
 } from "lucide-react";
 
 export const STUDENT_NAV = [
@@ -18,7 +17,6 @@ export const STUDENT_NAV = [
   { to: "/calendar", label: "Calendar", icon: Calendar },
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/messages", label: "Messages", icon: MessageCircle },
-  { to: "/resources", label: "Resources", icon: BookOpen },
   { to: "/ai", label: "Prelude AI", icon: Bot },
   { to: "/workspace", label: "Application Workspace", icon: ClipboardList }
 ];

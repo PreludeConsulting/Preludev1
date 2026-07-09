@@ -8,7 +8,6 @@ export const STUDENT_ROUTE_META = {
   "prelude-match": { title: "Prelude Match", subtitle: "Browse mentors and find your best fit." },
   messages: { title: "Messages", subtitle: "Chat with your mentor." },
   notifications: { title: "Notifications", subtitle: "Updates about meetings, messages, and progress." },
-  resources: { title: "Resources", subtitle: "Guides for planning, applications, and financial aid." },
   billing: { title: "Plans and Billing", subtitle: "Your subscription and plan details." },
   help: { title: "Help and Support", subtitle: "Contact Prelude and find answers." },
   settings: { title: "Settings", subtitle: "Profile, account, notifications, and preferences." },
