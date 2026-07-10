@@ -1,19 +1,27 @@
 import { appPath } from "./appPaths.js";
 
 async function promoRequest(path, body) {
-  const response = await fetch(appPath(path), {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json"
-    },
-    credentials: "include",
-    body: JSON.stringify(body)
-  });
+  let response;
+  try {
+    response = await fetch(appPath(path), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      credentials: "include",
+      body: JSON.stringify(body)
+    });
+  } catch {
+    throw new Error("We could not verify the promo code right now. Please try again.");
+  }
 
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok && response.status !== 200) {
-    const error = new Error(payload.message || "Promo code request failed.");
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Promo code validation is not available on this deployment yet. Please try again shortly.");
+    }
+    const error = new Error(payload.message || "We could not verify the promo code right now. Please try again.");
     error.payload = payload;
     error.status = response.status;
     throw error;
