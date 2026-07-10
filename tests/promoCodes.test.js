@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   PROMO_CODE_PATTERN,
   normalizePromoCodeInput,
+  promoPlanLabel,
   publicPromoError
 } from "../shared/promoCodeConstants.js";
 import {
@@ -17,18 +18,18 @@ function isValidFormat(code) {
 
 describe("promo code helpers", () => {
   it("normalizes codes case-insensitively and trims spaces", () => {
-    assert.equal(normalizePromoCodeInput("  basic-free-7k2m "), "BASIC-FREE-7K2M");
+    assert.equal(normalizePromoCodeInput("  plus-free-9k4m "), "PLUS-FREE-9K4M");
   });
 
   it("accepts valid code formats only", () => {
-    assert.equal(isValidPromoCodeFormat("BASIC-FREE-7K2M"), true);
-    assert.equal(isValidFormat("BASIC-FREE-7K2M"), true);
+    assert.equal(isValidPromoCodeFormat("PLUS-FREE-9K4M"), true);
+    assert.equal(isValidFormat("PLUS-FREE-9K4M"), true);
     assert.equal(isValidPromoCodeFormat("bad code!"), false);
   });
 
   it("hashes codes deterministically", () => {
-    const a = hashPromoCode("BASIC-FREE-7K2M");
-    const b = hashPromoCode("basic-free-7k2m");
+    const a = hashPromoCode("PLUS-FREE-9K4M");
+    const b = hashPromoCode("plus-free-9k4m");
     assert.equal(a, b);
   });
 
@@ -37,14 +38,16 @@ describe("promo code helpers", () => {
     assert.match(publicPromoError("not_found"), /recognize/i);
   });
 
-  it("builds complimentary basic summaries", () => {
+  it("builds complimentary plan summaries", () => {
     const summary = buildPromoSummary({
-      planId: "basic",
+      planId: "plus",
       permanentAccess: true,
       renewalBehavior: "requires_payment"
     });
-    assert.equal(summary.plan, "Basic");
+    assert.equal(summary.plan, "Plus");
+    assert.equal(summary.planId, "plus");
     assert.equal(summary.priceToday, "$0.00");
     assert.equal(summary.paymentMethodRequired, false);
+    assert.equal(promoPlanLabel("plus"), "Plus");
   });
 });

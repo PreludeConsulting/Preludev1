@@ -68,7 +68,7 @@ export default function PromoCodesAdminPage() {
         <div>
           <p className="matching-team-page__eyebrow">Admin</p>
           <h1>Promo codes</h1>
-          <p>Create, monitor, and revoke complimentary Basic Plan registration codes.</p>
+          <p>Create, monitor, and revoke complimentary Plus Plan registration codes.</p>
         </div>
         <div className="matching-team-page__actions">
           <input

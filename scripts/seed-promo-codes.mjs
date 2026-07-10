@@ -7,7 +7,7 @@ import { databaseUrl, loadDotEnv } from "./db-utils.mjs";
 
 loadDotEnv();
 
-const SAMPLE_CODES = [
+const RETIRED_CODES = [
   "BASIC-FREE-7K2M",
   "WELCOME-9Q4X",
   "START-BASIC-6N8P",
@@ -30,6 +30,31 @@ const SAMPLE_CODES = [
   "APP-ACCESS-6T3W"
 ];
 
+const SAMPLE_CODES = [
+  "PLUS-FREE-9K4M",
+  "WELCOME-PLUS-3Q8X",
+  "START-PLUS-7N2P",
+  "ACCESS-PLUS-5T6R",
+  "JOIN-PLUS-4M8K",
+  "PLUS-GIFT-2X9D",
+  "LAUNCH-PLUS-6P7V",
+  "NEWUSER-PLUS-8R3C",
+  "FREEPASS-PLUS-1J5N",
+  "PLUS-ACCESS-9W2Q",
+  "EARLY-PLUS-7F4K",
+  "ACCOUNT-PLUS-3M6Z",
+  "PLUS-ZERO-8C5T",
+  "WELCOME-PLUS-4H7P",
+  "STARTER-PLUS-6V8N",
+  "PLUS-NOW-5Q3J",
+  "JOIN-PLUS-9Z7M",
+  "PROMO-PLUS-2K6R",
+  "FREE-PLUS-4N8X",
+  "APP-PLUS-7T3W"
+];
+
+const CAMPAIGN_NAME = "Launch Complimentary Plus";
+
 function hashCode(code) {
   return createHash("sha256").update(code).digest("hex");
 }
@@ -38,12 +63,12 @@ function buildRows() {
   return SAMPLE_CODES.map((publicCode, index) => ({
     public_code: publicCode,
     code_hash: hashCode(publicCode),
-    description: `Sample complimentary Basic Plan code ${index + 1}`,
-    campaign_name: "Launch Complimentary Basic",
-    applicable_plan: "basic",
+    description: `Single-use complimentary Plus Plan code ${index + 1}`,
+    campaign_name: CAMPAIGN_NAME,
+    applicable_plan: "plus",
     discount_type: "complimentary",
-    single_use: false,
-    max_redemptions: null,
+    single_use: true,
+    max_redemptions: 1,
     active: true,
     new_users_only: true,
     access_duration_days: null,
@@ -57,11 +82,21 @@ function supabaseConfig() {
   return { url, key };
 }
 
+async function retireOldCodesSupabase(supabase) {
+  const { error } = await supabase
+    .from("promo_codes")
+    .update({ active: false, revoked_at: new Date().toISOString() })
+    .in("public_code", RETIRED_CODES);
+  if (error) throw error;
+  console.log(`Retired ${RETIRED_CODES.length} legacy Basic promo codes.`);
+}
+
 async function seedSupabase(rows) {
   const { url, key } = supabaseConfig();
   if (!url || !key) return { seeded: false, reason: "missing_env" };
 
   const supabase = createClient(url, key, { auth: { persistSession: false } });
+  await retireOldCodesSupabase(supabase);
   const { error } = await supabase.from("promo_codes").upsert(rows, { onConflict: "code_hash" });
   if (error) {
     if (/relation .*promo_codes.* does not exist/i.test(error.message || "")) {
@@ -74,8 +109,16 @@ async function seedSupabase(rows) {
     throw error;
   }
 
-  console.log(`Seeded ${rows.length} promo codes into Supabase.`);
+  console.log(`Seeded ${rows.length} single-use Plus promo codes into Supabase.`);
   return { seeded: true };
+}
+
+async function retireOldCodesPrisma(prisma) {
+  await prisma.promoCode.updateMany({
+    where: { publicCode: { in: RETIRED_CODES } },
+    data: { active: false, revokedAt: new Date() }
+  });
+  console.log(`Retired ${RETIRED_CODES.length} legacy Basic promo codes.`);
 }
 
 async function seedPrisma(rows) {
@@ -88,6 +131,7 @@ async function seedPrisma(rows) {
   }
 
   try {
+    await retireOldCodesPrisma(prisma);
     for (const row of rows) {
       await prisma.promoCode.upsert({
         where: { codeHash: row.code_hash },
@@ -95,7 +139,11 @@ async function seedPrisma(rows) {
           publicCode: row.public_code,
           description: row.description,
           campaignName: row.campaign_name,
-          active: true
+          applicablePlan: row.applicable_plan,
+          singleUse: row.single_use,
+          maxRedemptions: row.max_redemptions,
+          active: true,
+          revokedAt: null
         },
         create: {
           publicCode: row.public_code,
@@ -113,7 +161,7 @@ async function seedPrisma(rows) {
         }
       });
     }
-    console.log(`Seeded ${rows.length} promo codes into local Prisma/Postgres.`);
+    console.log(`Seeded ${rows.length} single-use Plus promo codes into local Prisma/Postgres.`);
     return { seeded: true };
   } finally {
     await prisma.$disconnect();
@@ -126,7 +174,7 @@ function printSetupHelp() {
   if (!url || !key) {
     console.error("Supabase (recommended for production):");
     console.error("  1. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env");
-    console.error("  2. Run supabase/migrations/20260710000000_promo_codes.sql in Supabase SQL editor");
+    console.error("  2. Run supabase/migrations/20260710000000_promo_codes.sql in the Supabase SQL editor");
     console.error("  3. npm run seed:promo-codes\n");
   }
   console.error("Local Prisma/Postgres:");

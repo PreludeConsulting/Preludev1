@@ -13,6 +13,7 @@ export function PromoRegistrationSuccessPage() {
   const state = location.state || {};
   const email = state.email || user?.email || "";
   const summary = state.summary || null;
+  const planLabel = summary?.plan || "Plus";
   const [destination, setDestination] = useState("/onboarding/match");
   const [loading, setLoading] = useState(true);
 
@@ -39,14 +40,14 @@ export function PromoRegistrationSuccessPage() {
   return (
     <AuthLayout
       title="Your account is ready"
-      subtitle="Your complimentary Basic Plan has been activated. No payment method was required."
+      subtitle={`Your complimentary ${planLabel} Plan has been activated. No payment method was required.`}
       headerLink={{ prefix: "Need help?", label: "Contact support", href: "/contact" }}
     >
       <div className="promo-success-page" role="status">
         <CheckCircle2 className="promo-success-page__icon" aria-hidden="true" />
         <dl className="promo-code-field__summary promo-success-page__summary">
           <div><dt>Account email</dt><dd>{email}</dd></div>
-          <div><dt>Basic Plan status</dt><dd>Active — promotional access</dd></div>
+          <div><dt>{planLabel} Plan status</dt><dd>Active — promotional access</dd></div>
           {summary.campaignName ? <div><dt>Promotion</dt><dd>{summary.campaignName}</dd></div> : null}
           <div><dt>Access period</dt><dd>{summary.accessPeriod}</dd></div>
           <div><dt>Renewal terms</dt><dd>{summary.renewalTerms}</dd></div>

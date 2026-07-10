@@ -2,6 +2,7 @@ import { enforceIpRateLimit, hashClientIp } from "../../server/lib/ipRateLimit.j
 import { createSupabaseAdmin, createSupabaseUserClient } from "../../server/lib/supabasePasswordReset.js";
 import {
   normalizePromoCodeInput,
+  promoPlanLabel,
   publicPromoError,
   PROMO_CODE_PATTERN
 } from "../../shared/promoCodeConstants.js";
@@ -68,9 +69,10 @@ function buildPromoSummary(validation) {
         : "When your promotional access ends, you will need to add a payment method to continue."
       : "See your confirmation email for renewal details.";
 
+  const planId = validation.planId || "basic";
   return {
-    plan: "Basic",
-    planId: validation.planId || "basic",
+    plan: promoPlanLabel(planId),
+    planId,
     priceToday: "$0.00",
     paymentMethodRequired: false,
     accessPeriod,
@@ -176,7 +178,7 @@ async function redeemPromoCodeSupabase(supabase, { code, email, userId, ipHash }
     campaignName: data.campaignName,
     promotionStartsAt: data.promotionStartsAt,
     promotionEndsAt: data.promotionEndsAt,
-    message: "Your complimentary Basic Plan has been activated.",
+    message: `Your complimentary ${promoPlanLabel(data.planId)} Plan has been activated.`,
     summary: buildPromoSummary({
       planId: data.planId,
       campaignName: data.campaignName,

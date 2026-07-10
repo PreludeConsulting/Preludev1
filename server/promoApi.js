@@ -157,6 +157,7 @@ async function handleRedeem(req, res, env, { allowSignup = false } = {}) {
     to: identity.email,
     publicCode: result.publicCode,
     campaignName: result.campaignName,
+    planId: result.planId,
     permanentAccess: result.summary?.permanentAccess,
     promotionEndsAt: result.promotionEndsAt,
     req,

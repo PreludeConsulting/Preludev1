@@ -3,6 +3,7 @@ import {
   PROMO_CODE_PATTERN,
   PROMO_ERROR_MESSAGES,
   normalizePromoCodeInput,
+  promoPlanLabel,
   publicPromoError
 } from "../../shared/promoCodeConstants.js";
 import { getSupabaseAdmin } from "./supabaseRequestAuth.js";
@@ -33,9 +34,10 @@ export function buildPromoSummary(validation) {
         : "When your promotional access ends, you will need to add a payment method to continue."
       : "See your confirmation email for renewal details.";
 
+  const planId = validation.planId || "basic";
   return {
-    plan: "Basic",
-    planId: validation.planId || "basic",
+    plan: promoPlanLabel(planId),
+    planId,
     priceToday: "$0.00",
     paymentMethodRequired: false,
     accessPeriod,
@@ -104,7 +106,9 @@ async function validateWithPrisma(codeHash, email, userId) {
   if (promo.maxRedemptions != null && promo.currentRedemptionCount >= promo.maxRedemptions) {
     return { valid: false, error: "redemption_limit_reached" };
   }
-  if (promo.applicablePlan !== "basic") return { valid: false, error: "wrong_plan" };
+  if (!["basic", "plus", "pro"].includes(promo.applicablePlan)) {
+    return { valid: false, error: "wrong_plan" };
+  }
 
   const normalizedEmail = email?.toLowerCase() || null;
   if (normalizedEmail && promo.eligibleEmails.length > 0) {
@@ -235,13 +239,16 @@ async function redeemWithPrisma(codeHash, email, userId) {
 
     await tx.promoCode.update({
       where: { id: promo.id },
-      data: { currentRedemptionCount: { increment: 1 } }
+      data: {
+        currentRedemptionCount: { increment: 1 },
+        ...(promo.singleUse ? { active: false } : {})
+      }
     });
 
     await tx.user.update({
       where: { id: userId },
       data: {
-        plan: "BASIC",
+        plan: promo.applicablePlan.toUpperCase(),
         subscriptionStatus: "promotional",
         subscriptionCurrentPeriodEnd: promotionEndsAt
       }
@@ -316,7 +323,7 @@ export async function redeemPromoCode({ code, email, userId, ipHash, backend = "
     promotionStartsAt: result.promotionStartsAt,
     promotionEndsAt: result.promotionEndsAt,
     summary,
-    message: "Your complimentary Basic Plan has been activated."
+    message: `Your complimentary ${promoPlanLabel(result.planId)} Plan has been activated.`
   };
 }
 

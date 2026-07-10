@@ -25,6 +25,7 @@ export function buildPromoWelcomeEmailHtml({
   email,
   publicCode,
   campaignName,
+  planId = "plus",
   permanentAccess,
   promotionEndsAt,
   dashboardUrl,
@@ -32,12 +33,13 @@ export function buildPromoWelcomeEmailHtml({
 }) {
   const safeEmail = escapeHtml(email);
   const safeCode = escapeHtml(publicCode);
-  const safeCampaign = escapeHtml(campaignName || "Complimentary Basic Plan");
+  const planLabel = escapeHtml(String(planId || "plus").replace(/^./, (c) => c.toUpperCase()));
+  const safeCampaign = escapeHtml(campaignName || `Complimentary ${planLabel} Plan`);
   const safeDashboard = escapeHtml(dashboardUrl);
   const safeSupport = escapeHtml(supportEmail);
 
   const accessLine = permanentAccess
-    ? "Your complimentary Basic Plan does not expire while your account remains active."
+    ? `Your complimentary ${planLabel} Plan does not expire while your account remains active.`
     : promotionEndsAt
       ? `Your promotional access is active through ${escapeHtml(formatDate(promotionEndsAt) || "the end of your promotion period")}.`
       : "Your promotional access period is shown in your Prelude account settings.";
@@ -56,7 +58,7 @@ export function buildPromoWelcomeEmailHtml({
           <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#7a5c2e;">Prelude</p>
           <h1 style="margin:0 0 16px;font-size:28px;line-height:1.2;">Your account is ready</h1>
           <p style="margin:0 0 16px;font-size:16px;line-height:1.6;">Welcome to Prelude. Your account for <strong>${safeEmail}</strong> was created successfully.</p>
-          <p style="margin:0 0 16px;font-size:16px;line-height:1.6;">Your promo code <strong>${safeCode}</strong> was accepted and your complimentary <strong>Basic Plan</strong> is now active under the <strong>${safeCampaign}</strong> promotion.</p>
+          <p style="margin:0 0 16px;font-size:16px;line-height:1.6;">Your promo code <strong>${safeCode}</strong> was accepted and your complimentary <strong>${planLabel} Plan</strong> is now active under the <strong>${safeCampaign}</strong> promotion.</p>
           <p style="margin:0 0 16px;font-size:16px;line-height:1.6;">${accessLine}</p>
           <p style="margin:0 0 24px;font-size:16px;line-height:1.6;">${billingLine} No payment method was required during registration.</p>
           <p style="margin:0 0 24px;">
@@ -75,6 +77,7 @@ export async function deliverPromoWelcomeEmail({
   to,
   publicCode,
   campaignName,
+  planId = "plus",
   permanentAccess,
   promotionEndsAt,
   req,
@@ -82,10 +85,12 @@ export async function deliverPromoWelcomeEmail({
 }) {
   const runtimeEnv = env || process.env;
   const dashboardUrl = `${resolvePublicAppUrl(req, runtimeEnv)}/dashboard`;
+  const planLabel = String(planId || "plus").replace(/^./, (c) => c.toUpperCase());
   const html = buildPromoWelcomeEmailHtml({
     email: to,
     publicCode,
     campaignName,
+    planId,
     permanentAccess,
     promotionEndsAt,
     dashboardUrl,
@@ -108,7 +113,7 @@ export async function deliverPromoWelcomeEmail({
     body: JSON.stringify({
       from: runtimeEnv.AUTH_EMAIL_FROM,
       to: [to],
-      subject: "Your complimentary Prelude Basic Plan is active",
+      subject: `Your complimentary Prelude ${planLabel} Plan is active`,
       html
     })
   });

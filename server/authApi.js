@@ -430,6 +430,7 @@ async function handleRegister(req, res) {
         to: email,
         publicCode: promoRedemption.publicCode,
         campaignName: promoRedemption.campaignName,
+        planId: promoRedemption.planId,
         permanentAccess: promoRedemption.summary?.permanentAccess,
         promotionEndsAt: promoRedemption.promotionEndsAt,
         req
