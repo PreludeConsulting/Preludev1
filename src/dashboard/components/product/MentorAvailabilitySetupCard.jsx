@@ -120,7 +120,7 @@ export default function MentorAvailabilitySetupCard({ form, error, success, onCh
           You can customize your availability anytime.
         </p>
         <PrimaryButton type="button" className="dash-mentor-avail-setup__save" onClick={onSave}>
-          Save availability
+          {error ? "Retry save" : "Save availability"}
         </PrimaryButton>
       </footer>
     </article>

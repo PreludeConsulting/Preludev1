@@ -640,12 +640,12 @@ export const RECENT_COIN_ACTIVITY = [
   { id: "a5", coins: 20, label: "Weekly check-in completed" }
 ];
 
-export function buildSidebarProgress(isJordan, coins, completedCount) {
+export function buildSidebarProgress(isJordan, coins, completedCount, metrics = {}) {
   if (!isJordan) {
     return {
       milestonesCompleted: completedCount,
-      currentStreak: 3,
-      meetingsCompleted: 1,
+      currentStreak: Number(metrics.currentStreak || 0),
+      meetingsCompleted: Number(metrics.meetingsCompleted || 0),
       coinsEarned: coins
     };
   }

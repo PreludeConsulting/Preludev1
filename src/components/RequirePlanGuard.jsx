@@ -21,11 +21,11 @@ export default function RequirePlanGuard({ children }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
 
   if (verificationRequired) {
-    return <Navigate to={`/verify-login?next=${encodeURIComponent(location.pathname)}`} replace />;
+    return <Navigate to={`/verify-login?next=${encodeURIComponent(`${location.pathname}${location.search}`)}`} replace />;
   }
 
   if (!canAccessDashboard(user)) {

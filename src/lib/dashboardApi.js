@@ -1,7 +1,30 @@
 import { api } from "./auth.js"; // shared authenticated fetch
+import { getSupabase } from "./supabase.js";
+
+async function dashboardRequest(path, options = {}) {
+  const sessionResult = await getSupabase()?.auth.getSession();
+  const token = sessionResult?.data?.session?.access_token;
+  if (!token) return api(path, options);
+  return api(path, {
+    ...options,
+    headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` }
+  });
+}
 
 export async function getDashboardAppData() {
-  return api("/api/dashboard/app-data");
+  return dashboardRequest("/api/dashboard/app-data");
+}
+
+export async function updateDashboardProfile(fields) {
+  return dashboardRequest("/api/dashboard/profile", { method: "PATCH", body: JSON.stringify(fields) });
+}
+
+export async function updateDashboardSettings(fields) {
+  return dashboardRequest("/api/dashboard/settings", { method: "PATCH", body: JSON.stringify(fields) });
+}
+
+export async function updateMentorAvailability(availability) {
+  return dashboardRequest("/api/dashboard/availability", { method: "PUT", body: JSON.stringify(availability) });
 }
 
 export async function getMeetings() {

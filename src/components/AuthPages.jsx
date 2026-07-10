@@ -28,6 +28,7 @@ import {
 import { friendlyAuthError, isValidEmail } from "./auth/authErrors.js";
 import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConstants.js";
 import { isTurnstileRequired } from "../lib/turnstile.js";
+import { readPendingJourney, savePendingJourney, clearPendingJourney, resolveJourneyDestination } from "../lib/authJourney.js";
 import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
 import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerification.js";
 import { maskEmail } from "../../shared/passwordValidation.js";
@@ -111,7 +112,11 @@ export function LoginPage() {
 
   useEffect(() => {
     if (!ready) return;
-    if (user) navigate(postAuthDestination(user), { replace: true });
+    if (user) {
+      const pending = readPendingJourney();
+      navigate(resolveJourneyDestination(pending, user), { replace: true });
+      clearPendingJourney();
+    }
   }, [ready, user, navigate]);
 
   function validateForm() {
@@ -162,7 +167,8 @@ export function LoginPage() {
         navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}${challenge}`, { replace: true });
         return;
       }
-      navigate(destination || postAuthDestination(nextUser), { replace: true });
+      navigate(resolveJourneyDestination(readPendingJourney() || { next: destination }, nextUser), { replace: true });
+      clearPendingJourney();
     } catch (err) {
       if (isEmailUnconfirmedError(err.message)) {
         const targetEmail = loginEmail.trim();
@@ -336,6 +342,15 @@ export function RegisterPage() {
     return () => window.clearInterval(id);
   }, [resendCooldown]);
 
+  useEffect(() => {
+    const mentorId = searchParams.get("mentor");
+    const serviceId = searchParams.get("service");
+    const planId = searchParams.get("plan");
+    if (mentorId || serviceId || planId || destination) {
+      savePendingJourney({ next: destination || "/onboarding/match", mentorId, serviceId, planId });
+    }
+  }, [destination, searchParams]);
+
   const update = (key) => (event) => {
     setForm((current) => ({ ...current, [key]: event.target.type === "checkbox" ? event.target.checked : event.target.value }));
     if (fieldErrors[key]) setFieldErrors((current) => ({ ...current, [key]: "" }));
@@ -455,11 +470,12 @@ export function RegisterPage() {
         }
         if (result?.requiresLoginVerification) {
           const challenge = result.challengeId ? `&challenge=${encodeURIComponent(result.challengeId)}` : "";
-          const destination = postAuthDestination(result);
-          navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}${challenge}`, { replace: true });
+          const verificationDestination = resolveJourneyDestination(readPendingJourney() || { next: destination }, result);
+          navigate(`/verify-login?next=${encodeURIComponent(verificationDestination || "/dashboard")}${challenge}`, { replace: true });
           return;
         }
-        navigate(postAuthDestination(result), { replace: true });
+        navigate(resolveJourneyDestination(readPendingJourney() || { next: destination }, result), { replace: true });
+        clearPendingJourney();
         return;
       }
       setMessage(result?.message || "Account created.");
@@ -1045,7 +1061,9 @@ export function VerifyLoginPage() {
       setStatus("success");
       setMessage("Verification successful. Opening your dashboard…");
       await new Promise((resolve) => window.setTimeout(resolve, 450));
-      navigate(nextPath === "/dashboard" ? postAuthDestination(refreshed) : nextPath, { replace: true });
+      const pendingDestination = resolveJourneyDestination(readPendingJourney(), refreshed);
+      navigate(nextPath === "/dashboard" ? pendingDestination : nextPath, { replace: true });
+      clearPendingJourney();
     } catch (err) {
       setStatus(err?.payload?.error === "expired_code" ? "expired" : err?.payload?.error === "locked_challenge" ? "locked" : "incorrect");
       setError(friendlyVerificationError(err));

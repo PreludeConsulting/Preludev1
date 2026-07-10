@@ -14,3 +14,15 @@ export function requireTurnstileToken(token, required = isTurnstileRequired()) {
 export function captchaOptions(captchaToken) {
   return captchaToken ? { captchaToken } : {};
 }
+
+export function getTurnstileStatusMessage(status) {
+  if (status === "loading") return "Loading security check…";
+  if (status === "error") return "The security check could not load. Try again.";
+  if (status === "expired") return "The security check expired. Complete it again.";
+  if (status === "ready") return "Security check ready.";
+  return "Complete the security check to continue.";
+}
+
+export function canSubmitWithTurnstile({ required = isTurnstileRequired(), token = "", status = "idle" } = {}) {
+  return !required || (Boolean(token) && status === "ready");
+}

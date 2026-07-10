@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Calendar } from "lucide-react";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import {
@@ -10,13 +10,19 @@ import {
 import MentorAvailabilitySetupCard from "./MentorAvailabilitySetupCard.jsx";
 
 export default function MentorAvailabilityProduct() {
-  const { availability } = useDashboardData();
+  const { availability, saveAvailability, syncStatus, syncError } = useDashboardData();
   const [slots, setSlots] = useState(() => availability.map((slot, index) => normalizeAvailabilitySlot(slot, index)));
   const [form, setForm] = useState(() => slotsToWeeklyFormState(slots));
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  function handleSave() {
+  useEffect(() => {
+    const nextSlots = availability.map((slot, index) => normalizeAvailabilitySlot(slot, index));
+    setSlots(nextSlots);
+    setForm(slotsToWeeklyFormState(nextSlots));
+  }, [availability]);
+
+  async function handleSave() {
     const validationError = validateWeeklyFormState(form);
     if (validationError) {
       setError(validationError);
@@ -25,9 +31,18 @@ export default function MentorAvailabilityProduct() {
     }
 
     const nextSlots = weeklyFormStateToSlots(form, slots);
-    setSlots(nextSlots);
     setError("");
-    setSuccess(true);
+    setSuccess(false);
+    try {
+      await saveAvailability({
+        timezone: form.timezone,
+        days: form.days
+      });
+      setSlots(nextSlots);
+      setSuccess(true);
+    } catch (saveError) {
+      setError(saveError?.message || syncError || "Availability could not be synchronized. Try again.");
+    }
   }
 
   return (
@@ -47,6 +62,9 @@ export default function MentorAvailabilityProduct() {
       </header>
 
       <div className="dash-mentor-avail-setup-card-wrap">
+        {syncStatus === "loading" ? <p className="dash-muted" role="status">Loading availability…</p> : null}
+        {syncStatus === "offline" ? <p className="dash-mentor-avail-setup__error" role="alert">You are offline. Reconnect and retry your save.</p> : null}
+        {syncStatus === "sync-failed" ? <p className="dash-mentor-avail-setup__error" role="alert">Availability sync failed. Retry your save.</p> : null}
         <MentorAvailabilitySetupCard
           form={form}
           error={error}

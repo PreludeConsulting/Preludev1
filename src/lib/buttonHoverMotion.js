@@ -7,6 +7,7 @@ const GLOW_ACTIVE =
 
 export const BUTTON_HOVER_SELECTOR = [
   "[data-anime-hover=\"primary\"]",
+  ".shopify-hero__cta",
   ".pm-btn--primary",
   ".pw-wallet__control",
   ".auth-submit"

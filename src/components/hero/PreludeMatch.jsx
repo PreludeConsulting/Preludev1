@@ -16,7 +16,7 @@ import PreludeMatchLoading from "./PreludeMatchLoading.jsx";
 import PreludeMatchQuestionFlow from "./PreludeMatchQuestionFlow.jsx";
 import PreludeMatchResults from "./PreludeMatchResults.jsx";
 
-export default function PreludeMatch() {
+export default function PreludeMatch({ onStartOverride = null } = {}) {
   const reducedMotion = useReducedMotion();
   const { t } = useLanguage();
   const [phase, setPhase] = useState("intro");
@@ -60,6 +60,10 @@ export default function PreludeMatch() {
   }, [reducedMotion]);
 
   function handleStart() {
+    if (onStartOverride) {
+      onStartOverride();
+      return;
+    }
     setAnswers({});
     setProgress(0);
     setMatchSummary("");

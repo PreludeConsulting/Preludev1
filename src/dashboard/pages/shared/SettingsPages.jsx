@@ -1136,7 +1136,7 @@ export function StudentSettingsPage() {
       if (useSupabaseData) {
         await savePrefsToBackend(prefs);
       }
-      savePreferences(prefs);
+      if (!useSupabaseData) savePreferences(prefs);
       setInitialPrefs(prefs);
       setSaveState({ section, status: "saved", message: "" });
       window.setTimeout(() => setSaveState((current) => current?.section === section ? null : current), 2600);
@@ -1463,7 +1463,7 @@ export function ParentSettingsPage() {
       if (useSupabaseData) {
         await savePrefsToBackend(prefs);
       }
-      savePreferences(prefs);
+      if (!useSupabaseData) savePreferences(prefs);
       setInitialPrefs(prefs);
       setSaveState({ section, status: "saved", message: "" });
       window.setTimeout(() => setSaveState((current) => current?.section === section ? null : current), 2600);

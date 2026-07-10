@@ -324,6 +324,7 @@ export default function StudentProgressRewardsProduct() {
   const { isMentorStudentView } = useDashboardData();
   const [activeTab, setActiveTab] = useState(isMentorStudentView ? "earn" : "redeem");
   const { canAccess } = usePlanAccess();
+  const { syncError, retrySync } = useProgressRewards();
 
   useEffect(() => {
     const syncTab = () => {
@@ -337,6 +338,11 @@ export default function StudentProgressRewardsProduct() {
   return (
     <div className="dash-page dash-rewards-loyalty">
       <div className="dash-rewards-loyalty__shell">
+        {syncError ? (
+          <div className="dash-save-state dash-save-state--error" role="alert">
+            {syncError} <button type="button" onClick={retrySync}>Retry</button>
+          </div>
+        ) : null}
         <RewardsHero />
         <RewardsSidebarTop />
         <div className="dash-rewards-loyalty__main">

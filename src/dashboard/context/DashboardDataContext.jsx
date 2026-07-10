@@ -6,6 +6,9 @@ import {
   disconnectGoogleCalendar,
   disconnectZoom,
   getDashboardAppData,
+  updateDashboardProfile,
+  updateDashboardSettings,
+  updateMentorAvailability,
   getMeetings,
   createMeeting as apiCreateMeeting,
   updateMeeting as apiUpdateMeeting
@@ -311,6 +314,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   const [mentor, setMentor] = useState(null);
   const [mentors, setMentors] = useState([]);
   const [profile, setProfile] = useState(null);
+  const [availability, setAvailability] = useState([]);
+  const [rewardsData, setRewardsData] = useState(null);
   const [preferences, setPreferences] = useState(null);
   const [onboarding, setOnboarding] = useState(EMPTY_ONBOARDING);
   const [savedResources, setSavedResources] = useState([]);
@@ -329,6 +334,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   const [profileOverrides, setProfileOverrides] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [syncStatus, setSyncStatus] = useState("idle");
+  const [syncError, setSyncError] = useState(null);
   const [studentSyncTick, setStudentSyncTick] = useState(0);
 
   const localDemo = useMemo(() => {
@@ -357,17 +364,29 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
     setLoading(true);
     setError(null);
+    setSyncStatus("loading");
+    setSyncError(null);
 
     if (useSupabase) {
       try {
+        const appData = await getDashboardAppData();
         const data = await loadSupabaseDashboard(user.id, user.email);
         if (data.errors?.length) {
           setError(formatDashboardPersistenceError(data.errors));
         }
-        const store = loadLocalDashboardStore(user.id);
-        setProfileOverrides(store.profileOverrides || {});
-        setProfile(data.profile);
-        setPreferences(data.preferences);
+        setProfileOverrides({});
+        setProfile(appData.profile || data.profile);
+        setPreferences(appData.settings || data.preferences);
+        setAvailability((appData.availability?.days || []).map((day) => ({
+          id: `av-${day.dayOfWeek.toLowerCase()}`,
+          day: day.dayOfWeek,
+          active: day.enabled,
+          startTime: day.startTime,
+          endTime: day.endTime,
+          timezone: appData.availability?.timezone || "ET",
+          recurring: true
+        })));
+        setRewardsData(appData.rewards || null);
         setOnboarding(data.onboarding || EMPTY_ONBOARDING);
         setMentor(data.mentor);
         setMentors(data.mentors || []);
@@ -387,15 +406,20 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setSupabaseScholarships(data.scholarships || []);
         setSupabaseDeadlines(data.deadlines || []);
         setSupabaseSavedColleges(data.savedColleges?.length ? data.savedColleges : null);
+        setSyncStatus("synced");
       } catch (err) {
         setError(err.message || "Failed to load dashboard data.");
+        setSyncError(err.message || "Failed to synchronize dashboard data.");
+        setSyncStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "sync-failed");
       } finally {
         setLoading(false);
       }
       return;
     }
 
-    const store = loadLocalDashboardStore(user.id);
+    // Browser-local dashboard stores are reserved for explicitly labeled demo
+    // accounts; authenticated production users must see server data or an error.
+    const store = localDemo ? loadLocalDashboardStore(user.id) : {};
     setUserCalendarEvents(store.calendarEvents || []);
     setLocalTasks(store.tasks?.length ? store.tasks : null);
     setLocalEssays(store.essays?.length ? store.essays : null);
@@ -438,6 +462,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setMentor(null);
       setMentors([]);
       setProfile(null);
+      setAvailability([]);
+      setRewardsData(null);
       setPreferences(null);
       setOnboarding(EMPTY_ONBOARDING);
       setSavedResources([]);
@@ -454,6 +480,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setSavedColleges(null);
       setLocalConversationMessages([]);
       setProfileOverrides({});
+      setSyncStatus("idle");
+      setSyncError(null);
       setLoading(false);
     }
   }, [user?.id, refresh]);
@@ -629,20 +657,47 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         const normalized = normalizeProfileShape(nextProfile);
         setProfile(normalized);
         setProfileOverrides(normalized);
-        patchLocalDashboardStore(user.id, { profileOverrides: normalized });
+        if (!useSupabase) patchLocalDashboardStore(user.id, { profileOverrides: normalized });
         return normalized;
       };
 
-      if (options.localOnly) {
+      if (options.localOnly && !useSupabase) {
         return persistLocalProfile(buildProfileDisplayUpdate(profile, fields));
       }
 
       if (useSupabase) {
-        const { profile: row, error: profileErr } = await updateSupabaseProfile(user.id, fields);
-        if (profileErr) throw new Error(profileErr);
+        setSyncStatus("saving");
+        let row;
+        try {
+          const result = await updateDashboardProfile({
+            full_name: fields.fullName,
+            preferred_name: fields.preferredName,
+            school: fields.school,
+            grade_level: fields.gradeLevel,
+            time_zone: fields.timeZone,
+            language: fields.language,
+            location_city_state: fields.locationCityState,
+            bio: fields.bio,
+            academic_goals: fields.academicGoals,
+            college_interests: fields.collegeInterests,
+            mentor_preferences: fields.mentorPreferences,
+            graduation_year: fields.graduationYear,
+            gpa: fields.gpa,
+            weighted_gpa: fields.weightedGpa,
+            sat: fields.sat,
+            act: fields.act,
+            target_majors: fields.targetMajors,
+            avatar_url: fields.avatarUrl
+          });
+          row = result.profile;
+        } catch (error) {
+          setSyncError(error.message || "Profile sync failed.");
+          setSyncStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "sync-failed");
+          throw error;
+        }
 
         const display = persistLocalProfile(
-          profileFromSupabaseRow(row, user.email, profile, fields)
+          row ? normalizeProfileShape(row) : buildProfileDisplayUpdate(profile, fields)
         );
 
         const completion = computeProfileCompletion(display);
@@ -652,32 +707,94 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         } else {
           setOnboarding((prev) => ({ ...prev, profileComplete: completion }));
         }
+        setSyncStatus("synced");
         return display;
       }
 
       try {
         await updateProfile(fields);
-      } catch {
-        /* demo / offline — local state still updates */
+      } catch (error) {
+        if (!localDemo) {
+          setSyncError(error.message || "Profile sync failed.");
+          setSyncStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "sync-failed");
+          throw error;
+        }
       }
 
       const display = persistLocalProfile(buildProfileDisplayUpdate(profile, fields));
       return display;
     },
-    [useSupabase, user, profile]
+    [useSupabase, user, profile, localDemo]
   );
 
   const savePreferences = useCallback(
     async (prefs) => {
       if (!user) return null;
       if (useSupabase) {
-        const { error: err } = await updateSupabasePreferences(user.id, prefs);
-        if (err) throw new Error(err);
+        setSyncStatus("saving");
+        const payload = Object.fromEntries(
+          Object.entries(prefs).map(([key, value]) => [key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`), value])
+        );
+        let result;
+        try {
+          result = await updateDashboardSettings(payload);
+        } catch (error) {
+          setSyncError(error.message || "Settings sync failed.");
+          setSyncStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "sync-failed");
+          throw error;
+        }
+        if (result?.settings) setPreferences(result.settings);
+      } else {
+        setPreferences(prefs);
       }
-      setPreferences(prefs);
+      if (useSupabase) setSyncStatus("synced");
+      if (!useSupabase && !localDemo) {
+        const error = new Error("Dashboard settings require a server-backed session.");
+        setSyncError(error.message);
+        setSyncStatus("sync-failed");
+        throw error;
+      }
       return prefs;
     },
-    [useSupabase, user]
+    [useSupabase, user, localDemo]
+  );
+
+  const saveAvailability = useCallback(
+    async (weeklyAvailability) => {
+      if (!user) return null;
+      if (useSupabase) {
+        setSyncStatus("saving");
+        let result;
+        try {
+          result = await updateMentorAvailability(weeklyAvailability);
+        } catch (error) {
+          setSyncError(error.message || "Availability sync failed.");
+          setSyncStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "sync-failed");
+          throw error;
+        }
+        const next = (result.availability?.days || []).map((day) => ({
+          id: `av-${day.dayOfWeek.toLowerCase()}`,
+          day: day.dayOfWeek,
+          active: day.enabled,
+          startTime: day.startTime,
+          endTime: day.endTime,
+          timezone: result.availability?.timezone || weeklyAvailability.timezone,
+          recurring: true
+        }));
+        setAvailability(next);
+        setSyncStatus("synced");
+        return next;
+      }
+      if (!localDemo) {
+        const error = new Error("Mentor availability requires a server-backed session.");
+        setSyncError(error.message);
+        setSyncStatus("sync-failed");
+        throw error;
+      }
+      setAvailability(weeklyAvailability.days || []);
+      return weeklyAvailability.days || [];
+    },
+    [useSupabase, user, localDemo]
   );
 
   const saveOnboarding = useCallback(
@@ -1332,7 +1449,14 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       messages: demo?.messages ?? messages,
       conversations: resolvedConversations,
       gamification: demo?.gamification ?? null,
-      progressRewards: demo?.progressRewards ?? null,
+      progressRewards: demo?.progressRewards ?? (rewardsData ? {
+        coins: rewardsData.coins,
+        completed: (rewardsData.tasks || []).filter((task) => task.status === "claimed").map((task) => task.taskTemplateId),
+        inProgress: (rewardsData.tasks || []).filter((task) => task.status === "in_progress").map((task) => task.taskTemplateId),
+        inProgressProgress: Object.fromEntries((rewardsData.tasks || []).map((task) => [task.taskTemplateId, task.progressTarget ? Math.round((task.progressCurrent / task.progressTarget) * 100) : 0])),
+        redeemed: [],
+        redemptionHistory: []
+      } : null),
       studentActivityFeed: demo?.studentActivityFeed ?? [],
       essays: resolvedEssays,
       saveEssayDraft: isGuardianViewMode ? () => {} : saveEssayDraft,
@@ -1382,7 +1506,11 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           startTime: request.startTime || parseRequestedTime(request.requestedTime)?.toISOString()
         }))
       ].filter((request) => !resolvedPendingRequestIds.includes(request.id)),
-      availability: demo?.availability ?? [],
+      availability: demo?.availability ?? availability,
+      rewardsData,
+      syncStatus,
+      syncError,
+      saveAvailability: isGuardianViewMode ? async () => null : saveAvailability,
       privateNotes: demo?.privateNotes ?? {},
       refresh,
       scheduleMeeting: isGuardianViewMode ? async () => null : scheduleMeeting,
@@ -1442,6 +1570,10 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       notifications,
       events,
       userCalendarEvents,
+      availability,
+      rewardsData,
+      syncStatus,
+      syncError,
       studentSyncTick,
       localTasks,
       localEssays,
@@ -1483,6 +1615,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       declineMeetingRequest,
       saveProfile,
       savePreferences,
+      saveAvailability,
       saveOnboarding,
       postMessage,
       markAllNotificationsRead,

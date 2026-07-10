@@ -328,9 +328,13 @@ create table if not exists public.mentor_matching_profiles (
   support_styles        text[] not null default '{}',
   application_strengths text[] not null default '{}',
   availability          text,
+  availability_schedule  jsonb not null default '{"timezone":"ET","days":[]}'::jsonb,
   completed             boolean not null default false,
   updated_at            timestamptz not null default now()
 );
+
+alter table public.mentor_matching_profiles
+  add column if not exists availability_schedule jsonb not null default '{"timezone":"ET","days":[]}'::jsonb;
 
 create index if not exists mentor_matching_profiles_completed_idx
   on public.mentor_matching_profiles (completed);

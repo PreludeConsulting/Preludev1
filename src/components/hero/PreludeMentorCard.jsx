@@ -1,11 +1,25 @@
 import { cn } from "../../lib/utils.js";
+import { useContext } from "react";
+import { AuthContext } from "../../context/AuthContext.jsx";
+import { savePendingJourney } from "../../lib/authJourney.js";
 
 const registerPath = `${import.meta.env.BASE_URL}register`.replace(/\/+/g, "/");
 
-export default function PreludeMentorCard({ mentor, showAction = true }) {
+export default function PreludeMentorCard({ mentor, showAction = true, serviceId = "", planId = "" }) {
+  const auth = useContext(AuthContext);
+  const user = auth?.user;
   function handleChoose() {
-    const params = new URLSearchParams({ mentor: mentor.id, ref: "preludematch" });
-    window.location.href = `${registerPath}?${params.toString()}`;
+    const next = `/onboarding/match?mentor=${encodeURIComponent(mentor.id)}`;
+    const journey = { next, mentorId: mentor.id, serviceId, planId };
+    if (user) {
+      window.location.assign(next);
+      return;
+    }
+    savePendingJourney(journey);
+    const params = new URLSearchParams({ next, mentor: mentor.id, ref: "preludematch" });
+    if (serviceId) params.set("service", serviceId);
+    if (planId) params.set("plan", planId);
+    window.location.assign(`${registerPath}?${params.toString()}`);
   }
 
   return (

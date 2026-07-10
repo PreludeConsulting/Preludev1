@@ -20,7 +20,7 @@ import {
   redeemPromoCodeAtSignup
 } from "../lib/promoCodes.js";
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 async function loadSupabaseAuth() {
   return import("../lib/supabaseAuth.js");

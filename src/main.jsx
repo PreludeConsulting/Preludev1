@@ -26,6 +26,7 @@ import LegalModal from "./components/LegalModal.jsx";
 import { PreludeMotionProvider } from "./context/MotionContext.jsx";
 import { SoundProvider } from "./lib/sound/SoundProvider.jsx";
 import { InteractionFeedbackProvider } from "./components/interaction/InteractionFeedback.jsx";
+import { MatchAlias, NotFoundPage, OnboardingEntry, PreludeMatchEntry } from "./components/Phase2RouteEntries.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import AuthLandingRedirect from "./components/AuthLandingRedirect.jsx";
 import {
@@ -86,6 +87,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/onboarding/payment" element={<RequireOnboardingAccess><PaymentOnboardingPage /></RequireOnboardingAccess>} />
             <Route path="/onboarding/payment/:planId" element={<RequireOnboardingAccess><PlanDetailPage context="payment" /></RequireOnboardingAccess>} />
             <Route path="/onboarding/mentor" element={<RequireOnboardingAccess><MentorQuestionnaireOnboardingPage /></RequireOnboardingAccess>} />
+            <Route path="/onboarding" element={<OnboardingEntry />} />
+            <Route path="/prelude-match" element={<PreludeMatchEntry />} />
+            <Route path="/match" element={<MatchAlias />} />
+            <Route path="/dashboard/student/onboarding" element={<OnboardingEntry />} />
             <Route
               path="/dashboard/*"
               element={
@@ -115,6 +120,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/auth/reset-password" element={<Navigate to="/reset-password" replace />} />
             <Route path="/auth/account" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth/*" element={<Navigate to="/register" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
           <LegalModal />
           </LegalModalProvider>

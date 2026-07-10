@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { captchaOptions, requireTurnstileToken } from "../src/lib/turnstile.js";
+import { captchaOptions, requireTurnstileToken, getTurnstileStatusMessage, canSubmitWithTurnstile } from "../src/lib/turnstile.js";
 
 describe("Turnstile auth helpers", () => {
   it("requires a token when CAPTCHA is enabled", () => {
@@ -14,5 +14,13 @@ describe("Turnstile auth helpers", () => {
   it("only sends a non-empty token to Supabase", () => {
     expect(captchaOptions("")).toEqual({});
     expect(captchaOptions("verified-token")).toEqual({ captchaToken: "verified-token" });
+  });
+
+  it("exposes deterministic retryable status copy for loading, failure, and expiry", () => {
+    expect(getTurnstileStatusMessage("loading")).toMatch(/loading/i);
+    expect(getTurnstileStatusMessage("error")).toMatch(/try again|retry/i);
+    expect(getTurnstileStatusMessage("expired")).toMatch(/expired|again/i);
+    expect(canSubmitWithTurnstile({ required: true, token: "", status: "error" })).toBe(false);
+    expect(canSubmitWithTurnstile({ required: true, token: "verified", status: "ready" })).toBe(true);
   });
 });

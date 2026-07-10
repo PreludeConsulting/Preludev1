@@ -26,18 +26,24 @@ function loadTurnstile() {
   });
 }
 
-const TurnstileWidget = forwardRef(function TurnstileWidget({ onTokenChange, disabled = false }, ref) {
+const TurnstileWidget = forwardRef(function TurnstileWidget({ onTokenChange, onStatusChange, disabled = false }, ref) {
   const containerRef = useRef(null);
   const widgetIdRef = useRef(null);
   const callbackRef = useRef(onTokenChange);
   const [error, setError] = useState("");
-  const [loaded, setLoaded] = useState(false);
+  const [status, setStatus] = useState("loading");
+
+  function reportStatus(next) {
+    setStatus(next);
+    onStatusChange?.(next);
+  }
 
   callbackRef.current = onTokenChange;
 
   useImperativeHandle(ref, () => ({
     reset() {
       callbackRef.current?.("");
+      reportStatus("loading");
       if (window.turnstile && widgetIdRef.current !== null) {
         window.turnstile.reset(widgetIdRef.current);
       }
@@ -47,6 +53,7 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ onTokenChange, dis
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY) return undefined;
     let cancelled = false;
+    reportStatus("loading");
 
     loadTurnstile()
       .then((turnstile) => {
@@ -59,16 +66,24 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ onTokenChange, dis
             setError("");
             callbackRef.current?.(token);
           },
-          "expired-callback": () => callbackRef.current?.(""),
+          "expired-callback": () => {
+            callbackRef.current?.("");
+            setError("The security check expired. Complete it again to continue.");
+            reportStatus("expired");
+          },
           "error-callback": () => {
             callbackRef.current?.("");
             setError("The security check expired or failed. Please try it again.");
+            reportStatus("error");
           }
         });
-        setLoaded(true);
+        reportStatus("ready");
       })
       .catch((loadError) => {
-        if (!cancelled) setError(loadError.message);
+        if (!cancelled) {
+          setError(loadError.message);
+          reportStatus("error");
+        }
       });
 
     return () => {
@@ -78,6 +93,7 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ onTokenChange, dis
       }
       widgetIdRef.current = null;
       callbackRef.current?.("");
+      onStatusChange?.("idle");
     };
   }, []);
 
@@ -87,9 +103,10 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ onTokenChange, dis
     <div className={`auth-turnstile${disabled ? " auth-turnstile--disabled" : ""}`} aria-busy={disabled || undefined}>
       <div className="auth-turnstile__frame">
         <div ref={containerRef} className="auth-turnstile__widget" />
-        {!loaded ? <span className="auth-turnstile__placeholder">Loading security check…</span> : null}
+        {status === "loading" ? <span className="auth-turnstile__placeholder">Loading security check…</span> : null}
       </div>
       {error ? <p className="auth-turnstile__error" role="alert">{error}</p> : null}
+      {status === "error" ? <button type="button" className="auth-inline-link" onClick={() => window.location.reload()}>Retry security check</button> : null}
     </div>
   );
 });

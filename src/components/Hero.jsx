@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import PreludeMatch from "./hero/PreludeMatch.jsx";
@@ -15,6 +16,7 @@ import {
 const contactPath = `${import.meta.env.BASE_URL}contact`.replace(/\/+/g, "/");
 
 export default function Hero() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const { t } = useLanguage();
   const heroRefs = useHeroMotionRefs();
@@ -78,7 +80,7 @@ export default function Hero() {
             <HeroVisualAnimation heroRefs={heroRefs}>
               <div className="shopify-hero__deco shopify-hero__deco--one" aria-hidden="true" />
               <div className="shopify-hero__deco shopify-hero__deco--two" aria-hidden="true" />
-              <PreludeMatch />
+              <PreludeMatch onStartOverride={() => navigate("/prelude-match")} />
             </HeroVisualAnimation>
           </div>
         </div>
