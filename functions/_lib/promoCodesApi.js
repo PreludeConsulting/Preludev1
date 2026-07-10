@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { enforceIpRateLimit, hashClientIp } from "../../server/lib/ipRateLimit.js";
 import { createSupabaseAdmin, createSupabaseUserClient } from "../../server/lib/supabasePasswordReset.js";
 import {
@@ -45,8 +44,13 @@ function requestFromContext(context) {
   };
 }
 
-function hashPromoCode(code) {
-  return createHash("sha256").update(normalizePromoCodeInput(code)).digest("hex");
+async function hashPromoCode(code) {
+  const normalized = normalizePromoCodeInput(code);
+  const bytes = new TextEncoder().encode(normalized);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 function buildPromoSummary(validation) {
@@ -97,7 +101,7 @@ async function validatePromoCodeSupabase(supabase, { code, email, userId, ipHash
     return { valid: false, error: "invalid_code_format", message: publicPromoError("invalid_code_format") };
   }
 
-  const codeHash = hashPromoCode(normalized);
+  const codeHash = await hashPromoCode(normalized);
   const { data, error } = await supabase.rpc("validate_promo_code", {
     p_code_hash: codeHash,
     p_email: email || null,
@@ -150,7 +154,7 @@ async function redeemPromoCodeSupabase(supabase, { code, email, userId, ipHash }
   }
 
   const { data, error } = await supabase.rpc("redeem_promo_code", {
-    p_code_hash: hashPromoCode(normalized),
+    p_code_hash: await hashPromoCode(normalized),
     p_email: email,
     p_user_id: userId
   });
