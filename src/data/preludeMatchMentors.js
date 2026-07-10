@@ -2,20 +2,20 @@
 export const PRELUDE_MATCH_MENTORS = [
   {
     id: "maya",
-    name: "Maya Chen",
-    school: "Stanford",
+    name: "Maya Patel",
+    school: "Georgia Tech",
     major: "Computer Science",
     matchPercent: 96,
     specialties: ["Application strategy", "Essay brainstorming", "Academic profile review"],
     reason: "Clear roadmap for CS applicants.",
     availability: "Available this week",
     bestMatch: true,
-    initials: "MC"
+    initials: "MP"
   },
   {
     id: "jordan",
     name: "Jordan Patel",
-    school: "Georgia Tech",
+    school: "Stanford",
     major: "Computational Media",
     matchPercent: 91,
     specialties: ["Extracurricular planning", "Organization and deadlines", "Academic profile review"],

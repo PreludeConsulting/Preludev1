@@ -2,8 +2,8 @@
 
 export const PLACEHOLDER_MENTOR = {
   id: "mentor-demo-1",
-  name: "Maya Chen",
-  university: "Stanford University",
+  name: "Maya Patel",
+  university: "Georgia Institute of Technology",
   major: "Computer Science",
   graduationYear: "2027",
   bio: "Peer mentor focused on STEM applications, essay planning, and building a balanced college list.",
@@ -95,7 +95,7 @@ export const PLACEHOLDER_COLLEGES = [
 export const PLACEHOLDER_MESSAGES = [
   {
     id: "m1",
-    from: "Maya Chen",
+    from: "Maya Patel",
     preview: "Great progress on your essay outline — let's review paragraph 2 on Thursday.",
     time: "2h ago",
     unread: true

@@ -1,20 +1,40 @@
+import { Flag, Gift, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Flag, Gift } from "lucide-react";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { useProgressRewards } from "../../context/ProgressRewardsContext.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
+import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
 import { CoinBalance } from "./rewards/PreludePiggyBank.jsx";
 import { GLASS_PIGGY_IMAGE } from "./rewards/PiggyBankProgress.jsx";
-import PlanLockedFeature from "./PlanLockedFeature.jsx";
 
 export default function PreludeRewardsCard() {
   const { canAccess } = usePlanAccess();
+  const { openUpgrade } = usePlanUpgrade();
   const { coins, featuredReward, coinsToNext, statusGoalCoins, nextTier, coinsToNextMultiplier } = useProgressRewards();
 
   if (!canAccess("rewards")) {
     return (
-      <article className="dash-product-card dash-product-card--wide dash-product-card--rewards dash-prelude-rewards-preview">
-        <PlanLockedFeature feature="rewards" compact />
+      <article className="dash-product-card dash-product-card--wide dash-product-card--rewards dash-prelude-rewards-preview dash-prelude-rewards-preview--locked">
+        <header className="dash-product-card__head dash-product-card__head--profile-strength">
+          <p className="dash-product-card__eyebrow">Prelude Rewards</p>
+        </header>
+        <div className="dash-prelude-rewards-preview__locked">
+          <span className="dash-prelude-rewards-preview__locked-icon" aria-hidden="true">
+            <Lock />
+          </span>
+          <h2 className="dash-prelude-rewards-preview__title">Unlock more with Plus and Pro</h2>
+          <p className="dash-prelude-rewards-preview__subtext">
+            Earn coins, unlock bonus mentor sessions, and redeem exclusive rewards.
+          </p>
+          <button
+            type="button"
+            className="dash-btn dash-btn--primary dash-prelude-rewards-preview__cta"
+            onClick={() => openUpgrade("rewards")}
+          >
+            <Gift className="dash-prelude-rewards-preview__cta-icon" aria-hidden="true" />
+            View Plans
+          </button>
+        </div>
       </article>
     );
   }

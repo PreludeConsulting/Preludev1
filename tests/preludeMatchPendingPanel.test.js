@@ -23,6 +23,18 @@ describe("MatchPendingPanel", () => {
     expect(html).not.toContain("pm-mentor-card");
   });
 
+  it("hides the update answers action when onEdit is not provided", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(MatchPendingPanel, {
+        loading: false,
+        onContinue: vi.fn(),
+        showAction: false
+      })
+    );
+
+    expect(html).not.toContain("Update answers");
+  });
+
   it("renders an update answers action when provided", () => {
     const html = renderToStaticMarkup(
       React.createElement(MatchPendingPanel, {

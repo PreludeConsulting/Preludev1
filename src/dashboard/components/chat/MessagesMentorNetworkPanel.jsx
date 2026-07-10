@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, MessageCircle } from "lucide-react";
 import { getMentorCatalog } from "../../../lib/preludeMatchService.js";
 import { SearchInput, PrimaryButton } from "../ui/index.jsx";
-import PlanLockedFeature from "../product/PlanLockedFeature.jsx";
+import MentorMessagingLockPanel from "./MentorMessagingLockPanel.jsx";
 import DashboardMentorNetworkCard, { mentorMatchesQuery } from "./DashboardMentorNetworkCard.jsx";
 
 export default function MessagesMentorNetworkPanel({ canMessage, onBack }) {
@@ -18,6 +18,9 @@ export default function MessagesMentorNetworkPanel({ canMessage, onBack }) {
   const selected = selectedId ? mentors.find((mentor) => mentor.id === selectedId) : null;
 
   if (selected) {
+    const school = selected.school || selected.university || "";
+    const headerMeta = [school, selected.major].filter(Boolean).join(" · ");
+
     return (
       <div className="dash-chat-network">
         <header className="dash-chat-network__header">
@@ -26,10 +29,7 @@ export default function MessagesMentorNetworkPanel({ canMessage, onBack }) {
           </button>
           <div className="dash-chat-network__header-copy">
             <strong>{selected.name}</strong>
-            <span>
-              {selected.school || selected.university}
-              {selected.major ? ` · ${selected.major}` : ""}
-            </span>
+            {headerMeta ? <span>{headerMeta}</span> : null}
           </div>
         </header>
 
@@ -46,7 +46,7 @@ export default function MessagesMentorNetworkPanel({ canMessage, onBack }) {
                 </PrimaryButton>
               </div>
             ) : (
-              <PlanLockedFeature feature="fullMentorNetworkMessaging" compact actionLabel="Upgrade Plan" />
+              <MentorMessagingLockPanel />
             )}
           </div>
         </div>

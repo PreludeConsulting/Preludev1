@@ -314,8 +314,8 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
               </button>
               <Avatar name={activeThread.tabLabel || activeThread.label} avatarUrl={activeThread.avatarUrl} />
               <div className="dash-chat-app__header-text">
-                <strong>{activeThread.label}</strong>
-                <span>{activeThread.sublabel || activeThread.participantRole}</span>
+                <strong>{activeThread.tabLabel || activeThread.label}</strong>
+                <span>{activeThread.tabSublabel || activeThread.sublabel || activeThread.participantRole}</span>
               </div>
               {schedulePath ? (
                 <div className="dash-chat-app__header-actions">
@@ -342,7 +342,13 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                     <div key={`d-${idx}`} className="dash-chat-date">{g.label}</div>
                   ) : (
                     <div key={`m-${idx}`} className={`dash-chat-group dash-chat-group--${g.side}`}>
-                      {g.side === "them" ? <Avatar name={activeThread.label} avatarUrl={activeThread.avatarUrl} size="sm" /> : null}
+                      {g.side === "them" ? (
+                        <Avatar
+                          name={activeThread.tabLabel || activeThread.label}
+                          avatarUrl={activeThread.avatarUrl}
+                          size="sm"
+                        />
+                      ) : null}
                       <div className="dash-chat-group__bubbles">
                         {g.items.map((msg) =>
                           editingId === msg.id ? (

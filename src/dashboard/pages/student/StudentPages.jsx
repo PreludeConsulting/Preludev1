@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { isJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import {
@@ -67,10 +67,10 @@ import { useGamification } from "../../context/GamificationContext.jsx";
 import CollegesExplore from "../../components/product/CollegesExplore.jsx";
 import StudentOverviewProduct from "../../components/product/StudentOverviewProduct.jsx";
 import StudentProgressRewardsProduct from "../../components/product/StudentProgressRewardsProduct.jsx";
-import PlanFeatureGate from "../../components/product/PlanFeatureGate.jsx";
 import PlanSessionBanner from "../../components/product/PlanSessionBanner.jsx";
 import PlanLockedFeature from "../../components/product/PlanLockedFeature.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
+import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
 
 /* ——— Shared presentational helpers for the redesigned pages ——— */
 
@@ -143,9 +143,20 @@ export function StudentOverview() {
 
 export function StudentProgressRewards() {
   const { isMentorStudentView } = useDashboardData();
-  const content = <StudentProgressRewardsProduct />;
-  if (isMentorStudentView) return content;
-  return <PlanFeatureGate feature="rewards">{content}</PlanFeatureGate>;
+  const { canAccess } = usePlanAccess();
+  const { openUpgrade } = usePlanUpgrade();
+  const navigate = useNavigate();
+  const locked = !isMentorStudentView && !canAccess("rewards");
+
+  useEffect(() => {
+    if (!locked) return;
+    openUpgrade("rewards");
+    navigate(`${STUDENT_DASHBOARD_BASE}/overview`, { replace: true });
+  }, [locked, navigate, openUpgrade]);
+
+  if (locked) return null;
+
+  return <StudentProgressRewardsProduct />;
 }
 
 export function StudentCalendar() {

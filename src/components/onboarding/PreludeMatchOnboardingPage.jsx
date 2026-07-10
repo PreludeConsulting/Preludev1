@@ -167,7 +167,6 @@ export default function PreludeMatchOnboardingPage() {
 
   const navigation = getOnboardingStepNavigation(user, location.pathname, new URLSearchParams(location.search));
   const stepProgress = getOnboardingProgress(user, location.pathname, new URLSearchParams(location.search));
-  const renderQuestionnaireFlow = !forceResult;
 
   function handleStart() {
     setAnswers(user?.questionnaireAnswers || {});
@@ -239,9 +238,10 @@ export default function PreludeMatchOnboardingPage() {
     currentQuestion &&
     getQuestionIndex(visibleQuestions, currentQuestion.id) === visibleQuestions.length - 1;
 
-  const showResultPanel = phase === "result";
+  const showResultPanel = phase === "result" && !editingAnswers;
   const showVerifyBanner = !user.emailVerified && showResultPanel;
   const showCompletedPanel = user.matchOnboardingComplete && !showResultPanel && !editingAnswers;
+  const renderQuestionnaireFlow = !forceResult || editingAnswers;
   const cardVariant =
     phase === "questions" || phase === "boot"
       ? "questionnaire"
@@ -346,7 +346,6 @@ export default function PreludeMatchOnboardingPage() {
                   <MatchPendingPanel
                     loading={saving}
                     onContinue={() => navigate(PARENT_ONBOARDING_PATH)}
-                    onEdit={beginEditingAnswers}
                     showAction={false}
                   />
                 </motion.div>
