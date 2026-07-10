@@ -924,3 +924,117 @@
     transform: none;
   }
 }
+
+.promo-code-field__hint {
+  margin-top: -0.35rem;
+}
+
+.promo-code-field__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.625rem;
+  align-items: stretch;
+}
+
+.promo-code-field__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.promo-code-field__action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.promo-code-field__action--ghost {
+  background: transparent;
+  color: hsl(var(--foreground));
+}
+
+.promo-code-field__spinner {
+  width: 1rem;
+  height: 1rem;
+  animation: spin 0.8s linear infinite;
+}
+
+.promo-code-field__success {
+  margin-top: 0.25rem;
+  padding: 0.875rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, hsl(var(--primary)) 24%, transparent);
+  background: color-mix(in srgb, hsl(var(--primary)) 8%, transparent);
+}
+
+.promo-code-field__success-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.promo-code-field__success-copy {
+  margin: 0.35rem 0 0.75rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.92rem;
+}
+
+.promo-code-field__summary {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.promo-code-field__summary div {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.promo-code-field__summary dt {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+.promo-code-field__summary dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.promo-success-page {
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.promo-success-page__icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  color: hsl(var(--primary));
+}
+
+.promo-success-page__summary {
+  width: 100%;
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .promo-code-field__row {
+    grid-template-columns: 1fr;
+  }
+
+  .promo-code-field__summary div {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+}

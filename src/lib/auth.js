@@ -119,7 +119,8 @@ export async function signUp(payload) {
     email: payload.email,
     password: payload.password,
     role,
-    termsAccepted: Boolean(payload.termsAccepted ?? true)
+    termsAccepted: Boolean(payload.termsAccepted ?? true),
+    promoCode: payload.promoCode || undefined
   };
   const result = await api("/api/auth/register", { method: "POST", body: JSON.stringify(body) });
   const user = attachFrontendFields(result.user);

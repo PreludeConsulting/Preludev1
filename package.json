@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "seed:demo": "node scripts/seed-demo.mjs",
+    "seed:promo-codes": "node scripts/seed-promo-codes.mjs",
     "seed:prelude-ai-data": "node scripts/seed-prelude-ai-data.js",
     "ai:ingest": "node scripts/ai-ingest.js",
     "ai:reset-knowledge": "node scripts/ai-reset-knowledge.js",

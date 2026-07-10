@@ -37,6 +37,7 @@ import {
   VerifyEmailPage,
   VerifyLoginPage
 } from "./components/AuthPages.jsx";
+import { PromoRegistrationSuccessPage } from "./components/auth/PromoRegistrationSuccessPage.jsx";
 import { ROUTER_BASENAME } from "./lib/appPaths.js";
 import "./index.css";
 import "./styles/auth.css";
@@ -68,6 +69,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/" element={<App />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/register/promo-success" element={<PromoRegistrationSuccessPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />

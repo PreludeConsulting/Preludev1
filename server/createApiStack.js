@@ -8,6 +8,8 @@ import { createSupabaseParentInvitesMiddleware } from "./supabaseParentInvitesAp
 import { createSupabasePasswordResetMiddleware } from "./supabasePasswordResetApi.js";
 import { createSupabaseSignupVerificationMiddleware } from "./supabaseSignupVerificationApi.js";
 import { createOnboardingMentorSelectionMiddleware } from "./onboardingMentorSelectionApi.js";
+import { createPromoApiMiddleware } from "./promoApi.js";
+import { createAdminPromoApiMiddleware } from "./adminPromoApi.js";
 
 /** Shared Prelude API middleware stack (auth → dashboard → billing → datasets → chat). */
 export function createPreludeApiStack(env = process.env) {
@@ -17,6 +19,8 @@ export function createPreludeApiStack(env = process.env) {
     createSupabasePasswordResetMiddleware(env),
     createSupabaseSignupVerificationMiddleware(env),
     createOnboardingMentorSelectionMiddleware(),
+    createPromoApiMiddleware(env),
+    createAdminPromoApiMiddleware(env),
     createAuthApiMiddleware(env),
     createDashboardApiMiddleware(async (req) => {
       try {

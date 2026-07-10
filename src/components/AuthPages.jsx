@@ -12,6 +12,7 @@ import TurnstileWidget from "./auth/TurnstileWidget.jsx";
 import AuthLayout from "./auth/AuthLayout.jsx";
 import AuthDemoSection from "./auth/AuthDemoSection.jsx";
 import AuthRoleSelector from "./auth/AuthRoleSelector.jsx";
+import PromoCodeField from "./auth/PromoCodeField.jsx";
 import {
   AuthBanner,
   AuthDivider,
@@ -30,6 +31,11 @@ import { isTurnstileRequired } from "../lib/turnstile.js";
 import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
 import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerification.js";
 import { maskEmail } from "../../shared/passwordValidation.js";
+import {
+  clearPendingPromoRedemption,
+  redeemPromoCodeAtSignup,
+  storePendingPromoRedemption
+} from "../lib/promoCodes.js";
 export { default as ResetPasswordPage } from "./auth/ResetPasswordPage.jsx";
 
 const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
@@ -305,6 +311,8 @@ export function RegisterPage() {
     termsAccepted: false,
     parentInviteToken
   });
+  const [promoCode, setPromoCode] = useState("");
+  const [promoSummary, setPromoSummary] = useState(null);
   const [formError, setFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [message, setMessage] = useState("");
@@ -391,7 +399,35 @@ export function RegisterPage() {
         parentInviteToken: parentInviteToken || form.parentInviteToken,
         captchaToken
       };
-      const result = await signUp(payload);
+      const result = await signUp({
+        ...payload,
+        promoCode: promoSummary ? promoCode : ""
+      });
+      const userId = result?.id;
+      const userEmail = form.email.trim();
+      let promoRedemption = null;
+
+      if (promoSummary && promoCode && userId && String(form.role).toUpperCase() === "STUDENT") {
+        try {
+          promoRedemption = await redeemPromoCodeAtSignup({
+            code: promoCode,
+            email: userEmail,
+            userId,
+            accessToken: result?.accessToken
+          });
+          clearPendingPromoRedemption(userEmail);
+        } catch (promoError) {
+          if (result?.needsEmailConfirmation || result?.verificationEmailSent) {
+            storePendingPromoRedemption(userEmail, promoCode);
+          } else {
+            setFormError(promoError.message || "Your account was created, but the promo code could not be redeemed.");
+            return;
+          }
+        }
+      } else if (promoSummary && promoCode && (result?.needsEmailConfirmation || result?.verificationEmailSent)) {
+        storePendingPromoRedemption(userEmail, promoCode);
+      }
+
       if (result?.needsEmailConfirmation || result?.verificationEmailSent) {
         setConfirmationEmail(form.email.trim());
         if (result?.verificationEmailError) {
@@ -405,6 +441,18 @@ export function RegisterPage() {
         return;
       }
       if (result?.id) {
+        if (promoRedemption?.success) {
+          navigate("/register/promo-success", {
+            replace: true,
+            state: {
+              email: userEmail,
+              summary: promoRedemption.summary,
+              campaignName: promoRedemption.summary?.campaignName,
+              promotionEndsAt: promoRedemption.promotionEndsAt
+            }
+          });
+          return;
+        }
         if (result?.requiresLoginVerification) {
           const challenge = result.challengeId ? `&challenge=${encodeURIComponent(result.challengeId)}` : "";
           const destination = postAuthDestination(result);
@@ -514,6 +562,20 @@ export function RegisterPage() {
           error={fieldErrors.email}
           required
         />
+        {!invitedAsParent && (!form.role || form.role === "STUDENT") ? (
+          <PromoCodeField
+            email={form.email}
+            value={promoCode}
+            appliedSummary={promoSummary}
+            disabled={loading}
+            onChange={setPromoCode}
+            onApplied={({ summary }) => setPromoSummary(summary)}
+            onRemoved={() => {
+              setPromoCode("");
+              setPromoSummary(null);
+            }}
+          />
+        ) : null}
         <AuthPasswordField
           ref={passwordRef}
           label="Password"
@@ -557,7 +619,13 @@ export function RegisterPage() {
           disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken) || (!invitedAsParent && !form.role)}
           loading={signupLoading}
         >
-          {signupLoading ? "Creating account…" : "Create account"}
+          {signupLoading
+            ? promoSummary
+              ? "Creating free account…"
+              : "Creating account…"
+            : promoSummary
+              ? "Create Free Basic Account"
+              : "Create account"}
         </AuthSubmitButton>
       </form>
     </AuthLayout>

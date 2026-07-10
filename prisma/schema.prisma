@@ -515,6 +515,73 @@ model Meeting {
   @@map("meetings")
 }
 
+model PromoCode {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  publicCode             String    @map("public_code") @db.VarChar(64)
+  codeHash               String    @unique @map("code_hash") @db.VarChar(64)
+  description            String?   @db.Text
+  campaignName           String?   @map("campaign_name") @db.VarChar(120)
+  applicablePlan         String    @default("basic") @map("applicable_plan") @db.VarChar(20)
+  discountType           String    @default("complimentary") @map("discount_type") @db.VarChar(20)
+  discountValue          Decimal?  @map("discount_value") @db.Decimal(10, 2)
+  startsAt               DateTime? @map("starts_at") @db.Timestamptz(6)
+  expiresAt              DateTime? @map("expires_at") @db.Timestamptz(6)
+  maxRedemptions         Int?      @map("max_redemptions")
+  maxRedemptionsPerUser  Int       @default(1) @map("max_redemptions_per_user")
+  currentRedemptionCount Int       @default(0) @map("current_redemption_count")
+  singleUse              Boolean   @default(false) @map("single_use")
+  active                 Boolean   @default(true)
+  eligibleEmailDomains   String[]  @default([]) @map("eligible_email_domains")
+  eligibleEmails         String[]  @default([]) @map("eligible_emails")
+  newUsersOnly           Boolean   @default(true) @map("new_users_only")
+  accessDurationDays     Int?      @map("access_duration_days")
+  renewalBehavior        String    @default("requires_payment") @map("renewal_behavior") @db.VarChar(40)
+  internalNotes          String?   @map("internal_notes") @db.Text
+  revokedAt              DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdById            String?   @map("created_by") @db.Uuid
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  redemptions            PromoRedemption[]
+
+  @@index([campaignName], map: "idx_promo_codes_campaign")
+  @@index([active, expiresAt], map: "idx_promo_codes_active_expires")
+  @@map("promo_codes")
+}
+
+model PromoRedemption {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  promoCodeId       String   @map("promo_code_id") @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  email             String   @db.Citext
+  redeemedAt        DateTime @default(now()) @map("redeemed_at") @db.Timestamptz(6)
+  planId            String   @map("plan_id") @db.VarChar(20)
+  promotionStartsAt DateTime @default(now()) @map("promotion_starts_at") @db.Timestamptz(6)
+  promotionEndsAt   DateTime? @map("promotion_ends_at") @db.Timestamptz(6)
+  paymentWaived     Boolean  @default(true) @map("payment_waived")
+  campaignName      String?  @map("campaign_name") @db.VarChar(120)
+
+  promoCode         PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Restrict)
+
+  @@unique([promoCodeId, userId], map: "uq_promo_redemptions_code_user")
+  @@index([userId, redeemedAt], map: "idx_promo_redemptions_user_redeemed")
+  @@index([promoCodeId, redeemedAt], map: "idx_promo_redemptions_code_redeemed")
+  @@map("promo_redemptions")
+}
+
+model PromoValidationAttempt {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codeHash  String?  @map("code_hash") @db.VarChar(64)
+  email     String?  @db.Citext
+  ipHash    String?  @map("ip_hash") @db.VarChar(64)
+  success   Boolean
+  errorCode String?  @map("error_code") @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([createdAt], map: "idx_promo_validation_attempts_created")
+  @@map("promo_validation_attempts")
+}
+
 model AiKnowledgeChunk {
   id             String    @id @default(cuid())
   sourceId       String

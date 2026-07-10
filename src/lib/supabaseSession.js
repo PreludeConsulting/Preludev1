@@ -54,7 +54,9 @@ export function mapSupabaseUser(
   const parentInviteStepComplete =
     onboardingFields.parentInviteStepComplete || readParentInviteStepComplete(u.id);
   const paymentStepComplete =
-    onboardingFields.paymentStepComplete || readPaymentStepComplete(u.id);
+    onboardingFields.paymentStepComplete ||
+    readPaymentStepComplete(u.id) ||
+    Boolean(profile?.payment_waived);
   const authSignInMethods = normalizeAuthProviders(u.identities || [], u);
   const roleSelectionComplete = profile?.role_selection_complete !== false;
 
@@ -84,6 +86,9 @@ export function mapSupabaseUser(
     planSelected,
     paymentStepComplete,
     subscriptionStatus: profile?.subscription_status || null,
+    paymentWaived: Boolean(profile?.payment_waived),
+    promoCampaign: profile?.promo_campaign || null,
+    promoAccessEndsAt: profile?.promo_access_ends_at || null,
     emailVerified: Boolean(u.email_confirmed_at),
     authProvider: "supabase",
     authSignInMethods,

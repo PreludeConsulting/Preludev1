@@ -46,6 +46,7 @@ import {
 } from "./pages/shared/FeaturePages.jsx";
 import { PreludeMatchBrowsePage } from "./pages/shared/PreludeMatchPages.jsx";
 import MatchingTeamPage from "./pages/admin/AdminPages.jsx";
+import PromoCodesAdminPage from "./pages/admin/PromoCodesAdminPage.jsx";
 import { ADMIN_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
 import { checkMatchingTeamAccess } from "../lib/mentorSelectionApi.js";
 import { hasMatchingTeamAccess } from "../../shared/matchingTeamAccess.js";
@@ -183,8 +184,9 @@ function AdminRoutes() {
   return (
     <DashboardDataProvider user={user}>
       <Routes>
-        <Route element={<DashboardLayout productNav={[{ to: "/matching", label: "Matching", icon: UserCheck }]} basePath={ADMIN_DASHBOARD_BASE} routeMeta={{}} />}>
+        <Route element={<DashboardLayout productNav={[{ to: "/matching", label: "Matching", icon: UserCheck }, { to: "/promo-codes", label: "Promo codes", icon: UserCheck }]} basePath={ADMIN_DASHBOARD_BASE} routeMeta={{}} />}>
           <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
+          <Route path="promo-codes" element={<PromoCodesAdminPage />} />
           <Route path="mentor-review" element={<Navigate to="../matching" replace />} />
           <Route index element={<Navigate to="matching" replace />} />
         </Route>

@@ -273,6 +273,7 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
   return {
     user,
     userId: data?.user?.id || null,
+    accessToken: data?.session?.access_token || null,
     error: null,
     needsEmailConfirmation,
     verificationEmailSent: Boolean(needsEmailConfirmation && !verificationDelivery.error),

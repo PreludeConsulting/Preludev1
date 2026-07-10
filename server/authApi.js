@@ -51,7 +51,8 @@ const registerSchema = z.object({
   password: passwordSchema,
   role: signupRoleSchema,
   termsAccepted: z.literal(true),
-  organizationId: z.string().uuid().optional()
+  organizationId: z.string().uuid().optional(),
+  promoCode: z.string().trim().max(64).optional()
 });
 
 const loginSchema = z.object({
@@ -414,6 +415,29 @@ async function handleRegister(req, res) {
     return { user, verificationToken };
   });
 
+  let promoRedemption = null;
+  if (payload.promoCode && payload.role === "STUDENT") {
+    const { redeemPromoCode } = await import("./lib/promoCodes.js");
+    const { deliverPromoWelcomeEmail } = await import("./lib/promoEmail.js");
+    promoRedemption = await redeemPromoCode({
+      code: payload.promoCode,
+      email,
+      userId: result.user.id,
+      backend: "prisma"
+    });
+    if (promoRedemption.success) {
+      await deliverPromoWelcomeEmail({
+        to: email,
+        publicCode: promoRedemption.publicCode,
+        campaignName: promoRedemption.campaignName,
+        permanentAccess: promoRedemption.summary?.permanentAccess,
+        promotionEndsAt: promoRedemption.promotionEndsAt,
+        req
+      });
+      result.user = await db().user.findUnique({ where: { id: result.user.id } });
+    }
+  }
+
   const verifyUrl = buildAuthUrl(req, `/verify-email?token=${result.verificationToken}`);
   await deliverAuthEmail({ kind: "verify-email", to: email, url: verifyUrl, req });
 
@@ -426,6 +450,7 @@ async function handleRegister(req, res) {
       user: publicUser(result.user),
       csrfToken: tokens.csrfToken,
       verificationEmailSent: true,
+      promoRedemption: promoRedemption?.success ? promoRedemption : null,
       message:
         "Account created. We sent a verification link to your email — you can use Prelude now and verify when convenient."
     },

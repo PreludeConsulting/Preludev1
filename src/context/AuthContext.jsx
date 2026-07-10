@@ -14,6 +14,11 @@ import { getDevBypassUser, getDemoSessionUser, isDevAuthBypassEnabled } from "..
 import { getPlan, normalizePlanId } from "../lib/plans.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 import { checkLoginVerification, clearLoginAssurance, sendLoginVerificationCode } from "../lib/loginVerification.js";
+import {
+  clearPendingPromoRedemption,
+  readPendingPromoRedemption,
+  redeemPromoCodeAtSignup
+} from "../lib/promoCodes.js";
 
 const AuthContext = createContext(null);
 
@@ -58,6 +63,22 @@ export function AuthProvider({ children }) {
             studentId: nextUser.id,
             studentName: nextUser.name || nextUser.email
           });
+          const pendingPromo = readPendingPromoRedemption(nextUser.email);
+          if (pendingPromo?.code) {
+            try {
+              const { getSupabase } = await import("../lib/supabase.js");
+              const session = await getSupabase()?.auth.getSession();
+              await redeemPromoCodeAtSignup({
+                code: pendingPromo.code,
+                email: nextUser.email,
+                userId: nextUser.id,
+                accessToken: session?.data?.session?.access_token || null
+              });
+              clearPendingPromoRedemption(nextUser.email);
+            } catch (promoError) {
+              console.warn("[prelude-promo] pending redemption skipped:", promoError?.message || promoError);
+            }
+          }
         }
       } catch (err) {
         // Best-effort: never block auth/session restore on invite linking.
@@ -364,7 +385,7 @@ export function AuthProvider({ children }) {
         if (role === "parent" && payload.parentInviteToken) {
           storePendingParentInvite(payload.parentInviteToken);
         }
-        const { user: next, userId, error, needsEmailConfirmation } = await supabaseSignUp({
+        const { user: next, userId, accessToken, error, needsEmailConfirmation } = await supabaseSignUp({
           email: payload.email,
           password: payload.password,
           fullName: fullName || (role === "parent" ? "Parent User" : "Prelude User"),
@@ -404,6 +425,7 @@ export function AuthProvider({ children }) {
         return {
           ...next,
           id: next?.id || userId,
+          accessToken: accessToken || null,
           emailVerified: Boolean(next?.emailVerified),
           needsEmailConfirmation,
           requiresLoginVerification: Boolean(next?.requiresLoginVerification),
