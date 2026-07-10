@@ -186,10 +186,12 @@ export function createAdminPromoApiMiddleware(env = process.env) {
     }
 
     try {
-      const supabase = getSupabaseAdmin();
+      let supabase = getSupabaseAdmin();
       let adminUser;
       if (supabase) {
-        ({ user: adminUser, supabase } = await requireAdmin(req));
+        const auth = await requireAdmin(req);
+        adminUser = auth.user;
+        supabase = auth.supabase;
       } else {
         adminUser = await requirePrismaAdmin(req);
       }

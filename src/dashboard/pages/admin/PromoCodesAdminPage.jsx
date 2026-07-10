@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getSupabase } from "../../lib/supabase.js";
+import { getSupabase } from "../../../lib/supabase.js";
 
 async function adminPromoRequest(path, options = {}) {
   const supabase = getSupabase();

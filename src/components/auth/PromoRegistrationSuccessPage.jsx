@@ -1,9 +1,9 @@
 import { CheckCircle2 } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import AuthLayout from "./auth/AuthLayout.jsx";
-import { AuthSubmitButton } from "./auth/AuthForm.jsx";
-import { postAuthDestination } from "../lib/onboardingRoutes.js";
-import { useAuth } from "../context/AuthContext.jsx";
+import AuthLayout from "./AuthLayout.jsx";
+import { AuthSubmitButton } from "./AuthForm.jsx";
+import { postAuthDestination } from "../../lib/onboardingRoutes.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 export function PromoRegistrationSuccessPage() {
   const navigate = useNavigate();

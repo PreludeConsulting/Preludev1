@@ -3,7 +3,9 @@
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { PrismaClient } from "@prisma/client";
-import { databaseUrl } from "./db-utils.mjs";
+import { databaseUrl, loadDotEnv } from "./db-utils.mjs";
+
+loadDotEnv();
 
 const SAMPLE_CODES = [
   "BASIC-FREE-7K2M",
@@ -49,20 +51,42 @@ function buildRows() {
   }));
 }
 
-async function seedSupabase(rows) {
+function supabaseConfig() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) return false;
+  return { url, key };
+}
+
+async function seedSupabase(rows) {
+  const { url, key } = supabaseConfig();
+  if (!url || !key) return { seeded: false, reason: "missing_env" };
 
   const supabase = createClient(url, key, { auth: { persistSession: false } });
   const { error } = await supabase.from("promo_codes").upsert(rows, { onConflict: "code_hash" });
-  if (error) throw error;
+  if (error) {
+    if (/relation .*promo_codes.* does not exist/i.test(error.message || "")) {
+      const migrationError = new Error(
+        "Supabase table promo_codes does not exist yet. Run supabase/migrations/20260710000000_promo_codes.sql in the Supabase SQL editor, then retry."
+      );
+      migrationError.cause = error;
+      throw migrationError;
+    }
+    throw error;
+  }
+
   console.log(`Seeded ${rows.length} promo codes into Supabase.`);
-  return true;
+  return { seeded: true };
 }
 
 async function seedPrisma(rows) {
   const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl() } } });
+
+  if (!prisma.promoCode?.upsert) {
+    throw new Error(
+      "Prisma client is missing PromoCode models. Run: npx prisma generate\nThen apply migrations: npm run db:migrate:deploy (or npm run db:setup)"
+    );
+  }
+
   try {
     for (const row of rows) {
       await prisma.promoCode.upsert({
@@ -89,21 +113,44 @@ async function seedPrisma(rows) {
         }
       });
     }
-    console.log(`Seeded ${rows.length} promo codes into Prisma.`);
+    console.log(`Seeded ${rows.length} promo codes into local Prisma/Postgres.`);
+    return { seeded: true };
   } finally {
     await prisma.$disconnect();
   }
 }
 
+function printSetupHelp() {
+  const { url, key } = supabaseConfig();
+  console.error("\nCould not seed promo codes. Use one of these paths:\n");
+  if (!url || !key) {
+    console.error("Supabase (recommended for production):");
+    console.error("  1. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env");
+    console.error("  2. Run supabase/migrations/20260710000000_promo_codes.sql in Supabase SQL editor");
+    console.error("  3. npm run seed:promo-codes\n");
+  }
+  console.error("Local Prisma/Postgres:");
+  console.error("  1. npm run db:setup");
+  console.error("  2. npx prisma generate && npm run db:migrate:deploy");
+  console.error("  3. npm run seed:promo-codes\n");
+}
+
 async function main() {
   const rows = buildRows();
-  const supabaseSeeded = await seedSupabase(rows);
-  if (!supabaseSeeded) {
+  const supabaseResult = await seedSupabase(rows);
+  if (supabaseResult.seeded) return;
+
+  try {
     await seedPrisma(rows);
+  } catch (error) {
+    if (/Can't reach database server|P1001/i.test(error.message || "")) {
+      printSetupHelp();
+    }
+    throw error;
   }
 }
 
 main().catch((error) => {
-  console.error(error);
+  console.error(error.message || error);
   process.exit(1);
 });
