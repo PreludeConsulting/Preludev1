@@ -381,18 +381,24 @@ export function mapOnboardingToUserFields(onboarding, hasAssignedMentor) {
   }
 
   const mentorSelectionComplete = Boolean(onboarding.mentor_assignment_status);
-  let status = onboarding.onboarding_status || ONBOARDING_STATUS.NEEDS_MATCH;
+  let status;
 
-  if (onboarding.payment_step_completed) {
-    status = ONBOARDING_STATUS.ONBOARDING_COMPLETED;
-  } else if (onboarding.parent_invite_step_completed) {
-    status = ONBOARDING_STATUS.NEEDS_PAYMENT;
-  } else if (!onboarding.mentor_matching_complete) {
+  if (!onboarding.mentor_matching_complete) {
     status = ONBOARDING_STATUS.NEEDS_MATCH;
-  } else if (!mentorSelectionComplete && !hasAssignedMentor && onboarding.match_decision !== "accepted") {
+  } else if (!onboarding.parent_invite_step_completed) {
     status = ONBOARDING_STATUS.MATCH_COMPLETED;
+  } else if (!onboarding.payment_step_completed) {
+    status = ONBOARDING_STATUS.NEEDS_PAYMENT;
+  } else if (mentorSelectionComplete || hasAssignedMentor || onboarding.match_decision === "accepted") {
+    status = ONBOARDING_STATUS.ONBOARDING_COMPLETED;
+  } else if (
+    onboarding.match_decision === "declined" ||
+    onboarding.suggested_mentor_id ||
+    onboarding.prelude_match_completed
+  ) {
+    status = ONBOARDING_STATUS.ONBOARDING_COMPLETED;
   } else {
-    status = ONBOARDING_STATUS.MATCH_COMPLETED;
+    status = ONBOARDING_STATUS.ONBOARDING_COMPLETED;
   }
 
   return {

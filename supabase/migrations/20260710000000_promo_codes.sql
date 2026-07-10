@@ -259,13 +259,12 @@ begin
     updated_at = now()
   where id = p_user_id;
 
-  insert into public.onboarding_progress (user_id, payment_step_completed, onboarding_status, updated_at)
-  values (p_user_id, true, 'onboarding_completed', now())
+  insert into public.onboarding_progress (user_id, payment_step_completed, updated_at)
+  values (p_user_id, true, now())
   on conflict (user_id) do update
   set
     payment_step_completed = true,
     pending_checkout_plan_id = null,
-    onboarding_status = 'onboarding_completed',
     updated_at = now();
 
   return jsonb_build_object(

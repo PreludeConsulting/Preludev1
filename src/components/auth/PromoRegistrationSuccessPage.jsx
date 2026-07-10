@@ -1,4 +1,5 @@
 import { CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import AuthLayout from "./AuthLayout.jsx";
 import { AuthSubmitButton } from "./AuthForm.jsx";
@@ -8,16 +9,32 @@ import { useAuth } from "../../context/AuthContext.jsx";
 export function PromoRegistrationSuccessPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, ready } = useAuth();
+  const { user, ready, refreshUser } = useAuth();
   const state = location.state || {};
   const email = state.email || user?.email || "";
   const summary = state.summary || null;
+  const [destination, setDestination] = useState("/onboarding/match");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const refreshed = (await refreshUser()) || user;
+      if (!cancelled && refreshed) {
+        setDestination(postAuthDestination(refreshed));
+      }
+      if (!cancelled) setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshUser, user]);
 
   if (!summary) {
     return <Navigate to="/register" replace />;
   }
-
-  const destination = user ? postAuthDestination(user) : "/login";
 
   return (
     <AuthLayout
@@ -36,9 +53,10 @@ export function PromoRegistrationSuccessPage() {
         </dl>
         <AuthSubmitButton
           type="button"
+          disabled={loading}
           onClick={() => navigate(ready && user ? destination : "/login", { replace: true })}
         >
-          Continue to Dashboard
+          {loading ? "Preparing next step…" : "Continue setup"}
         </AuthSubmitButton>
       </div>
     </AuthLayout>

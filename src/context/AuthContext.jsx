@@ -120,12 +120,15 @@ export function AuthProvider({ children }) {
       const { resolveSupabaseAppUser } = await loadSupabaseAuth();
       const next = await resolveSupabaseAppUser();
       setUser((current) => next || current);
+      let refreshed = next;
       if (next) {
         await runPostAuthLinkage(next);
+        refreshed = (await resolveSupabaseAppUser()) || next;
+        if (refreshed) setUser(refreshed);
         const verification = await refreshLoginVerification({ silent: true });
         setLoginVerified((current) => verification.error ? current : Boolean(verification.verified));
       }
-      return next;
+      return refreshed;
     })().finally(() => {
       authStateRefreshRef.current = null;
     });
@@ -196,6 +199,8 @@ export function AuthProvider({ children }) {
               setUser(sessionUser);
               if (sessionUser) {
                 await runPostAuthLinkage(sessionUser);
+                const refreshed = await resolveSupabaseAppUser();
+                if (!cancelled && refreshed) setUser(refreshed);
                 const verification = await refreshLoginVerification();
                 if (!cancelled) setLoginVerified(Boolean(verification.verified));
               } else {

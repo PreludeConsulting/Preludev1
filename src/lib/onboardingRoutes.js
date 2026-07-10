@@ -118,9 +118,6 @@ export function userNeedsRoleSelection(user) {
 export function userNeedsMatchOnboarding(user) {
   if (!user || roleFromUser(user) !== "student") return false;
   if (user.authProvider !== "supabase") return false;
-  if (user.onboardingStatus) {
-    return user.onboardingStatus === ONBOARDING_STATUS.NEEDS_MATCH;
-  }
   return !user.matchOnboardingComplete;
 }
 

@@ -33,6 +33,31 @@ describe("mapSupabaseUser", () => {
     expect(user.planSelected).toBe(false);
   });
 
+  it("keeps promo users on match onboarding when payment is waived early", () => {
+    const user = mapSupabaseUser(
+      session(),
+      {
+        id: "user-1",
+        full_name: "Promo Student",
+        role: "student",
+        role_selection_complete: true,
+        plan_id: "basic",
+        payment_waived: true,
+        subscription_status: "promotional"
+      },
+      {
+        mentor_matching_complete: false,
+        parent_invite_step_completed: false,
+        payment_step_completed: true,
+        onboarding_status: "onboarding_completed"
+      }
+    );
+
+    expect(user.matchOnboardingComplete).toBe(false);
+    expect(user.paymentStepComplete).toBe(true);
+    expect(user.onboardingStatus).toBe("needs_match");
+  });
+
   it("uses the stored profile avatar before OAuth metadata", () => {
     const user = mapSupabaseUser(
       session({

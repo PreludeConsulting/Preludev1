@@ -147,4 +147,20 @@ describe("onboarding route decisions", () => {
     expect(postAuthDestination(user)).toBe("/dashboard/student/overview");
     expect(canAccessDashboard(user)).toBe(true);
   });
+
+  it("sends promo students to Prelude Match even when payment is already waived", () => {
+    const user = supabaseUser({
+      role: "student",
+      matchOnboardingComplete: false,
+      parentInviteStepComplete: false,
+      paymentStepComplete: true,
+      paymentWaived: true,
+      planSelected: true,
+      onboardingStatus: ONBOARDING_STATUS.ONBOARDING_COMPLETED
+    });
+
+    expect(postAuthDestination(user)).toBe(MATCH_ONBOARDING_PATH);
+    expect(userNeedsPaymentStep(user)).toBe(false);
+    expect(canAccessDashboard(user)).toBe(false);
+  });
 });
