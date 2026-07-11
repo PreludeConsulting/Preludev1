@@ -820,4 +820,115 @@ export async function listMentorRewardStudents(mentorUserId) {
   return { students, error: null };
 }
 
+function mapRewardRedemption(row) {
+  return {
+    id: row.id,
+    rewardId: row.reward_id,
+    title: row.title,
+    coinCost: row.coin_cost,
+    status: row.status,
+    selection: row.selection || null,
+    redeemedAt: row.redeemed_at
+  };
+}
+
+export async function listRewardRedemptions(userId) {
+  const id = requireUserId(userId);
+  const { data, error } = await db()
+    .from("reward_redemptions")
+    .select("*")
+    .eq("user_id", id)
+    .order("redeemed_at", { ascending: false });
+  return {
+    redemptions: (data || []).map(mapRewardRedemption),
+    error: error?.message || null
+  };
+}
+
+export async function redeemCatalogReward(userId, { rewardId, title, coinCost, selection = null }) {
+  const id = requireUserId(userId);
+  const { wallet, error: walletError } = await getRewardWallet(id);
+  if (walletError) return { error: walletError };
+
+  const balance = Number(wallet?.coin_balance || 0);
+  if (balance < coinCost) {
+    return { error: "Not enough coins to redeem this reward." };
+  }
+
+  const { data: existing } = await db()
+    .from("reward_redemptions")
+    .select("id")
+    .eq("user_id", id)
+    .eq("reward_id", rewardId)
+    .maybeSingle();
+  if (existing) return { error: "You already redeemed this reward.", alreadyRedeemed: true };
+
+  const now = new Date().toISOString();
+  const nextBalance = balance - coinCost;
+  const { error: walletUpdateError } = await db()
+    .from("reward_wallets")
+    .update({ coin_balance: nextBalance, updated_at: now })
+    .eq("user_id", id);
+  if (walletUpdateError) return { error: walletUpdateError.message };
+
+  const { data: redemption, error: redemptionError } = await db()
+    .from("reward_redemptions")
+    .insert({
+      user_id: id,
+      reward_id: rewardId,
+      title,
+      coin_cost: coinCost,
+      status: "ready_to_schedule",
+      selection,
+      redeemed_at: now,
+      updated_at: now
+    })
+    .select("*")
+    .maybeSingle();
+
+  if (redemptionError) {
+    await db()
+      .from("reward_wallets")
+      .update({ coin_balance: balance, updated_at: now })
+      .eq("user_id", id);
+    return { error: redemptionError.message };
+  }
+
+  return {
+    redemption: mapRewardRedemption(redemption),
+    wallet: { ...wallet, coin_balance: nextBalance },
+    error: null
+  };
+}
+
+export async function getMentorHourlyAvailability(userId) {
+  const id = requireUserId(userId);
+  const { data, error } = await db()
+    .from("mentor_profiles")
+    .select("hourly_availability")
+    .eq("user_id", id)
+    .maybeSingle();
+  return {
+    slots: Array.isArray(data?.hourly_availability) ? data.hourly_availability : [],
+    error: error?.message || null
+  };
+}
+
+export async function saveMentorHourlyAvailability(userId, slots) {
+  const id = requireUserId(userId);
+  const now = new Date().toISOString();
+  const { data, error } = await db()
+    .from("mentor_profiles")
+    .upsert(
+      { user_id: id, hourly_availability: slots, updated_at: now },
+      { onConflict: "user_id" }
+    )
+    .select("hourly_availability")
+    .maybeSingle();
+  return {
+    slots: Array.isArray(data?.hourly_availability) ? data.hourly_availability : slots,
+    error: error?.message || null
+  };
+}
+
 export { mapTask, mapEssay, mapDeadline, mapSettings, mapMentorMatch, mapScholarship };

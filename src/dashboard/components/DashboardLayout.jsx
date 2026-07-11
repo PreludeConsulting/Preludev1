@@ -10,6 +10,7 @@ import { applyPreferences } from "../lib/dashboardPreferences.js";
 import { useDashboardData } from "../context/DashboardDataContext.jsx";
 import CalendarReminderBootstrap from "./CalendarReminderBootstrap.jsx";
 import DashboardProductNav from "./product/DashboardProductNav.jsx";
+import DataSyncBanner from "./DataSyncBanner.jsx";
 import PreludeFloatingChat from "./chat/PreludeFloatingChat.jsx";
 import { PreludeChatProvider } from "../context/PreludeChatContext.jsx";
 import { PlanUpgradeProvider } from "../context/PlanUpgradeContext.jsx";
@@ -20,7 +21,7 @@ import { hasMatchingTeamAccess } from "../../../shared/matchingTeamAccess.js";
 export default function DashboardLayout({ navItems, basePath, productNav }) {
   const location = useLocation();
   const { user } = useAuth();
-  const { error: dataError } = useDashboardData();
+  const { error: dataError, dashboardSyncState } = useDashboardData();
   const [showMatchingNav, setShowMatchingNav] = useState(false);
   const showVerifyBanner = Boolean(user && !user.emailVerified);
   const showParentReminder = roleFromUser(user) === "student";
@@ -77,6 +78,7 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
           <div className="dash-product-frame">
             <DashboardProductNav navItems={visibleNavItems} basePath={basePath} />
             <main className="dash-product-main">
+              <DataSyncBanner syncState={dashboardSyncState?.status === "failed" ? dashboardSyncState : null} />
               {dataError ? (
                 <div className="dash-callout dash-callout--error" role="alert">
                   <p>{dataError}</p>

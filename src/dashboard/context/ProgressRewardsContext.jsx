@@ -31,7 +31,9 @@ import {
   ensureRewardTaskInstances,
   getRewardWallet,
   isMainMentorForStudent,
+  listRewardRedemptions,
   listRewardTaskInstances,
+  redeemCatalogReward,
   syncDashboardControlledRewardTasks,
   syncStudentNetworkMessageActivity
 } from "../../lib/dashboardData.js";
@@ -53,6 +55,9 @@ import CoinCelebration from "../components/product/rewards/CoinCelebration.jsx";
 import { useInteractionFeedback } from "../../components/interaction/InteractionFeedback.jsx";
 import { useInterfaceSound } from "../../lib/sound/SoundProvider.jsx";
 import { isJordanDemoEmail } from "../../data/demoAccounts.js";
+import { buildRewardsSnapshot, buildSidebarProgressFromSnapshot } from "../lib/rewardsSnapshot.js";
+import { createSyncState, SYNC_STATUS } from "../lib/dataSyncState.js";
+import DataSyncBanner from "../components/DataSyncBanner.jsx";
 
 const ProgressRewardsContext = createContext(null);
 
@@ -75,12 +80,22 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const [shopState, setShopState] = useState(() => resolveShopRewardIds({ storageKey: shopStorageKey(user?.email) }));
   const [tasks, setTasks] = useState([]);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [syncState, setSyncState] = useState(() => createSyncState());
+  const [rewardsSnapshot, setRewardsSnapshot] = useState(null);
   const [syncError, setSyncError] = useState(null);
   const { triggerCoinBurst } = useInteractionFeedback();
   const { play, SOUND_EVENTS } = useInterfaceSound();
+  const satActUnlocked = Boolean(profile?.satActPrep);
+  const tutoringUnlocked = Boolean(profile?.academicTutoring);
+  const isSupabaseUser = user?.authProvider === "supabase";
+  const usesTaskRuntime = isSupabaseUser || isMentorStudentView || Boolean(user?.email);
 
   useEffect(() => {
-    if (!initial || user?.authProvider === "supabase") return;
+    if (!initial) return;
+    if (isSupabaseUser) {
+      setState(normalizedInitial);
+      return;
+    }
     const key = storageKey(user?.email);
     try {
       const saved = normalizeRewardsState(JSON.parse(localStorage.getItem(key) || "{}"));
@@ -95,7 +110,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     } catch {
       setState(normalizedInitial);
     }
-  }, [initial, user?.email]);
+  }, [initial, isSupabaseUser, normalizedInitial, user?.email]);
 
   useEffect(() => {
     const key = shopStorageKey(user?.email);
@@ -108,10 +123,6 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     return () => window.clearInterval(id);
   }, [user?.email]);
 
-  const satActUnlocked = Boolean(profile?.satActPrep);
-  const tutoringUnlocked = Boolean(profile?.academicTutoring);
-  const isSupabaseUser = user?.authProvider === "supabase";
-  const usesTaskRuntime = isSupabaseUser || isMentorStudentView || Boolean(user?.email);
   const [isMainAssignedMentor, setIsMainAssignedMentor] = useState(false);
 
   useEffect(() => {
@@ -145,16 +156,33 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const refreshRewardTasks = useCallback(async () => {
     if (!user?.id && !user?.email) return;
     if (isSupabaseUser && user?.id) {
-      const [{ tasks: rows }, { wallet }] = await Promise.all([
+      const [{ tasks: rows }, { wallet }, { redemptions, error: redemptionError }] = await Promise.all([
         listRewardTaskInstances(user.id),
-        getRewardWallet(user.id)
+        getRewardWallet(user.id),
+        listRewardRedemptions(user.id)
       ]);
-      setTasks(rows || []);
+      const mappedTasks = rows || [];
+      setTasks(mappedTasks);
+      const snapshot = buildRewardsSnapshot({
+        wallet,
+        tasks: mappedTasks,
+        redemptions,
+        redemptionHistory: []
+      });
+      setRewardsSnapshot(snapshot);
       setState((prev) => ({
         ...prev,
-        coins: Number(wallet?.coin_balance || prev.coins || 0)
+        coins: snapshot.coins,
+        redeemed: snapshot.redeemedIds,
+        redemptionHistory: snapshot.redemptionHistory
       }));
-      setSyncError(null);
+      if (redemptionError) {
+        setSyncError(redemptionError);
+        setSyncState(createSyncState({ status: SYNC_STATUS.FAILED, error: redemptionError, source: "rewards" }));
+      } else {
+        setSyncError(null);
+        setSyncState(createSyncState({ status: SYNC_STATUS.SAVED, lastSyncedAt: snapshot.syncedAt, source: "rewards" }));
+      }
       return;
     }
     const localTasks = ensureLocalRewardTasks(user.email, { satActUnlocked, tutoringUnlocked });
@@ -172,6 +200,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     async function loadRewardTasks() {
       if (!usesTaskRuntime || (!user?.id && !user?.email)) return;
       setSyncLoading(true);
+      setSyncState(createSyncState({ status: SYNC_STATUS.LOADING, source: "rewards" }));
       try {
         if (isSupabaseUser && user?.id) {
           await ensureRewardTaskInstances(user.id, { satActUnlocked, tutoringUnlocked });
@@ -184,6 +213,14 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         }
         if (cancelled) return;
         await refreshRewardTasks();
+      } catch (err) {
+        if (!cancelled) {
+          setSyncState(createSyncState({
+            status: SYNC_STATUS.FAILED,
+            error: err?.message || "Could not sync rewards.",
+            source: "rewards"
+          }));
+        }
       } finally {
         if (!cancelled) setSyncLoading(false);
       }
@@ -192,6 +229,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       if (!cancelled) {
         setSyncLoading(false);
         setSyncError("Rewards could not be synchronized.");
+        setSyncState(createSyncState({ status: SYNC_STATUS.FAILED, error: "Could not sync rewards.", source: "rewards" }));
       }
     });
     return () => {
@@ -201,7 +239,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
 
   const persist = useCallback(
     (next) => {
-      if (user?.authProvider === "supabase") return;
+      if (isSupabaseUser) return;
       localStorage.setItem(
         storageKey(user?.email),
         JSON.stringify({
@@ -214,7 +252,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         })
       );
     },
-    [user?.email]
+    [isSupabaseUser, user?.email]
   );
 
   const showToast = useCallback((message, variant = "success") => {
@@ -403,7 +441,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   );
 
   const redeemReward = useCallback(
-    (rewardId, options = {}) => {
+    async (rewardId, options = {}) => {
       const reward = REWARD_CATALOG.find((r) => r.id === rewardId);
       if (!reward) return { success: false };
 
@@ -429,16 +467,37 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         selection: options.testPrepOption || null
       };
 
-      setState((prev) => {
-        const next = {
+      if (isSupabaseUser && user?.id) {
+        const { redemption, wallet, error, alreadyRedeemed } = await redeemCatalogReward(user.id, {
+          rewardId,
+          title: historyEntry.title,
+          coinCost: reward.coins,
+          selection: options.testPrepOption || null
+        });
+        if (error) {
+          showToast(error, "error");
+          return { success: false, alreadyRedeemed, error };
+        }
+        const nextCoins = Number(wallet?.coin_balance ?? state.coins - reward.coins);
+        setState((prev) => ({
           ...prev,
-          coins: prev.coins - reward.coins,
+          coins: nextCoins,
           redeemed: [...prev.redeemed, rewardId],
-          redemptionHistory: [historyEntry, ...prev.redemptionHistory]
-        };
-        persist(next);
-        return next;
-      });
+          redemptionHistory: [redemption || historyEntry, ...prev.redemptionHistory]
+        }));
+        await refreshRewardTasks();
+      } else {
+        setState((prev) => {
+          const next = {
+            ...prev,
+            coins: prev.coins - reward.coins,
+            redeemed: [...prev.redeemed, rewardId],
+            redemptionHistory: [historyEntry, ...prev.redemptionHistory]
+          };
+          persist(next);
+          return next;
+        });
+      }
 
       const enriched = enrichReward(reward, state.coins - reward.coins, [...state.redeemed, rewardId]);
       setRedemptionCelebration({
@@ -454,7 +513,19 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       showToast("Reward redeemed! A mentor will follow up with next steps.", "success");
       return { success: true };
     },
-    [persist, showToast, state.redeemed, state.coins, featuredRewardBase.coins, play, SOUND_EVENTS]
+    [
+      featuredRewardBase.coins,
+      isSupabaseUser,
+      persist,
+      play,
+      refreshRewardTasks,
+      showToast,
+      state.coins,
+      state.redeemed,
+      user?.id,
+      SOUND_EVENTS.COIN_COLLECT,
+      SOUND_EVENTS.REWARD_REDEEMED
+    ]
   );
 
   const handleRedeemReward = redeemReward;
@@ -476,13 +547,21 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     [state.coins, state.redeemed]
   );
 
-  const sidebarProgress = useMemo(
-    () => buildSidebarProgress(isJordan, state.coins, completedCount, {
+  const sidebarProgress = useMemo(() => {
+    if (rewardsSnapshot) return buildSidebarProgressFromSnapshot(rewardsSnapshot);
+    if (usesTaskRuntime && tasks.length) {
+      return buildSidebarProgressFromSnapshot(buildRewardsSnapshot({
+        wallet: { coin_balance: state.coins },
+        tasks,
+        redemptions: [],
+        redemptionHistory: state.redemptionHistory
+      }));
+    }
+    return buildSidebarProgress(isJordan, state.coins, completedCount, {
       currentStreak: tasks.find((task) => task.taskTemplateId === "momentum-7-day-login-streak")?.progressCurrent || 0,
       meetingsCompleted: tasks.filter((task) => task.taskTemplateId === "mentor-meeting-completed" && task.status === REWARD_TASK_STATUS.CLAIMED).length
-    }),
-    [isJordan, state.coins, completedCount, tasks]
-  );
+    });
+  }, [completedCount, isJordan, rewardsSnapshot, state.coins, state.redemptionHistory, tasks, usesTaskRuntime]);
 
   const value = useMemo(
     () => ({
@@ -492,6 +571,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       closestRewards,
       sidebarProgress,
       syncLoading,
+      syncState,
+      rewardsSnapshot,
       syncError,
       retrySync: refreshRewardTasks,
       earnCategoryOrder: EARN_CATEGORY_ORDER,
@@ -536,6 +617,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       closestRewards,
       sidebarProgress,
       syncLoading,
+      syncState,
+      rewardsSnapshot,
       syncError,
       refreshRewardTasks,
       isMentorStudentView,
@@ -572,6 +655,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
 
   return (
     <ProgressRewardsContext.Provider value={value}>
+      <DataSyncBanner syncState={syncState.status === SYNC_STATUS.FAILED ? syncState : null} />
       {children}
       {celebration ? (
         <CoinCelebration

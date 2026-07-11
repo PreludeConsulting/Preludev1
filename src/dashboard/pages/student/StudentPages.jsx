@@ -1755,7 +1755,12 @@ export function StudentMentor() {
         </SectionCard>
 
         <section className="dash-panel dash-mentor-profile__photo-card" aria-label={`Photo of ${m.name}`}>
-          <img src={headshot} alt={m.name} className="dash-mentor-profile__photo" />
+          <img
+            src={headshot}
+            alt={m.name}
+            className="dash-mentor-profile__photo"
+            style={m.objectPosition ? { objectPosition: m.objectPosition } : undefined}
+          />
         </section>
       </div>
 

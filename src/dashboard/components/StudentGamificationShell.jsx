@@ -8,7 +8,10 @@ export default function StudentGamificationShell({ user, children }) {
   const { gamification, progressRewards, profile } = useDashboardData();
   const initialGamification = gamification || { xp: 0, streak: 0, missions: [], badges: [], activityFeed: [], nextBadge: null };
   const isJordan = isJordanDemoEmail(user?.email);
-  const initialRewards = progressRewards || buildDefaultProgressRewards(isJordan);
+  const isSupabaseUser = user?.authProvider === "supabase";
+  const initialRewards = isSupabaseUser
+    ? { coins: 0, completed: [], inProgress: [], inProgressProgress: {}, redeemed: [], redemptionHistory: [] }
+    : (progressRewards || buildDefaultProgressRewards(isJordan));
 
   return (
     <GamificationProvider user={user} initial={initialGamification}>

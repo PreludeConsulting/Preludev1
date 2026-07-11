@@ -65,6 +65,7 @@ import { parseRequestedTime } from "../lib/mentorCalendarFeed.js";
 import { getStudentDemoBundleBySlug } from "../lib/studentDemoBundle.js";
 import { aggregateStudentCalendars } from "../lib/studentCalendarAggregate.js";
 import { deriveAcademicProgress } from "../lib/studentProgressSync.js";
+import { createSyncState, SYNC_STATUS } from "../lib/dataSyncState.js";
 import {
   matchesAssignedStudentSync,
   matchesStudentSyncTarget,
@@ -96,8 +97,15 @@ function meetingScheduleErrorMessage(error) {
   return error?.message || "Could not schedule the meeting. Please try again.";
 }
 
-function resolveStudentProfile(profile, profileOverrides, isStudent, demoProfile) {
+function resolveStudentProfile(profile, profileOverrides, isStudent, demoProfile, useSupabase = false) {
   if (demoProfile) return normalizeProfileShape(demoProfile);
+  if (useSupabase) {
+    const merged = normalizeProfileShape(profile || {});
+    if (profileOverrides?.avatarUrl) {
+      merged.avatarUrl = profileOverrides.avatarUrl;
+    }
+    return merged;
+  }
   const merged = normalizeProfileShape({ ...(profile || {}), ...profileOverrides });
   if (profile != null || Object.keys(profileOverrides).length > 0) {
     return merged;
@@ -336,6 +344,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   const [error, setError] = useState(null);
   const [syncStatus, setSyncStatus] = useState("idle");
   const [syncError, setSyncError] = useState(null);
+  const [dashboardSyncState, setDashboardSyncState] = useState(() => createSyncState());
   const [studentSyncTick, setStudentSyncTick] = useState(0);
 
   const localDemo = useMemo(() => {
@@ -366,6 +375,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     setError(null);
     setSyncStatus("loading");
     setSyncError(null);
+    setDashboardSyncState(createSyncState({ status: SYNC_STATUS.LOADING, source: "dashboard" }));
 
     if (useSupabase) {
       try {
@@ -373,6 +383,17 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         const data = await loadSupabaseDashboard(user.id, user.email);
         if (data.errors?.length) {
           setError(formatDashboardPersistenceError(data.errors));
+          setDashboardSyncState(createSyncState({
+            status: SYNC_STATUS.FAILED,
+            error: formatDashboardPersistenceError(data.errors),
+            source: "dashboard"
+          }));
+        } else {
+          setDashboardSyncState(createSyncState({
+            status: SYNC_STATUS.SAVED,
+            lastSyncedAt: new Date().toISOString(),
+            source: "dashboard"
+          }));
         }
         setProfileOverrides({});
         setProfile(appData.profile || data.profile);
@@ -407,10 +428,20 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setSupabaseDeadlines(data.deadlines || []);
         setSupabaseSavedColleges(data.savedColleges?.length ? data.savedColleges : null);
         setSyncStatus("synced");
+        setDashboardSyncState(createSyncState({
+          status: SYNC_STATUS.SAVED,
+          lastSyncedAt: new Date().toISOString(),
+          source: "dashboard"
+        }));
       } catch (err) {
         setError(err.message || "Failed to load dashboard data.");
         setSyncError(err.message || "Failed to synchronize dashboard data.");
         setSyncStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "sync-failed");
+        setDashboardSyncState(createSyncState({
+          status: SYNC_STATUS.FAILED,
+          error: err.message || "Failed to load dashboard data.",
+          source: "dashboard"
+        }));
       } finally {
         setLoading(false);
       }
@@ -436,12 +467,28 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setPendingMeetingRequests(split.pending);
       setNotifications(data.notifications || []);
       setApiDemo(data.demo || null);
-    } catch {
+      setDashboardSyncState(createSyncState({
+        status: SYNC_STATUS.SAVED,
+        lastSyncedAt: new Date().toISOString(),
+        source: "dashboard"
+      }));
+    } catch (err) {
       if (localDemo) {
         setMeetings(localDemo.meetings || []);
         setApiDemo(localDemo);
+        setDashboardSyncState(createSyncState({
+          status: SYNC_STATUS.SAVED,
+          lastSyncedAt: new Date().toISOString(),
+          source: "demo"
+        }));
       } else {
         setMeetings([]);
+        setError("Dashboard data is unavailable. Changes on this device are not synced to your account.");
+        setDashboardSyncState(createSyncState({
+          status: SYNC_STATUS.FAILED,
+          error: err?.message || "Dashboard sync failed.",
+          source: "dashboard"
+        }));
       }
     } finally {
       setLoading(false);
@@ -1343,7 +1390,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       ? aggregateStudentCalendars(assignedStudents)
       : null;
 
-    const resolvedProfile = resolveStudentProfile(profile, profileOverrides, isStudent, demo?.profile);
+    const resolvedProfile = resolveStudentProfile(profile, profileOverrides, isStudent, demo?.profile, useSupabase);
     const resolvedMentor = demo?.mentor ?? mentor ?? null;
     const resolvedApplicationProgress = demo?.applicationProgress
       ?? (useSupabase && onboarding?.profileComplete
@@ -1511,6 +1558,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       syncStatus,
       syncError,
       saveAvailability: isGuardianViewMode ? async () => null : saveAvailability,
+      dashboardSyncState,
       privateNotes: demo?.privateNotes ?? {},
       refresh,
       scheduleMeeting: isGuardianViewMode ? async () => null : scheduleMeeting,
@@ -1620,6 +1668,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       postMessage,
       markAllNotificationsRead,
       saveUserResource,
+      availability,
+      dashboardSyncState,
       user
     ]
   );

@@ -300,6 +300,20 @@
   .dash-product-nav__tabs {
     width: 100%;
     max-width: 100%;
+    padding-bottom: 0.15rem;
+    mask-image: linear-gradient(to right, transparent, #000 0.75rem, #000 calc(100% - 0.75rem), transparent);
+  }
+
+  .dash-product-nav__nav-wrap::after {
+    content: "Swipe";
+    position: absolute;
+    right: 0.35rem;
+    bottom: 0.1rem;
+    font-size: 0.625rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
   }
 
   .dash-product-nav__profile-text,
@@ -362,7 +376,65 @@
 }
 
 .dash-product-nav__notifications-panel {
-  width: min(21rem, 92vw);
+  width: min(21rem, calc(100vw - 1.5rem));
+}
+
+.dash-sync-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.65rem;
+  font-size: 0.8125rem;
+  font-family: var(--dash-font-sans);
+}
+
+.dash-sync-banner--failed {
+  background: rgb(254 226 226 / 0.85);
+  color: #991b1b;
+}
+
+.dash-sync-banner--saved {
+  background: rgb(220 252 231 / 0.85);
+  color: #166534;
+}
+
+.dash-sync-banner--unsaved {
+  background: rgb(254 243 199 / 0.9);
+  color: #92400e;
+}
+
+.dash-sync-banner--loading {
+  background: rgb(239 246 255 / 0.9);
+  color: #1d4ed8;
+}
+
+.dash-sync-banner__icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.dash-sync-banner__icon--spin {
+  animation: dash-sync-spin 0.9s linear infinite;
+}
+
+@keyframes dash-sync-spin {
+  to { transform: rotate(360deg); }
+}
+
+.dash-colleges-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.dash-colleges-pagination__status {
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
 }
 
 .dash-product-nav__notifications-head {

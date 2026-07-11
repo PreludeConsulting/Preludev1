@@ -26,6 +26,8 @@ import { SearchInput } from "../ui/index.jsx";
 import CollegeAIMatchModal from "./CollegeAIMatchModal.jsx";
 import SaveCollegeButton from "./SaveCollegeButton.jsx";
 
+const PAGE_SIZE = 20;
+
 function activeFilterCount(filters) {
   return Object.values(filters).reduce((sum, values) => sum + (values?.length || 0), 0);
 }
@@ -39,6 +41,7 @@ export default function CollegesExplore() {
   const [searchQuery, setSearchQuery] = useState("");
   const [majorSearchQuery, setMajorSearchQuery] = useState("");
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const filterBarRef = useRef(null);
   const exploreRef = useRef(null);
   const listRef = useRef(null);
@@ -49,6 +52,16 @@ export default function CollegesExplore() {
   const filteredColleges = useMemo(() => {
     const filtered = filterColleges(EXPLORE_COLLEGES, filters, searchQuery);
     return sortCollegesLocal(filtered, sortBy);
+  }, [filters, searchQuery, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredColleges.length / PAGE_SIZE));
+  const pagedColleges = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filteredColleges.slice(start, start + PAGE_SIZE);
+  }, [filteredColleges, page]);
+
+  useEffect(() => {
+    setPage(1);
   }, [filters, searchQuery, sortBy]);
 
   const savedEntries = useMemo(
@@ -327,11 +340,11 @@ export default function CollegesExplore() {
         </div>
 
         <p className="dash-colleges-results-meta">
-          Showing {filteredColleges.length} {filteredColleges.length === 1 ? "college" : "colleges"}
+          Showing {pagedColleges.length ? (page - 1) * PAGE_SIZE + 1 : 0}–{(page - 1) * PAGE_SIZE + pagedColleges.length} of {filteredColleges.length} {filteredColleges.length === 1 ? "college" : "colleges"}
         </p>
 
-        <div className="dash-colleges-results">
-          {filteredColleges.map((school) => {
+        <div className="dash-colleges-results" ref={listRef}>
+          {pagedColleges.map((school) => {
             const saved = savedSet.has(school.id);
             return (
               <article key={school.id} className="dash-college-card">
@@ -375,6 +388,36 @@ export default function CollegesExplore() {
             );
           })}
         </div>
+
+        {filteredColleges.length > PAGE_SIZE ? (
+          <nav className="dash-colleges-pagination" aria-label="College results pages">
+            <button
+              type="button"
+              className="dash-btn dash-btn--secondary dash-btn--sm"
+              disabled={page <= 1}
+              onClick={() => {
+                setPage((current) => Math.max(1, current - 1));
+                listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              Previous
+            </button>
+            <span className="dash-colleges-pagination__status">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              type="button"
+              className="dash-btn dash-btn--secondary dash-btn--sm"
+              disabled={page >= totalPages}
+              onClick={() => {
+                setPage((current) => Math.min(totalPages, current + 1));
+                listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              Next
+            </button>
+          </nav>
+        ) : null}
 
         {filteredColleges.length === 0 ? (
           <p className="dash-colleges-empty-hint">No colleges match your filters. Try adjusting your search.</p>

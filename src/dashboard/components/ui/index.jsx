@@ -6,6 +6,7 @@ import InteractiveButton from "../../../components/interaction/InteractiveButton
 import { Link } from "react-router-dom";
 import UserAvatar from "../../../components/UserAvatar.jsx";
 import { cn } from "../../../lib/utils.js";
+import { bindFocusTrap } from "../../../lib/focusTrap.js";
 import { isJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 
 export function DashBadge({ children, variant = "default", className }) {
@@ -151,48 +152,23 @@ export function Modal({ open, onClose, title, children, footer, className, scrol
     const openedFromKeyboard = Boolean(previousFocus?.matches?.(":focus-visible"));
     returnFocusRef.current = previousFocus;
     const getDialog = () => backdropRef.current?.querySelector('[role="dialog"]');
-
-    const getFocusable = () => Array.from(getDialog()?.querySelectorAll(
-      'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
-    ) || []).filter((element) => !element.hasAttribute("hidden") && element.getAttribute("aria-hidden") !== "true");
-
+    let releaseTrap = () => {};
     const frame = window.requestAnimationFrame(() => {
-      const focusTarget = openedFromKeyboard ? getFocusable()[0] : getDialog();
+      releaseTrap = bindFocusTrap(getDialog(), {
+        onEscape: () => onCloseRef.current(),
+        returnFocusRef
+      });
+      const focusTarget = openedFromKeyboard
+        ? getDialog()?.querySelector(
+            'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
+          )
+        : getDialog();
       focusTarget?.focus({ preventScroll: true });
     });
 
-    function handleKeyDown(event) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCloseRef.current();
-        return;
-      }
-
-      if (event.key !== "Tab") return;
-      const focusable = getFocusable();
-      if (!focusable.length) {
-        event.preventDefault();
-        getDialog()?.focus({ preventScroll: true });
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && (document.activeElement === first || document.activeElement === getDialog())) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
     return () => {
       window.cancelAnimationFrame(frame);
-      document.removeEventListener("keydown", handleKeyDown);
-      const returnTarget = returnFocusRef.current;
-      if (returnTarget?.isConnected) returnTarget.focus({ preventScroll: true });
+      releaseTrap();
       returnFocusRef.current = null;
     };
   }, [open]);

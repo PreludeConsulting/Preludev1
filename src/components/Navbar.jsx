@@ -2,7 +2,7 @@ import { ArrowUpRight, Menu, Search, X } from "lucide-react";
 import AccountMenuButton from "./AccountMenuButton.jsx";
 import UserMenuDropdown from "./UserMenuDropdown.jsx";
 import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { NAV_LINKS } from "../data/navLinks.js";
 import AppLink from "./AppLink.jsx";
@@ -19,6 +19,7 @@ export default function Navbar() {
   const barOpacity = useTransform(scrollY, [0, 48, 120], [0, 0.78, 0.96]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const searchTriggerRef = useRef(null);
 
   const closeSearch = useCallback(() => setSearchOpen(false), []);
   const closeMobile = useCallback(() => setMobileOpen(false), []);
@@ -68,6 +69,7 @@ export default function Navbar() {
           <div className="nav-bar__actions flex min-w-0 items-center justify-end gap-2 sm:gap-3">
             <div id="site-search-panel" className="nav-bar__search-wrap">
               <button
+                ref={searchTriggerRef}
                 type="button"
                 onClick={toggleSearch}
                 className="nav-bar__search-btn inline-flex text-foreground transition hover:text-primary"
@@ -77,7 +79,7 @@ export default function Navbar() {
               >
                 <Search className="h-6 w-6" aria-hidden="true" />
               </button>
-              <SiteSearchPanel open={searchOpen} onClose={closeSearch} />
+              <SiteSearchPanel open={searchOpen} onClose={closeSearch} triggerRef={searchTriggerRef} />
             </div>
 
             {isAuthenticated ? (

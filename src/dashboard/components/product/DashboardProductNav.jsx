@@ -11,6 +11,7 @@ import { usePreludeChatContextOptional } from "../../context/PreludeChatContext.
 import { Avatar } from "../ui/index.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
+import PopoverPortal from "../../../components/ui/PopoverPortal.jsx";
 
 export default function DashboardProductNav({ navItems, basePath }) {
   const { user, signOut, planDetails } = useAuth();
@@ -23,6 +24,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notificationsRef = useRef(null);
+  const notificationsTriggerRef = useRef(null);
   const profileRef = useRef(null);
   const profileTriggerRef = useRef(null);
   const tabsRef = useRef(null);
@@ -187,10 +189,12 @@ export default function DashboardProductNav({ navItems, basePath }) {
       <div className="dash-product-nav__right">
         <div className="dash-product-nav__notifications" ref={notificationsRef}>
           <button
+            ref={notificationsTriggerRef}
             type="button"
             className="dash-product-nav__icon-btn"
             aria-label="Notifications"
             aria-expanded={notificationsOpen}
+            aria-haspopup="dialog"
             onClick={toggleNotifications}
           >
             <Bell className="h-5 w-5" />
@@ -200,29 +204,33 @@ export default function DashboardProductNav({ navItems, basePath }) {
               </span>
             ) : null}
           </button>
-          {notificationsOpen ? (
-            <div className="dash-product-nav__menu-panel dash-product-nav__notifications-panel" role="dialog" aria-label="Notifications">
-              <div className="dash-product-nav__notifications-head">
-                <strong>Notifications</strong>
-                {unreadCount > 0 ? <span>{unreadCount} new</span> : null}
-              </div>
-              {notifications.length ? (
-                <ul className="dash-product-nav__notifications-list">
-                  {notifications.slice(0, 8).map((item) => (
-                    <li
-                      key={item.id}
-                      className={item.unread ? "dash-product-nav__notification dash-product-nav__notification--unread" : "dash-product-nav__notification"}
-                    >
-                      <p className="dash-product-nav__notification-title">{item.title}</p>
-                      {item.body ? <p className="dash-product-nav__notification-body">{item.body}</p> : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="dash-product-nav__notifications-empty">No notifications yet.</p>
-              )}
+          <PopoverPortal
+            open={notificationsOpen}
+            anchorRef={notificationsTriggerRef}
+            onClose={() => setNotificationsOpen(false)}
+            className="dash-product-nav__menu-panel dash-product-nav__notifications-panel"
+            ariaLabel="Notifications"
+          >
+            <div className="dash-product-nav__notifications-head">
+              <strong>Notifications</strong>
+              {unreadCount > 0 ? <span>{unreadCount} new</span> : null}
             </div>
-          ) : null}
+            {notifications.length ? (
+              <ul className="dash-product-nav__notifications-list">
+                {notifications.slice(0, 8).map((item) => (
+                  <li
+                    key={item.id}
+                    className={item.unread ? "dash-product-nav__notification dash-product-nav__notification--unread" : "dash-product-nav__notification"}
+                  >
+                    <p className="dash-product-nav__notification-title">{item.title}</p>
+                    {item.body ? <p className="dash-product-nav__notification-body">{item.body}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="dash-product-nav__notifications-empty">No notifications yet.</p>
+            )}
+          </PopoverPortal>
         </div>
         <div className="dash-product-nav__profile" ref={profileRef}>
           <button

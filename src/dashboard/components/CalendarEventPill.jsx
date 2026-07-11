@@ -28,12 +28,14 @@ export default function CalendarEventPill({ arg }) {
   const title = compactEventTitle(arg.event.title);
   const fullTitle = arg.event.title;
   const showTime = viewType.includes("timeGrid") && arg.timeText;
+  const tooltip = showTime ? `${fullTitle} · ${arg.timeText}` : fullTitle;
 
   return (
     <span
       className="fc-event-pill"
       style={{ "--fc-pill-color": color }}
-      title={fullTitle}
+      title={tooltip}
+      aria-label={tooltip}
     >
       <span className="fc-event-pill__dot" aria-hidden="true" />
       {showTime ? <span className="fc-event-pill__time">{arg.timeText}</span> : null}

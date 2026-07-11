@@ -15,6 +15,7 @@ export default function MentorAvailabilityProduct() {
   const [form, setForm] = useState(() => slotsToWeeklyFormState(slots));
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const nextSlots = availability.map((slot, index) => normalizeAvailabilitySlot(slot, index));
@@ -31,6 +32,7 @@ export default function MentorAvailabilityProduct() {
     }
 
     const nextSlots = weeklyFormStateToSlots(form, slots);
+    setSaving(true);
     setError("");
     setSuccess(false);
     try {
@@ -42,6 +44,9 @@ export default function MentorAvailabilityProduct() {
       setSuccess(true);
     } catch (saveError) {
       setError(saveError?.message || syncError || "Availability could not be synchronized. Try again.");
+      setSuccess(false);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -69,6 +74,7 @@ export default function MentorAvailabilityProduct() {
           form={form}
           error={error}
           success={success}
+          saving={saving}
           onChange={(next) => {
             setForm(next);
             setError("");

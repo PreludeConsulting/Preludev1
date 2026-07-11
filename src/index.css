@@ -629,11 +629,35 @@ a {
   color: hsl(var(--foreground));
 }
 
-.site-search__empty {
+.site-search__empty,
+.site-search__hint {
   padding: 0.5rem 0.55rem;
   font-family: "Barlow", sans-serif;
   font-size: 0.8125rem;
   color: hsl(var(--muted-foreground));
+}
+
+.site-search__result--active .site-search__result-btn {
+  background: hsl(var(--primary) / 0.08);
+}
+
+.site-search__result-btn {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.15rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.site-search__result-btn:hover,
+.site-search__result-btn:focus-visible {
+  background: hsl(var(--primary) / 0.08);
+  outline: none;
 }
 
 .nav-bar__logo-link {

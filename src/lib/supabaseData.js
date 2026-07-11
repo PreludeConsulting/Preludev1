@@ -3,7 +3,7 @@
  * Lower-level helpers live in dashboardData.js, profileData.js, messageData.js, calendarData.js.
  */
 
-import { getCurrentUser, getMyCollegeList, getMyDeadlines, getMyEssayDrafts, getMyMentorMatches, getMyScholarships, getMySettings, getMyTasks, getMatchAnswers, mapMentorMatch, updateMySettings } from "./dashboardData.js";
+import { getCurrentUser, getMyCollegeList, getMyDeadlines, getMyEssayDrafts, getMyMentorMatches, getMyScholarships, getMySettings, getMyTasks, getMatchAnswers, getMentorHourlyAvailability, mapMentorMatch, updateMySettings } from "./dashboardData.js";
 import { getMyProfile, mapProfileRow, updateMyProfile } from "./profileData.js";
 import { getMyMessages, mapMessage, sendMessage as sendSupabaseMessage } from "./messageData.js";
 import {
@@ -133,7 +133,8 @@ export async function loadSupabaseDashboard(userId, email) {
     deadlinesRes,
     collegesRes,
     matchAnswersRes,
-    scholarshipsRes
+    scholarshipsRes,
+    availabilityRes
   ] = await Promise.all([
     getMyProfile(userId, email),
     getMySettings(userId),
@@ -148,7 +149,8 @@ export async function loadSupabaseDashboard(userId, email) {
     getMyDeadlines(userId),
     getMyCollegeList(userId),
     getMatchAnswers(userId),
-    getMyScholarships(userId)
+    getMyScholarships(userId),
+    getMentorHourlyAvailability(userId)
   ]);
 
   const mentors = mentorsRes.matches || [];
@@ -179,6 +181,7 @@ export async function loadSupabaseDashboard(userId, email) {
     deadlines: deadlinesRes.deadlines || [],
     scholarships: scholarshipsRes.scholarships || [],
     savedColleges: collegesRes.colleges || [],
+    availability: availabilityRes.slots || [],
     conversations: messages.length
       ? [{ id: "mentor", name: assigned?.name || "Mentor", preview: messages[0]?.body, unread: messages.some((m) => !m.read) }]
       : [],
@@ -198,7 +201,8 @@ export async function loadSupabaseDashboard(userId, email) {
       deadlinesRes.error,
       collegesRes.error,
       matchAnswersRes.error,
-      scholarshipsRes.error
+      scholarshipsRes.error,
+      availabilityRes.error
     ].filter(Boolean)
   };
 }

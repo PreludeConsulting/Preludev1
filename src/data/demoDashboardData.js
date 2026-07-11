@@ -90,6 +90,7 @@ const SHARED_MENTOR = {
   major: "Computer Science",
   graduationYear: "2024",
   headshot: `${import.meta.env.BASE_URL}media/mentors/moon-headshot.png`,
+  objectPosition: "50% 22%",
   universityLogo:
     "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Georgia_Tech_Yellow_Jackets_logo.svg/240px-Georgia_Tech_Yellow_Jackets_logo.svg.png",
   bio: "Maya is a Georgia Tech graduate who helps students organize their college applications, strengthen their essays, and create realistic college lists.",
