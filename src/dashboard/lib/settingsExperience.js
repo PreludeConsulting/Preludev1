@@ -113,7 +113,7 @@ export function getIntegrationCards(integrations = {}, options = {}) {
       purpose: "Sync Prelude meetings and deadlines to your calendar.",
       connected: Boolean(integrations.googleCalendar?.connected),
       status: integrations.googleCalendar?.connected ? "Connected" : available ? "Disconnected" : "Setup required",
-      actionLabel: integrations.googleCalendar?.connected ? "Disconnect" : available ? "Connect Google Calendar" : "Coming soon",
+      actionLabel: integrations.googleCalendar?.connected ? "Disconnect" : available ? "Connect Google Calendar" : "Configuration required",
       available,
       unavailableNote: "Calendar OAuth is not configured for this deployment yet."
     },
@@ -123,7 +123,7 @@ export function getIntegrationCards(integrations = {}, options = {}) {
       purpose: "Use mentor-provided meeting links and scheduling context.",
       connected: Boolean(integrations.zoom?.connected),
       status: integrations.zoom?.connected ? "Connected" : available ? "Disconnected" : "Setup required",
-      actionLabel: integrations.zoom?.connected ? "Disconnect" : available ? "Connect Zoom Account" : "Coming soon",
+      actionLabel: integrations.zoom?.connected ? "Disconnect" : available ? "Connect Zoom Account" : "Configuration required",
       available,
       unavailableNote: "Zoom account OAuth is not available yet. Meetings still support pasted Zoom links."
     }

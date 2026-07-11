@@ -3,19 +3,31 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import App from "./App.jsx";
 
+const lazyNamed = (loader, name) => lazy(() => loader().then((module) => ({ default: module[name] })));
+const DashboardRouter = lazy(() => import("./dashboard/DashboardRouter.jsx"));
+const MentorsPage = lazy(() => import("./components/MentorsPage.jsx"));
+const ContactPage = lazy(() => import("./components/ContactPage.jsx"));
+const CheckoutCancelPage = lazyNamed(() => import("./components/BillingResultPage.jsx"), "CheckoutCancelPage");
+const CheckoutSuccessPage = lazyNamed(() => import("./components/BillingResultPage.jsx"), "CheckoutSuccessPage");
+const PlanSelectionPage = lazy(() => import("./components/PlanSelectionPage.jsx"));
+const PlanDetailPage = lazyNamed(() => import("./components/PlanSelectionPage.jsx"), "PlanDetailPage");
+const PlansPage = lazyNamed(() => import("./components/PlanSelectionPage.jsx"), "PlansPage");
+const RoleSelectionOnboardingPage = lazy(() => import("./components/onboarding/RoleSelectionOnboardingPage.jsx"));
+const PreludeMatchOnboardingPage = lazy(() => import("./components/onboarding/PreludeMatchOnboardingPage.jsx"));
+const ParentInviteOnboardingPage = lazy(() => import("./components/onboarding/ParentInviteOnboardingPage.jsx"));
+const PaymentOnboardingPage = lazy(() => import("./components/onboarding/PaymentOnboardingPage.jsx"));
+const MentorQuestionnaireOnboardingPage = lazy(() => import("./components/onboarding/MentorQuestionnaireOnboardingPage.jsx"));
+const AuthCallbackPage = lazyNamed(() => import("./components/AuthPages.jsx"), "AuthCallbackPage");
+const ForgotPasswordPage = lazyNamed(() => import("./components/AuthPages.jsx"), "ForgotPasswordPage");
+const LoginPage = lazyNamed(() => import("./components/AuthPages.jsx"), "LoginPage");
+const RegisterPage = lazyNamed(() => import("./components/AuthPages.jsx"), "RegisterPage");
+const ResetPasswordPage = lazyNamed(() => import("./components/AuthPages.jsx"), "ResetPasswordPage");
+const VerifyEmailPage = lazyNamed(() => import("./components/AuthPages.jsx"), "VerifyEmailPage");
+const VerifyLoginPage = lazyNamed(() => import("./components/AuthPages.jsx"), "VerifyLoginPage");
+const PromoRegistrationSuccessPage = lazyNamed(() => import("./components/auth/PromoRegistrationSuccessPage.jsx"), "PromoRegistrationSuccessPage");
 const ScrollAnimationTestPage = import.meta.env.DEV
   ? lazy(() => import("./dev/ScrollAnimationTestPage.jsx"))
   : null;
-import DashboardRouter from "./dashboard/DashboardRouter.jsx";
-import MentorsPage from "./components/MentorsPage.jsx";
-import ContactPage from "./components/ContactPage.jsx";
-import { CheckoutCancelPage, CheckoutSuccessPage } from "./components/BillingResultPage.jsx";
-import PlanSelectionPage, { PlanDetailPage, PlansPage } from "./components/PlanSelectionPage.jsx";
-import RoleSelectionOnboardingPage from "./components/onboarding/RoleSelectionOnboardingPage.jsx";
-import PreludeMatchOnboardingPage from "./components/onboarding/PreludeMatchOnboardingPage.jsx";
-import ParentInviteOnboardingPage from "./components/onboarding/ParentInviteOnboardingPage.jsx";
-import PaymentOnboardingPage from "./components/onboarding/PaymentOnboardingPage.jsx";
-import MentorQuestionnaireOnboardingPage from "./components/onboarding/MentorQuestionnaireOnboardingPage.jsx";
 import RequirePlanGuard from "./components/RequirePlanGuard.jsx";
 import RequireOnboardingAccess from "./components/onboarding/RequireOnboardingAccess.jsx";
 import SecuritySettingsRedirect from "./components/SecuritySettingsRedirect.jsx";
@@ -29,16 +41,6 @@ import { InteractionFeedbackProvider } from "./components/interaction/Interactio
 import { MatchAlias, NotFoundPage, OnboardingEntry, PreludeMatchEntry } from "./components/Phase2RouteEntries.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import AuthLandingRedirect from "./components/AuthLandingRedirect.jsx";
-import {
-  AuthCallbackPage,
-  ForgotPasswordPage,
-  LoginPage,
-  RegisterPage,
-  ResetPasswordPage,
-  VerifyEmailPage,
-  VerifyLoginPage
-} from "./components/AuthPages.jsx";
-import { PromoRegistrationSuccessPage } from "./components/auth/PromoRegistrationSuccessPage.jsx";
 import { ROUTER_BASENAME } from "./lib/appPaths.js";
 import "./index.css";
 import "./styles/auth.css";
@@ -55,6 +57,15 @@ import "./styles/plan-wallet.css";
 import "./styles/contact.css";
 import "./components/interaction/interaction.css";
 
+function RouteLoadingFallback() {
+  return (
+    <main className="route-loading" aria-busy="true" aria-live="polite">
+      <span className="route-loading__spinner" aria-hidden="true" />
+      <p>Loading Prelude…</p>
+    </main>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter
@@ -69,6 +80,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <InteractionFeedbackProvider>
         <AuthProvider>
           <LegalModalProvider>
+          <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
             <Route path="/" element={<App />} />
             <Route path="/login" element={<LoginPage />} />
@@ -125,6 +137,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/auth/*" element={<Navigate to="/register" replace />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
+          </Suspense>
           <LegalModal />
           </LegalModalProvider>
         </AuthProvider>

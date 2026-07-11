@@ -151,9 +151,9 @@ describe("StudentSettingsPage", () => {
     expect(host.textContent).toContain("Google Calendar");
     expect(host.textContent).toContain("Zoom");
     expect(host.textContent).toContain("Setup required");
-    expect(host.textContent).toContain("Coming soon");
+    expect(host.textContent).toContain("Configuration required");
 
-    clickByText(host, "Coming soon");
+    clickByText(host, "Configuration required");
     expect(host.textContent).toContain("OAuth is not configured");
   });
 

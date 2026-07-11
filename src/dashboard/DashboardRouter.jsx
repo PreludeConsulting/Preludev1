@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { UserCheck } from "lucide-react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -10,27 +10,25 @@ import { PRODUCT_STUDENT_NAV } from "./config/productNav.js";
 import { STUDENT_ROUTE_META, MENTOR_ROUTE_META } from "./config/routeMeta.js";
 import { DashboardDataProvider } from "./context/DashboardDataContext.jsx";
 import StudentGamificationShell from "./components/StudentGamificationShell.jsx";
-import {
-  StudentAI,
-  StudentCalendar,
-  StudentColleges,
-  StudentMentor,
-  StudentMessages,
-  StudentOverview,
-  StudentProfileStats,
-  StudentProgressRewards,
-  StudentWorkspace
-} from "./pages/student/StudentPages.jsx";
-import {
-  MentorAvailability,
-  MentorCalendar,
-  MentorMessages,
-  MentorOverview,
-  MentorStudents
-} from "./pages/mentor/MentorPages.jsx";
+const lazyNamed = (loader, name) => lazy(() => loader().then((module) => ({ default: module[name] })));
+const StudentAI = lazyNamed(() => import("./pages/student/StudentPages.jsx"), "StudentAI");
+const StudentCalendar = lazyNamed(() => import("./pages/student/StudentPages.jsx"), "StudentCalendar");
+const StudentColleges = lazyNamed(() => import("./pages/student/StudentPages.jsx"), "StudentColleges");
+const StudentMentor = lazyNamed(() => import("./pages/student/StudentPages.jsx"), "StudentMentor");
+const StudentMessages = lazyNamed(() => import("./pages/student/StudentPages.jsx"), "StudentMessages");
+const StudentOverview = lazyNamed(() => import("./pages/student/StudentPages.jsx"), "StudentOverview");
+const StudentProfileStats = lazyNamed(() => import("./pages/student/StudentPages.jsx"), "StudentProfileStats");
+const StudentProgressRewards = lazyNamed(() => import("./pages/student/StudentPages.jsx"), "StudentProgressRewards");
+const StudentWorkspace = lazyNamed(() => import("./pages/student/StudentPages.jsx"), "StudentWorkspace");
+const MentorAvailability = lazyNamed(() => import("./pages/mentor/MentorPages.jsx"), "MentorAvailability");
+const MentorCalendar = lazyNamed(() => import("./pages/mentor/MentorPages.jsx"), "MentorCalendar");
+const MentorMessages = lazyNamed(() => import("./pages/mentor/MentorPages.jsx"), "MentorMessages");
+const MentorOverview = lazyNamed(() => import("./pages/mentor/MentorPages.jsx"), "MentorOverview");
+const MentorStudents = lazyNamed(() => import("./pages/mentor/MentorPages.jsx"), "MentorStudents");
+const ParentOverview = lazyNamed(() => import("./pages/parent/ParentPages.jsx"), "ParentOverview");
+const ParentChildRoutes = lazyNamed(() => import("./pages/parent/ParentPages.jsx"), "ParentChildRoutes");
 import MentorStudentDashboard from "./components/product/MentorStudentDashboard.jsx";
 import { MentorSettingsPage, ParentSettingsPage, StudentSettingsPage } from "./pages/shared/SettingsPages.jsx";
-import { ParentOverview, ParentChildRoutes } from "./pages/parent/ParentPages.jsx";
 import { PRODUCT_PARENT_NAV } from "./config/parentNav.js";
 import { PARENT_ROUTE_META } from "./config/parentRouteMeta.js";
 import { PARENT_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
@@ -201,6 +199,7 @@ function AdminRoutes() {
  */
 export default function DashboardRouter() {
   return (
+    <Suspense fallback={<div className="dash-loading" role="status">Loading dashboard…</div>}>
     <Routes>
       <Route index element={<DashboardRedirect />} />
       <Route
@@ -236,5 +235,6 @@ export default function DashboardRouter() {
         }
       />
     </Routes>
+    </Suspense>
   );
 }

@@ -50,13 +50,13 @@ describe("settings experience model", () => {
       expect.objectContaining({
         id: "googleCalendar",
         status: "Setup required",
-        actionLabel: "Coming soon",
+        actionLabel: "Configuration required",
         available: false
       }),
       expect.objectContaining({
         id: "zoom",
         status: "Setup required",
-        actionLabel: "Coming soon",
+        actionLabel: "Configuration required",
         available: false
       })
     ]);

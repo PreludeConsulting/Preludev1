@@ -129,6 +129,12 @@ html {
   scroll-behavior: smooth;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -145,6 +151,39 @@ body {
   font-weight: 300;
   text-rendering: geometricPrecision;
   line-height: 1.5;
+}
+
+.route-loading {
+  display: grid;
+  min-height: 100svh;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.route-loading p {
+  margin: 0;
+  font-weight: 500;
+}
+
+.route-loading__spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid hsl(var(--primary) / 0.18);
+  border-top-color: hsl(var(--primary));
+  border-radius: var(--radius-pill);
+  animation: route-loading-spin 700ms linear infinite;
+}
+
+@keyframes route-loading-spin {
+  to { transform: rotate(1turn); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-loading__spinner { animation: none; }
 }
 
 button,
@@ -1076,16 +1115,42 @@ html[lang="es"] .shopify-hero__headline-line {
 }
 
 @media (max-width: 539px) {
+  .shopify-hero__inner,
+  .shopify-hero__grid,
+  .shopify-hero__copy,
+  .shopify-hero__stack,
+  .shopify-hero__form,
+  .shopify-hero__visual {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .shopify-hero__inner {
+    padding-inline: 1.25rem;
+  }
+
+  .shopify-hero__subcopy,
+  .shopify-hero__note {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
   .shopify-hero__headline {
-    font-size: 2.15rem;
+    max-width: 100%;
+    font-size: clamp(1.95rem, 8vw, 2.15rem);
+  }
+
+  .shopify-hero__typing-line {
+    max-width: 100%;
   }
 
   .typing-phrase {
-    min-width: min(calc(var(--typing-reserved-chars) * 0.82ch + 0.28em), 8.25ch);
+    min-width: min(calc(var(--typing-reserved-chars) * 0.76ch + 0.2em), 7.75ch);
   }
 
   .typing-phrase__visual {
-    width: min(calc(var(--typing-reserved-chars) * 0.82ch + 0.28em), 8.25ch);
+    width: min(calc(var(--typing-reserved-chars) * 0.76ch + 0.2em), 7.75ch);
   }
 }
 
@@ -5574,7 +5639,7 @@ html[lang="es"] .shopify-hero__headline-line {
 .university-marquee__viewport {
   overflow: hidden;
   width: 100%;
-  contain: layout paint;
+  contain: inline-size layout paint;
   isolation: isolate;
   transform: translateZ(0);
   backface-visibility: hidden;

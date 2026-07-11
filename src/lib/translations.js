@@ -259,7 +259,7 @@ export const translations = {
         notices: {
           basicFree: "Create an account to choose the Basic plan, then complete checkout to get started.",
           signInFirst: "Create or sign into an account first. Your subscription will attach to that account when Stripe is connected.",
-          comingSoon: "Paid subscriptions are coming soon. Plan checkout will turn on after Stripe is connected.",
+          comingSoon: "Paid checkout requires Stripe configuration. Choose Basic now or contact Prelude for plan support.",
           unavailable: "Billing is not available right now."
         },
         cards: [
