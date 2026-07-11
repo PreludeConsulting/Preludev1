@@ -17,7 +17,7 @@ export const LOGIN_VERIFICATION_STORAGE_MESSAGE =
 
 const verifyCodeSchema = z.object({
   challengeId: z.string().uuid().optional(),
-  code: z.string().trim().regex(/^\d[\d\s-]{4,12}\d$/, "Enter the six-digit code."),
+  code: z.string().regex(/^\d{6}$/, "Enter the six-digit code."),
   trustDevice: z.boolean().optional(),
   deviceName: z.string().trim().max(120).optional()
 });
@@ -347,8 +347,7 @@ async function handleVerify(req, res) {
   const requestId = correlationId();
   const { supabase, user } = await requireSupabaseUser(req);
   const payload = verifyCodeSchema.parse(await readJsonBody(req));
-  const code = payload.code.replace(/\D/g, "");
-  if (code.length !== 6) return sendJson(res, 400, { error: "invalid_code", message: "Enter the six-digit code." });
+  const code = payload.code;
 
   let selectedChallenge = null;
   if (payload.challengeId) {

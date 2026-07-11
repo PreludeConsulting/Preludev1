@@ -55,18 +55,23 @@ function validateSignupPassword(password, supabaseAuth) {
   return "";
 }
 
-function friendlyVerificationError(error) {
+export function friendlyVerificationError(error) {
   const code = error?.payload?.error || "";
   if (code === "cooldown") return error.message || "Please wait before requesting another code.";
   if (code === "rate_limited") return "Too many codes requested. Please wait and try again.";
   if (code === "email_delivery_failed") return "Prelude could not send the verification email. Please try again or contact support.";
   if (code === "login_verification_storage_missing") return error.message || "Prelude login verification storage is not configured yet. Ask an admin to run the Supabase login verification migration.";
   if (code === "expired_code") return "That code expired. Request a new one to continue.";
+  if (code === "used_code") return "That code has already been used. Request a new one.";
+  if (code === "missing_challenge") return "This verification request is no longer active. Request a new code.";
   if (code === "locked_challenge") return "Too many incorrect attempts. Request a new code.";
   if (code === "incorrect_code") return "That code is not correct. Check the email and try again.";
+  if (code === "invalid_code" || code === "validation_error") return "Enter the complete six-digit code.";
   if (code === "email_unconfirmed") return "Confirm your email address before completing login verification.";
   if (error?.status === 401) return "Your secure session expired. Sign in again to continue.";
-  return error?.message || "Verification could not be completed.";
+  if (error instanceof TypeError && /fetch|network|load failed/i.test(error.message)) return "We could not reach Prelude. Check your connection and try again.";
+  if (code === "server_error" || Number(error?.status) >= 500) return "Prelude could not verify the code right now. Please try again.";
+  return "Verification could not be completed. Please try again.";
 }
 
 function isEmailUnconfirmedError(message = "") {
@@ -931,6 +936,7 @@ export function VerifyLoginPage() {
   const [searchParams] = useSearchParams();
   const { user, ready, signOut, refreshLoginVerification, refreshUser } = useAuth();
   const autoSendRef = useRef(false);
+  const verificationInFlightRef = useRef(false);
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [challengeId, setChallengeId] = useState(searchParams.get("challenge") || "");
   const [trustDevice, setTrustDevice] = useState(true);
@@ -947,7 +953,11 @@ export function VerifyLoginPage() {
 
   function focusFirstOtpInput() {
     window.requestAnimationFrame(() => {
-      document.querySelector(".auth-otp__input")?.focus();
+      const field = document.querySelector(".auth-otp__input");
+      if (field?.isConnected && !field.disabled) {
+        field.focus();
+        field.select();
+      }
     });
   }
 
@@ -1049,7 +1059,8 @@ export function VerifyLoginPage() {
 
   async function onSubmit(event) {
     event.preventDefault();
-    if (code.length !== 6 || loading) return;
+    if (!/^\d{6}$/.test(code) || loading || verificationInFlightRef.current) return;
+    verificationInFlightRef.current = true;
     setStatus("verifying");
     setError("");
     setSubmittedCode(code);
@@ -1065,14 +1076,15 @@ export function VerifyLoginPage() {
       navigate(nextPath === "/dashboard" ? pendingDestination : nextPath, { replace: true });
       clearPendingJourney();
     } catch (err) {
-      setStatus(err?.payload?.error === "expired_code" ? "expired" : err?.payload?.error === "locked_challenge" ? "locked" : "incorrect");
+      if (import.meta.env.DEV) console.error("Login verification failed", err);
+      const errorCode = err?.payload?.error;
+      setStatus(errorCode === "expired_code" ? "expired" : errorCode === "locked_challenge" ? "locked" : errorCode === "incorrect_code" ? "incorrect" : "waiting");
       setError(friendlyVerificationError(err));
       setShake(true);
       window.setTimeout(() => setShake(false), 420);
-      if (err?.payload?.error === "incorrect_code" || err?.payload?.error === "expired_code" || err?.payload?.error === "locked_challenge") {
-        setDigits(["", "", "", "", "", ""]);
-        focusFirstOtpInput();
-      }
+      focusFirstOtpInput();
+    } finally {
+      verificationInFlightRef.current = false;
     }
   }
 
@@ -1124,7 +1136,7 @@ export function VerifyLoginPage() {
       ) : null}
 
       <div className="auth-resend" aria-live="polite">
-        <p>{error ? "Check the code and try again." : message}</p>
+        <p>{error ? "" : message}</p>
         <div className="auth-resend__actions">
           <button type="button" disabled={loading || cooldown > 0} onClick={onResend}>
             {cooldown > 0 ? `Resend code in ${cooldown}s` : status === "sending" ? "Sending…" : "Resend code"}

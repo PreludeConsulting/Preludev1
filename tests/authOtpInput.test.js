@@ -129,4 +129,29 @@ describe("OtpInput", () => {
     expect(onComplete).toHaveBeenCalledWith("123456");
     expect(document.activeElement).toBe(host.querySelectorAll(".auth-otp__input")[5]);
   });
+
+  it("does not schedule forward focus after the sixth digit", async () => {
+    const host = mount(React.createElement(Harness));
+    const inputs = host.querySelectorAll(".auth-otp__input");
+    const raf = vi.spyOn(window, "requestAnimationFrame");
+
+    inputs[5].focus();
+    input(inputs[5], "6");
+
+    expect(raf).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(inputs[5]);
+  });
+
+  it("cancels queued focus when the OTP fields unmount", () => {
+    const host = mount(React.createElement(Harness));
+    const inputs = host.querySelectorAll(".auth-otp__input");
+    const cancel = vi.spyOn(window, "cancelAnimationFrame");
+
+    input(inputs[0], "4");
+    const mounted = roots.pop();
+    act(() => mounted.root.unmount());
+    mounted.host.remove();
+
+    expect(cancel).toHaveBeenCalled();
+  });
 });

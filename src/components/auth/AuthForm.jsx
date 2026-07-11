@@ -1,5 +1,5 @@
 import { Check, Eye, EyeOff, Loader2 } from "lucide-react";
-import { forwardRef, useId, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useRef, useState } from "react";
 import AppLink from "../AppLink.jsx";
 import { useLegalModal } from "../../context/LegalModalContext.jsx";
 import {
@@ -141,15 +141,28 @@ export function OtpInput({
   onComplete
 }) {
   const inputRefs = useRef([]);
+  const focusFrameRef = useRef(null);
+  const mountedRef = useRef(true);
   const id = useId();
   const digits = Array.from({ length }, (_, index) => value?.[index] || "");
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
   const describedByIds = [helpId, describedBy, error ? errorId : ""].filter(Boolean).join(" ");
 
+  useEffect(() => () => {
+    mountedRef.current = false;
+    if (focusFrameRef.current !== null) window.cancelAnimationFrame(focusFrameRef.current);
+  }, []);
+
   function focusIndex(index) {
-    const target = Math.max(0, Math.min(index, length - 1));
-    window.requestAnimationFrame(() => inputRefs.current[target]?.focus());
+    if (index < 0 || index >= length) return;
+    if (focusFrameRef.current !== null) window.cancelAnimationFrame(focusFrameRef.current);
+    focusFrameRef.current = window.requestAnimationFrame(() => {
+      focusFrameRef.current = null;
+      if (!mountedRef.current) return;
+      const field = inputRefs.current[index];
+      if (field?.isConnected && !field.disabled) field.focus();
+    });
   }
 
   function commit(nextDigits, nextFocusIndex) {
@@ -172,7 +185,7 @@ export function OtpInput({
     }
     const nextDigits = [...digits];
     nextDigits[index] = clean;
-    commit(nextDigits, clean && index < length - 1 ? index + 1 : index);
+    commit(nextDigits, clean && index < length - 1 ? index + 1 : undefined);
   }
 
   function onKeyDown(index, event) {
