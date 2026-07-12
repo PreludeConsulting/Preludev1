@@ -66,6 +66,7 @@ import { getStudentDemoBundleBySlug } from "../lib/studentDemoBundle.js";
 import { aggregateStudentCalendars } from "../lib/studentCalendarAggregate.js";
 import { deriveAcademicProgress } from "../lib/studentProgressSync.js";
 import { createSyncState, SYNC_STATUS } from "../lib/dataSyncState.js";
+import { savePreferences as persistDashboardPreferences } from "../lib/dashboardPreferences.js";
 import {
   matchesAssignedStudentSync,
   matchesStudentSyncTarget,
@@ -397,7 +398,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         }
         setProfileOverrides({});
         setProfile(appData.profile || data.profile);
-        setPreferences(appData.settings || data.preferences);
+        const nextPreferences = appData.settings || data.preferences;
+        setPreferences(nextPreferences);
+        persistDashboardPreferences(nextPreferences);
         setAvailability((appData.availability?.days || []).map((day) => ({
           id: `av-${day.dayOfWeek.toLowerCase()}`,
           day: day.dayOfWeek,
@@ -794,7 +797,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           setSyncStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "sync-failed");
           throw error;
         }
-        if (result?.settings) setPreferences(result.settings);
+        const nextPreferences = result?.settings || prefs;
+        setPreferences(nextPreferences);
+        persistDashboardPreferences(nextPreferences);
       } else {
         setPreferences(prefs);
       }
