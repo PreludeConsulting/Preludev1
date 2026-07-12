@@ -20,7 +20,7 @@ describe("sitewide refinement contracts", () => {
     expect(css).not.toContain("box-shadow: 0 6px 24px rgb(35 39 48 / 0.06)");
   });
 
-  it("lazy-loads the heavy dashboard and public application routes", () => {
+  it("lazy-loads route families without suspending dashboard tab navigation", () => {
     const source = read("src/main.jsx");
     expect(source).toMatch(/lazy\(\(\) => import\("\.\/dashboard\/DashboardRouter\.jsx"\)\)/);
     expect(source).toMatch(/lazy\(\(\) => import\("\.\/components\/MentorsPage\.jsx"\)\)/);
@@ -29,6 +29,7 @@ describe("sitewide refinement contracts", () => {
     expect(source).toContain('lazyNamed(() => import("./components/PlanSelectionPage.jsx"), "PlansPage")');
     expect(source).toContain('lazy(() => import("./components/onboarding/PreludeMatchOnboardingPage.jsx"))');
     expect(source).toContain("RouteLoadingFallback");
+    expect(source).not.toContain("v7_startTransition: true");
 
     const dashboard = read("src/dashboard/DashboardRouter.jsx");
     expect(dashboard).toContain('lazyNamed(() => import("./pages/student/StudentPages.jsx"), "StudentOverview")');

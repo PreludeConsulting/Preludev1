@@ -70,7 +70,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter
       basename={ROUTER_BASENAME || undefined}
-      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      future={{ v7_relativeSplatPath: true }}
     >
       <ScrollToTop />
       <AuthLandingRedirect />
