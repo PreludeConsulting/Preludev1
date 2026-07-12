@@ -211,7 +211,6 @@ model MentorProfile {
   major             String?             @db.VarChar(180)
   bio               String?             @db.Text
   specialties       String[]            @default([])
-  hourlyAvailability Json               @default("{}") @map("hourly_availability") @db.JsonB
   createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
 

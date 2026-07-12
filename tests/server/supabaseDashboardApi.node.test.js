@@ -73,6 +73,45 @@ function fakeSupabase(rows) {
 }
 
 describe("Supabase dashboard API", () => {
+  it("isolates rewards and availability schema failures from core dashboard data", async () => {
+    const rows = {
+      profiles: { id: "user-1", full_name: "Jordan Student", role: "student" },
+      user_settings: { user_id: "user-1" },
+      notifications: [],
+      calendar_events: [],
+      messages: []
+    };
+    const featureTables = new Set(["mentor_matching_profiles", "reward_wallets", "reward_task_instances"]);
+    const supabase = {
+      from(table) {
+        const builder = {
+          select() { return builder; }, eq() { return builder; }, order() { return builder; }, or() { return builder; },
+          maybeSingle() {
+            return Promise.resolve(featureTables.has(table)
+              ? { data: null, error: { message: `missing ${table}` } }
+              : { data: rows[table] ?? null, error: null });
+          },
+          then(resolve, reject) {
+            return Promise.resolve(featureTables.has(table)
+              ? { data: null, error: { message: `missing ${table}` } }
+              : { data: rows[table] ?? [], error: null }).then(resolve, reject);
+          }
+        };
+        return builder;
+      }
+    };
+    const middleware = createSupabaseDashboardApiMiddleware({
+      requireUser: async () => ({ user: { id: "user-1", email: "student@example.com" }, supabase })
+    });
+    const res = response();
+    await middleware(request(), res, () => assert.fail("app-data should be handled"));
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.profile.fullName, "Jordan Student");
+    assert.deepEqual(res.body.availability.days, []);
+    assert.equal(res.body.rewards.coins, 0);
+    assert.deepEqual(res.body.featureErrors.sort(), ["availability", "rewards"]);
+  });
+
   it("returns normalized authenticated app data instead of the legacy 404 payload", async () => {
     const middleware = createSupabaseDashboardApiMiddleware({
       requireUser: async () => ({
@@ -119,6 +158,8 @@ describe("Supabase dashboard API", () => {
     await middleware(request("PATCH", "/api/dashboard/profile"), res, () => assert.fail("profile should be handled"));
     assert.equal(res.statusCode, 500);
     assert.equal(res.body.error, "dashboard_sync_failed");
+    assert.equal(res.body.message, "Dashboard data is temporarily unavailable. Retry in a moment.");
+    assert.doesNotMatch(res.body.message, /write failed/i);
   });
 
   it("persists profile, settings, and availability mutations across a subsequent app-data read", async () => {

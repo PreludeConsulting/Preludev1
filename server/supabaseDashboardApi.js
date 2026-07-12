@@ -101,7 +101,7 @@ function mapRewards(wallet, tasks) {
   };
 }
 
-export function normalizeDashboardAppData({ user, profile, settings, availability, wallet, tasks, notifications, events, messages }) {
+export function normalizeDashboardAppData({ user, profile, settings, availability, wallet, tasks, notifications, events, messages, featureErrors = [] }) {
   return {
     version: 1,
     user: { id: user.id, email: user.email || null, role: (user.user_metadata?.role || profile?.role || "student").toLowerCase() },
@@ -113,7 +113,8 @@ export function normalizeDashboardAppData({ user, profile, settings, availabilit
       id: item.id, title: item.title, body: item.body, unread: Boolean(item.unread), link: item.link || null, createdAt: item.created_at
     })),
     events: events || [],
-    messages: messages || []
+    messages: messages || [],
+    featureErrors
   };
 }
 
@@ -128,10 +129,20 @@ async function loadAppData(supabase, user) {
     supabase.from("calendar_events").select("*").eq("user_id", user.id).order("start_time", { ascending: true }),
     supabase.from("messages").select("*").or(`sender_id.eq.${user.id},receiver_id.eq.${user.id},user_id.eq.${user.id}`).order("created_at", { ascending: true })
   ]);
-  const error = [profileRes, settingsRes, availabilityRes, walletRes, tasksRes, notificationsRes, eventsRes, messagesRes]
+  const error = [profileRes, settingsRes, notificationsRes, eventsRes, messagesRes]
     .map((result) => result?.error)
     .find(Boolean);
   if (error) throw error;
+  const featureErrors = [];
+  if (availabilityRes.error) featureErrors.push("availability");
+  if (walletRes.error || tasksRes.error) featureErrors.push("rewards");
+  if (featureErrors.length) {
+    console.error("[prelude-dashboard-features]", {
+      userId: user.id,
+      availability: availabilityRes.error || null,
+      rewards: walletRes.error || tasksRes.error || null
+    });
+  }
   return normalizeDashboardAppData({
     user,
     profile: profileRes.data,
@@ -141,7 +152,8 @@ async function loadAppData(supabase, user) {
     tasks: tasksRes.data,
     notifications: notificationsRes.data,
     events: eventsRes.data,
-    messages: messagesRes.data
+    messages: messagesRes.data,
+    featureErrors
   });
 }
 
@@ -199,7 +211,13 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
     } catch (error) {
       if (error instanceof z.ZodError) return sendJson(res, 400, { error: "validation_error", message: "Invalid dashboard data.", issues: error.issues });
       const status = Number(error?.statusCode) || 500;
-      return sendJson(res, status, { error: status === 401 ? "unauthenticated" : "dashboard_sync_failed", message: error?.message || "Dashboard data could not be synchronized." });
+      if (status >= 500) console.error("[prelude-dashboard-sync]", error);
+      return sendJson(res, status, {
+        error: status === 401 ? "unauthenticated" : "dashboard_sync_failed",
+        message: status === 401
+          ? "Sign in again to continue."
+          : "Dashboard data is temporarily unavailable. Retry in a moment."
+      });
     }
   };
 }

@@ -427,19 +427,23 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setSupabaseScholarships(data.scholarships || []);
         setSupabaseDeadlines(data.deadlines || []);
         setSupabaseSavedColleges(data.savedColleges?.length ? data.savedColleges : null);
-        setSyncStatus("synced");
+        const availabilityUnavailable = appData.featureErrors?.includes("availability");
+        setSyncError(availabilityUnavailable ? "Availability is temporarily unavailable. Retry in a moment." : null);
+        setSyncStatus(availabilityUnavailable ? "sync-failed" : "synced");
         setDashboardSyncState(createSyncState({
           status: SYNC_STATUS.SAVED,
           lastSyncedAt: new Date().toISOString(),
           source: "dashboard"
         }));
       } catch (err) {
-        setError(err.message || "Failed to load dashboard data.");
-        setSyncError(err.message || "Failed to synchronize dashboard data.");
+        if (import.meta.env.DEV) console.error("[prelude-dashboard-load]", err);
+        const safeMessage = "Dashboard data is temporarily unavailable. Refresh to retry.";
+        setError(safeMessage);
+        setSyncError(safeMessage);
         setSyncStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "sync-failed");
         setDashboardSyncState(createSyncState({
           status: SYNC_STATUS.FAILED,
-          error: err.message || "Failed to load dashboard data.",
+          error: safeMessage,
           source: "dashboard"
         }));
       } finally {

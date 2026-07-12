@@ -24,6 +24,10 @@ function requireUserId(userId) {
   return userId;
 }
 
+function logFeatureError(feature, error) {
+  if (import.meta.env.DEV) console.error(`[prelude-${feature}]`, error);
+}
+
 export async function getCurrentUser() {
   const { data, error } = await db().auth.getUser();
   if (error) return { user: null, error: error.message };
@@ -839,95 +843,35 @@ export async function listRewardRedemptions(userId) {
     .select("*")
     .eq("user_id", id)
     .order("redeemed_at", { ascending: false });
+  if (error) logFeatureError("rewards", error);
   return {
     redemptions: (data || []).map(mapRewardRedemption),
-    error: error?.message || null
+    error: error ? "Rewards are temporarily unavailable. Retry in a moment." : null
   };
 }
 
-export async function redeemCatalogReward(userId, { rewardId, title, coinCost, selection = null }) {
-  const id = requireUserId(userId);
-  const { wallet, error: walletError } = await getRewardWallet(id);
-  if (walletError) return { error: walletError };
-
-  const balance = Number(wallet?.coin_balance || 0);
-  if (balance < coinCost) {
-    return { error: "Not enough coins to redeem this reward." };
-  }
-
-  const { data: existing } = await db()
-    .from("reward_redemptions")
-    .select("id")
-    .eq("user_id", id)
-    .eq("reward_id", rewardId)
-    .maybeSingle();
-  if (existing) return { error: "You already redeemed this reward.", alreadyRedeemed: true };
-
-  const now = new Date().toISOString();
-  const nextBalance = balance - coinCost;
-  const { error: walletUpdateError } = await db()
-    .from("reward_wallets")
-    .update({ coin_balance: nextBalance, updated_at: now })
-    .eq("user_id", id);
-  if (walletUpdateError) return { error: walletUpdateError.message };
-
-  const { data: redemption, error: redemptionError } = await db()
-    .from("reward_redemptions")
-    .insert({
-      user_id: id,
-      reward_id: rewardId,
-      title,
-      coin_cost: coinCost,
-      status: "ready_to_schedule",
-      selection,
-      redeemed_at: now,
-      updated_at: now
-    })
-    .select("*")
-    .maybeSingle();
-
-  if (redemptionError) {
-    await db()
-      .from("reward_wallets")
-      .update({ coin_balance: balance, updated_at: now })
-      .eq("user_id", id);
-    return { error: redemptionError.message };
+export async function redeemCatalogReward(userId, { rewardId, selection = null }) {
+  requireUserId(userId);
+  const { data, error } = await db().rpc("redeem_catalog_reward", {
+    p_reward_id: rewardId,
+    p_selection: selection
+  });
+  if (error) {
+    logFeatureError("rewards", error);
+    const message = String(error.message || "");
+    if (/already redeemed|duplicate/i.test(message) || error.code === "23505") {
+      return { error: "You already redeemed this reward.", alreadyRedeemed: true };
+    }
+    if (/not enough coins/i.test(message) || error.code === "22003") {
+      return { error: "Not enough coins to redeem this reward." };
+    }
+    return { error: "Reward redemption is temporarily unavailable. Retry in a moment." };
   }
 
   return {
-    redemption: mapRewardRedemption(redemption),
-    wallet: { ...wallet, coin_balance: nextBalance },
+    redemption: data?.redemption ? mapRewardRedemption(data.redemption) : null,
+    wallet: data?.wallet || null,
     error: null
-  };
-}
-
-export async function getMentorHourlyAvailability(userId) {
-  const id = requireUserId(userId);
-  const { data, error } = await db()
-    .from("mentor_profiles")
-    .select("hourly_availability")
-    .eq("user_id", id)
-    .maybeSingle();
-  return {
-    slots: Array.isArray(data?.hourly_availability) ? data.hourly_availability : [],
-    error: error?.message || null
-  };
-}
-
-export async function saveMentorHourlyAvailability(userId, slots) {
-  const id = requireUserId(userId);
-  const now = new Date().toISOString();
-  const { data, error } = await db()
-    .from("mentor_profiles")
-    .upsert(
-      { user_id: id, hourly_availability: slots, updated_at: now },
-      { onConflict: "user_id" }
-    )
-    .select("hourly_availability")
-    .maybeSingle();
-  return {
-    slots: Array.isArray(data?.hourly_availability) ? data.hourly_availability : slots,
-    error: error?.message || null
   };
 }
 

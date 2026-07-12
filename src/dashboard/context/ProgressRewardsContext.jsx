@@ -470,8 +470,6 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       if (isSupabaseUser && user?.id) {
         const { redemption, wallet, error, alreadyRedeemed } = await redeemCatalogReward(user.id, {
           rewardId,
-          title: historyEntry.title,
-          coinCost: reward.coins,
           selection: options.testPrepOption || null
         });
         if (error) {
