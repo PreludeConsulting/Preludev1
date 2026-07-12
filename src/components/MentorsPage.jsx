@@ -1,6 +1,5 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import AccountPanel from "./AccountPanel.jsx";
 import Navbar from "./Navbar.jsx";
@@ -49,19 +48,8 @@ function MentorsPageContent() {
   const { requestPersonalizedAi } = useAuth();
   const reducedMotion = useReducedMotion();
   const [selectedMentor, setSelectedMentor] = useState(null);
-  const [reviewIndex, setReviewIndex] = useState(0);
-  const reviewsViewportRef = useRef(null);
   const featuredMentors = EXAMPLE_MENTORS.slice(0, 5);
-
-  function scrollReview(direction) {
-    const next = (reviewIndex + direction + MENTOR_REVIEWS.length) % MENTOR_REVIEWS.length;
-    setReviewIndex(next);
-    const viewport = reviewsViewportRef.current;
-    const card = viewport?.querySelector(".mentors-page__review-card");
-    if (viewport && card) {
-      viewport.scrollTo({ left: card.offsetWidth * next, behavior: "smooth" });
-    }
-  }
+  const reviewSlides = reducedMotion ? MENTOR_REVIEWS : [...MENTOR_REVIEWS, ...MENTOR_REVIEWS];
 
   const MotionTag = reducedMotion ? "p" : motion.p;
   const MotionH1 = reducedMotion ? "h1" : motion.h1;
@@ -119,23 +107,15 @@ function MentorsPageContent() {
             </section>
 
             <section className="mentors-page__reviews" aria-label="Student reviews">
-              <div className="mentors-page__reviews-controls">
-                <button type="button" className="mentors-page__reviews-btn" aria-label="Previous review" onClick={() => scrollReview(-1)}>
-                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                </button>
-                <span className="mentors-page__reviews-indicator" aria-live="polite">
-                  {reviewIndex + 1} / {MENTOR_REVIEWS.length}
-                </span>
-                <button type="button" className="mentors-page__reviews-btn" aria-label="Next review" onClick={() => scrollReview(1)}>
-                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
-              <div className="mentors-page__reviews-viewport" ref={reviewsViewportRef}>
-                <div className="mentors-page__reviews-track">
-                  {MENTOR_REVIEWS.map((review) => (
+              <div className="mentors-page__reviews-viewport">
+                <div
+                  className={`mentors-page__reviews-track${reducedMotion ? " mentors-page__reviews-track--static" : ""}`}
+                >
+                  {reviewSlides.map((review, index) => (
                     <article
                       className="mentors-page__review-card"
-                      key={review.name}
+                      key={`${review.name}-${index}`}
+                      aria-hidden={index >= MENTOR_REVIEWS.length ? "true" : undefined}
                     >
                       <span className="mentors-page__review-accent" aria-hidden="true" />
                       <header className="mentors-page__review-header">

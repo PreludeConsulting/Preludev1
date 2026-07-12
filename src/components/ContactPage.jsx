@@ -15,6 +15,7 @@ import {
   Video
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import AppLink from "./AppLink.jsx";
 import Navbar from "./Navbar.jsx";
 import PreludeLogo from "./PreludeLogo.jsx";
@@ -75,6 +76,7 @@ function getMonthCursorForDate(months, isoDate) {
 export default function ContactPage() {
   const { requestPersonalizedAi } = useAuth();
   const { openLegal } = useLegalModal();
+  const location = useLocation();
   const [scheduleNow, setScheduleNow] = useState(() => new Date());
   const schedule = useMemo(() => buildContactSchedule(scheduleNow), [scheduleNow]);
   const { availableCallSlots, bookingWindow, months: scheduleMonths } = schedule;
@@ -92,6 +94,15 @@ export default function ContactPage() {
   });
   const [bookingStatus, setBookingStatus] = useState("idle");
   const [bookingError, setBookingError] = useState("");
+
+  useEffect(() => {
+    const id = (location.hash || "").replace(/^#/, "");
+    if (!id) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash, location.pathname]);
 
   const safeMonthCursor = Math.min(monthCursor, Math.max(scheduleMonths.length - 1, 0));
   const month = scheduleMonths[safeMonthCursor];
