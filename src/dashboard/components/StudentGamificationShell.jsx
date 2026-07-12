@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { GamificationProvider } from "../context/GamificationContext.jsx";
 import { ProgressRewardsProvider } from "../context/ProgressRewardsContext.jsx";
 import { useDashboardData } from "../context/DashboardDataContext.jsx";
@@ -6,12 +7,18 @@ import { isJordanDemoEmail } from "../../data/demoAccounts.js";
 
 export default function StudentGamificationShell({ user, children }) {
   const { gamification, progressRewards, profile } = useDashboardData();
-  const initialGamification = gamification || { xp: 0, streak: 0, missions: [], badges: [], activityFeed: [], nextBadge: null };
   const isJordan = isJordanDemoEmail(user?.email);
   const isSupabaseUser = user?.authProvider === "supabase";
-  const initialRewards = isSupabaseUser
-    ? { coins: 0, completed: [], inProgress: [], inProgressProgress: {}, redeemed: [], redemptionHistory: [] }
-    : (progressRewards || buildDefaultProgressRewards(isJordan));
+  const initialGamification = useMemo(
+    () => gamification || { xp: 0, streak: 0, missions: [], badges: [], activityFeed: [], nextBadge: null },
+    [gamification]
+  );
+  const initialRewards = useMemo(
+    () => isSupabaseUser
+      ? { coins: 0, completed: [], inProgress: [], inProgressProgress: {}, redeemed: [], redemptionHistory: [] }
+      : (progressRewards || buildDefaultProgressRewards(isJordan)),
+    [isJordan, isSupabaseUser, progressRewards]
+  );
 
   return (
     <GamificationProvider user={user} initial={initialGamification}>
