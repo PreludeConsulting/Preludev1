@@ -32,10 +32,12 @@ function RewardsHero() {
   const {
     coins,
     currentTier,
-    statusGoalCoins
+    piggyGoalCoins,
+    piggyProgressLabel,
+    piggyCanRedeem
   } = useProgressRewards();
 
-  const goalCoins = statusGoalCoins > 0 ? statusGoalCoins : 300;
+  const goalCoins = piggyGoalCoins > 0 ? piggyGoalCoins : 60;
   const heroPct = goalCoins > 0 ? Math.min(100, Math.round((coins / goalCoins) * 100)) : 0;
 
   return (
@@ -75,8 +77,15 @@ function RewardsHero() {
           </div>
           <ProgressBar pct={heroPct} className="dash-rewards-progress--hero" />
           <p className="dash-rewards-hero__progress-label">
-            {coins.toLocaleString()} / {goalCoins.toLocaleString()} coins until next reward
+            {piggyCanRedeem
+              ? "You can redeem a reward now"
+              : `${coins.toLocaleString()} / ${goalCoins.toLocaleString()} coins until first reward`}
           </p>
+          {!piggyCanRedeem && piggyProgressLabel ? (
+            <p className="dash-muted" style={{ marginTop: "0.35rem" }}>
+              {piggyProgressLabel}
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -126,11 +135,16 @@ function RewardsTabs({ active, onChange }) {
 }
 
 function StatusTab() {
-  const { coins } = useProgressRewards();
+  const { lifetimeCoins, coins, services } = useProgressRewards();
 
   return (
     <div className="dash-rewards-tab-panel dash-rewards-status">
-      <MyStatusProgressBar coins={coins} />
+      <MyStatusProgressBar
+        coins={coins}
+        lifetimeCoins={lifetimeCoins}
+        satActUnlocked={Boolean(services?.satActPrep)}
+        tutoringUnlocked={Boolean(services?.academicTutoring)}
+      />
     </div>
   );
 }
@@ -147,7 +161,7 @@ function MyRewardsTab() {
   if (!items.length) {
     return (
       <div className="dash-rewards-tab-panel dash-rewards-empty">
-        <PiggyBankProgress coins={0} goalCoins={300} size="sm" withDropAnimation={false} />
+        <PiggyBankProgress coins={0} goalCoins={60} size="sm" withDropAnimation={false} />
         <p>No rewards redeemed yet. Complete milestones to unlock free support.</p>
       </div>
     );

@@ -11,12 +11,13 @@ import {
 } from "lucide-react";
 import {
   STATUS_MILESTONES,
+  formatStatusProgressCopy,
   getCoinMultiplier,
-  getCoinsToNextMultiplier,
   getCurrentStatusMilestone,
   getMilestoneNodeStatus,
   getNextStatusMilestone
 } from "../../../lib/progressRewards.js";
+import { getRecommendedEarnAction } from "../../../../lib/rewardTaskCatalog.js";
 import { CoinIcon } from "./PreludePiggyBank.jsx";
 
 const ICONS = {
@@ -29,11 +30,21 @@ const ICONS = {
   crown: Crown
 };
 
-export default function MyStatusProgressBar({ coins }) {
-  const current = getCurrentStatusMilestone(coins);
-  const next = getNextStatusMilestone(coins);
-  const multiplier = getCoinMultiplier(coins);
-  const coinsToNext = getCoinsToNextMultiplier(coins);
+export default function MyStatusProgressBar({
+  coins,
+  lifetimeCoins,
+  satActUnlocked = true,
+  tutoringUnlocked = true
+}) {
+  const statusCoins = Number(lifetimeCoins ?? coins ?? 0);
+  const current = getCurrentStatusMilestone(statusCoins);
+  const next = getNextStatusMilestone(statusCoins);
+  const multiplier = getCoinMultiplier(statusCoins);
+  const progressCopy = formatStatusProgressCopy(statusCoins);
+  const recommended = getRecommendedEarnAction(progressCopy.coinsNeeded || 0, multiplier, {
+    satActUnlocked,
+    tutoringUnlocked
+  });
 
   const CurrentIcon = ICONS[current.icon] || Trophy;
   const n = STATUS_MILESTONES.length;
@@ -55,14 +66,16 @@ export default function MyStatusProgressBar({ coins }) {
           <div>
             <p className="dash-mystatus__eyebrow">Current Status</p>
             <h3 className="dash-mystatus__title">{current.name}</h3>
-            <p className="dash-mystatus__coins">{coins.toLocaleString()} Prelude Coins earned</p>
+            <p className="dash-mystatus__coins">{statusCoins.toLocaleString()} lifetime Prelude Coins</p>
           </div>
         </div>
 
         <div className="dash-mystatus__mult">
           <span className="dash-mystatus__mult-label">Current Coin Multiplier</span>
           <div className="dash-mystatus__mult-row">
-            <span className="dash-mystatus__mult-value">{multiplier.toFixed(1)}x</span>
+            <span className="dash-mystatus__mult-value">
+              {multiplier % 1 === 0 ? multiplier.toFixed(1) : String(multiplier)}x
+            </span>
             <CoinIcon size="lg" className="dash-mystatus__mult-coin" />
           </div>
         </div>
@@ -79,7 +92,7 @@ export default function MyStatusProgressBar({ coins }) {
 
         <div className="dash-mystatus__cols">
           {STATUS_MILESTONES.map((milestone) => {
-            const status = getMilestoneNodeStatus(coins, milestone);
+            const status = getMilestoneNodeStatus(statusCoins, milestone);
             const Icon = ICONS[milestone.icon] || Target;
             return (
               <div key={milestone.id} className={`dash-mystatus__col dash-mystatus__col--${status}`}>
@@ -94,7 +107,12 @@ export default function MyStatusProgressBar({ coins }) {
                 <div className="dash-mystatus__label">
                   <span className="dash-mystatus__label-name">{milestone.name}</span>
                   <span className="dash-mystatus__label-coins">{milestone.coinsRequired.toLocaleString()}</span>
-                  <span className="dash-mystatus__label-mult">{milestone.multiplier.toFixed(1)}x</span>
+                  <span className="dash-mystatus__label-mult">
+                    {milestone.multiplier % 1 === 0
+                      ? milestone.multiplier.toFixed(1)
+                      : String(milestone.multiplier)}
+                    x
+                  </span>
                 </div>
               </div>
             );
@@ -109,10 +127,8 @@ export default function MyStatusProgressBar({ coins }) {
             <CoinIcon size="sm" className="dash-mystatus__banner-coin" />
           </div>
           <div className="dash-mystatus__banner-text">
-            <p className="dash-mystatus__banner-title">
-              {coinsToNext.toLocaleString()} coins until {next.name}
-            </p>
-            <p className="dash-mystatus__banner-sub">Unlock a {next.multiplier.toFixed(1)}x coin multiplier</p>
+            <p className="dash-mystatus__banner-title">{progressCopy.title}</p>
+            <p className="dash-mystatus__banner-sub">{recommended || progressCopy.subtitle}</p>
           </div>
           <ChevronRight className="dash-mystatus__banner-chevron" aria-hidden="true" />
         </div>
@@ -122,8 +138,8 @@ export default function MyStatusProgressBar({ coins }) {
             <Crown />
           </div>
           <div className="dash-mystatus__banner-text">
-            <p className="dash-mystatus__banner-title">You&apos;ve unlocked every status milestone.</p>
-            <p className="dash-mystatus__banner-sub">Enjoy your maximum 1.5x coin multiplier.</p>
+            <p className="dash-mystatus__banner-title">{progressCopy.title}</p>
+            <p className="dash-mystatus__banner-sub">{progressCopy.subtitle}</p>
           </div>
         </div>
       )}

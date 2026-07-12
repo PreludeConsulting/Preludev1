@@ -10,7 +10,13 @@ import { GLASS_PIGGY_IMAGE } from "./rewards/PiggyBankProgress.jsx";
 export default function PreludeRewardsCard() {
   const { canAccess } = usePlanAccess();
   const { openUpgrade } = usePlanUpgrade();
-  const { coins, featuredReward, coinsToNext, statusGoalCoins, nextTier, coinsToNextMultiplier } = useProgressRewards();
+  const {
+    coins,
+    featuredReward,
+    piggyGoalCoins,
+    piggyCanRedeem,
+    nextRewardTarget
+  } = useProgressRewards();
 
   if (!canAccess("rewards")) {
     return (
@@ -39,11 +45,14 @@ export default function PreludeRewardsCard() {
     );
   }
 
-  const goalCoins = statusGoalCoins || featuredReward?.coins || 300;
+  const goalCoins = piggyGoalCoins || featuredReward?.coins || 60;
   const progressPct = goalCoins > 0 ? Math.min(100, Math.round((coins / goalCoins) * 100)) : 100;
-  const coinsAway = nextTier ? coinsToNextMultiplier : coinsToNext;
-  const nextName = nextTier?.name || featuredReward.headline;
-  const nextCoins = nextTier?.coinsRequired ?? featuredReward.coins;
+  const coinsAway = nextRewardTarget?.coinsAway ?? Math.max(0, goalCoins - coins);
+  const nextName = nextRewardTarget?.reward?.title || featuredReward?.headline || "next reward";
+  const nextCoins = nextRewardTarget?.goalCoins ?? featuredReward?.coins ?? goalCoins;
+  const awayCopy = piggyCanRedeem
+    ? "You can redeem a reward now"
+    : `${coinsAway} more coins needed`;
 
   return (
     <article className="dash-product-card dash-product-card--wide dash-product-card--rewards dash-prelude-rewards-preview">
@@ -60,8 +69,9 @@ export default function PreludeRewardsCard() {
 
         <div className="dash-prelude-rewards-preview__progress">
           <p className="dash-prelude-rewards-preview__away">
-            <span className="dash-prelude-rewards-preview__away-num">{coinsAway}</span>
-            {" "}coins until {nextName}
+            <span className="dash-prelude-rewards-preview__away-num">{piggyCanRedeem ? "✓" : coinsAway}</span>
+            {" "}
+            {awayCopy}
           </p>
           <div className="dash-prelude-rewards-preview__track" aria-hidden="true">
             <span className="dash-prelude-rewards-preview__fill" style={{ width: `${progressPct}%` }} />

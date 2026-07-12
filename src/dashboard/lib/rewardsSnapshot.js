@@ -29,7 +29,10 @@ export function buildRewardsSnapshot({
 
   return {
     coins,
-    lifetimeEarned: Number(wallet?.lifetime_earned ?? wallet?.lifetimeEarned ?? 0),
+    lifetimeCoins: Number(
+      wallet?.lifetime_coins ?? wallet?.lifetimeCoins ?? wallet?.lifetime_earned ?? wallet?.lifetimeEarned ?? 0
+    ),
+    lifetimeEarned: Number(wallet?.lifetime_earned ?? wallet?.lifetimeEarned ?? wallet?.lifetime_coins ?? 0),
     lifetimeClaimed: Number(wallet?.lifetime_claimed ?? wallet?.lifetimeClaimed ?? 0),
     loginStreak,
     milestonesCompleted,

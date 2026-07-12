@@ -61,59 +61,108 @@ export const rewardTierConfig = REWARD_TIERS;
 
 export const STATUS_MILESTONES = [
   { id: "starter", name: "Starter", coinsRequired: 0, multiplier: 1.0, icon: "trophy" },
-  { id: "goal-setter", name: "Goal Setter", coinsRequired: 300, multiplier: 1.1, icon: "target" },
-  { id: "momentum-builder", name: "Momentum Builder", coinsRequired: 700, multiplier: 1.2, icon: "zap" },
-  { id: "application-pro", name: "Application Pro", coinsRequired: 1200, multiplier: 1.3, icon: "file" },
-  { id: "ivy-climber", name: "Ivy Climber", coinsRequired: 2000, multiplier: 1.4, icon: "mountain" },
-  { id: "prelude-legend", name: "Prelude Legend", coinsRequired: 3000, multiplier: 1.5, icon: "crown" }
+  { id: "goal-setter", name: "Goal Setter", coinsRequired: 150, multiplier: 1.1, icon: "target" },
+  { id: "momentum-builder", name: "Momentum Builder", coinsRequired: 350, multiplier: 1.15, icon: "zap" },
+  { id: "application-pro", name: "Application Pro", coinsRequired: 600, multiplier: 1.2, icon: "file" },
+  { id: "ivy-climber", name: "Ivy Climber", coinsRequired: 900, multiplier: 1.25, icon: "mountain" },
+  { id: "prelude-legend", name: "Prelude Legend", coinsRequired: 1300, multiplier: 1.3, icon: "crown" }
 ];
 
-export function getCurrentStatusMilestone(coins = 0) {
+/** Cap for one-time founding-member welcome grants. */
+export const FOUNDING_MEMBER_BONUS_CAP = 17;
+export const WELCOME_BONUS_COINS = 50;
+export const FOUNDING_MEMBER_BONUS_COINS = 100;
+
+/**
+ * Status tiers use lifetime earned coins (never reduced by redemptions).
+ * Available/spendable balance is separate (`coin_balance` / availableCoins).
+ */
+export function getCurrentStatusMilestone(lifetimeCoins = 0) {
   let current = STATUS_MILESTONES[0];
   for (const milestone of STATUS_MILESTONES) {
-    if (coins >= milestone.coinsRequired) current = milestone;
+    if (lifetimeCoins >= milestone.coinsRequired) current = milestone;
     else break;
   }
   return current;
 }
 
-export function getNextStatusMilestone(coins = 0) {
-  return STATUS_MILESTONES.find((m) => coins < m.coinsRequired) || null;
+export function getNextStatusMilestone(lifetimeCoins = 0) {
+  return STATUS_MILESTONES.find((m) => lifetimeCoins < m.coinsRequired) || null;
 }
 
-export function getCoinMultiplier(coins = 0) {
-  return getCurrentStatusMilestone(coins).multiplier;
+export function getCoinMultiplier(lifetimeCoins = 0) {
+  return getCurrentStatusMilestone(lifetimeCoins).multiplier;
 }
 
-export function getCoinsToNextMultiplier(coins = 0) {
-  const next = getNextStatusMilestone(coins);
+export function getCoinsToNextMultiplier(lifetimeCoins = 0) {
+  const next = getNextStatusMilestone(lifetimeCoins);
   if (!next) return 0;
-  return Math.max(0, next.coinsRequired - coins);
+  return Math.max(0, next.coinsRequired - lifetimeCoins);
 }
 
-export function getStatusBarProgressPct(coins = 0) {
+export function getStatusBarProgressPct(lifetimeCoins = 0) {
   const max = STATUS_MILESTONES[STATUS_MILESTONES.length - 1].coinsRequired;
   if (!max) return 0;
-  return Math.min(100, Math.round((coins / max) * 100));
+  return Math.min(100, Math.round((lifetimeCoins / max) * 100));
 }
 
-export function getMilestoneNodeStatus(coins, milestone) {
-  if (coins >= milestone.coinsRequired) return "completed";
-  const next = getNextStatusMilestone(coins);
+export function getMilestoneNodeStatus(lifetimeCoins, milestone) {
+  if (lifetimeCoins >= milestone.coinsRequired) return "completed";
+  const next = getNextStatusMilestone(lifetimeCoins);
   if (next?.id === milestone.id) return "current";
   return "locked";
 }
 
 export function applyCoinMultiplier(baseCoins, multiplier) {
-  return Math.round(baseCoins * multiplier);
+  return Math.round(Number(baseCoins || 0) * Number(multiplier || 1));
 }
 
-/** Default tier for catalog items without an explicit tier (high-value mentor rewards). */
+export function formatCoinsAwayLabel(coinsAway) {
+  const n = Math.max(0, Number(coinsAway) || 0);
+  if (!n) return "Ready to redeem";
+  if (n <= 60) return `${n} more coins needed`;
+  return `${n} more coins needed`;
+}
+
+export function formatStatusProgressCopy(lifetimeCoins = 0) {
+  const next = getNextStatusMilestone(lifetimeCoins);
+  if (!next) {
+    return {
+      title: "You've unlocked every status milestone.",
+      subtitle: "Enjoy your maximum 1.3x coin multiplier."
+    };
+  }
+  const needed = Math.max(0, next.coinsRequired - lifetimeCoins);
+  return {
+    title: `${needed.toLocaleString()} more coins to unlock ${next.name}`,
+    subtitle: `Unlock a ${next.multiplier === 1.15 || next.multiplier === 1.25 ? next.multiplier : next.multiplier.toFixed(1)}x coin multiplier`,
+    coinsNeeded: needed,
+    next
+  };
+}
+
+/** Cheapest unredeemed reward cost for piggy-bank short-term goal. */
+export function getCheapestRewardTarget(availableCoins = 0, redeemed = [], catalog = REWARD_CATALOG) {
+  const open = catalog.filter((reward) => !redeemed.includes(reward.id));
+  if (!open.length) return null;
+  const sorted = [...open].sort((a, b) => a.coins - b.coins);
+  const cheapest = sorted[0];
+  const canRedeem = availableCoins >= cheapest.coins;
+  return {
+    reward: cheapest,
+    goalCoins: cheapest.coins,
+    coinsAway: Math.max(0, cheapest.coins - availableCoins),
+    canRedeem,
+    label: canRedeem
+      ? "You can redeem a reward now"
+      : `${Math.max(0, cheapest.coins - availableCoins)} coins until your first reward`
+  };
+}
+
+/** Default tier for catalog items without an explicit tier. */
 export function inferTierFromCoins(coins) {
-  if (coins >= 280) return REWARD_TIER_IDS.LEGENDARY;
   if (coins >= 200) return REWARD_TIER_IDS.EPIC;
-  if (coins >= 180) return REWARD_TIER_IDS.RARE;
-  if (coins >= 150) return REWARD_TIER_IDS.UNCOMMON;
+  if (coins >= 120) return REWARD_TIER_IDS.RARE;
   return REWARD_TIER_IDS.COMMON;
 }
 
@@ -137,66 +186,43 @@ export const TEST_PREP_OPTIONS = [
 
 export const REWARD_CATALOG = [
   {
-    id: "essay-review-session",
-    title: "Essay Review Session",
-    headline: "FREE Essay Review Session",
-    subtitle: "2 Mentor Review",
-    category: "Essays",
-    coins: 300,
-    estimatedValue: 75,
-    description: "Two mentors review the student's essay and leave detailed feedback.",
-    featured: true,
-    iconTone: "mint",
-    tier: "legendary"
-  },
-  {
-    id: "test-prep-help",
-    title: "Test Prep Help Session",
-    headline: "FREE Test Prep Help Session",
-    subtitle: "SAT / ACT Help",
-    category: "Test Prep",
-    coins: 250,
-    estimatedValue: 50,
-    description: "Choose SAT Math, SAT Reading/Writing, ACT Math, ACT English, ACT Reading, or ACT Science after redeeming.",
-    iconTone: "sky",
-    requiresSelection: true,
+    id: "priority-office-hours",
+    title: "Priority Office Hours Pass",
+    headline: "FREE Priority Office Hours Pass",
+    subtitle: "Skip-the-Line Access",
+    category: "Mentorship",
+    shopGroup: "quick",
+    coins: 60,
+    estimatedValue: 35,
+    description: "Get priority access to mentor office hours for quick questions and feedback.",
+    iconTone: "purple",
     tier: "common"
   },
   {
-    id: "college-list-review",
-    title: "College List Review",
-    headline: "FREE College List Review",
-    subtitle: "Reach / Target / Safety Review",
-    category: "Admissions",
-    coins: 220,
+    id: "quick-essay-feedback",
+    title: "Quick Essay Feedback",
+    headline: "FREE Quick Essay Feedback",
+    subtitle: "Fast Written Notes",
+    category: "Essays",
+    shopGroup: "quick",
+    coins: 90,
     estimatedValue: 45,
-    description: "A mentor reviews the student's college list and helps organize reach, target, and safety schools.",
+    description: "Get a focused round of written essay feedback from a Prelude mentor.",
+    iconTone: "mint",
+    tier: "common"
+  },
+  {
+    id: "short-application-review",
+    title: "Short Written Application Review",
+    headline: "FREE Short Written Application Review",
+    subtitle: "Component Feedback",
+    category: "Admissions",
+    shopGroup: "quick",
+    coins: 100,
+    estimatedValue: 50,
+    description: "A mentor reviews one application component and shares clear next steps.",
     iconTone: "blue",
     tier: "common"
-  },
-  {
-    id: "activities-list-review",
-    title: "Activities List Review",
-    headline: "FREE Activities List Review",
-    subtitle: "Extracurricular Feedback",
-    category: "Admissions",
-    coins: 200,
-    estimatedValue: 40,
-    description: "A mentor reviews the student's activity descriptions and gives improvement suggestions.",
-    iconTone: "amber",
-    tier: "uncommon"
-  },
-  {
-    id: "application-strategy-call",
-    title: "Application Strategy Call",
-    headline: "FREE Application Strategy Call",
-    subtitle: "Planning Session",
-    category: "Admissions",
-    coins: 200,
-    estimatedValue: 40,
-    description: "A mentor helps plan deadlines, essays, school priorities, and next steps.",
-    iconTone: "rose",
-    tier: "rare"
   },
   {
     id: "major-career-fit",
@@ -204,11 +230,12 @@ export const REWARD_CATALOG = [
     headline: "FREE Major / Career Fit Session",
     subtitle: "Major Exploration",
     category: "Planning",
-    coins: 180,
+    shopGroup: "support",
+    coins: 120,
     estimatedValue: 35,
     description: "A mentor helps the student explore possible majors, career paths, and college fit.",
     iconTone: "indigo",
-    tier: "rare"
+    tier: "uncommon"
   },
   {
     id: "mock-interview",
@@ -216,47 +243,79 @@ export const REWARD_CATALOG = [
     headline: "FREE Mock Interview Session",
     subtitle: "Interview Practice",
     category: "Admissions",
-    coins: 180,
+    shopGroup: "support",
+    coins: 130,
     estimatedValue: 35,
     description: "A mentor runs a college-style mock interview and gives feedback.",
     iconTone: "purple",
-    tier: "epic"
-  },
-  {
-    id: "scholarship-search",
-    title: "Scholarship Search Session",
-    headline: "FREE Scholarship Search Session",
-    subtitle: "Scholarship Planning",
-    category: "Planning",
-    coins: 150,
-    estimatedValue: 30,
-    description: "A mentor helps the student find scholarships and create a quick application plan.",
-    iconTone: "peach",
-    tier: "uncommon"
-  },
-  {
-    id: "parent-strategy-call",
-    title: "Parent Strategy Call",
-    headline: "FREE Parent Strategy Call",
-    subtitle: "Family Planning Session",
-    category: "Planning",
-    coins: 190,
-    estimatedValue: 38,
-    description: "A mentor meets with the student and parent to align on admissions strategy and next steps.",
-    iconTone: "rose",
     tier: "rare"
   },
   {
-    id: "priority-office-hours",
-    title: "Priority Office Hours Pass",
-    headline: "FREE Priority Office Hours Pass",
-    subtitle: "Skip-the-Line Access",
+    id: "test-prep-help",
+    title: "SAT / ACT Help Session",
+    headline: "FREE SAT / ACT Help Session",
+    subtitle: "Test Prep Support",
+    category: "Test Prep",
+    shopGroup: "support",
+    coins: 150,
+    estimatedValue: 50,
+    description: "Choose SAT Math, SAT Reading/Writing, ACT Math, ACT English, ACT Reading, or ACT Science after redeeming.",
+    iconTone: "sky",
+    requiresSelection: true,
+    tier: "rare"
+  },
+  {
+    id: "essay-review-session",
+    title: "Essay Review Session",
+    headline: "FREE Essay Review Session",
+    subtitle: "2 Mentor Review",
+    category: "Essays",
+    shopGroup: "support",
+    coins: 175,
+    estimatedValue: 75,
+    description: "Two mentors review the student's essay and leave detailed feedback.",
+    featured: true,
+    iconTone: "mint",
+    tier: "rare"
+  },
+  {
+    id: "bonus-flexible-session",
+    title: "Bonus Flexible 1-on-1 Session",
+    headline: "FREE Bonus Flexible 1-on-1 Session",
+    subtitle: "Extra Live Support",
     category: "Mentorship",
-    coins: 170,
-    estimatedValue: 35,
-    description: "Get priority access to mentor office hours for quick questions and feedback.",
-    iconTone: "purple",
+    shopGroup: "premium",
+    coins: 200,
+    estimatedValue: 75,
+    description: "Redeem an extra flexible live session for consulting, SAT/ACT, or academic tutoring.",
+    iconTone: "rose",
     tier: "epic"
+  },
+  {
+    id: "application-readiness-review",
+    title: "Full Application Readiness Review",
+    headline: "FREE Full Application Readiness Review",
+    subtitle: "Submission Check",
+    category: "Admissions",
+    shopGroup: "premium",
+    coins: 225,
+    estimatedValue: 90,
+    description: "A mentor reviews application readiness across essays, activities, and school list priorities.",
+    iconTone: "amber",
+    tier: "epic"
+  },
+  {
+    id: "multi-mentor-review-package",
+    title: "Multi-Mentor Review Package",
+    headline: "FREE Multi-Mentor Review Package",
+    subtitle: "Team Feedback",
+    category: "Essays",
+    shopGroup: "premium",
+    coins: 250,
+    estimatedValue: 100,
+    description: "Multiple mentors review key application materials and share coordinated feedback.",
+    iconTone: "peach",
+    tier: "legendary"
   }
 ];
 
@@ -661,6 +720,7 @@ export function buildSidebarProgress(isJordan, coins, completedCount, metrics = 
 export function normalizeRewardsState(raw = {}) {
   return {
     coins: raw.coins ?? raw.tokens ?? 0,
+    lifetimeCoins: raw.lifetimeCoins ?? raw.lifetime_coins ?? raw.lifetimeEarned ?? 0,
     completed: raw.completed ?? [],
     inProgress: raw.inProgress ?? [],
     inProgressProgress: raw.inProgressProgress ?? {},

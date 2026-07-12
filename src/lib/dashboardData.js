@@ -12,6 +12,7 @@ import {
   getTaskDefinition,
   taskTemplateIdsForCategory
 } from "./rewardTaskCatalog.js";
+import { applyCoinMultiplier, getCoinMultiplier } from "../dashboard/lib/progressRewards.js";
 
 function db() {
   const client = getSupabase();
@@ -468,10 +469,41 @@ export async function getRewardWallet(userId) {
     .select("*")
     .eq("user_id", id)
     .maybeSingle();
+  const wallet = data || {
+    user_id: id,
+    coin_balance: 0,
+    lifetime_earned: 0,
+    lifetime_claimed: 0,
+    lifetime_coins: 0
+  };
   return {
-    wallet: data || { user_id: id, coin_balance: 0, lifetime_earned: 0, lifetime_claimed: 0 },
+    wallet: {
+      ...wallet,
+      lifetime_coins: Number(wallet.lifetime_coins ?? wallet.lifetime_earned ?? 0)
+    },
     error: error?.message || null
   };
+}
+
+export async function grantRewardsWelcomeBonus(userId) {
+  requireUserId(userId);
+  try {
+    const { data, error } = await db().rpc("grant_rewards_welcome_bonus");
+    if (error) {
+      logFeatureError("rewards", error);
+      return { granted: false, wallet: null, error: error.message };
+    }
+    return {
+      granted: Boolean(data?.granted),
+      amount: data?.amount || 0,
+      type: data?.type || null,
+      label: data?.label || null,
+      wallet: data?.wallet || null,
+      error: null
+    };
+  } catch (error) {
+    return { granted: false, wallet: null, error: error?.message || "Welcome bonus unavailable." };
+  }
 }
 
 export async function ensureRewardTaskInstances(userId, { satActUnlocked = false, tutoringUnlocked = false } = {}) {
@@ -488,6 +520,24 @@ export async function ensureRewardTaskInstances(userId, { satActUnlocked = false
     .eq("user_id", id);
   const existing = (existingRows || []).map(mapRewardTaskInstance);
   const existingTemplateIds = new Set(existing.map((row) => row.taskTemplateId));
+
+  // Keep unclaimed task coin values aligned with the live catalog.
+  for (const row of existing) {
+    if (row.status === REWARD_TASK_STATUS.CLAIMED) continue;
+    const def = getTaskDefinition(row.taskTemplateId);
+    if (!def) continue;
+    if (Number(row.coins) === Number(def.coins) && row.title === def.title) continue;
+    await db()
+      .from("reward_task_instances")
+      .update({
+        coin_value: def.coins,
+        title: def.title,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", row.id)
+      .eq("user_id", id)
+      .neq("status", REWARD_TASK_STATUS.CLAIMED);
+  }
 
   const insertRows = [];
 
@@ -589,14 +639,22 @@ export async function claimRewardTask(userId, taskInstanceId) {
   if (!updatedTask) return { error: "Reward claim already processed.", task: null, wallet: null };
 
   const { wallet } = await getRewardWallet(id);
-  const nextBalance = Number(wallet.coin_balance || 0) + Number(updatedTask.coin_value || 0);
+  const baseAmount = Number(updatedTask.coin_value || 0);
+  const def = getTaskDefinition(updatedTask.task_template_id);
+  const catalogBase = Number(def?.coins ?? baseAmount);
+  const lifetimeBefore = Number(wallet.lifetime_coins ?? wallet.lifetime_earned ?? 0);
+  const multiplier = getCoinMultiplier(lifetimeBefore);
+  const finalAmount = applyCoinMultiplier(catalogBase || baseAmount, multiplier);
+  const nextBalance = Number(wallet.coin_balance || 0) + finalAmount;
+  const nextLifetime = lifetimeBefore + finalAmount;
   const { data: nextWallet, error: walletErr } = await db()
     .from("reward_wallets")
     .upsert(
       {
         user_id: id,
         coin_balance: nextBalance,
-        lifetime_earned: Number(wallet.lifetime_earned || 0) + Number(updatedTask.coin_value || 0),
+        lifetime_earned: nextLifetime,
+        lifetime_coins: nextLifetime,
         lifetime_claimed: Number(wallet.lifetime_claimed || 0) + 1,
         updated_at: now
       },
@@ -604,7 +662,37 @@ export async function claimRewardTask(userId, taskInstanceId) {
     )
     .select("*")
     .maybeSingle();
-  return { task: mapRewardTaskInstance(updatedTask), wallet: nextWallet || null, error: walletErr?.message || null };
+
+  const transactionType =
+    updatedTask.task_template_id === "mentor-meeting-completed"
+      ? "meeting_completed"
+      : String(updatedTask.task_template_id || "").includes("streak")
+        ? "streak_earned"
+        : "milestone_earned";
+
+  await db().from("coin_transactions").insert({
+    user_id: id,
+    amount: finalAmount,
+    base_amount: catalogBase || baseAmount,
+    multiplier,
+    final_amount: finalAmount,
+    transaction_type: transactionType,
+    milestone_id: updatedTask.task_template_id,
+    description: updatedTask.title || "Milestone earned"
+  });
+
+  return {
+    task: {
+      ...mapRewardTaskInstance(updatedTask),
+      coins: finalAmount,
+      baseCoins: catalogBase || baseAmount,
+      multiplier
+    },
+    wallet: nextWallet
+      ? { ...nextWallet, lifetime_coins: Number(nextWallet.lifetime_coins ?? nextWallet.lifetime_earned ?? nextLifetime) }
+      : null,
+    error: walletErr?.message || null
+  };
 }
 
 export async function isMainMentorForStudent(mentorUserId, studentUserId) {

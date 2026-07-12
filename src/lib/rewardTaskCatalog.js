@@ -21,27 +21,35 @@ export const REWARD_TASK_CATEGORY = {
 
 export const MOMENTUM_TASK_DEFS = [
   {
+    id: "welcome-onboarding-completed",
+    title: "Welcome / Onboarding Completed",
+    category: REWARD_TASK_CATEGORY.MOMENTUM,
+    coins: 50,
+    ownership: REWARD_TASK_OWNERSHIP.DASHBOARD_CONTROLLED,
+    targetCount: 1,
+    oneTime: true
+  },
+  {
+    id: "momentum-3-day-login-streak",
+    title: "3-Day Login Streak",
+    category: REWARD_TASK_CATEGORY.MOMENTUM,
+    coins: 25,
+    ownership: REWARD_TASK_OWNERSHIP.DASHBOARD_CONTROLLED,
+    targetCount: 3
+  },
+  {
     id: "momentum-7-day-login-streak",
     title: "7-Day Momentum Streak",
     category: REWARD_TASK_CATEGORY.MOMENTUM,
-    coins: 30,
+    coins: 50,
     ownership: REWARD_TASK_OWNERSHIP.DASHBOARD_CONTROLLED,
     targetCount: 7
-  },
-  {
-    id: "mentor-meeting-completed",
-    title: "Mentor Meeting Completed",
-    category: REWARD_TASK_CATEGORY.MOMENTUM,
-    coins: 25,
-    ownership: REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED,
-    targetCount: 1,
-    mainMentorOnly: true
   },
   {
     id: "mentor-network-3-day-streak",
     title: "3-Day Mentor Network Message Streak",
     category: REWARD_TASK_CATEGORY.MOMENTUM,
-    coins: 20,
+    coins: 30,
     ownership: REWARD_TASK_OWNERSHIP.DASHBOARD_CONTROLLED,
     targetCount: 3
   },
@@ -49,74 +57,78 @@ export const MOMENTUM_TASK_DEFS = [
     id: "mentor-network-7-day-streak",
     title: "7-Day Mentor Network Message Streak",
     category: REWARD_TASK_CATEGORY.MOMENTUM,
-    coins: 45,
+    coins: 60,
     ownership: REWARD_TASK_OWNERSHIP.DASHBOARD_CONTROLLED,
     targetCount: 7
+  },
+  {
+    id: "mentor-meeting-completed",
+    title: "Mentor Meeting Completed",
+    category: REWARD_TASK_CATEGORY.MOMENTUM,
+    coins: 50,
+    ownership: REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED,
+    targetCount: 1,
+    mainMentorOnly: true
   }
 ];
 
-export const ADMISSIONS_TASK_POOL = [
-  "College List Started",
-  "College List Finalized",
-  "Common App Profile Completed",
-  "Personal Statement Draft Submitted",
-  "Personal Statement Finalized",
-  "Supplemental Essay Draft Submitted",
-  "Activities List Completed",
-  "Application Deadline Added",
-  "Recommendation Request Planned",
-  "Application Submitted"
-];
+/** Explicit admissions milestones with coin values (not a flat 25). */
+export const ADMISSIONS_TASK_DEFS = [
+  { id: "admissions-college-list-started", title: "College List Started", coins: 30 },
+  { id: "admissions-college-list-finalized", title: "College List Finalized", coins: 50 },
+  { id: "admissions-common-app-profile-completed", title: "Common App Profile Completed", coins: 40 },
+  { id: "admissions-personal-statement-draft-submitted", title: "Personal Statement Draft Submitted", coins: 40 },
+  { id: "admissions-personal-statement-finalized", title: "Personal Statement Finalized", coins: 60 },
+  { id: "admissions-activities-list-completed", title: "Activities List Completed", coins: 40 },
+  { id: "admissions-resume-completed", title: "Résumé Completed", coins: 40 },
+  { id: "admissions-supplemental-essay-submitted", title: "Supplemental Essay Submitted", coins: 40 },
+  { id: "admissions-supplemental-essay-finalized", title: "Supplemental Essay Finalized", coins: 60 },
+  { id: "admissions-application-submitted", title: "Application Submitted", coins: 75 },
+  { id: "admissions-scholarship-application-submitted", title: "Scholarship Application Submitted", coins: 50 }
+].map((task) => ({
+  ...task,
+  category: REWARD_TASK_CATEGORY.ADMISSIONS,
+  ownership: REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED,
+  targetCount: 1,
+  oneTime: true
+}));
 
-export const SAT_ACT_TASK_POOL = [
-  "Diagnostic Test Completed",
-  "Practice Test Submitted",
-  "Reading Section Reviewed",
-  "Math Section Reviewed",
-  "English Section Reviewed",
-  "Science Section Reviewed",
-  "Test Date Added",
-  "Study Session Completed",
-  "Weakness Review Completed"
-];
+export const SAT_ACT_TASK_DEFS = [
+  { id: "sat-act-diagnostic-test-completed", title: "Diagnostic Test Completed", coins: 50 },
+  { id: "sat-act-practice-test-submitted", title: "Practice Test Submitted", coins: 50 },
+  { id: "sat-act-reading-section-reviewed", title: "Reading Section Reviewed", coins: 40 },
+  { id: "sat-act-math-section-reviewed", title: "Math Section Reviewed", coins: 40 },
+  { id: "sat-act-english-section-reviewed", title: "English Section Reviewed", coins: 40 },
+  { id: "sat-act-study-plan-completed", title: "SAT/ACT Study Plan Completed", coins: 40 },
+  { id: "sat-act-score-milestone-reached", title: "Score Milestone Reached", coins: 60 }
+].map((task) => ({
+  ...task,
+  category: REWARD_TASK_CATEGORY.SAT_ACT,
+  ownership: REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED,
+  targetCount: 1,
+  oneTime: true
+}));
 
-export const ACADEMIC_TUTORING_TASK_POOL = [
-  "Tutoring Session Completed",
-  "Homework Review Completed",
-  "Practice Assignment Submitted",
-  "Topic Review Completed",
-  "Quiz Review Completed",
-  "Study Plan Checkpoint Completed",
-  "Academic Progress Check Completed"
-];
+export const ACADEMIC_TUTORING_TASK_DEFS = [
+  { id: "academic-goal-created", title: "Academic Goal Created", coins: 30 },
+  { id: "academic-tutoring-session-completed", title: "Tutoring Session Completed", coins: 50 },
+  { id: "academic-major-assignment-completed", title: "Major Assignment Completed", coins: 40 },
+  { id: "academic-test-prep-milestone-completed", title: "Test-Prep Milestone Completed", coins: 40 },
+  { id: "academic-grade-improvement-milestone", title: "Grade-Improvement Milestone", coins: 60 }
+].map((task) => ({
+  ...task,
+  category: REWARD_TASK_CATEGORY.ACADEMIC_TUTORING,
+  ownership: REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED,
+  targetCount: 1,
+  oneTime: true
+}));
 
-function slugifyTitle(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function buildPoolTask(poolName, category, title) {
-  return {
-    id: `${poolName}-${slugifyTitle(title)}`,
-    title,
-    category,
-    coins: 25,
-    ownership: REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED,
-    targetCount: 1
-  };
-}
-
-export const ADMISSIONS_TASK_DEFS = ADMISSIONS_TASK_POOL.map((title) =>
-  buildPoolTask("admissions", REWARD_TASK_CATEGORY.ADMISSIONS, title)
-);
-export const SAT_ACT_TASK_DEFS = SAT_ACT_TASK_POOL.map((title) =>
-  buildPoolTask("sat-act", REWARD_TASK_CATEGORY.SAT_ACT, title)
-);
-export const ACADEMIC_TUTORING_TASK_DEFS = ACADEMIC_TUTORING_TASK_POOL.map((title) =>
-  buildPoolTask("academic-tutoring", REWARD_TASK_CATEGORY.ACADEMIC_TUTORING, title)
-);
+/** @deprecated Prefer ADMISSIONS_TASK_DEFS — kept for title lookups. */
+export const ADMISSIONS_TASK_POOL = ADMISSIONS_TASK_DEFS.map((task) => task.title);
+/** @deprecated Prefer SAT_ACT_TASK_DEFS */
+export const SAT_ACT_TASK_POOL = SAT_ACT_TASK_DEFS.map((task) => task.title);
+/** @deprecated Prefer ACADEMIC_TUTORING_TASK_DEFS */
+export const ACADEMIC_TUTORING_TASK_POOL = ACADEMIC_TUTORING_TASK_DEFS.map((task) => task.title);
 
 export const REWARD_TASK_CATALOG = [
   ...MOMENTUM_TASK_DEFS,
@@ -147,3 +159,25 @@ export function taskTemplateIdsForCategory(category) {
   return REWARD_TASK_CATALOG.filter((task) => task.category === category).map((task) => task.id);
 }
 
+/** Suggest one concrete action that can close `coinsNeeded` after multiplier. */
+export function getRecommendedEarnAction(coinsNeeded = 0, multiplier = 1, options = {}) {
+  const needed = Math.max(0, Number(coinsNeeded) || 0);
+  if (!needed) return null;
+  const eligible = REWARD_TASK_CATALOG.filter((task) => {
+    if (task.category === REWARD_TASK_CATEGORY.SAT_ACT && !options.satActUnlocked) return false;
+    if (task.category === REWARD_TASK_CATEGORY.ACADEMIC_TUTORING && !options.tutoringUnlocked) return false;
+    return true;
+  });
+  const withFinal = eligible
+    .map((task) => ({
+      ...task,
+      finalCoins: Math.round(task.coins * multiplier)
+    }))
+    .sort((a, b) => a.finalCoins - b.finalCoins);
+  const enough = withFinal.find((task) => task.finalCoins >= needed);
+  const pick = enough || withFinal[withFinal.length - 1];
+  if (!pick) return null;
+  if (pick.id === "mentor-meeting-completed") return "Complete one mentor meeting to get there";
+  if (pick.id.includes("streak")) return `Keep your ${pick.title.toLowerCase()} going`;
+  return `Complete “${pick.title}” to get there`;
+}

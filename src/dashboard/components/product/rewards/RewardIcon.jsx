@@ -6,7 +6,6 @@ import {
   ListChecks,
   MapPin,
   Mic,
-  Search,
   Sparkles,
   Target,
   Users
@@ -14,14 +13,14 @@ import {
 
 const REWARD_ICONS = {
   "essay-review-session": FileText,
+  "quick-essay-feedback": FileText,
+  "short-application-review": ListChecks,
   "test-prep-help": Target,
-  "college-list-review": MapPin,
-  "activities-list-review": ListChecks,
-  "application-strategy-call": CalendarDays,
+  "bonus-flexible-session": CalendarDays,
+  "application-readiness-review": MapPin,
+  "multi-mentor-review-package": Users,
   "major-career-fit": Compass,
   "mock-interview": Mic,
-  "scholarship-search": Search,
-  "parent-strategy-call": Users,
   "priority-office-hours": Clock
 };
 

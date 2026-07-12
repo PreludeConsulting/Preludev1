@@ -5,8 +5,15 @@ import {
   REWARD_TASK_CATEGORY,
   REWARD_TASK_OWNERSHIP,
   REWARD_TASK_STATUS,
-  SAT_ACT_TASK_DEFS
+  SAT_ACT_TASK_DEFS,
+  getTaskDefinition
 } from "./rewardTaskCatalog.js";
+import {
+  FOUNDING_MEMBER_BONUS_COINS,
+  WELCOME_BONUS_COINS,
+  applyCoinMultiplier,
+  getCoinMultiplier
+} from "../dashboard/lib/progressRewards.js";
 
 function storageKey(email) {
   return `prelude-reward-task-instances-${(email || "guest").toLowerCase()}`;
@@ -46,9 +53,17 @@ export function saveLocalRewardTasks(email, tasks) {
 
 export function loadLocalRewardWallet(email) {
   try {
-    return JSON.parse(localStorage.getItem(walletKey(email)) || '{"coin_balance":0}');
+    const wallet = JSON.parse(localStorage.getItem(walletKey(email)) || "{}");
+    return {
+      coin_balance: Number(wallet.coin_balance || 0),
+      lifetime_earned: Number(wallet.lifetime_earned || wallet.lifetime_coins || 0),
+      lifetime_coins: Number(wallet.lifetime_coins || wallet.lifetime_earned || 0),
+      lifetime_claimed: Number(wallet.lifetime_claimed || 0),
+      welcome_bonus_granted_at: wallet.welcome_bonus_granted_at || null,
+      founding_bonus_granted_at: wallet.founding_bonus_granted_at || null
+    };
   } catch {
-    return { coin_balance: 0 };
+    return { coin_balance: 0, lifetime_earned: 0, lifetime_coins: 0, lifetime_claimed: 0 };
   }
 }
 
@@ -131,17 +146,63 @@ export function claimLocalRewardTask(email, taskInstanceId, { satActUnlocked = f
   }
 
   const wallet = loadLocalRewardWallet(email);
+  const def = getTaskDefinition(task.taskTemplateId);
+  const baseAmount = Number(def?.coins ?? task.coins ?? 0);
+  const lifetimeBefore = Number(wallet.lifetime_coins || wallet.lifetime_earned || 0);
+  const multiplier = getCoinMultiplier(lifetimeBefore);
+  const finalAmount = applyCoinMultiplier(baseAmount, multiplier);
+  const nextLifetime = lifetimeBefore + finalAmount;
   const nextWallet = {
-    coin_balance: Number(wallet.coin_balance || 0) + Number(task.coins || 0)
+    ...wallet,
+    coin_balance: Number(wallet.coin_balance || 0) + finalAmount,
+    lifetime_earned: nextLifetime,
+    lifetime_coins: nextLifetime,
+    lifetime_claimed: Number(wallet.lifetime_claimed || 0) + 1
   };
   saveLocalRewardWallet(email, nextWallet);
 
   let updated = tasks.map((item) =>
     item.id === taskInstanceId
-      ? { ...item, status: REWARD_TASK_STATUS.CLAIMED, claimedAt: new Date().toISOString() }
+      ? { ...item, status: REWARD_TASK_STATUS.CLAIMED, claimedAt: new Date().toISOString(), coins: finalAmount }
       : item
   );
+  // Refresh catalog coin values for unclaimed tasks.
+  updated = updated.map((item) => {
+    if (item.status === REWARD_TASK_STATUS.CLAIMED) return item;
+    const catalog = getTaskDefinition(item.taskTemplateId);
+    if (!catalog) return item;
+    return { ...item, coins: catalog.coins, title: catalog.title };
+  });
   saveLocalRewardTasks(email, updated);
   updated = ensureLocalRewardTasks(email, { satActUnlocked, tutoringUnlocked });
-  return { task: updated.find((item) => item.id === taskInstanceId) || task, wallet: nextWallet, error: null };
+  return {
+    task: { ...(updated.find((item) => item.id === taskInstanceId) || task), coins: finalAmount, baseCoins: baseAmount, multiplier },
+    wallet: nextWallet,
+    error: null
+  };
+}
+
+export function grantLocalWelcomeBonus(email, { preferFounding = false } = {}) {
+  const wallet = loadLocalRewardWallet(email);
+  if (wallet.welcome_bonus_granted_at || wallet.founding_bonus_granted_at) {
+    return { granted: false, wallet, reason: "already_granted" };
+  }
+  const isFounding = Boolean(preferFounding);
+  const amount = isFounding ? FOUNDING_MEMBER_BONUS_COINS : WELCOME_BONUS_COINS;
+  const nextWallet = {
+    ...wallet,
+    coin_balance: Number(wallet.coin_balance || 0) + amount,
+    lifetime_earned: Number(wallet.lifetime_coins || wallet.lifetime_earned || 0) + amount,
+    lifetime_coins: Number(wallet.lifetime_coins || wallet.lifetime_earned || 0) + amount,
+    welcome_bonus_granted_at: isFounding ? wallet.welcome_bonus_granted_at : new Date().toISOString(),
+    founding_bonus_granted_at: isFounding ? new Date().toISOString() : wallet.founding_bonus_granted_at
+  };
+  saveLocalRewardWallet(email, nextWallet);
+  return {
+    granted: true,
+    amount,
+    type: isFounding ? "founding_bonus" : "welcome_bonus",
+    label: isFounding ? "Founding Member Bonus" : "Welcome Bonus",
+    wallet: nextWallet
+  };
 }

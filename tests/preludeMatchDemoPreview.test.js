@@ -90,6 +90,6 @@ describe("PreludeMatch demo preview", () => {
     expect(html).toContain("Attend mentor meeting");
     expect(html).toContain("+25 coins");
     expect(html).toContain("Essay Review Session");
-    expect(html).toContain("Test Prep Help Session");
+    expect(html).toContain("SAT / ACT Help Session");
   });
 });

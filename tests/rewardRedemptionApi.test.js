@@ -17,7 +17,7 @@ describe("reward redemption Supabase boundary", () => {
           id: "redemption-1",
           reward_id: "essay-review-session",
           title: "FREE Essay Review Session",
-          coin_cost: 300,
+          coin_cost: 175,
           status: "ready_to_schedule",
           selection: null,
           redeemed_at: "2026-07-11T12:00:00.000Z"
@@ -40,7 +40,7 @@ describe("reward redemption Supabase boundary", () => {
       p_selection: null
     });
     expect(result.wallet.coin_balance).toBe(200);
-    expect(result.redemption.coinCost).toBe(300);
+    expect(result.redemption.coinCost).toBe(175);
   });
 
   it("returns a retry message instead of a raw schema-cache error", async () => {

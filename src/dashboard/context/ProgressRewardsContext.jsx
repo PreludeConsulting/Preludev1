@@ -11,7 +11,9 @@ import {
   enrichMilestones,
   enrichReward,
   filterMilestonesForStudent,
+  formatStatusProgressCopy,
   getActiveServices,
+  getCheapestRewardTarget,
   getClosestRewards,
   getCoinMultiplier,
   getCoinsToNextMultiplier,
@@ -30,6 +32,7 @@ import {
   completeMentorControlledRewardTask,
   ensureRewardTaskInstances,
   getRewardWallet,
+  grantRewardsWelcomeBonus,
   isMainMentorForStudent,
   listRewardRedemptions,
   listRewardTaskInstances,
@@ -41,6 +44,7 @@ import {
   claimLocalRewardTask,
   completeLocalMentorTask,
   ensureLocalRewardTasks,
+  grantLocalWelcomeBonus,
   loadLocalRewardWallet
 } from "../../lib/progressRewardsRuntime.js";
 import { canAccessFeature, getUserPlan } from "../../lib/planFeatures.js";
@@ -49,6 +53,7 @@ import {
   MILESTONE_CATEGORY_LABELS,
   REWARD_TASK_OWNERSHIP,
   REWARD_TASK_STATUS,
+  getRecommendedEarnAction,
   getTaskDefinition
 } from "../../lib/rewardTaskCatalog.js";
 import { resolveShopRewardIds } from "../lib/rewardShop.js";
@@ -180,6 +185,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       setState((prev) => ({
         ...prev,
         coins: snapshot.coins,
+        lifetimeCoins: snapshot.lifetimeCoins,
         redeemed: snapshot.redeemedIds,
         redemptionHistory: snapshot.redemptionHistory
       }));
@@ -197,7 +203,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     setTasks(localTasks);
     setState((prev) => ({
       ...prev,
-      coins: Number(wallet.coin_balance || prev.coins || 0)
+      coins: Number(wallet.coin_balance || prev.coins || 0),
+      lifetimeCoins: Number(wallet.lifetime_coins || wallet.lifetime_earned || prev.lifetimeCoins || 0)
     }));
     setSyncError(null);
   }, [isSupabaseUser, satActUnlocked, tutoringUnlocked, user?.email, user?.id]);
@@ -268,6 +275,32 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3600);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function grantWelcome() {
+      if (isMentorStudentView) return;
+      const plan = getUserPlan(user);
+      if (!canAccessFeature(plan, "rewards")) return;
+      if (isSupabaseUser && user?.id) {
+        const bonus = await grantRewardsWelcomeBonus(user.id);
+        if (cancelled || !bonus?.granted) return;
+        showToast(`${bonus.label || "Welcome Bonus"}: +${bonus.amount} coins.`);
+        await refreshRewardTasks();
+        return;
+      }
+      if (user?.email) {
+        const bonus = grantLocalWelcomeBonus(user.email);
+        if (cancelled || !bonus?.granted) return;
+        showToast(`${bonus.label || "Welcome Bonus"}: +${bonus.amount} coins.`);
+        await refreshRewardTasks();
+      }
+    }
+    grantWelcome().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isMentorStudentView, isSupabaseUser, refreshRewardTasks, showToast, user]);
+
   const grade = parseGradeLevel(profile?.grade);
   const isJordan = isJordanDemoEmail(user?.email);
   const studentFirstName = user?.name?.split(" ")[0] || profile?.firstName || "Your";
@@ -312,13 +345,23 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const coinsToNext = getCoinsToNextReward(state.coins, featuredReward);
   const coinsToNextReward = getCoinsToNextReward(state.coins, nextReward);
   const milestonesToNext = countMilestonesToReward(state.coins, milestones, featuredReward);
-  const currentTier = getStatusTier(state.coins);
-  const nextTier = getNextStatusTier(state.coins);
-  const tierProgress = getTierProgress(state.coins);
-  const coinMultiplier = getCoinMultiplier(state.coins);
-  const coinsToNextMultiplier = getCoinsToNextMultiplier(state.coins);
-  const statusGoalCoins = nextTier?.coinsRequired ?? getCurrentStatusMilestone(state.coins).coinsRequired;
-  const coinsToNextTier = getCoinsToNextMultiplier(state.coins);
+  const lifetimeCoins = Number(state.lifetimeCoins || 0);
+  const currentTier = getStatusTier(lifetimeCoins);
+  const nextTier = getNextStatusTier(lifetimeCoins);
+  const tierProgress = getTierProgress(lifetimeCoins);
+  const coinMultiplier = getCoinMultiplier(lifetimeCoins);
+  const coinsToNextMultiplier = getCoinsToNextMultiplier(lifetimeCoins);
+  const statusGoalCoins = nextTier?.coinsRequired ?? getCurrentStatusMilestone(lifetimeCoins).coinsRequired;
+  const coinsToNextTier = getCoinsToNextMultiplier(lifetimeCoins);
+  const statusProgressCopy = formatStatusProgressCopy(lifetimeCoins);
+  const recommendedStatusAction = getRecommendedEarnAction(statusProgressCopy.coinsNeeded || 0, coinMultiplier, {
+    satActUnlocked,
+    tutoringUnlocked
+  });
+  const nextRewardTarget = getCheapestRewardTarget(state.coins, state.redeemed);
+  const piggyGoalCoins = nextRewardTarget?.goalCoins || 60;
+  const piggyProgressLabel = nextRewardTarget?.label || `${state.coins} / ${piggyGoalCoins} coins until first reward`;
+  const piggyCanRedeem = Boolean(nextRewardTarget?.canRedeem);
 
   const canMentorCompleteTask = useCallback(
     (milestone) => {
@@ -401,7 +444,11 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         if (!task) return;
         setTasks((prev) => prev.map((item) => (item.id === task.id ? task : item)));
         if (wallet) {
-          setState((prev) => ({ ...prev, coins: Number(wallet.coin_balance || prev.coins) }));
+          setState((prev) => ({
+            ...prev,
+            coins: Number(wallet.coin_balance || prev.coins),
+            lifetimeCoins: Number(wallet.lifetime_coins ?? wallet.lifetime_earned ?? prev.lifetimeCoins)
+          }));
         }
         triggerCoinBurst(task.coins || 0);
         play(SOUND_EVENTS.COIN_COLLECT);
@@ -421,7 +468,11 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         return;
       }
       if (wallet) {
-        setState((prev) => ({ ...prev, coins: Number(wallet.coin_balance || prev.coins) }));
+        setState((prev) => ({
+          ...prev,
+          coins: Number(wallet.coin_balance || prev.coins),
+          lifetimeCoins: Number(wallet.lifetime_coins ?? wallet.lifetime_earned ?? prev.lifetimeCoins)
+        }));
       }
       if (task) {
         triggerCoinBurst(task.coins || 0);
@@ -571,6 +622,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const value = useMemo(
     () => ({
       coins: state.coins,
+      lifetimeCoins,
       milestones,
       rewards,
       closestRewards,
@@ -601,6 +653,12 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       coinMultiplier,
       coinsToNextMultiplier,
       statusGoalCoins,
+      statusProgressCopy,
+      recommendedStatusAction,
+      nextRewardTarget,
+      piggyGoalCoins,
+      piggyProgressLabel,
+      piggyCanRedeem,
       shopRewards,
       shopRefreshAt: shopState.refreshAt,
       studentFirstName,
@@ -616,6 +674,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     }),
     [
       state.coins,
+      lifetimeCoins,
       state.redemptionHistory,
       milestones,
       rewards,
@@ -643,6 +702,12 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       coinMultiplier,
       coinsToNextMultiplier,
       statusGoalCoins,
+      statusProgressCopy,
+      recommendedStatusAction,
+      nextRewardTarget,
+      piggyGoalCoins,
+      piggyProgressLabel,
+      piggyCanRedeem,
       shopRewards,
       shopState.refreshAt,
       studentFirstName,

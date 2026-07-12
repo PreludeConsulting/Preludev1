@@ -29,6 +29,15 @@ describe("Supabase rewards and availability schema reconciliation", () => {
     expect(sql).toMatch(/notify pgrst, 'reload schema'/i);
   });
 
+  it("updates the rewards economy with lifetime coins, ledger, and new catalog costs", () => {
+    const economy = read("supabase/migrations/20260713000000_rewards_economy_v2.sql");
+    expect(economy).toMatch(/lifetime_coins/i);
+    expect(economy).toMatch(/create table if not exists public\.coin_transactions/i);
+    expect(economy).toMatch(/grant_rewards_welcome_bonus/i);
+    expect(economy).toMatch(/\('essay-review-session', 'FREE Essay Review Session', 175\)/);
+    expect(economy).toMatch(/\('priority-office-hours', 'FREE Priority Office Hours Pass', 60\)/);
+  });
+
   it("uses mentor_matching_profiles availability_schedule as the only availability model", () => {
     const reconciliation = read(migrationPath);
     const helpers = read("src/lib/dashboardData.js");
