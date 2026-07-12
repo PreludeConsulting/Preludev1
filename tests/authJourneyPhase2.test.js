@@ -65,6 +65,10 @@ describe("Phase 2 auth journey handoff", () => {
     }, { role: "student" })).toBe("/onboarding/match?step=result&mentor=mentor-42&service=essay-review&plan=plus");
   });
 
+  it("falls back safely when no pending journey exists", () => {
+    expect(resolveJourneyDestination(null, { role: "student" })).toBe("/dashboard");
+  });
+
   it("clears the handoff after completion", () => {
     savePendingJourney({ next: "/prelude-match", mentorId: "mentor-1" });
     clearPendingJourney();
