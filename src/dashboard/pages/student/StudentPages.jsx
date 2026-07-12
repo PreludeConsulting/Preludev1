@@ -71,6 +71,7 @@ import PlanSessionBanner from "../../components/product/PlanSessionBanner.jsx";
 import PlanLockedFeature from "../../components/product/PlanLockedFeature.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
+import { SESSION_CATEGORIES, filterProvidersForSessionCategory, getSessionCategory } from "../../../lib/planFeatures.js";
 
 /* ——— Shared presentational helpers for the redesigned pages ——— */
 
@@ -1694,11 +1695,21 @@ function mentorHeadshot(mentor) {
 }
 
 export function StudentMentor() {
-  const { mentor, meetings, scheduleMeeting, persistCalendarItem, scheduleEventReminder } = useDashboardData();
-  const { canAccess } = usePlanAccess();
+  const { mentor, mentors, meetings, pendingMeetingRequests, scheduleMeeting, persistCalendarItem, scheduleEventReminder } =
+    useDashboardData();
+  const { canAccess, canBookSession, monthlyOneOnOneLimit, sessionCreditBalanceLabel } = usePlanAccess();
+  const [sessionCategory, setSessionCategory] = useState("college-consulting");
+  const [bookingError, setBookingError] = useState("");
   const m = mentor;
+  const creditMeetings = [...(meetings || []), ...(pendingMeetingRequests || [])];
+  const canBook = canBookSession(creditMeetings);
+  const balanceLabel = sessionCreditBalanceLabel(creditMeetings);
+  const categoryProviders = filterProvidersForSessionCategory(mentors || [], sessionCategory, {
+    assignedMentor: m
+  });
+  const selectedProvider = categoryProviders[0] || m;
   const upcoming = [...(meetings || [])]
-    .filter((m) => m.status !== "pending")
+    .filter((meeting) => meeting.status !== "pending")
     .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
   const nextMeeting = upcoming[0];
   const headshot = mentorHeadshot(m);
@@ -1804,30 +1815,102 @@ export function StudentMentor() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Schedule Meeting" className="dash-panel dash-mentor-sessions-grid__schedule" id="mentor-schedule">
+        <SectionCard title="Book a Session" className="dash-panel dash-mentor-sessions-grid__schedule" id="mentor-schedule">
           {canAccess("oneOnOneSessions") ? (
             <>
-              <p className="dash-muted">Add an event to your calendar, or send a time to your mentor for review.</p>
-              <CalendarAddEventModal
-                inline
-                open
-                role="student"
-                formVariant="event"
-                initialCategory="mentor_meeting"
-                meetingRequestMode
-                onRequestMeeting={(payload) => scheduleMeeting({ ...payload, status: "pending" })}
-                onSave={async (saved) => {
-                  const stored = await persistCalendarItem(saved);
-                  scheduleEventReminder({
-                    id: stored.id,
-                    title: stored.title,
-                    start: stored.start,
-                    reminderMinutes: saved.reminderMinutes,
-                    formVariant: saved.formVariant
-                  });
-                }}
-                onClose={() => {}}
-              />
+              {monthlyOneOnOneLimit > 0 ? (
+                <p className="dash-muted dash-session-credit-balance" role="status">
+                  {balanceLabel}
+                </p>
+              ) : null}
+
+              <div className="dash-session-category-picker" role="group" aria-label="Session type">
+                <p className="dash-session-category-picker__label">What kind of session do you need?</p>
+                <div className="dash-session-category-picker__options">
+                  {SESSION_CATEGORIES.map((category) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      className={
+                        sessionCategory === category.id
+                          ? "dash-session-category-picker__option dash-session-category-picker__option--selected"
+                          : "dash-session-category-picker__option"
+                      }
+                      onClick={() => {
+                        setSessionCategory(category.id);
+                        setBookingError("");
+                      }}
+                    >
+                      <strong>{category.label}</strong>
+                      <span>{category.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <p className="dash-muted">
+                {sessionCategory === "college-consulting"
+                  ? `Booking with your assigned mentor${selectedProvider?.name ? `, ${selectedProvider.name}` : ""}.`
+                  : categoryProviders.length
+                    ? `Showing providers qualified for ${getSessionCategory(sessionCategory)?.label || "this session type"}${
+                        selectedProvider?.name ? ` — starting with ${selectedProvider.name}` : ""
+                      }.`
+                    : "We'll match you with a qualified provider for this session type."}
+              </p>
+
+              {!canBook ? (
+                <p className="dash-plan-session-banner__meta" role="alert">
+                  No session credits remaining this month. You can still message your mentor, or upgrade for more flexible sessions.
+                </p>
+              ) : null}
+
+              {bookingError ? (
+                <p className="dash-plan-session-banner__meta" role="alert">
+                  {bookingError}
+                </p>
+              ) : null}
+
+              {canBook ? (
+                <CalendarAddEventModal
+                  inline
+                  open
+                  role="student"
+                  formVariant="event"
+                  initialCategory="mentor_meeting"
+                  meetingRequestMode
+                  onRequestMeeting={async (payload) => {
+                    setBookingError("");
+                    try {
+                      await scheduleMeeting({
+                        ...payload,
+                        status: "pending",
+                        sessionCategory,
+                        mentorId: selectedProvider?.id || payload.mentorId,
+                        mentorUserId:
+                          selectedProvider?.userId ||
+                          selectedProvider?.mentorUserId ||
+                          payload.mentorUserId,
+                        title:
+                          payload.title ||
+                          `${getSessionCategory(sessionCategory)?.label || "Mentor"} session`
+                      });
+                    } catch (error) {
+                      setBookingError(error?.message || "Could not book this session.");
+                    }
+                  }}
+                  onSave={async (saved) => {
+                    const stored = await persistCalendarItem(saved);
+                    scheduleEventReminder({
+                      id: stored.id,
+                      title: stored.title,
+                      start: stored.start,
+                      reminderMinutes: saved.reminderMinutes,
+                      formVariant: saved.formVariant
+                    });
+                  }}
+                  onClose={() => {}}
+                />
+              ) : null}
             </>
           ) : (
             <PlanLockedFeature feature="oneOnOneSessions" compact />

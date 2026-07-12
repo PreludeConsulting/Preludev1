@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useDashboardData } from "./DashboardDataContext.jsx";
 import {
@@ -43,6 +43,7 @@ import {
   ensureLocalRewardTasks,
   loadLocalRewardWallet
 } from "../../lib/progressRewardsRuntime.js";
+import { canAccessFeature, getUserPlan } from "../../lib/planFeatures.js";
 import {
   EARN_CATEGORY_ORDER,
   MILESTONE_CATEGORY_LABELS,
@@ -72,8 +73,7 @@ function shopStorageKey(email) {
 export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const { isMentorStudentView, mentor: assignedMentor } = useDashboardData();
   const { user: authUser } = useAuth();
-  const normalizedInitial = useMemo(() => normalizeRewardsState(initial), [initial]);
-  const [state, setState] = useState(normalizedInitial);
+  const [state, setState] = useState(() => normalizeRewardsState(initial));
   const [toasts, setToasts] = useState([]);
   const [celebration, setCelebration] = useState(null);
   const [redemptionCelebration, setRedemptionCelebration] = useState(null);
@@ -85,32 +85,39 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const [syncError, setSyncError] = useState(null);
   const { triggerCoinBurst } = useInteractionFeedback();
   const { play, SOUND_EVENTS } = useInterfaceSound();
-  const satActUnlocked = Boolean(profile?.satActPrep);
-  const tutoringUnlocked = Boolean(profile?.academicTutoring);
+  const planId = getUserPlan(user);
+  // Plus/Pro include flexible session credits for SAT/ACT and tutoring reward tracks.
+  const satActUnlocked = Boolean(profile?.satActPrep) || canAccessFeature(planId, "satActPrep");
+  const tutoringUnlocked = Boolean(profile?.academicTutoring) || canAccessFeature(planId, "academicTutoring");
   const isSupabaseUser = user?.authProvider === "supabase";
   const usesTaskRuntime = isSupabaseUser || isMentorStudentView || Boolean(user?.email);
+  const initialRef = useRef(initial);
+  initialRef.current = initial;
 
+  // Rehydrate only when the signed-in student changes — never on every parent render.
   useEffect(() => {
-    if (!initial) return;
+    const source = initialRef.current;
+    if (!source) return;
+    const next = normalizeRewardsState(source);
     if (isSupabaseUser) {
-      setState(normalizedInitial);
+      setState(next);
       return;
     }
     const key = storageKey(user?.email);
     try {
       const saved = normalizeRewardsState(JSON.parse(localStorage.getItem(key) || "{}"));
       setState({
-        coins: saved.coins ?? normalizedInitial.coins,
-        completed: saved.completed.length ? saved.completed : normalizedInitial.completed,
-        inProgress: saved.inProgress.length ? saved.inProgress : normalizedInitial.inProgress,
-        inProgressProgress: { ...normalizedInitial.inProgressProgress, ...saved.inProgressProgress },
+        coins: saved.coins ?? next.coins,
+        completed: saved.completed.length ? saved.completed : next.completed,
+        inProgress: saved.inProgress.length ? saved.inProgress : next.inProgress,
+        inProgressProgress: { ...next.inProgressProgress, ...saved.inProgressProgress },
         redeemed: saved.redeemed,
-        redemptionHistory: saved.redemptionHistory.length ? saved.redemptionHistory : normalizedInitial.redemptionHistory
+        redemptionHistory: saved.redemptionHistory.length ? saved.redemptionHistory : next.redemptionHistory
       });
     } catch {
-      setState(normalizedInitial);
+      setState(next);
     }
-  }, [initial, isSupabaseUser, normalizedInitial, user?.email]);
+  }, [isSupabaseUser, user?.email]);
 
   useEffect(() => {
     const key = shopStorageKey(user?.email);

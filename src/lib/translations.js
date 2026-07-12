@@ -112,7 +112,7 @@ export const translations = {
           description: "Represented across the Prelude mentor network."
         },
         {
-          value: "<5 hr",
+          value: "<1 hr",
           title: "Mentor Response",
           description: "Get fast answers and guidance whenever questions come up."
         },
@@ -203,49 +203,53 @@ export const translations = {
         imageAlt: "Parent view of a student dashboard showing progress, savings, mentor match, and upcoming milestones."
       },
       academicPrograms: {
-        headline: "SAT Prep & Tutoring",
-        subheadline: "Personalized support for academics and test preparation.",
+        headline: "Earn Rewards, Boost Progress",
+        subheadline: "Choose the support you need each month and adjust as your goals change.",
+        cards: []
+      },
+      rewardsShowcase: {
+        badge: "Prelude Rewards",
+        headline: "Earn Rewards, Boost Progress",
+        lead: "Complete. Earn. Unlock.",
         cards: [
           {
-            id: "sat-act-prep",
-            title: "SAT & ACT Prep",
-            price: "$124.99/month",
-            featuredCallout: "Weekly 1-on-1 Zoom Sessions",
-            description: "Build a personalized testing strategy with guidance from high-achieving mentors.",
-            features: [
-              "Personalized mentor match",
-              "Matched with a mentor from a top university",
-              "Personalized study roadmap",
-              "Practice test review",
-              "Accountability check-ins",
-              "Testing strategy guidance"
-            ],
-            cta: "Find My SAT Mentor",
-            ctaHref: "/register?service=sat-mentor-match&ref=academic-programs"
+            id: "mock-interview",
+            icon: "interview",
+            tone: "green",
+            rarity: "uncommon",
+            rarityBadge: "Uncommon",
+            title: "FREE Mock Interview Session",
+            category: "Interview Practice",
+            coins: "180 Coins",
+            value: "$35 Value",
+            button: "Redeem"
           },
           {
-            id: "academic-tutoring",
-            title: "Academic Tutoring",
-            price: "$159.99/month",
-            featuredCallout: "Weekly 1-on-1 Zoom Tutoring",
-            description: "Get support in challenging classes and stay on track throughout the school year.",
-            features: [
-              "Personalized mentor match",
-              "Matched based on academic goals and coursework",
-              "Math, Science, English & AP support",
-              "Homework assistance",
-              "Test review",
-              "Flexible scheduling"
-            ],
-            cta: "Find My Academic Mentor",
-            ctaHref: "/register?service=academic-mentor-match&ref=academic-programs"
+            id: "test-prep",
+            icon: "testprep",
+            tone: "blue",
+            rarity: "common",
+            rarityBadge: "Common",
+            title: "FREE Test Prep Help Session",
+            category: "SAT / ACT Help",
+            coins: "250 Coins",
+            value: "$50 Value",
+            button: "Redeem"
           }
+        ],
+        steps: [
+          { id: "complete", label: "Complete" },
+          { id: "coins", label: "Coins" },
+          { id: "rewards", label: "Rewards" }
         ]
       },
       plans: {
         eyebrow: "Plans",
         headline: "Support that grows with your goals.",
-        body: "Book a free call with us. Upgrade for more sessions, essay support, financial strategy, and more.",
+        body: "Book a free call with us. Upgrade for flexible sessions across consulting, SAT/ACT prep, academic tutoring, and more.",
+        bodyBefore: "Book a free call with us. Upgrade for flexible sessions across ",
+        bodyServices: ["consulting", "SAT/ACT prep", "academic tutoring"],
+        bodyAfter: ", and more.",
         mostPopular: "Most popular",
         bestValue: "Best Value",
         pleaseWait: "Please wait...",
@@ -281,9 +285,8 @@ export const translations = {
             description: "More mentor access, 1-on-1 support, and rewards.",
             featureHeader: "Everything in Basic, and:",
             features: [
-              "2 monthly 1-on-1 sessions",
               "Full mentor-network messaging",
-              "Personalized admissions guidance",
+              "Personalized college and academic guidance",
               "Earn Prelude Coins for progress",
               "Redeem coins for bonus sessions, multi-mentor essay feedback, tutoring, and more"
             ]
@@ -291,17 +294,17 @@ export const translations = {
           {
             id: "pro",
             name: "Pro",
-            description: "Our highest-touch plan with priority support and full application review.",
+            description: "More flexible sessions, priority support, and full application review.",
             featureHeader: "Everything in Plus, and:",
             features: [
-              "4 monthly 1-on-1 sessions",
               "Priority mentor-network messaging",
-              "Deeper personalized strategy",
+              "Advanced personalized strategy tailored to your goals",
               "Full application review",
-              "Essay and activity review included",
-              "Earn coins at a higher rate",
-              "Advanced milestone rewards",
-              "Redeem coins for 1-on-1s, essay review, tutoring, and more"
+              "Essay and activities review",
+              "Multi-mentor essay feedback",
+              "Final application readiness check",
+              "Earn Prelude Coins at a higher rate",
+              "Advanced milestone rewards"
             ]
           }
         ]
@@ -479,7 +482,7 @@ export const translations = {
           description: "Prelude 멘토 네트워크에 포함된 대학들입니다."
         },
         {
-          value: "<5 hr",
+          value: "<1 hr",
           title: "평균 멘토 응답 시간",
           description: "질문이 생길 때 신속한 답변, 피드백, 가이드를 받을 수 있습니다."
         },
@@ -570,43 +573,44 @@ export const translations = {
         imageAlt: "학생 진행 상황, 절약, 멘토 매칭, 예정된 마일스톤을 보여주는 학부모용 대시보드 화면."
       },
       academicPrograms: {
-        headline: "SAT 준비 및 과외",
-        subheadline: "학업과 시험 준비를 위한 맞춤형 지원.",
+        headline: "Earn Rewards, Boost Progress",
+        subheadline: "Choose the support you need each month and adjust as your goals change.",
+        cards: []
+      },
+      rewardsShowcase: {
+        badge: "Prelude Rewards",
+        headline: "정말 의미 있는 리워드를 받으세요",
+        lead: "Complete. Earn. Unlock.",
         cards: [
           {
-            id: "sat-act-prep",
-            title: "SAT 및 ACT 준비",
-            price: "$124.99/월",
-            featuredCallout: "주간 1:1 Zoom 세션",
-            description: "우수한 멘토의 안내로 맞춤형 시험 전략을 세우세요.",
-            features: [
-              "맞춤형 멘토 매칭",
-              "최상위 대학 멘토와 연결",
-              "맞춤형 학습 로드맵",
-              "모의고사 리뷰",
-              "진행 상황 점검",
-              "시험 전략 가이드"
-            ],
-            cta: "SAT 멘토 찾기",
-            ctaHref: "/register?service=sat-mentor-match&ref=academic-programs"
+            id: "mock-interview",
+            icon: "interview",
+            tone: "green",
+            rarity: "uncommon",
+            rarityBadge: "언커먼",
+            title: "무료 모의 인터뷰 세션",
+            category: "인터뷰 연습",
+            coins: "180 코인",
+            value: "$35 상당",
+            button: "교환하기"
           },
           {
-            id: "academic-tutoring",
-            title: "학업 과외",
-            price: "$159.99/월",
-            featuredCallout: "주간 1:1 Zoom 과외",
-            description: "어려운 수업에서 지원을 받고 학년 내내 학업을 유지하세요.",
-            features: [
-              "맞춤형 멘토 매칭",
-              "학업 목표와 수업에 맞춰 연결",
-              "수학, 과학, 영어 및 AP 지원",
-              "숙제 도움",
-              "시험 리뷰",
-              "유연한 일정"
-            ],
-            cta: "학업 멘토 찾기",
-            ctaHref: "/register?service=academic-mentor-match&ref=academic-programs"
+            id: "test-prep",
+            icon: "testprep",
+            tone: "blue",
+            rarity: "common",
+            rarityBadge: "커먼",
+            title: "무료 시험 준비 도움 세션",
+            category: "SAT / ACT 도움",
+            coins: "250 코인",
+            value: "$50 상당",
+            button: "교환하기"
           }
+        ],
+        steps: [
+          { id: "complete", label: "Complete" },
+          { id: "coins", label: "Coins" },
+          { id: "rewards", label: "Rewards" }
         ]
       },
       plans: {
@@ -846,7 +850,7 @@ export const translations = {
           description: "覆盖 Prelude 导师网络中的代表院校。"
         },
         {
-          value: "<5 hr",
+          value: "<1 hr",
           title: "导师平均回复时间",
           description: "当问题出现时，及时获得回答、反馈和指导。"
         },
@@ -937,43 +941,44 @@ export const translations = {
         imageAlt: "家长视角的学生仪表盘，展示进度、节省金额、导师匹配和即将到来的里程碑。"
       },
       academicPrograms: {
-        headline: "SAT 备考与辅导",
-        subheadline: "为学业和考试准备提供个性化支持。",
+        headline: "Earn Rewards, Boost Progress",
+        subheadline: "Choose the support you need each month and adjust as your goals change.",
+        cards: []
+      },
+      rewardsShowcase: {
+        badge: "Prelude Rewards",
+        headline: "赢得真正有价值的奖励",
+        lead: "Complete. Earn. Unlock.",
         cards: [
           {
-            id: "sat-act-prep",
-            title: "SAT 与 ACT 备考",
-            price: "$124.99/月",
-            featuredCallout: "每周 1 对 1 Zoom 课程",
-            description: "在优秀导师指导下制定个性化考试策略。",
-            features: [
-              "个性化导师匹配",
-              "匹配顶尖大学导师",
-              "个性化学习路线图",
-              "模拟考试复盘",
-              "进度跟进",
-              "考试策略指导"
-            ],
-            cta: "寻找 SAT 导师",
-            ctaHref: "/register?service=sat-mentor-match&ref=academic-programs"
+            id: "mock-interview",
+            icon: "interview",
+            tone: "green",
+            rarity: "uncommon",
+            rarityBadge: "稀有",
+            title: "免费模拟面试课程",
+            category: "面试练习",
+            coins: "180 金币",
+            value: "价值 $35",
+            button: "兑换"
           },
           {
-            id: "academic-tutoring",
-            title: "学业辅导",
-            price: "$159.99/月",
-            featuredCallout: "每周 1 对 1 Zoom 辅导",
-            description: "在具有挑战性的课程中获得支持，并在整个学年保持进度。",
-            features: [
-              "个性化导师匹配",
-              "根据学业目标和课程匹配",
-              "数学、科学、英语与 AP 支持",
-              "作业辅导",
-              "考试复盘",
-              "灵活排课"
-            ],
-            cta: "寻找学业导师",
-            ctaHref: "/register?service=academic-mentor-match&ref=academic-programs"
+            id: "test-prep",
+            icon: "testprep",
+            tone: "blue",
+            rarity: "common",
+            rarityBadge: "普通",
+            title: "免费备考辅导课程",
+            category: "SAT / ACT 帮助",
+            coins: "250 金币",
+            value: "价值 $50",
+            button: "兑换"
           }
+        ],
+        steps: [
+          { id: "complete", label: "Complete" },
+          { id: "coins", label: "Coins" },
+          { id: "rewards", label: "Rewards" }
         ]
       },
       plans: {
@@ -1215,7 +1220,7 @@ export const translations = {
           description: "Representadas en la red de mentores de Prelude."
         },
         {
-          value: "<5 h",
+          value: "<1 h",
           title: "Respuesta promedio de mentores",
           description: "Recibe respuestas, comentarios y orientación a tiempo cuando surgen preguntas."
         },
@@ -1306,43 +1311,44 @@ export const translations = {
         imageAlt: "Vista para padres de un panel del estudiante con progreso, ahorros, mentor asignado y próximos hitos."
       },
       academicPrograms: {
-        headline: "Preparación SAT y tutoría",
-        subheadline: "Apoyo personalizado para los estudios y la preparación de exámenes.",
+        headline: "Earn Rewards, Boost Progress",
+        subheadline: "Choose the support you need each month and adjust as your goals change.",
+        cards: []
+      },
+      rewardsShowcase: {
+        badge: "Prelude Rewards",
+        headline: "Gana recompensas que sí importan",
+        lead: "Complete. Earn. Unlock.",
         cards: [
           {
-            id: "sat-act-prep",
-            title: "Preparación SAT y ACT",
-            price: "$124.99/mes",
-            featuredCallout: "Sesiones semanales 1 a 1 por Zoom",
-            description: "Crea una estrategia de exámenes personalizada con mentores de alto rendimiento.",
-            features: [
-              "Emparejamiento personalizado con mentor",
-              "Conexión con un mentor de una universidad destacada",
-              "Hoja de ruta de estudio personalizada",
-              "Revisión de exámenes de práctica",
-              "Seguimiento de responsabilidad",
-              "Orientación de estrategia de exámenes"
-            ],
-            cta: "Encontrar mi mentor SAT",
-            ctaHref: "/register?service=sat-mentor-match&ref=academic-programs"
+            id: "mock-interview",
+            icon: "interview",
+            tone: "green",
+            rarity: "uncommon",
+            rarityBadge: "Poco común",
+            title: "Sesión GRATIS de entrevista simulada",
+            category: "Práctica de entrevista",
+            coins: "180 monedas",
+            value: "Valor de $35",
+            button: "Canjear"
           },
           {
-            id: "academic-tutoring",
-            title: "Tutoría académica",
-            price: "$159.99/mes",
-            featuredCallout: "Tutoría semanal 1 a 1 por Zoom",
-            description: "Recibe apoyo en clases difíciles y mantente al día durante todo el año escolar.",
-            features: [
-              "Emparejamiento personalizado con mentor",
-              "Conexión según metas académicas y cursos",
-              "Apoyo en matemáticas, ciencias, inglés y AP",
-              "Ayuda con tareas",
-              "Revisión de exámenes",
-              "Horarios flexibles"
-            ],
-            cta: "Encontrar mi mentor académico",
-            ctaHref: "/register?service=academic-mentor-match&ref=academic-programs"
+            id: "test-prep",
+            icon: "testprep",
+            tone: "blue",
+            rarity: "common",
+            rarityBadge: "Común",
+            title: "Sesión GRATIS de ayuda para el examen",
+            category: "Ayuda SAT / ACT",
+            coins: "250 monedas",
+            value: "Valor de $50",
+            button: "Canjear"
           }
+        ],
+        steps: [
+          { id: "complete", label: "Complete" },
+          { id: "coins", label: "Coins" },
+          { id: "rewards", label: "Rewards" }
         ]
       },
       plans: {

@@ -14,7 +14,7 @@ import PreludeLogo from "./PreludeLogo.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getPricingPlans } from "../lib/plans.js";
 import PricingCard from "./PricingCard.jsx";
-import AcademicProgramCard from "./AcademicProgramCard.jsx";
+import RewardsShowcase from "./RewardsShowcase.jsx";
 import { startBillingCheckout } from "../lib/auth.js";
 import { FOOTER_LINK_COLUMNS } from "../data/footerLinks.js";
 import AppLink from "./AppLink.jsx";
@@ -137,6 +137,9 @@ export function LowerPlans() {
     return {
       ...plan,
       ...translatedPlan,
+      // Keep canonical flexible-session callouts from plans.js (not i18n-overwritten away).
+      flexibleSessionCallout: plan.flexibleSessionCallout,
+      flexibleSessionDetail: plan.flexibleSessionDetail,
       priceAmount: plan.price || null,
       pricePeriod: plan.price ? t("sections.plans.priceLabels.perMonth") : null,
       priceLabel: plan.price
@@ -194,7 +197,20 @@ export function LowerPlans() {
           </ScrollReveal>
           <ScrollReveal className="mx-auto max-w-2xl text-center">
             <p className="lower-landing__body lower-landing__body--center">
-              {t("sections.plans.body")}
+              {Array.isArray(t("sections.plans.bodyServices")) ? (
+                <>
+                  {t("sections.plans.bodyBefore")}
+                  {t("sections.plans.bodyServices").map((service, index, list) => (
+                    <span key={service}>
+                      <span className="pricing-section__service-highlight">{service}</span>
+                      {index < list.length - 1 ? ", " : null}
+                    </span>
+                  ))}
+                  {t("sections.plans.bodyAfter")}
+                </>
+              ) : (
+                t("sections.plans.body")
+              )}
             </p>
           </ScrollReveal>
           {billingNotice ? (
@@ -204,7 +220,7 @@ export function LowerPlans() {
           ) : null}
           <div className="pricing-section__cards grid gap-6 lg:grid-cols-3 lg:gap-8">
           {plans.map((plan, index) => (
-            <ScrollReveal delay={index * 0.08} key={plan.id}>
+            <ScrollReveal delay={index * 0.08} key={plan.id} className="pricing-section__card-reveal">
               <PricingCard
                 plan={plan}
                 onSelect={handlePlanClick}
@@ -224,35 +240,9 @@ export function LowerPlans() {
 }
 
 export function LowerAcademicPrograms() {
-  const { t } = useLanguage();
-
   return (
     <div className="lower-landing">
-      <section
-        className="lower-landing__section academic-programs-section scroll-mt-28"
-        id="academic-support"
-        data-section-nav="academic-support"
-        aria-labelledby="academic-programs-heading"
-      >
-        <div className="academic-programs-section__divider" role="separator" aria-hidden="true" />
-
-        <ScrollReveal className="mx-auto max-w-2xl text-center">
-          <h2 id="academic-programs-heading" className="academic-programs-section__headline">
-            {t("sections.academicPrograms.headline")}
-          </h2>
-          <p className="academic-programs-section__subheadline">
-            {t("sections.academicPrograms.subheadline")}
-          </p>
-        </ScrollReveal>
-
-        <div className="academic-programs-section__cards mx-auto grid max-w-4xl gap-5 md:grid-cols-2 md:gap-6">
-          {t("sections.academicPrograms.cards").map((card, index) => (
-            <ScrollReveal delay={index * 0.06} key={card.id}>
-              <AcademicProgramCard card={card} />
-            </ScrollReveal>
-          ))}
-        </div>
-      </section>
+      <RewardsShowcase />
     </div>
   );
 }

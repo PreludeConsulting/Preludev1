@@ -1,4 +1,4 @@
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Video } from "lucide-react";
 import { Button } from "./ui/button.jsx";
 
 export default function PricingCard({
@@ -53,11 +53,26 @@ export default function PricingCard({
         {plan.featureHeader ? (
           <p className="pricing-card__feature-header">{plan.featureHeader}</p>
         ) : null}
+
+        {plan.flexibleSessionCallout ? (
+          <div className="pricing-card__session-callout-block">
+            <div className="pricing-card__session-callout">
+              <Video className="pricing-card__session-callout-icon" aria-hidden="true" />
+              <div className="pricing-card__session-callout-copy">
+                <span className="pricing-card__session-callout-text">{plan.flexibleSessionCallout}</span>
+                {plan.flexibleSessionDetail ? (
+                  <span className="pricing-card__session-callout-detail">{plan.flexibleSessionDetail}</span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <ul className="pricing-card__features">
           {plan.features.map((feature) => (
-            <li key={feature}>
-              <CheckCircle className="pricing-card__feature-icon" aria-hidden="true" />
-              <span>{feature}</span>
+            <li key={feature} className="pricing-card__feature-row">
+              <CheckCircle className="pricing-card__feature-icon" size={16} strokeWidth={2} aria-hidden="true" />
+              <span className="pricing-card__feature-text">{feature}</span>
             </li>
           ))}
         </ul>

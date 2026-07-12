@@ -189,6 +189,42 @@ export function weeklyFormStateToSlots(state, existingSlots = []) {
     });
 }
 
+export function formatWeeklyAvailabilitySummary(state) {
+  const timezone = state?.timezone || "ET";
+  const enabledDays = (state?.days || []).filter((day) => day.enabled);
+  if (!enabledDays.length) return "";
+
+  return enabledDays
+    .map((day) => {
+      const range = formatAvailabilityRange(day.startTime, day.endTime, timezone);
+      const shortDay = day.dayOfWeek.slice(0, 3);
+      return `${shortDay} ${range.replace(` ${timezone}`, "")}`.trim();
+    })
+    .join(" · ")
+    .concat(` ${timezone}`);
+}
+
+export function scheduleToWeeklyFormState(schedule) {
+  if (schedule && typeof schedule === "object" && Array.isArray(schedule.days) && schedule.days.length) {
+    return {
+      timezone: schedule.timezone || DEFAULT_WEEKLY_FORM.timezone,
+      days: WEEKLY_DAY_DEFAULTS.map(({ dayOfWeek, defaultStart, defaultEnd }) => {
+        const day = schedule.days.find((item) => item.dayOfWeek === dayOfWeek);
+        return {
+          dayOfWeek,
+          enabled: Boolean(day?.enabled),
+          startTime: day?.startTime || defaultStart,
+          endTime: day?.endTime || defaultEnd
+        };
+      })
+    };
+  }
+  return {
+    timezone: DEFAULT_WEEKLY_FORM.timezone,
+    days: DEFAULT_WEEKLY_FORM.days.map((day) => ({ ...day }))
+  };
+}
+
 export function validateWeeklyFormState(state) {
   const enabledDays = (state.days || []).filter((day) => day.enabled);
 

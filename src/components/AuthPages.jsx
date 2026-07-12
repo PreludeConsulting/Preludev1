@@ -119,7 +119,7 @@ export function LoginPage() {
     if (!ready) return;
     if (user) {
       const pending = readPendingJourney();
-      navigate(resolveJourneyDestination(pending, user), { replace: true });
+      navigate(pending ? resolveJourneyDestination(pending, user) : postAuthDestination(user), { replace: true });
       clearPendingJourney();
     }
   }, [ready, user, navigate]);
@@ -229,7 +229,11 @@ export function LoginPage() {
     setFormError("");
     try {
       const nextUser = await signInAsDemo(accountKey);
-      navigate(destination || postAuthDestination(nextUser), { replace: true });
+      const nextPath =
+        destination && destination !== "/dashboard"
+          ? destination
+          : postAuthDestination(nextUser);
+      navigate(nextPath, { replace: true });
     } catch (err) {
       setFormError(friendlyAuthError(err.message, "signin"));
     } finally {

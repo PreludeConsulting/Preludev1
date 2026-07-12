@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { levelFromXp } from "../data/gamification.js";
 import { useInterfaceSound } from "../../lib/sound/SoundProvider.jsx";
 
@@ -12,27 +12,30 @@ export function GamificationProvider({ children, user, initial }) {
   const [state, setState] = useState(initial || { xp: 0, streak: 0, missions: [], badges: [], activityFeed: [] });
   const [toasts, setToasts] = useState([]);
   const { play, SOUND_EVENTS } = useInterfaceSound();
+  const initialRef = useRef(initial);
+  initialRef.current = initial;
 
   useEffect(() => {
-    if (!initial) return;
+    const source = initialRef.current;
+    if (!source) return;
     const key = storageKey(user?.email);
     try {
       const saved = JSON.parse(localStorage.getItem(key) || "{}");
       setState({
-        ...initial,
-        xp: saved.xp ?? initial.xp,
-        streak: saved.streak ?? initial.streak,
-        missions: (initial.missions || []).map((m) => ({
+        ...source,
+        xp: saved.xp ?? source.xp,
+        streak: saved.streak ?? source.streak,
+        missions: (source.missions || []).map((m) => ({
           ...m,
           done: saved.completedMissions?.includes(m.id) ?? m.done
         })),
-        badges: saved.extraBadges ? [...(initial.badges || []), ...saved.extraBadges] : initial.badges,
-        activityFeed: saved.activityFeed?.length ? saved.activityFeed : initial.activityFeed
+        badges: saved.extraBadges ? [...(source.badges || []), ...saved.extraBadges] : source.badges,
+        activityFeed: saved.activityFeed?.length ? saved.activityFeed : source.activityFeed
       });
     } catch {
-      setState(initial);
+      setState(source);
     }
-  }, [initial, user?.email]);
+  }, [user?.email]);
 
   const persist = useCallback(
     (next) => {

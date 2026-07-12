@@ -74,6 +74,25 @@ function mapSettings(row) {
   return out;
 }
 
+function formatAvailabilitySummary(availability) {
+  const timezone = availability?.timezone || "ET";
+  const enabledDays = (availability?.days || []).filter((day) => day.enabled);
+  if (!enabledDays.length) return "";
+
+  function toLabel(time) {
+    const [hourRaw, minuteRaw] = String(time || "00:00").split(":").map(Number);
+    const period = hourRaw >= 12 ? "PM" : "AM";
+    let hour = hourRaw % 12;
+    if (hour === 0) hour = 12;
+    return `${hour}:${String(minuteRaw || 0).padStart(2, "0")} ${period}`;
+  }
+
+  return enabledDays
+    .map((day) => `${String(day.dayOfWeek || "").slice(0, 3)} ${toLabel(day.startTime)} – ${toLabel(day.endTime)}`)
+    .join(" · ")
+    .concat(` ${timezone}`);
+}
+
 function mapAvailability(row) {
   const value = row?.availability_schedule;
   if (value && typeof value === "object" && Array.isArray(value.days)) return value;
@@ -200,13 +219,45 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
       }
 
       const availability = availabilitySchema.parse(body);
-      const { data, error } = await supabase.from("mentor_matching_profiles").upsert({ mentor_user_id: user.id, availability_schedule: availability, updated_at: new Date().toISOString() }, { onConflict: "mentor_user_id" }).select("availability_schedule").maybeSingle();
+      const availabilitySummary = formatAvailabilitySummary(availability);
+      const { data, error } = await supabase
+        .from("mentor_matching_profiles")
+        .upsert(
+          {
+            mentor_user_id: user.id,
+            availability_schedule: availability,
+            ...(availabilitySummary ? { availability: availabilitySummary } : {}),
+            updated_at: new Date().toISOString()
+          },
+          { onConflict: "mentor_user_id" }
+        )
+        .select("availability_schedule")
+        .maybeSingle();
       if (error) throw error;
       if (!data) {
         const notFound = new Error("Availability was not returned by the server; nothing was saved.");
         notFound.statusCode = 409;
         throw notFound;
       }
+
+      if (availabilitySummary) {
+        const { data: questionnaire } = await supabase
+          .from("mentor_questionnaires")
+          .select("answers")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (questionnaire) {
+          const answers = {
+            ...(questionnaire.answers && typeof questionnaire.answers === "object" ? questionnaire.answers : {}),
+            availability: availabilitySummary
+          };
+          await supabase
+            .from("mentor_questionnaires")
+            .update({ answers, updated_at: new Date().toISOString() })
+            .eq("user_id", user.id);
+        }
+      }
+
       return sendJson(res, 200, { availability: mapAvailability(data) });
     } catch (error) {
       if (error instanceof z.ZodError) return sendJson(res, 400, { error: "validation_error", message: "Invalid dashboard data.", issues: error.issues });

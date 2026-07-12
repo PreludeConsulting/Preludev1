@@ -27,7 +27,16 @@ function DayTimeSelect({ value, onChange, label, disabled }) {
   );
 }
 
-export default function MentorAvailabilitySetupCard({ form, error, success, saving = false, onChange, onSave }) {
+export default function MentorAvailabilitySetupCard({
+  form,
+  error,
+  success,
+  saving = false,
+  onChange,
+  onSave,
+  showSaveButton = true,
+  saveLabel = "Save availability"
+}) {
   function updateDay(dayOfWeek, patch) {
     onChange({
       ...form,
@@ -114,15 +123,17 @@ export default function MentorAvailabilitySetupCard({ form, error, success, savi
         </p>
       ) : null}
 
-      <footer className="dash-mentor-avail-setup__footer">
-        <p className="dash-mentor-avail-setup__tip">
-          <Info className="dash-mentor-avail-setup__tip-icon" aria-hidden="true" />
-          You can customize your availability anytime.
-        </p>
-        <PrimaryButton type="button" className="dash-mentor-avail-setup__save" onClick={onSave} disabled={saving}>
-          {saving ? "Saving…" : error ? "Retry save" : "Save availability"}
-        </PrimaryButton>
-      </footer>
+      {showSaveButton ? (
+        <footer className="dash-mentor-avail-setup__footer">
+          <p className="dash-mentor-avail-setup__tip">
+            <Info className="dash-mentor-avail-setup__tip-icon" aria-hidden="true" />
+            You can customize your availability anytime.
+          </p>
+          <PrimaryButton type="button" className="dash-mentor-avail-setup__save" onClick={onSave} disabled={saving}>
+            {saving ? "Saving…" : error ? "Retry save" : saveLabel}
+          </PrimaryButton>
+        </footer>
+      ) : null}
     </article>
   );
 }

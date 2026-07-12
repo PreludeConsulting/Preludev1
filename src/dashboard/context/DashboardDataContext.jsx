@@ -30,6 +30,11 @@ import {
   mapProfile
 } from "../../lib/supabaseData.js";
 import {
+  canBookWithSessionCredits,
+  getMonthlyOneOnOneLimit,
+  getUserPlan
+} from "../../lib/planFeatures.js";
+import {
   createTask,
   createScholarship,
   deleteScholarship as deleteSupabaseScholarship,
@@ -378,6 +383,46 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     setSyncError(null);
     setDashboardSyncState(createSyncState({ status: SYNC_STATUS.LOADING, source: "dashboard" }));
 
+    // Demo accounts always use local fixtures, even when Supabase is configured for real users.
+    if (localDemo) {
+      const store = loadLocalDashboardStore(user.id);
+      setUserCalendarEvents(store.calendarEvents || []);
+      setLocalTasks(store.tasks?.length ? store.tasks : null);
+      setLocalEssays(store.essays?.length ? store.essays : null);
+      setLocalScholarships(store.scholarships?.length ? store.scholarships : null);
+      setSavedColleges(store.savedColleges ?? null);
+      setLocalConversationMessages(store.conversationMessages || []);
+      setProfileOverrides(store.profileOverrides || {});
+      setMeetings(localDemo.meetings || []);
+      setPendingMeetingRequests(localDemo.pendingMeetingRequests || []);
+      setApiDemo(localDemo);
+      setProfile(localDemo.profile || null);
+      setPreferences(localDemo.preferences || null);
+      setAvailability(localDemo.availability || []);
+      setRewardsData(localDemo.rewards || null);
+      setOnboarding(localDemo.onboarding || EMPTY_ONBOARDING);
+      setMentor(localDemo.mentor || null);
+      setMentors(localDemo.mentors || []);
+      setEvents(localDemo.events || []);
+      setMessages(localDemo.messages || []);
+      setConversations(
+        localDemo.conversations?.length
+          ? localDemo.conversations
+          : buildMentorConversation(localDemo.mentor, localDemo.messages || [], user.name)
+      );
+      setNotifications(localDemo.notifications || []);
+      setSavedResources(localDemo.savedResources || []);
+      setIntegrations(localDemo.integrations || integrations);
+      setSyncStatus("synced");
+      setDashboardSyncState(createSyncState({
+        status: SYNC_STATUS.SAVED,
+        lastSyncedAt: new Date().toISOString(),
+        source: "demo"
+      }));
+      setLoading(false);
+      return;
+    }
+
     if (useSupabase) {
       try {
         const appData = await getDashboardAppData();
@@ -634,10 +679,21 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
   const scheduleMeeting = useCallback(
     async (payload) => {
+      const planId = getUserPlan(user);
+      const creditMeetings = [...(meetings || []), ...(pendingMeetingRequests || [])];
+      if (!canBookWithSessionCredits(planId, creditMeetings)) {
+        throw new Error(
+          getMonthlyOneOnOneLimit(planId)
+            ? "No session credits remaining this month. Upgrade your plan or wait for your next billing cycle."
+            : "Flexible 1-on-1 sessions require Plus or Pro."
+        );
+      }
+
       const enrichedPayload = {
         ...payload,
         mentorId: payload.mentorId || mentor?.id,
-        mentorUserId: payload.mentorUserId || mentor?.userId || mentor?.mentorUserId
+        mentorUserId: payload.mentorUserId || mentor?.userId || mentor?.mentorUserId,
+        sessionCategory: payload.sessionCategory || "college-consulting"
       };
       const isPending = enrichedPayload.status === "pending";
       const clientRequestId =
@@ -705,7 +761,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       });
       return meeting;
     },
-    [addNotification, mentor?.id, mentor?.userId, useSupabase, user]
+    [addNotification, meetings, mentor?.id, mentor?.userId, pendingMeetingRequests, useSupabase, user]
   );
 
   const saveProfile = useCallback(
@@ -1482,7 +1538,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       error,
       isDemo: Boolean(demo),
       demo,
-      useSupabaseData: useSupabase,
+      useSupabaseData: useSupabase && !localDemo,
       integrations,
       meetings: resolveMeetingsForDisplay(meetings, demo?.meetings),
       pendingMeetingRequests,

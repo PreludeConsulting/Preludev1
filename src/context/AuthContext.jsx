@@ -41,6 +41,7 @@ export function AuthProvider({ children }) {
   const initialAuthCompleteRef = useRef(false);
   const verificationRequestRef = useRef(null);
   const authStateRefreshRef = useRef(null);
+  const demoSessionActiveRef = useRef(false);
   const postAuthLinkageRef = useRef({ userId: null, ran: false });
 
   const runPostAuthLinkage = useCallback(
@@ -117,16 +118,20 @@ export function AuthProvider({ children }) {
   const refreshSupabaseUserSilently = useCallback(async () => {
     if (authStateRefreshRef.current) return authStateRefreshRef.current;
     authStateRefreshRef.current = (async () => {
+      if (demoSessionActiveRef.current) return null;
+
       const { resolveSupabaseAppUser } = await loadSupabaseAuth();
       const next = await resolveSupabaseAppUser();
+      if (demoSessionActiveRef.current) return null;
       setUser((current) => next || current);
       let refreshed = next;
       if (next) {
         await runPostAuthLinkage(next);
+        if (demoSessionActiveRef.current) return null;
         refreshed = (await resolveSupabaseAppUser()) || next;
         if (refreshed) setUser(refreshed);
         const verification = await refreshLoginVerification({ silent: true });
-        setLoginVerified((current) => verification.error ? current : Boolean(verification.verified));
+        setLoginVerified((current) => (verification.error ? current : Boolean(verification.verified)));
       }
       return refreshed;
     })().finally(() => {
@@ -136,6 +141,7 @@ export function AuthProvider({ children }) {
   }, [refreshLoginVerification, runPostAuthLinkage]);
 
   const clearAuthenticatedSession = useCallback(() => {
+    demoSessionActiveRef.current = false;
     setUser(null);
     setLoginVerified(false);
     if (!initialAuthCompleteRef.current) setLoginVerificationLoading(false);
@@ -184,6 +190,7 @@ export function AuthProvider({ children }) {
       try {
         if (isDevAuthBypassEnabled()) {
           if (!cancelled) {
+            demoSessionActiveRef.current = true;
             setUser(getDevBypassUser());
             setLoginVerified(true);
             initialAuthCompleteRef.current = true;
@@ -196,20 +203,24 @@ export function AuthProvider({ children }) {
           try {
             const sessionUser = await resolveSupabaseAppUser();
             if (!cancelled) {
-              setUser(sessionUser);
-              if (sessionUser) {
-                await runPostAuthLinkage(sessionUser);
-                const refreshed = await resolveSupabaseAppUser();
-                if (!cancelled && refreshed) setUser(refreshed);
-                const verification = await refreshLoginVerification();
-                if (!cancelled) setLoginVerified(Boolean(verification.verified));
+              if (demoSessionActiveRef.current) {
+                // Keep the active demo session if the user just entered demo mode.
               } else {
-                setLoginVerified(false);
+                setUser(sessionUser);
+                if (sessionUser) {
+                  await runPostAuthLinkage(sessionUser);
+                  const refreshed = await resolveSupabaseAppUser();
+                  if (!cancelled && refreshed && !demoSessionActiveRef.current) setUser(refreshed);
+                  const verification = await refreshLoginVerification();
+                  if (!cancelled && !demoSessionActiveRef.current) setLoginVerified(Boolean(verification.verified));
+                } else {
+                  setLoginVerified(false);
+                }
               }
             }
           } catch (err) {
             console.warn("[prelude-auth] Supabase session restore failed:", err?.message || err);
-            if (!cancelled) {
+            if (!cancelled && !demoSessionActiveRef.current) {
               setUser(null);
               setLoginVerified(false);
             }
@@ -220,6 +231,11 @@ export function AuthProvider({ children }) {
               if (cancelled) return;
               if (!session) {
                 if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+                  // Demo sessions intentionally clear Supabase; keep the local demo user.
+                  if (demoSessionActiveRef.current) {
+                    postAuthLinkageRef.current = { userId: null, ran: false };
+                    return;
+                  }
                   clearAuthenticatedSession();
                   postAuthLinkageRef.current = { userId: null, ran: false };
                 }
@@ -452,17 +468,29 @@ export function AuthProvider({ children }) {
 
   const signInAsDemo = useCallback(async (accountKey = "student") => {
     setAuthError(null);
+    // Mark demo mode before clearing Supabase so SIGNED_OUT does not wipe the demo user.
+    demoSessionActiveRef.current = true;
+    if (useSupabase) {
+      try {
+        const { logOut } = await loadSupabaseAuth();
+        await logOut();
+      } catch (error) {
+        console.warn("[prelude-auth] Demo sign-in could not clear Supabase session:", error?.message || error);
+      }
+    }
     const next = getDemoSessionUser(accountKey);
+    demoSessionActiveRef.current = true;
     setUser(next);
     setLoginVerified(true);
     setSignInOpen(false);
     return next;
-  }, []);
+  }, [useSupabase]);
 
   const signOut = useCallback(async () => {
     setAuthError(null);
     closeModals();
     navigate("/", { replace: true });
+    demoSessionActiveRef.current = false;
 
     try {
       if (useSupabase) {

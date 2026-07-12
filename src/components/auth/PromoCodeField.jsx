@@ -114,9 +114,6 @@ export default function PromoCodeField({
           Promo Code — Optional
         </label>
       </div>
-      <p className="auth-field__message auth-field__message--hint promo-code-field__hint">
-        Have a complimentary access code? Enter it here to unlock your offer.
-      </p>
 
       <div className="promo-code-field__row">
         <input

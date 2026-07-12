@@ -1,169 +1,47 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Calendar } from "lucide-react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {
-  MENTOR_APPLICATION_STRENGTHS,
-  MENTOR_COLLEGE_OPTIONS,
-  MENTOR_QUESTIONNAIRE_DEFAULTS,
-  MENTOR_PROGRAM_OPTIONS,
-  MENTOR_SPECIALTIES,
-  MENTOR_SUPPORT_STYLES,
-  MENTOR_TARGET_MAJORS
-} from "../../data/mentorQuestionnaire.js";
+  EMPTY_MENTOR_PROFILE_FORM,
+  MentorProfileFormFields,
+  mentorProfileFormFromData,
+  normalizeMentorProfilePayload,
+  validateMentorProfileForm
+} from "../../dashboard/components/mentor/mentorProfileFormShared.jsx";
+import MentorAvailabilitySetupCard from "../../dashboard/components/product/MentorAvailabilitySetupCard.jsx";
+import { SectionCard } from "../../dashboard/components/ui/index.jsx";
+import {
+  DEFAULT_WEEKLY_FORM,
+  formatWeeklyAvailabilitySummary,
+  scheduleToWeeklyFormState,
+  validateWeeklyFormState
+} from "../../dashboard/lib/mentorAvailability.js";
+import { updateMentorAvailability } from "../../lib/dashboardApi.js";
 import { roleFromUser } from "../../lib/dashboardRoutes.js";
-import { dashboardPathForRole, MENTOR_ONBOARDING_PATH, ROLE_SELECTION_PATH, userNeedsMentorOnboarding } from "../../lib/onboardingRoutes.js";
+import {
+  dashboardPathForRole,
+  MENTOR_ONBOARDING_PATH,
+  ROLE_SELECTION_PATH,
+  userNeedsMentorOnboarding
+} from "../../lib/onboardingRoutes.js";
 import { loadMentorQuestionnaire, saveMentorQuestionnaire } from "../../lib/mentorQuestionnaireService.js";
 import AppLink from "../AppLink.jsx";
-
-const OTHER_VALUE = "__other__";
-
-function Field({ label, children }) {
-  return (
-    <label className="mentor-onboarding__field">
-      <span>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function isCompleteCustomValue(value) {
-  return Boolean(value?.trim()) && value !== OTHER_VALUE;
-}
-
-function DropdownWithOther({ label, value, options, onChange, placeholder, otherPlaceholder }) {
-  const selectedValue = options.includes(value) ? value : value ? OTHER_VALUE : "";
-  const showOther = selectedValue === OTHER_VALUE;
-
-  return (
-    <Field label={label}>
-      <select
-        value={selectedValue}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option value={option} key={option}>{option}</option>
-        ))}
-        <option value={OTHER_VALUE}>Other</option>
-      </select>
-      {showOther ? (
-        <input
-          value={value === OTHER_VALUE ? "" : value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={otherPlaceholder}
-        />
-      ) : null}
-    </Field>
-  );
-}
-
-function TargetSchoolsPicker({ value, onChange }) {
-  const selected = Array.isArray(value) ? value : [];
-  const [choice, setChoice] = useState("");
-  const [customSchool, setCustomSchool] = useState("");
-  const availableOptions = MENTOR_COLLEGE_OPTIONS.filter((school) => !selected.includes(school));
-  const canAddCustom = Boolean(customSchool.trim());
-
-  function addSchool(school) {
-    const trimmed = school.trim();
-    if (!trimmed || selected.includes(trimmed)) return;
-    onChange([...selected, trimmed]);
-    setChoice("");
-    setCustomSchool("");
-  }
-
-  function removeSchool(school) {
-    onChange(selected.filter((item) => item !== school));
-  }
-
-  return (
-    <section className="mentor-onboarding__field mentor-onboarding__target-schools">
-      <span>Target schools you know well</span>
-      <div className="mentor-onboarding__select-row">
-        <select
-          value={choice}
-          onChange={(event) => {
-            const nextChoice = event.target.value;
-            setChoice(nextChoice);
-            if (nextChoice && nextChoice !== OTHER_VALUE) addSchool(nextChoice);
-          }}
-        >
-          <option value="">Select a school to add</option>
-          {availableOptions.map((option) => (
-            <option value={option} key={option}>{option}</option>
-          ))}
-          <option value={OTHER_VALUE}>Other</option>
-        </select>
-      </div>
-      {choice === OTHER_VALUE ? (
-        <div className="mentor-onboarding__select-row">
-          <input
-            value={customSchool}
-            onChange={(event) => setCustomSchool(event.target.value)}
-            placeholder="Add another college or university"
-          />
-          <button type="button" className="mentor-onboarding__add-button" onClick={() => addSchool(customSchool)} disabled={!canAddCustom}>
-            Add
-          </button>
-        </div>
-      ) : null}
-      {selected.length ? (
-        <div className="mentor-onboarding__selected-list" aria-label="Selected target schools">
-          {selected.map((school) => (
-            <button type="button" className="mentor-onboarding__selected-item" onClick={() => removeSchool(school)} key={school}>
-              {school}
-              <span aria-hidden="true">×</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-function CheckboxGroup({ label, options, value, onChange }) {
-  const selected = Array.isArray(value) ? value : [];
-
-  function toggle(option) {
-    onChange(selected.includes(option) ? selected.filter((item) => item !== option) : [...selected, option]);
-  }
-
-  return (
-    <section className="mentor-onboarding__group">
-      <h2>{label}</h2>
-      <div className="mentor-onboarding__chips">
-        {options.map((option) => (
-          <label key={option} className={`mentor-onboarding__chip${selected.includes(option) ? " mentor-onboarding__chip--selected" : ""}`}>
-            <input type="checkbox" checked={selected.includes(option)} onChange={() => toggle(option)} />
-            <span>{option}</span>
-          </label>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 export default function MentorQuestionnaireOnboardingPage() {
   const navigate = useNavigate();
   const { user, ready, refreshUser } = useAuth();
-  const [answers, setAnswers] = useState(MENTOR_QUESTIONNAIRE_DEFAULTS);
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState(EMPTY_MENTOR_PROFILE_FORM);
+  const [availabilityForm, setAvailabilityForm] = useState(() => ({
+    timezone: DEFAULT_WEEKLY_FORM.timezone,
+    days: DEFAULT_WEEKLY_FORM.days.map((day) => ({ ...day }))
+  }));
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const errorRef = useRef(null);
-
-  const missingRequired = useMemo(() => {
-    const missing = [];
-    if (!isCompleteCustomValue(answers.college)) missing.push("college");
-    if (!isCompleteCustomValue(answers.major)) missing.push("major");
-    if (!answers.bio?.trim()) missing.push("bio");
-    if (!answers.specialties?.length) missing.push("specialties");
-    if (!answers.targetMajors?.length) missing.push("academic areas");
-    if (!answers.supportStyles?.length) missing.push("support style");
-    if (!answers.applicationStrengths?.length) missing.push("strengths");
-    if (!answers.availability?.trim()) missing.push("availability");
-    return missing;
-  }, [answers]);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,21 +52,8 @@ export default function MentorQuestionnaireOnboardingPage() {
       }
       const { questionnaire, matchingProfile } = await loadMentorQuestionnaire(user.id);
       if (cancelled) return;
-      const savedAnswers = questionnaire?.answers || {};
-      setAnswers({
-        ...MENTOR_QUESTIONNAIRE_DEFAULTS,
-        ...savedAnswers,
-        college: savedAnswers.college ?? matchingProfile?.college ?? "",
-        major: savedAnswers.major ?? matchingProfile?.major ?? "",
-        bio: savedAnswers.bio ?? matchingProfile?.bio ?? "",
-        specialties: savedAnswers.specialties ?? matchingProfile?.specialties ?? [],
-        targetMajors: savedAnswers.targetMajors ?? matchingProfile?.target_majors ?? [],
-        targetSchools: savedAnswers.targetSchools ?? matchingProfile?.target_schools ?? [],
-        supportStyles: savedAnswers.supportStyles ?? matchingProfile?.support_styles ?? [],
-        applicationStrengths: savedAnswers.applicationStrengths ?? matchingProfile?.application_strengths ?? [],
-        additionalNotes: savedAnswers.additionalNotes ?? "",
-        availability: savedAnswers.availability ?? matchingProfile?.availability ?? ""
-      });
+      setForm(mentorProfileFormFromData(questionnaire, matchingProfile));
+      setAvailabilityForm(scheduleToWeeklyFormState(matchingProfile?.availability_schedule));
       setLoading(false);
     }
     loadExisting();
@@ -198,7 +63,11 @@ export default function MentorQuestionnaireOnboardingPage() {
   }, [user?.id, user?.authProvider]);
 
   if (!ready || loading) {
-    return <main className="pm-onboarding-page"><p className="text-muted-foreground">Loading...</p></main>;
+    return (
+      <main className="pm-onboarding-page mentor-onboarding mentor-onboarding--profile">
+        <p className="text-muted-foreground">Loading…</p>
+      </main>
+    );
   }
 
   if (!user) {
@@ -213,111 +82,179 @@ export default function MentorQuestionnaireOnboardingPage() {
     return <Navigate to={dashboardPathForRole(user.role)} replace />;
   }
 
-  function update(field, value) {
-    setAnswers((prev) => ({ ...prev, [field]: value }));
+  function showError(message) {
+    setError(message);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.requestAnimationFrame(() => errorRef.current?.focus());
   }
 
-  async function onSubmit(event) {
+  async function handleContinueToAvailability(event) {
     event.preventDefault();
     setError("");
-    if (missingRequired.length) {
-      setError(`Please complete: ${missingRequired.join(", ")}.`);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      window.requestAnimationFrame(() => errorRef.current?.focus());
+    const nextErrors = validateMentorProfileForm(form, { requireAvailabilityNotes: false });
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
+      showError("Complete the highlighted mentor profile fields before continuing.");
       return;
     }
+
     setSaving(true);
     try {
-      const { error: saveError } = await saveMentorQuestionnaire(user, answers);
+      const payload = normalizeMentorProfilePayload(form);
+      const { error: saveError } = await saveMentorQuestionnaire(user, payload, { markComplete: false });
       if (saveError) throw new Error(saveError);
+      setForm(payload);
+      setStep(2);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      showError(err.message || "Could not save your mentor profile.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCompleteOnboarding(event) {
+    event.preventDefault();
+    setError("");
+    const validationError = validateWeeklyFormState(availabilityForm);
+    if (validationError) {
+      showError(validationError);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const scheduleSummary = formatWeeklyAvailabilitySummary(availabilityForm);
+      const notes = form.availability?.trim() || "";
+      const availabilityText = notes
+        ? notes.includes(scheduleSummary)
+          ? notes
+          : `${notes} · ${scheduleSummary}`
+        : scheduleSummary;
+
+      const profilePayload = normalizeMentorProfilePayload({
+        ...form,
+        availability: availabilityText
+      });
+
+      await updateMentorAvailability({
+        timezone: availabilityForm.timezone,
+        days: availabilityForm.days
+      });
+
+      const { error: saveError, completed } = await saveMentorQuestionnaire(user, profilePayload, {
+        markComplete: true
+      });
+      if (saveError) throw new Error(saveError);
+      if (!completed) throw new Error("Complete all required mentor profile fields before finishing.");
+
       await refreshUser();
       navigate(dashboardPathForRole(user.role), { replace: true });
     } catch (err) {
-      setError(err.message || "Could not save your mentor profile.");
+      showError(err.message || "Could not complete mentor onboarding.");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <main className="pm-onboarding-page mentor-onboarding">
-      <div className="pm-onboarding-page__inner mentor-onboarding__inner">
-        <AppLink href={ROLE_SELECTION_PATH} className="pm-onboarding-page__back">← Back to role selection</AppLink>
-        <header className="pm-onboarding-page__head">
-          <p className="plan-select-page__eyebrow">Mentor onboarding</p>
-          <h1 className="pm-onboarding-page__title">Build your matching profile</h1>
-          <p className="pm-onboarding-page__sub">
-            Tell us what kinds of students you can help most. We use this to rank mentor fit after students complete Prelude Match.
-          </p>
-        </header>
+    <main className="pm-onboarding-page mentor-onboarding mentor-onboarding--profile">
+      <div className="pm-onboarding-page__inner mentor-onboarding__inner mentor-onboarding__inner--wide">
+        {step === 1 ? (
+          <AppLink href={ROLE_SELECTION_PATH} className="pm-onboarding-page__back">
+            ← Back to role selection
+          </AppLink>
+        ) : (
+          <button
+            type="button"
+            className="pm-onboarding-page__back"
+            onClick={() => {
+              setError("");
+              setStep(1);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          >
+            ← Back to profile
+          </button>
+        )}
 
-        {error ? <div ref={errorRef} className="plan-select-page__error" role="alert" tabIndex={-1}>{error}</div> : null}
+        {error ? (
+          <div ref={errorRef} className="plan-select-page__error" role="alert" tabIndex={-1}>
+            {error}
+          </div>
+        ) : null}
 
-        <form className="mentor-onboarding__form" onSubmit={onSubmit}>
-          <section className="mentor-onboarding__panel">
-            <div className="mentor-onboarding__split">
-              <DropdownWithOther
-                label="College or university"
-                value={answers.college}
-                options={MENTOR_COLLEGE_OPTIONS}
-                onChange={(value) => update("college", value)}
-                placeholder="Select your college"
-                otherPlaceholder="Type your college or university"
+        {step === 1 ? (
+          <form onSubmit={handleContinueToAvailability}>
+            <SectionCard title="Mentor profile" className="dash-panel">
+              <MentorProfileFormFields
+                form={form}
+                errors={errors}
+                onChange={(next) => {
+                  setForm(next);
+                  setErrors({});
+                }}
               />
-              <DropdownWithOther
-                label="Major or program"
-                value={answers.major}
-                options={MENTOR_PROGRAM_OPTIONS}
-                onChange={(value) => update("major", value)}
-                placeholder="Select your major or program"
-                otherPlaceholder="Type your major or program"
+              <div className="dash-form-actions mentor-onboarding__actions">
+                <button type="submit" className="dash-btn dash-btn--primary" disabled={saving}>
+                  {saving ? "Saving…" : "Continue to availability"}
+                </button>
+              </div>
+            </SectionCard>
+          </form>
+        ) : (
+          <div className="dash-page dash-page--mentor-availability mentor-onboarding__availability">
+            <header className="dash-mentor-avail-page-head" aria-labelledby="mentor-onboarding-availability-heading">
+              <span className="dash-mentor-avail-page-head__icon" aria-hidden="true">
+                <Calendar className="h-7 w-7" />
+              </span>
+              <div>
+                <h1 id="mentor-onboarding-availability-heading" className="dash-mentor-avail-page-head__title">
+                  Set your availability
+                </h1>
+                <p className="dash-mentor-avail-page-head__subtitle">
+                  Let Prelude know when you&apos;re typically available for students to book meetings.
+                </p>
+              </div>
+            </header>
+
+            <div className="dash-mentor-avail-setup-card-wrap">
+              <MentorAvailabilitySetupCard
+                form={availabilityForm}
+                error=""
+                success={false}
+                showSaveButton={false}
+                onChange={(next) => {
+                  setAvailabilityForm(next);
+                  setError("");
+                }}
+                onSave={() => {}}
               />
+              <div className="dash-form-actions mentor-onboarding__actions mentor-onboarding__actions--split">
+                <button
+                  type="button"
+                  className="dash-btn dash-btn--secondary"
+                  disabled={saving}
+                  onClick={() => {
+                    setError("");
+                    setStep(1);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  Back to profile
+                </button>
+                <button
+                  type="button"
+                  className="dash-btn dash-btn--primary"
+                  disabled={saving}
+                  onClick={handleCompleteOnboarding}
+                >
+                  {saving ? "Saving…" : "Complete mentor onboarding"}
+                </button>
+              </div>
             </div>
-
-            <Field label="Mentor bio">
-              <textarea
-                value={answers.bio}
-                onChange={(event) => update("bio", event.target.value)}
-                rows={4}
-                placeholder="Share the admissions topics, student goals, and application moments where you are strongest."
-              />
-            </Field>
-
-            <TargetSchoolsPicker value={answers.targetSchools} onChange={(value) => update("targetSchools", value)} />
-          </section>
-
-          <CheckboxGroup label="Where can you help students most?" options={MENTOR_SPECIALTIES} value={answers.specialties} onChange={(value) => update("specialties", value)} />
-          <CheckboxGroup label="Which academic areas are a strong fit?" options={MENTOR_TARGET_MAJORS} value={answers.targetMajors} onChange={(value) => update("targetMajors", value)} />
-          <CheckboxGroup label="What is your mentoring style?" options={MENTOR_SUPPORT_STYLES} value={answers.supportStyles} onChange={(value) => update("supportStyles", value)} />
-          <CheckboxGroup label="Which application strengths should matching consider?" options={MENTOR_APPLICATION_STRENGTHS} value={answers.applicationStrengths} onChange={(value) => update("applicationStrengths", value)} />
-
-          <section className="mentor-onboarding__panel">
-            <Field label="Other strengths or context">
-              <textarea
-                value={answers.additionalNotes}
-                onChange={(event) => update("additionalNotes", event.target.value)}
-                rows={3}
-                placeholder="Add other strengths, programs you know, student groups you support well, or anything else students should know."
-              />
-            </Field>
-
-            <Field label="Availability notes">
-              <textarea
-                value={answers.availability}
-                onChange={(event) => update("availability", event.target.value)}
-                rows={3}
-                placeholder="Available weeknights, Sunday afternoons, or by request during application season."
-              />
-            </Field>
-          </section>
-
-          <footer className="mentor-onboarding__footer">
-            <p>{missingRequired.length ? `${missingRequired.length} required section${missingRequired.length === 1 ? "" : "s"} remaining` : "Ready to save"}</p>
-            <button type="submit" className="pm-btn pm-btn--primary pm-btn--lg" disabled={saving}>
-              {saving ? "Saving..." : "Complete mentor onboarding"}
-            </button>
-          </footer>
-        </form>
+          </div>
+        )}
       </div>
     </main>
   );

@@ -12,45 +12,19 @@ const WRITE_ENV = process.argv.includes("--write-env");
 const ENV_PATH = path.resolve(process.cwd(), ".env");
 const CURRENCY = process.env.STRIPE_CURRENCY || "usd";
 
-const SERVICE_ITEMS = [
-  {
-    id: "sat-act-prep",
-    name: "SAT & ACT Prep",
-    price: "$124.99/month",
-    description: "Personalized SAT and ACT prep with weekly 1-on-1 Zoom sessions, practice review, and testing strategy guidance."
-  },
-  {
-    id: "academic-tutoring",
-    name: "Academic Tutoring",
-    price: "$159.99/month",
-    description: "Weekly 1-on-1 tutoring for challenging classes, homework support, test review, and flexible academic coaching."
-  }
-];
-
 function centsFromPriceLabel(price) {
   const numeric = Number(String(price).replace(/[^0-9.]/g, ""));
   if (!Number.isFinite(numeric)) throw new Error(`Could not parse catalog price: ${price}`);
   return Math.round(numeric * 100);
 }
 
-function keyPart(id) {
-  return id.replace(/-/g, "_").toUpperCase();
-}
-
 function envKeyForPlan(planId) {
   return `STRIPE_PRICE_ID_${planId.toUpperCase()}`;
 }
 
-function lookupKeyForPlan(planId) {
-  return `prelude_${planId}_monthly`;
-}
-
-function envKeyForService(itemId) {
-  return `STRIPE_PRICE_ID_${keyPart(itemId)}`;
-}
-
-function lookupKeyForService(itemId) {
-  return `prelude_${itemId.replace(/-/g, "_")}_monthly`;
+function lookupKeyForPlan(planId, unitAmount = null) {
+  const base = `prelude_${planId}_monthly`;
+  return unitAmount == null ? base : `${base}_${unitAmount}`;
 }
 
 function upsertEnvValues(values) {
@@ -69,7 +43,13 @@ function upsertEnvValues(values) {
 async function findOrCreateProduct(stripe, plan) {
   const products = await stripe.products.list({ active: true, limit: 100 });
   const existing = products.data.find((product) => product.metadata?.preludePlanId === plan.id);
-  if (existing) return existing;
+  if (existing) {
+    await stripe.products.update(existing.id, {
+      name: `Prelude ${plan.name}`,
+      description: plan.description || plan.tagline
+    });
+    return existing;
+  }
 
   return stripe.products.create({
     name: `Prelude ${plan.name}`,
@@ -80,52 +60,26 @@ async function findOrCreateProduct(stripe, plan) {
   });
 }
 
-async function findOrCreateServiceProduct(stripe, item) {
-  const products = await stripe.products.list({ active: true, limit: 100 });
-  const existing = products.data.find((product) => product.metadata?.preludeServiceId === item.id);
-  if (existing) return existing;
-
-  return stripe.products.create({
-    name: `Prelude ${item.name}`,
-    description: item.description,
-    metadata: {
-      preludeServiceId: item.id,
-      preludeCatalogType: "service"
-    }
-  });
-}
-
 async function findOrCreatePrice(stripe, product, plan) {
-  const lookupKey = lookupKeyForPlan(plan.id);
-  const prices = await stripe.prices.list({ active: true, lookup_keys: [lookupKey], limit: 1 });
-  if (prices.data[0]) return prices.data[0];
+  const expectedAmount = centsFromPriceLabel(plan.price);
+  const baseLookupKey = lookupKeyForPlan(plan.id);
+  const versionedLookupKey = lookupKeyForPlan(plan.id, expectedAmount);
+
+  for (const lookupKey of [versionedLookupKey, baseLookupKey]) {
+    const prices = await stripe.prices.list({ active: true, lookup_keys: [lookupKey], limit: 1 });
+    const match = prices.data[0];
+    if (match && match.unit_amount === expectedAmount) return match;
+  }
 
   return stripe.prices.create({
     product: product.id,
-    unit_amount: centsFromPriceLabel(plan.price),
+    unit_amount: expectedAmount,
     currency: CURRENCY,
     recurring: { interval: "month" },
-    lookup_key: lookupKey,
+    lookup_key: versionedLookupKey,
     metadata: {
-      preludePlanId: plan.id
-    }
-  });
-}
-
-async function findOrCreateServicePrice(stripe, product, item) {
-  const lookupKey = lookupKeyForService(item.id);
-  const prices = await stripe.prices.list({ active: true, lookup_keys: [lookupKey], limit: 1 });
-  if (prices.data[0]) return prices.data[0];
-
-  return stripe.prices.create({
-    product: product.id,
-    unit_amount: centsFromPriceLabel(item.price),
-    currency: CURRENCY,
-    recurring: { interval: "month" },
-    lookup_key: lookupKey,
-    metadata: {
-      preludeServiceId: item.id,
-      preludeCatalogType: "service"
+      preludePlanId: plan.id,
+      preludePlanPriceCents: String(expectedAmount)
     }
   });
 }
@@ -155,21 +109,18 @@ async function main() {
     const product = await findOrCreateProduct(stripe, plan);
     const price = await findOrCreatePrice(stripe, product, plan);
     envValues[envKeyForPlan(plan.id)] = price.id;
-    console.log(`${plan.name}: product ${product.id}, monthly price ${price.id} (${lookupKeyForPlan(plan.id)})`);
+    console.log(`${plan.name}: product ${product.id}, monthly price ${price.id} (${price.unit_amount / 100} ${CURRENCY})`);
   }
 
-  for (const item of SERVICE_ITEMS) {
-    const product = await findOrCreateServiceProduct(stripe, item);
-    const price = await findOrCreateServicePrice(stripe, product, item);
-    envValues[envKeyForService(item.id)] = price.id;
-    console.log(`${item.name}: product ${product.id}, monthly price ${price.id} (${lookupKeyForService(item.id)})`);
-  }
+  console.log("\nStandalone SAT/ACT and Academic Tutoring subscriptions are no longer created.");
+  console.log("Those services are included as flexible session credits inside Plus and Pro.\n");
 
-  console.log("\nAdd these values to .env:");
+  console.log("Add these values to .env:");
   console.log("BILLING_PROVIDER=stripe");
   for (const [key, value] of Object.entries(envValues)) {
     console.log(`${key}=${value}`);
   }
+  console.log("\nIf Pro was previously $199.99, set STRIPE_PRICE_ID_PRO to the new $239.99 price ID above.");
 
   if (WRITE_ENV) {
     upsertEnvValues(envValues);

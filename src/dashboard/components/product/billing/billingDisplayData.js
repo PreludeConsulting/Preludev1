@@ -1,25 +1,25 @@
 /** Curated benefit bullets for the billing current-plan hero card. */
 export const PLAN_BILLING_HIGHLIGHTS = {
   basic: [
-    "Personalized college roadmap",
-    "Matched mentor through PreludeMatch",
-    "Progress tracking dashboard",
-    "Financial aid & scholarship resources",
-    "Prelude AI assistant access"
+    "Monthly group mentor session",
+    "PreludeMatch mentor pairing",
+    "Assigned mentor messaging",
+    "Personalized student roadmap",
+    "Guidance from real admissions experience"
   ],
   plus: [
-    "Two 1-on-1 mentor sessions per month",
-    "Expanded direct messaging",
-    "Customized application roadmap",
-    "Essay feedback and revision support",
-    "Identity-building coaching"
+    "2 flexible 1-on-1 session credits per month",
+    "College consulting, SAT/ACT prep, or academic tutoring",
+    "Full mentor and tutor network messaging",
+    "Personalized college and academic guidance",
+    "Earn and redeem Prelude Coins"
   ],
   pro: [
-    "Unlimited college list and tracking",
-    "Personalized mentor guidance",
-    "Priority message support",
-    "Advanced progress analytics",
-    "Exclusive rewards and perks"
+    "4 flexible 1-on-1 session credits per month",
+    "Mix all session types or focus on one service",
+    "Priority mentor-network messaging",
+    "Full application review with essay and activity review",
+    "Higher coin earning and advanced milestone rewards"
   ]
 };
 

@@ -12,14 +12,14 @@ function safeSelection(value) {
 }
 
 export function normalizePendingJourney(input = {}) {
-  const journey = input ?? {};
-  const next = sanitizeAuthRedirect(journey.next || "/dashboard", "/dashboard");
-  const onboardingStep = JOURNEY_STEPS.has(journey.onboardingStep) ? journey.onboardingStep : null;
+  const source = input && typeof input === "object" ? input : {};
+  const next = sanitizeAuthRedirect(source.next || "/dashboard", "/dashboard");
+  const onboardingStep = JOURNEY_STEPS.has(source.onboardingStep) ? source.onboardingStep : null;
   return {
     next,
-    mentorId: safeSelection(journey.mentorId),
-    serviceId: safeSelection(journey.serviceId),
-    planId: PLAN_IDS.includes(journey.planId) ? journey.planId : null,
+    mentorId: safeSelection(source.mentorId),
+    serviceId: safeSelection(source.serviceId),
+    planId: PLAN_IDS.includes(source.planId) ? source.planId : null,
     onboardingStep
   };
 }

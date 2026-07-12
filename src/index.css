@@ -7507,6 +7507,22 @@ html[lang="es"] .shopify-hero__headline-line {
 
 .pricing-section__cards {
   width: 100%;
+  align-items: stretch;
+}
+
+.pricing-section__service-highlight {
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+.pricing-section__card-reveal {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+}
+
+.pricing-section__card-reveal > .pricing-card {
+  width: 100%;
 }
 
 .pricing-section__notice {

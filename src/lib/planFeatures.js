@@ -11,6 +11,38 @@ const TIER_RANK = {
 
 export const PRICING_UPGRADE_HREF = appPath("/#pricing");
 
+/** Shared flexible session credits — one pool for consulting, SAT/ACT, and tutoring. */
+export const SESSION_CATEGORIES = [
+  {
+    id: "college-consulting",
+    label: "College Consulting",
+    shortLabel: "Consulting",
+    description: "College planning, applications, essays, and admissions strategy with your mentor.",
+    providerHint: "assigned-mentor",
+    specialtyKeywords: ["application", "essay", "college", "admissions", "roadmap", "choosing"]
+  },
+  {
+    id: "sat-act-prep",
+    label: "SAT/ACT Prep",
+    shortLabel: "SAT/ACT",
+    description: "Testing strategy, practice review, and score improvement with a qualified tutor.",
+    providerHint: "sat-tutor",
+    specialtyKeywords: ["sat", "act", "test", "testing", "score", "practice"]
+  },
+  {
+    id: "academic-tutoring",
+    label: "Academic Tutoring",
+    shortLabel: "Tutoring",
+    description: "Subject support for classes, homework, tests, and AP coursework.",
+    providerHint: "subject-tutor",
+    specialtyKeywords: ["tutor", "homework", "math", "science", "english", "ap", "academic", "stem"]
+  }
+];
+
+export function getSessionCategory(categoryId) {
+  return SESSION_CATEGORIES.find((item) => item.id === categoryId) || null;
+}
+
 export function getUserPlan(user) {
   const raw = user?.plan || user?.subscriptionPlan || user?.planName || "";
   return normalizePlanId(raw) || "basic";
@@ -27,6 +59,8 @@ export const PLAN_FEATURES = {
   fullMentorNetworkMessaging: { minPlan: "plus" },
   personalizedAdmissionsGuidance: { minPlan: "plus" },
   rewards: { minPlan: "plus" },
+  satActPrep: { minPlan: "plus" },
+  academicTutoring: { minPlan: "plus" },
   priorityMessaging: { minPlan: "pro" },
   proStrategy: { minPlan: "pro" },
   fullApplicationReview: { minPlan: "pro" },
@@ -42,7 +76,7 @@ export const FEATURE_LOCK_COPY = {
   fullMentorNetworkMessaging: {
     title: "Upgrade to unlock",
     description:
-      "Full mentor-network messaging is included with Plus and Pro. Upgrade to message mentors across the Prelude network."
+      "Full mentor and tutor network messaging is included with Plus and Pro. Upgrade to message mentors across the Prelude network."
   },
   mentorNetwork: {
     title: "Upgrade to unlock",
@@ -52,17 +86,27 @@ export const FEATURE_LOCK_COPY = {
   priorityMessaging: {
     title: "Upgrade to unlock",
     description:
-      "Priority mentor-network messaging is included with Pro. Upgrade for faster responses across the Prelude network."
+      "Priority mentor and tutor network messaging is included with Pro. Upgrade for faster responses across the Prelude network."
   },
   oneOnOneSessions: {
     title: "Upgrade to unlock",
     description:
-      "Monthly 1-on-1 mentor sessions are included with Plus and Pro. Upgrade to schedule private sessions with mentors."
+      "Flexible 1-on-1 session credits are included with Plus and Pro. Upgrade to book college consulting, SAT/ACT prep, or academic tutoring."
   },
   personalizedAdmissionsGuidance: {
     title: "Upgrade to unlock",
     description:
       "Personalized admissions guidance is included with Plus and Pro. Upgrade for tailored support based on your goals and college list."
+  },
+  satActPrep: {
+    title: "Upgrade to unlock",
+    description:
+      "SAT/ACT prep sessions are included with Plus and Pro flexible session credits. Upgrade to book test-prep support."
+  },
+  academicTutoring: {
+    title: "Upgrade to unlock",
+    description:
+      "Academic tutoring sessions are included with Plus and Pro flexible session credits. Upgrade to book subject tutoring."
   },
   proStrategy: {
     title: "Upgrade to unlock",
@@ -104,6 +148,7 @@ export function getRequiredPlanLabel(featureKey) {
   return labels[feature.minPlan] || "Plus";
 }
 
+/** Monthly flexible session credits (shared across consulting, SAT/ACT, tutoring). */
 export function getMonthlyOneOnOneLimit(planId) {
   const plan = normalizePlanId(planId) || "basic";
   if (plan === "pro") return 4;
@@ -113,8 +158,8 @@ export function getMonthlyOneOnOneLimit(planId) {
 
 export function getSessionAllowanceLabel(planId) {
   const plan = normalizePlanId(planId) || "basic";
-  if (plan === "pro") return "4 monthly 1-on-1 sessions included";
-  if (plan === "plus") return "2 monthly 1-on-1 sessions included";
+  if (plan === "pro") return "4 flexible session credits included each month";
+  if (plan === "plus") return "2 flexible session credits included each month";
   return "Monthly group mentor session included";
 }
 
@@ -137,4 +182,50 @@ export function getRemainingOneOnOneSessions(planId, meetings = []) {
   if (!limit) return null;
   const used = countOneOnOneMeetingsThisMonth(meetings);
   return Math.max(0, limit - used);
+}
+
+export function canBookWithSessionCredits(planId, meetings = []) {
+  const limit = getMonthlyOneOnOneLimit(planId);
+  if (!limit) return false;
+  return getRemainingOneOnOneSessions(planId, meetings) > 0;
+}
+
+export function getSessionCreditBalanceLabel(planId, meetings = []) {
+  const limit = getMonthlyOneOnOneLimit(planId);
+  if (!limit) return null;
+  const remaining = getRemainingOneOnOneSessions(planId, meetings);
+  return `${remaining} of ${limit} session credits remaining`;
+}
+
+export function providerMatchesSessionCategory(provider, categoryId) {
+  const category = getSessionCategory(categoryId);
+  if (!category) return true;
+  if (category.providerHint === "assigned-mentor") return true;
+
+  const haystack = [
+    provider?.specialty,
+    provider?.major,
+    ...(provider?.specialties || []),
+    ...(provider?.expertise || []),
+    ...(provider?.tags || []),
+    ...(provider?.targetMajors || [])
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (!haystack) return true;
+  return category.specialtyKeywords.some((keyword) => haystack.includes(keyword));
+}
+
+export function filterProvidersForSessionCategory(providers = [], categoryId, { assignedMentor = null } = {}) {
+  const category = getSessionCategory(categoryId);
+  if (!category) return providers;
+
+  if (category.providerHint === "assigned-mentor") {
+    return assignedMentor ? [assignedMentor] : providers.slice(0, 1);
+  }
+
+  const matched = providers.filter((provider) => providerMatchesSessionCategory(provider, categoryId));
+  return matched.length ? matched : providers;
 }

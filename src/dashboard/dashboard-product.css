@@ -5621,6 +5621,69 @@
   text-transform: uppercase;
 }
 
+.dash-session-credit-balance {
+  margin-bottom: 0.85rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.dash-session-category-picker {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.dash-session-category-picker__label {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.dash-session-category-picker__options {
+  display: grid;
+  gap: 0.55rem;
+}
+
+@media (min-width: 720px) {
+  .dash-session-category-picker__options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.dash-session-category-picker__option {
+  display: grid;
+  gap: 0.3rem;
+  text-align: left;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dash-session-category-picker__option strong {
+  font-size: 0.9rem;
+  color: hsl(var(--foreground));
+}
+
+.dash-session-category-picker__option span {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-session-category-picker__option:hover {
+  border-color: hsl(var(--primary) / 0.35);
+}
+
+.dash-session-category-picker__option--selected {
+  border-color: hsl(var(--primary) / 0.45);
+  background: hsl(var(--primary) / 0.08);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
+}
+
 .dash-chat-app__network-lock {
   margin-top: 0.75rem;
 }

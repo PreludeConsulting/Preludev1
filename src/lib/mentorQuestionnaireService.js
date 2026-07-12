@@ -52,10 +52,10 @@ export async function loadMentorQuestionnaire(userId) {
   };
 }
 
-export async function saveMentorQuestionnaire(user, answers) {
+export async function saveMentorQuestionnaire(user, answers, options = {}) {
   if (!user?.id) return { error: "You must be signed in." };
   const fields = extractMentorFields(answers);
-  const completed = Boolean(
+  const meetsRequirements = Boolean(
     fields.college &&
       fields.major &&
       fields.bio &&
@@ -65,6 +65,7 @@ export async function saveMentorQuestionnaire(user, answers) {
       fields.applicationStrengths.length &&
       fields.availability
   );
+  const completed = options.markComplete === false ? false : meetsRequirements;
 
   const now = new Date().toISOString();
   const questionnairePayload = {
