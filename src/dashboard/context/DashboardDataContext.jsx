@@ -466,6 +466,21 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     setLocalConversationMessages(store.conversationMessages || []);
     setProfileOverrides(store.profileOverrides || {});
 
+    if (localDemo) {
+      const split = splitMeetingsByStatus(localDemo.meetings || []);
+      setMeetings(split.scheduled);
+      setPendingMeetingRequests(split.pending);
+      setApiDemo(localDemo);
+      setSyncStatus("synced");
+      setDashboardSyncState(createSyncState({
+        status: SYNC_STATUS.SAVED,
+        lastSyncedAt: new Date().toISOString(),
+        source: "demo"
+      }));
+      setLoading(false);
+      return;
+    }
+
     try {
       const data = await getDashboardAppData();
       setIntegrations(data.integrations || integrations);
@@ -480,23 +495,13 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         source: "dashboard"
       }));
     } catch (err) {
-      if (localDemo) {
-        setMeetings(localDemo.meetings || []);
-        setApiDemo(localDemo);
-        setDashboardSyncState(createSyncState({
-          status: SYNC_STATUS.SAVED,
-          lastSyncedAt: new Date().toISOString(),
-          source: "demo"
-        }));
-      } else {
-        setMeetings([]);
-        setError("Dashboard data is unavailable. Changes on this device are not synced to your account.");
-        setDashboardSyncState(createSyncState({
-          status: SYNC_STATUS.FAILED,
-          error: err?.message || "Dashboard sync failed.",
-          source: "dashboard"
-        }));
-      }
+      setMeetings([]);
+      setError("Dashboard data is unavailable. Changes on this device are not synced to your account.");
+      setDashboardSyncState(createSyncState({
+        status: SYNC_STATUS.FAILED,
+        error: err?.message || "Dashboard sync failed.",
+        source: "dashboard"
+      }));
     } finally {
       setLoading(false);
     }
