@@ -12,6 +12,7 @@ export function defaultLocalDashboardStore() {
     scholarships: [],
     savedColleges: null,
     conversationMessages: [],
+    applicationReviews: [],
     profileOverrides: {}
   };
 }

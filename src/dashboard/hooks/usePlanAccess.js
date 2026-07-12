@@ -4,8 +4,13 @@ import { getPlan } from "../../lib/plans.js";
 import {
   canAccessFeature,
   canBookWithSessionCredits,
+  canSubmitApplicationReview,
+  getApplicationReviewAllowanceLabel,
+  getApplicationReviewBalanceLabel,
   getFeatureLockCopy,
+  getMonthlyApplicationReviewLimit,
   getMonthlyOneOnOneLimit,
+  getRemainingApplicationReviews,
   getRemainingOneOnOneSessions,
   getSessionAllowanceLabel,
   getSessionCreditBalanceLabel,
@@ -27,7 +32,12 @@ export function usePlanAccess() {
       sessionAllowanceLabel: getSessionAllowanceLabel(plan),
       remainingOneOnOneSessions: (meetings) => getRemainingOneOnOneSessions(plan, meetings),
       sessionCreditBalanceLabel: (meetings) => getSessionCreditBalanceLabel(plan, meetings),
-      canBookSession: (meetings) => canBookWithSessionCredits(plan, meetings)
+      canBookSession: (meetings) => canBookWithSessionCredits(plan, meetings),
+      monthlyApplicationReviewLimit: getMonthlyApplicationReviewLimit(plan),
+      applicationReviewAllowanceLabel: getApplicationReviewAllowanceLabel(plan),
+      remainingApplicationReviews: (reviews) => getRemainingApplicationReviews(plan, reviews),
+      applicationReviewBalanceLabel: (reviews) => getApplicationReviewBalanceLabel(plan, reviews),
+      canSubmitReview: (reviews) => canSubmitApplicationReview(plan, reviews)
     }),
     [plan, planDetails.name]
   );

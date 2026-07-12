@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Flame } from "lucide-react";
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import MentorPendingRequestsPanel from "./MentorPendingRequestsPanel.jsx";
+import MentorApplicationReviewsPanel from "./MentorApplicationReviewsPanel.jsx";
 
 function AssignedStudentRow({ student }) {
   const streak = student.gamification?.streak ?? 0;
@@ -87,6 +88,7 @@ export default function MentorDashboardCards({ students, availability, pendingRe
   return (
     <>
       <MentorPendingRequestsPanel requests={pendingRequests} />
+      <MentorApplicationReviewsPanel />
       <AssignedStudentsCard students={students} />
       <AvailabilitySummaryCard availability={availability} />
     </>

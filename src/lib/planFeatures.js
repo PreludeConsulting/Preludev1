@@ -1,4 +1,4 @@
-import { normalizePlanId } from "./plans.js";
+import { getPlan, normalizePlanId } from "./plans.js";
 import { appPath } from "./appPaths.js";
 
 export const PLAN_TIERS = ["basic", "plus", "pro"];
@@ -54,6 +54,7 @@ export const PLAN_FEATURES = {
   assignedMentor: { minPlan: "basic" },
   assignedMentorMessaging: { minPlan: "basic" },
   basicProgress: { minPlan: "basic" },
+  applicationComponentReviews: { minPlan: "basic" },
   mentorNetwork: { minPlan: "plus" },
   oneOnOneSessions: { minPlan: "plus" },
   fullMentorNetworkMessaging: { minPlan: "plus" },
@@ -116,7 +117,7 @@ export const FEATURE_LOCK_COPY = {
   fullApplicationReview: {
     title: "Upgrade to unlock",
     description:
-      "Full application review is included with Pro. Upgrade to get final review support before submission."
+      "Pro full application review (final package readiness) is included with Pro. Basic and higher already include 2 full application component reviews per month."
   },
   advancedRewards: {
     title: "Upgrade to unlock",
@@ -160,7 +161,53 @@ export function getSessionAllowanceLabel(planId) {
   const plan = normalizePlanId(planId) || "basic";
   if (plan === "pro") return "4 flexible session credits included each month";
   if (plan === "plus") return "2 flexible session credits included each month";
-  return "Monthly group mentor session included";
+  return "2 full application component reviews included each month";
+}
+
+/** Monthly application-component review credits (separate from live session credits). */
+export function getMonthlyApplicationReviewLimit(planId) {
+  const plan = getPlan(normalizePlanId(planId) || "basic");
+  const credits = Number(plan?.applicationReviewCredits);
+  return Number.isFinite(credits) && credits > 0 ? credits : 0;
+}
+
+export function getApplicationReviewAllowanceLabel(planId) {
+  const limit = getMonthlyApplicationReviewLimit(planId);
+  if (!limit) return null;
+  return `${limit} full application component reviews included each month`;
+}
+
+export function countApplicationReviewsThisPeriod(reviews = [], now = new Date()) {
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  return reviews.filter((review) => {
+    const stamp = review?.submittedAt || review?.createdAt;
+    if (!stamp) return false;
+    const date = new Date(stamp);
+    if (Number.isNaN(date.getTime())) return false;
+    if (date.getMonth() !== month || date.getFullYear() !== year) return false;
+    const status = String(review.status || "").toLowerCase();
+    if (status === "cancelled" || status === "canceled") return false;
+    return true;
+  }).length;
+}
+
+export function getRemainingApplicationReviews(planId, reviews = []) {
+  const limit = getMonthlyApplicationReviewLimit(planId);
+  if (!limit) return 0;
+  const used = countApplicationReviewsThisPeriod(reviews);
+  return Math.max(0, limit - used);
+}
+
+export function canSubmitApplicationReview(planId, reviews = []) {
+  return getRemainingApplicationReviews(planId, reviews) > 0;
+}
+
+export function getApplicationReviewBalanceLabel(planId, reviews = []) {
+  const limit = getMonthlyApplicationReviewLimit(planId);
+  if (!limit) return null;
+  const remaining = getRemainingApplicationReviews(planId, reviews);
+  return `${remaining} of ${limit} application reviews remaining`;
 }
 
 export function countOneOnOneMeetingsThisMonth(meetings = [], now = new Date()) {

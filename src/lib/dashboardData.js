@@ -136,7 +136,9 @@ function mapMentorMatch(row) {
     status: row.status,
     notes: row.notes,
     studentId: row.student_id || row.user_id,
-    mentorId: row.mentor_id
+    mentorId: row.mentor_id,
+    mentorUserId: row.mentor_id,
+    userId: row.mentor_id
   };
 }
 

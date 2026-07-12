@@ -5627,6 +5627,161 @@
   color: hsl(var(--foreground));
 }
 
+.dash-application-reviews {
+  margin-top: 1.25rem;
+}
+
+.dash-application-reviews__form {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.dash-application-reviews__type-options {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.dash-application-reviews__field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.dash-application-reviews__field > span {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.dash-application-reviews__field textarea,
+.dash-application-reviews__field input {
+  width: 100%;
+  border: 1px solid hsl(var(--foreground) / 0.14);
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  font: inherit;
+  background: #fff;
+}
+
+.dash-application-reviews__file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.7rem;
+  border: 1px dashed hsl(var(--foreground) / 0.22);
+  cursor: pointer;
+  font-size: 0.86rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-application-reviews__file input {
+  display: none;
+}
+
+.dash-application-reviews__history-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.dash-application-reviews__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.dash-application-reviews__item {
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 0.85rem;
+  padding: 0.85rem 1rem;
+  background: #fff;
+}
+
+.dash-application-reviews__item-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.dash-application-reviews__item-head > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-application-reviews__item-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.dash-application-reviews__feedback {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid hsl(var(--foreground) / 0.08);
+}
+
+.dash-application-reviews__feedback-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-application-reviews__content {
+  margin: 0;
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: 0.9rem;
+  max-height: 220px;
+  overflow: auto;
+  background: hsl(var(--foreground) / 0.03);
+  border-radius: 0.65rem;
+  padding: 0.75rem;
+}
+
+.dash-application-reviews__mentor-detail {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid hsl(var(--foreground) / 0.1);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.dash-application-reviews__mentor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dash-review-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.dash-review-status--submitted {
+  background: hsl(210 90% 94%);
+  color: hsl(210 70% 35%);
+}
+
+.dash-review-status--in-review {
+  background: hsl(38 95% 92%);
+  color: hsl(28 80% 32%);
+}
+
+.dash-review-status--completed {
+  background: hsl(145 55% 92%);
+  color: hsl(145 60% 28%);
+}
+
 .dash-session-category-picker {
   display: grid;
   gap: 0.65rem;

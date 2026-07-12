@@ -31,9 +31,17 @@ import {
 } from "../../lib/supabaseData.js";
 import {
   canBookWithSessionCredits,
+  canSubmitApplicationReview,
   getMonthlyOneOnOneLimit,
   getUserPlan
 } from "../../lib/planFeatures.js";
+import {
+  APPLICATION_REVIEW_STATUS,
+  createApplicationReviewRequest,
+  listApplicationReviewsForMentor,
+  listApplicationReviewsForStudent,
+  updateApplicationReviewRequest
+} from "../../lib/applicationReviewData.js";
 import {
   createTask,
   createScholarship,
@@ -320,6 +328,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   });
   const [meetings, setMeetings] = useState([]);
   const [pendingMeetingRequests, setPendingMeetingRequests] = useState([]);
+  const [applicationReviews, setApplicationReviews] = useState([]);
   const [resolvedPendingRequestIds, setResolvedPendingRequestIds] = useState([]);
   const [events, setEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
@@ -395,6 +404,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setProfileOverrides(store.profileOverrides || {});
       setMeetings(localDemo.meetings || []);
       setPendingMeetingRequests(localDemo.pendingMeetingRequests || []);
+      setApplicationReviews(store.applicationReviews || localDemo.applicationReviews || []);
       setApiDemo(localDemo);
       setProfile(localDemo.profile || null);
       setPreferences(localDemo.preferences || null);
@@ -475,6 +485,18 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setSupabaseScholarships(data.scholarships || []);
         setSupabaseDeadlines(data.deadlines || []);
         setSupabaseSavedColleges(data.savedColleges?.length ? data.savedColleges : null);
+        const role = roleFromUser(user);
+        const reviewsResult =
+          role === "mentor"
+            ? await listApplicationReviewsForMentor(user.id)
+            : await listApplicationReviewsForStudent(user.id);
+        if (reviewsResult.error && !reviewsResult.missingTable) {
+          if (import.meta.env.DEV) console.error("[prelude-application-reviews]", reviewsResult.error);
+        }
+        const localReviews = loadLocalDashboardStore(user.id).applicationReviews || [];
+        setApplicationReviews(
+          reviewsResult.reviews?.length ? reviewsResult.reviews : localReviews
+        );
         const availabilityUnavailable = appData.featureErrors?.includes("availability");
         setSyncError(availabilityUnavailable ? "Availability is temporarily unavailable. Retry in a moment." : null);
         setSyncStatus(availabilityUnavailable ? "sync-failed" : "synced");
@@ -762,6 +784,156 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       return meeting;
     },
     [addNotification, meetings, mentor?.id, mentor?.userId, pendingMeetingRequests, useSupabase, user]
+  );
+
+  const submitApplicationReview = useCallback(
+    async (payload) => {
+      if (!user) throw new Error("You must be signed in.");
+      const planId = getUserPlan(user);
+      if (!canSubmitApplicationReview(planId, applicationReviews)) {
+        throw new Error(
+          "No application review credits remaining this month. Wait for your next billing cycle."
+        );
+      }
+
+      const mentorUserId =
+        payload.mentorUserId || mentor?.userId || mentor?.mentorUserId || mentor?.mentorId || null;
+      const enriched = {
+        ...payload,
+        mentorUserId,
+        studentName: user.name || user.fullName || "Student"
+      };
+
+      if (useSupabase) {
+        const { review, error: err, localOnly } = await createApplicationReviewRequest(user.id, enriched);
+        if (err) throw new Error(err);
+        const stored = {
+          ...review,
+          studentName: enriched.studentName
+        };
+        setApplicationReviews((prev) => [stored, ...prev]);
+        if (localOnly) {
+          patchLocalDashboardStore(user.id, {
+            applicationReviews: [stored, ...(loadLocalDashboardStore(user.id).applicationReviews || [])]
+          });
+        }
+        addNotification({
+          title: "Review request submitted",
+          body: "Your mentor will provide written feedback.",
+          unread: true
+        });
+        return stored;
+      }
+
+      const now = new Date().toISOString();
+      const localReview = {
+        id: `local-review-${Date.now()}`,
+        studentUserId: user.id,
+        mentorUserId,
+        studentName: enriched.studentName,
+        componentType: enriched.componentType,
+        title: enriched.title,
+        contentText: enriched.contentText || "",
+        fileName: enriched.fileName || null,
+        studentNotes: enriched.studentNotes || "",
+        status: APPLICATION_REVIEW_STATUS.SUBMITTED,
+        feedbackText: "",
+        editedFileName: null,
+        editedContentText: "",
+        submittedAt: now,
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now
+      };
+      setApplicationReviews((prev) => {
+        const next = [localReview, ...prev];
+        patchLocalDashboardStore(user.id, { applicationReviews: next });
+        return next;
+      });
+      addNotification({
+        title: "Review request submitted",
+        body: "Your mentor will provide written feedback.",
+        unread: true
+      });
+      return localReview;
+    },
+    [addNotification, applicationReviews, mentor, useSupabase, user]
+  );
+
+  const updateApplicationReview = useCallback(
+    async (reviewId, fields) => {
+      if (!user) throw new Error("You must be signed in.");
+      const existing = applicationReviews.find((item) => item.id === reviewId);
+      if (!existing) throw new Error("Review request not found.");
+
+      const nextStatus = fields.status || existing.status;
+      let stored = {
+        ...existing,
+        ...fields,
+        status: nextStatus,
+        updatedAt: new Date().toISOString(),
+        completedAt:
+          nextStatus === APPLICATION_REVIEW_STATUS.COMPLETED
+            ? fields.completedAt || new Date().toISOString()
+            : existing.completedAt
+      };
+
+      if (useSupabase && !String(reviewId).startsWith("local-review-")) {
+        const { review, error: err, localOnly, patch } = await updateApplicationReviewRequest(
+          user.id,
+          reviewId,
+          fields
+        );
+        if (err) throw new Error(err);
+        if (review) stored = review;
+        else if (localOnly && patch) {
+          stored = {
+            ...existing,
+            ...patch,
+            status: patch.status || existing.status,
+            updatedAt: new Date().toISOString(),
+            completedAt:
+              patch.status === APPLICATION_REVIEW_STATUS.COMPLETED
+                ? new Date().toISOString()
+                : existing.completedAt
+          };
+        }
+      }
+
+      setApplicationReviews((prev) => {
+        const next = prev.map((item) => (item.id === reviewId ? { ...item, ...stored } : item));
+        if (!useSupabase || String(reviewId).startsWith("local-review-")) {
+          patchLocalDashboardStore(user.id, { applicationReviews: next });
+        }
+        return next;
+      });
+
+      if (nextStatus === APPLICATION_REVIEW_STATUS.COMPLETED && existing.studentUserId) {
+        if (useSupabase && existing.studentUserId !== user.id) {
+          await createNotification(existing.studentUserId, {
+            title: "Application review completed",
+            body: `Your mentor finished reviewing: ${existing.title || "application component"}.`,
+            link: "/dashboard/student/mentor"
+          });
+        } else if (existing.studentUserId === user.id) {
+          addNotification({
+            title: "Application review completed",
+            body: `Feedback is ready for: ${existing.title || "your application component"}.`,
+            unread: true
+          });
+        } else {
+          addNotification({
+            title: "Review marked completed",
+            body: "The student will see your written feedback on their mentor page.",
+            unread: true,
+            silent: true
+          });
+        }
+      }
+
+      return stored;
+    },
+    [addNotification, applicationReviews, useSupabase, user]
   );
 
   const saveProfile = useCallback(
@@ -1542,6 +1714,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       integrations,
       meetings: resolveMeetingsForDisplay(meetings, demo?.meetings),
       pendingMeetingRequests,
+      applicationReviews,
       notifications,
       addNotification,
       markNotificationsRead,
@@ -1632,6 +1805,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       privateNotes: demo?.privateNotes ?? {},
       refresh,
       scheduleMeeting: isGuardianViewMode ? async () => null : scheduleMeeting,
+      submitApplicationReview: isGuardianViewMode ? async () => null : submitApplicationReview,
+      updateApplicationReview: isGuardianViewMode ? async () => null : updateApplicationReview,
       acceptMeetingRequest: isGuardianViewMode ? () => null : acceptMeetingRequest,
       declineMeetingRequest: isGuardianViewMode ? () => {} : declineMeetingRequest,
       saveProfile: isGuardianViewMode ? async () => null : saveProfile,
@@ -1684,6 +1859,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       integrations,
       meetings,
       pendingMeetingRequests,
+      applicationReviews,
       resolvedPendingRequestIds,
       notifications,
       events,
@@ -1729,6 +1905,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       updateSavedColleges,
       refresh,
       scheduleMeeting,
+      submitApplicationReview,
+      updateApplicationReview,
       acceptMeetingRequest,
       declineMeetingRequest,
       saveProfile,

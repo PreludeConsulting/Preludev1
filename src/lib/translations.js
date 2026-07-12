@@ -272,11 +272,11 @@ export const translations = {
             name: "Basic",
             description: "Foundational support from real college mentors.",
             features: [
-              "Monthly group mentor session",
-              "PreludeMatch mentor pairing",
+              "2 full application component reviews per month",
+              "Essays, activities lists, résumés, school lists, and more",
               "Assigned mentor messaging",
               "Personalized student roadmap",
-              "Guidance from real admissions experience"
+              "Detailed written feedback and edits within 1-2 business days"
             ]
           },
           {
@@ -639,11 +639,11 @@ export const translations = {
             name: "Basic",
             description: "실제 대학 멘토의 기본 지원.",
             features: [
-              "월간 그룹 멘토 세션",
-              "PreludeMatch 멘토 매칭",
+              "월 2회 전체 지원서 구성요소 리뷰",
+              "에세이, 활동 목록, 이력서, 학교 리스트 등",
               "배정된 멘토 메시징",
               "맞춤형 학생 로드맵",
-              "실제 입시 경험 기반 가이드"
+              "상세 서면 피드백 및 수정 (영업일 기준 1-2일 내)"
             ]
           },
           {
@@ -1007,11 +1007,11 @@ export const translations = {
             name: "Basic",
             description: "来自真实大学导师的基础支持。",
             features: [
-              "每月小组导师课程",
-              "PreludeMatch 导师匹配",
+              "每月 2 次完整申请材料组成部分审阅",
+              "文书、活动列表、简历、选校清单等",
               "指定导师消息",
               "个性化学生路线图",
-              "来自真实申请经验的指导"
+              "详细书面反馈与修改（1-2 个工作日内）"
             ]
           },
           {
@@ -1377,11 +1377,11 @@ export const translations = {
             name: "Basic",
             description: "Apoyo fundamental de mentores universitarios reales.",
             features: [
-              "Sesión mensual de mentoría grupal",
-              "Emparejamiento con mentor PreludeMatch",
+              "2 revisiones completas de componentes de solicitud al mes",
+              "Ensayos, listas de actividades, currículums, listas de escuelas y más",
               "Mensajería con mentor asignado",
               "Hoja de ruta personalizada del estudiante",
-              "Orientación basada en experiencia real de admisiones"
+              "Comentarios escritos detallados y ediciones en 1-2 días hábiles"
             ]
           },
           {

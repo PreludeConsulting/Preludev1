@@ -7507,7 +7507,7 @@ html[lang="es"] .shopify-hero__headline-line {
 
 .pricing-section__cards {
   width: 100%;
-  align-items: stretch;
+  align-items: start;
 }
 
 .pricing-section__service-highlight {
@@ -7517,7 +7517,8 @@ html[lang="es"] .shopify-hero__headline-line {
 
 .pricing-section__card-reveal {
   display: flex;
-  height: 100%;
+  height: auto;
+  align-self: start;
   min-width: 0;
 }
 

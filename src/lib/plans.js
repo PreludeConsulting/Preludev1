@@ -15,18 +15,18 @@ export const PLANS = {
   basic: {
     id: "basic",
     name: "Basic",
-    tagline: "Foundational guidance for students beginning their college journey.",
+    tagline: "Async admissions support with written application feedback.",
     priceLabel: "Paid",
     price: "$49.99",
     paid: true,
     isRecommended: false,
-    description: "Foundational guidance for students beginning their college journey.",
+    description: "Foundational support from real college mentors.",
     features: [
-      "Monthly group mentor session",
-      "PreludeMatch mentor pairing",
+      "2 full application component reviews per month",
+      "Essays, activities lists, résumés, school lists, and more",
       "Assigned mentor messaging",
       "Personalized student roadmap",
-      "Guidance from real admissions experience"
+      "Detailed written feedback and edits within 1-2 business days"
     ],
     aiFeatures: AI_FEATURES,
     softwareAccess: [
@@ -35,13 +35,15 @@ export const PLANS = {
       "Financial aid & scholarship resource library",
       "Prelude AI assistant (full access)"
     ],
-    mentorSessions: "Monthly group mentorship session",
+    mentorSessions: "2 full application component reviews / month",
     messaging: "Assigned mentor messaging",
-    mentorExtras: ["Access to a matched mentor through PreludeMatch", "Guidance from real admissions experience"],
+    mentorExtras: [
+      "Detailed written feedback and edits within 1-2 business days",
+      "Guidance from real admissions experience"
+    ],
     roadmapFeatures: ["Personalized college roadmap", "Progress tracking dashboard"],
     sessionCredits: 0,
-    flexibleSessionCallout: null,
-    flexibleSessionDetail: null
+    applicationReviewCredits: 2
   },
   plus: {
     id: "plus",
@@ -73,8 +75,10 @@ export const PLANS = {
     ],
     roadmapFeatures: ["Customized college and application roadmap", "Personalized college and academic guidance"],
     sessionCredits: 2,
+    applicationReviewCredits: 2,
     flexibleSessionCallout: "2 Flexible 1-on-1 Sessions / Month",
-    flexibleSessionDetail: FLEXIBLE_SESSION_CALLOUT_DETAIL
+    flexibleSessionDetail: FLEXIBLE_SESSION_CALLOUT_DETAIL,
+    calloutKind: "sessions"
   },
   pro: {
     id: "pro",
@@ -111,8 +115,10 @@ export const PLANS = {
     ],
     roadmapFeatures: ["Advanced roadmap & gamified progress tracking", "Deeper personalized strategy"],
     sessionCredits: 4,
+    applicationReviewCredits: 2,
     flexibleSessionCallout: "4 Flexible 1-on-1 Sessions / Month",
-    flexibleSessionDetail: FLEXIBLE_SESSION_CALLOUT_DETAIL
+    flexibleSessionDetail: FLEXIBLE_SESSION_CALLOUT_DETAIL,
+    calloutKind: "sessions"
   }
 };
 

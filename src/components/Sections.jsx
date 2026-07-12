@@ -137,9 +137,10 @@ export function LowerPlans() {
     return {
       ...plan,
       ...translatedPlan,
-      // Keep canonical flexible-session callouts from plans.js (not i18n-overwritten away).
+      // Keep canonical session/review callouts from plans.js (not i18n-overwritten away).
       flexibleSessionCallout: plan.flexibleSessionCallout,
       flexibleSessionDetail: plan.flexibleSessionDetail,
+      calloutKind: plan.calloutKind,
       priceAmount: plan.price || null,
       pricePeriod: plan.price ? t("sections.plans.priceLabels.perMonth") : null,
       priceLabel: plan.price
@@ -218,7 +219,7 @@ export function LowerPlans() {
               {billingNotice}
             </p>
           ) : null}
-          <div className="pricing-section__cards grid gap-6 lg:grid-cols-3 lg:gap-8">
+          <div className="pricing-section__cards grid items-start gap-6 lg:grid-cols-3 lg:gap-8">
           {plans.map((plan, index) => (
             <ScrollReveal delay={index * 0.08} key={plan.id} className="pricing-section__card-reveal">
               <PricingCard

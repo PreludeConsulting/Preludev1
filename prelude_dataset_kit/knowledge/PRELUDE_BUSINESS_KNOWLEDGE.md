@@ -60,40 +60,33 @@ The plans differ through mentor access, roadmap depth, messaging access, and hum
 ### Basic
 
 - foundational guidance
-- monthly group mentorship session
-- access to a matched mentor through PreludeMatch
-- limited mentor messaging
+- 2 full application component reviews per month (async written feedback and edits)
+- detailed written feedback and edits within 1-2 business days
+- assigned mentor messaging
 - personalized milestone-based college roadmap
 - application-progress tracking
-- general essay brainstorming support
 - financial-aid resources and scholarship guidance
-- broad consultant support
+- no live 1-on-1 session credits
 
 ### Plus
 
-- includes Basic features
-- two one-on-one mentor sessions per month
-- one additional monthly group strategy session
+- includes Basic features (including 2 full application component reviews per month)
+- two flexible one-on-one mentor sessions per month
 - expanded messaging access
 - enhanced customized roadmap
 - identity-building coaching
-- essay feedback and revision support
 - peer-benchmarking insights where available
+- earn and redeem Prelude Coins
 
 ### Pro
 
 - includes Plus features
-- weekly or biweekly one-on-one mentor sessions
-- priority mentor matching
-- priority messaging with faster response expectations
-- comprehensive essay editing and application review
-- interview preparation
+- four flexible one-on-one mentor sessions per month
+- priority mentor-network messaging
+- higher-touch application support and full application review
 - school-specific admissions strategy
 - customized roadmap with active timeline management
-- advanced financial consulting
-- scholarship strategy and cost comparison
-- parent strategy sessions
-- enhanced progress tracking and milestone check-ins
+- advanced milestone rewards and higher coin earning
 
 Important:
 

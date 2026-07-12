@@ -1,4 +1,4 @@
-import { CheckCircle, Video } from "lucide-react";
+import { CheckCircle, FileText, Video } from "lucide-react";
 import { Button } from "./ui/button.jsx";
 
 export default function PricingCard({
@@ -15,6 +15,7 @@ export default function PricingCard({
     : plan.paid
       ? chooseLabel.replace(/\{\{plan\}\}/g, plan.name)
       : startFreeLabel;
+  const CalloutIcon = plan.calloutKind === "reviews" ? FileText : Video;
 
   return (
     <article className={`pricing-card ${plan.isRecommended ? "pricing-card--featured" : ""}`}>
@@ -57,7 +58,7 @@ export default function PricingCard({
         {plan.flexibleSessionCallout ? (
           <div className="pricing-card__session-callout-block">
             <div className="pricing-card__session-callout">
-              <Video className="pricing-card__session-callout-icon" aria-hidden="true" />
+              <CalloutIcon className="pricing-card__session-callout-icon" aria-hidden="true" />
               <div className="pricing-card__session-callout-copy">
                 <span className="pricing-card__session-callout-text">{plan.flexibleSessionCallout}</span>
                 {plan.flexibleSessionDetail ? (

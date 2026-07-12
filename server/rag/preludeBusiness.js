@@ -101,9 +101,9 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
         text: [
           "## Basic vs. Plus",
           "",
-          "**Basic** is a good fit when you want a roadmap, group mentorship, and light mentor access through PreludeMatch.",
+          "**Basic** is a good fit when you want a roadmap, assigned mentor messaging, and **2 full application component reviews per month** (async written feedback).",
           "",
-          "**Plus** is better when you want **recurring one-on-one support**, deeper essay feedback, and more consistent messaging.",
+          "**Plus** is better when you want **everything in Basic** plus **recurring one-on-one support** and more consistent network messaging.",
           "",
           "### Main difference",
           "Plus gives you more **personalized human guidance** throughout the process.",
@@ -123,13 +123,13 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
       if (wantsEssay && !wantsFrequent) {
         return {
           text: [
-            "For **essay feedback**, **Plus** includes essay feedback and revision support, while **Pro** adds deeper editing, full application review, and interview preparation.",
+            "For **written application feedback**, **Basic** includes **2 full application component reviews per month** with detailed written feedback and edits within 1-2 business days.",
             "",
-            "**Basic** can help with general essay brainstorming, but it is lighter on ongoing revision.",
+            "**Plus** keeps those review credits and adds live 1-on-1 sessions. **Pro** adds higher-touch support, including fuller application review.",
             "",
             linkLine(["compare_plans"]),
             "",
-            "Do you want occasional essay help, or regular one-on-one revision throughout the cycle?"
+            "Do you want async written reviews, live sessions, or both?"
           ].join("\n"),
           actions: buildVerifiedActions(["compare_plans"])
         };
@@ -137,11 +137,11 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
 
       return {
         text: [
-          "**Basic** is probably enough if you mainly want structure, milestone tracking, and occasional mentor guidance.",
+          "**Basic** is probably enough if you mainly want structure, mentor messaging, and **2 full application component reviews per month**.",
           "",
-          "**Plus** is a stronger fit if you want **recurring one-on-one help**, essay feedback, and more consistent support.",
+          "**Plus** is a stronger fit if you want everything in Basic plus **recurring one-on-one live sessions**.",
           "",
-          "**Pro** makes more sense when you want a **high-touch experience** with frequent mentor sessions, school-specific strategy, and deeper application review.",
+          "**Pro** makes more sense when you want a **high-touch experience** with more live sessions and deeper application support.",
           "",
           "Prelude AI is the **same assistant on every plan** — plans differ in mentor access and roadmap depth, not AI quality.",
           "",
@@ -158,9 +158,9 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
         text: [
           "Yes. Depending on your plan, you can access **mentor messaging** and live sessions.",
           "",
-          "- **Basic** includes limited direct messaging plus group mentorship.",
-          "- **Plus** expands messaging and adds recurring 1-on-1 sessions.",
-          "- **Pro** includes priority messaging with faster response expectations.",
+          "- **Basic** includes assigned mentor messaging plus **2 full application component reviews per month** (no live session credits).",
+          "- **Plus** includes everything in Basic and adds recurring flexible 1-on-1 sessions.",
+          "- **Pro** includes everything in Plus with more session credits and higher-touch application support.",
           "",
           linkLine(["find_mentor", "explore_plans"]),
           "",

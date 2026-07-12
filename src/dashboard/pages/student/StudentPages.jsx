@@ -68,6 +68,7 @@ import CollegesExplore from "../../components/product/CollegesExplore.jsx";
 import StudentOverviewProduct from "../../components/product/StudentOverviewProduct.jsx";
 import StudentProgressRewardsProduct from "../../components/product/StudentProgressRewardsProduct.jsx";
 import PlanSessionBanner from "../../components/product/PlanSessionBanner.jsx";
+import StudentApplicationReviewsPanel from "../../components/product/StudentApplicationReviewsPanel.jsx";
 import PlanLockedFeature from "../../components/product/PlanLockedFeature.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
@@ -161,12 +162,14 @@ export function StudentProgressRewards() {
 }
 
 export function StudentCalendar() {
-  const { meetings, events, mentor, deadlines, isMentorStudentView } = useDashboardData();
+  const { meetings, events, mentor, deadlines, isMentorStudentView, applicationReviews } = useDashboardData();
   const [upcomingEventsMountEl, setUpcomingEventsMountEl] = useState(null);
 
   return (
     <div className={cn("dash-page", "dash-page--meetings", isMentorStudentView && "dash-page--mentor-view")}>
-      {!isMentorStudentView ? <PlanSessionBanner meetings={meetings} /> : null}
+      {!isMentorStudentView ? (
+        <PlanSessionBanner meetings={meetings} applicationReviews={applicationReviews} />
+      ) : null}
       <div className={cn("dash-meetings-layout", isMentorStudentView && "dash-meetings-layout--mentor-view")}>
         <div className="dash-meetings-layout__calendar">
           <AdmissionsCalendarVisual
@@ -1695,7 +1698,16 @@ function mentorHeadshot(mentor) {
 }
 
 export function StudentMentor() {
-  const { mentor, mentors, meetings, pendingMeetingRequests, scheduleMeeting, persistCalendarItem, scheduleEventReminder } =
+  const {
+    mentor,
+    mentors,
+    meetings,
+    pendingMeetingRequests,
+    scheduleMeeting,
+    persistCalendarItem,
+    scheduleEventReminder,
+    applicationReviews
+  } =
     useDashboardData();
   const { canAccess, canBookSession, monthlyOneOnOneLimit, sessionCreditBalanceLabel } = usePlanAccess();
   const [sessionCategory, setSessionCategory] = useState("college-consulting");
@@ -1729,12 +1741,14 @@ export function StudentMentor() {
             }
           />
         </SectionCard>
+        <StudentApplicationReviewsPanel />
       </div>
     );
   }
 
   return (
     <div className="dash-page dash-page--premium">
+      <PlanSessionBanner meetings={creditMeetings} applicationReviews={applicationReviews} />
       <div className="dash-mentor-profile">
         <SectionCard className="dash-panel dash-mentor-profile__info">
           <div className="dash-mentor-profile__id">
@@ -1917,6 +1931,8 @@ export function StudentMentor() {
           )}
         </SectionCard>
       </div>
+
+      <StudentApplicationReviewsPanel />
     </div>
   );
 }

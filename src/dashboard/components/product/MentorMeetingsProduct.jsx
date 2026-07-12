@@ -5,6 +5,7 @@ import AdmissionsCalendarVisual from "./AdmissionsCalendarVisual.jsx";
 import MentorMeetingsHistorySection from "./MentorMeetingsHistorySection.jsx";
 import MentorMeetingsLiveSection from "./MentorMeetingsLiveSection.jsx";
 import MentorMeetingsRequestsSection from "./MentorMeetingsRequestsSection.jsx";
+import MentorApplicationReviewsPanel from "./MentorApplicationReviewsPanel.jsx";
 
 export default function MentorMeetingsProduct() {
   const {
@@ -49,6 +50,7 @@ export default function MentorMeetingsProduct() {
         <aside className="dash-meetings-layout__side">
           <MentorMeetingsLiveSection />
           <MentorMeetingsRequestsSection requests={pendingRequests} studentFilter={studentFilter} />
+          <MentorApplicationReviewsPanel studentFilter={studentFilter} />
           <div ref={setUpcomingEventsMountEl} className="dash-meetings-layout__upcoming" />
           <MentorMeetingsHistorySection meetings={meetings} studentFilter={studentFilter} />
         </aside>

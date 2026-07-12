@@ -1,13 +1,14 @@
 /** Curated benefit bullets for the billing current-plan hero card. */
 export const PLAN_BILLING_HIGHLIGHTS = {
   basic: [
-    "Monthly group mentor session",
-    "PreludeMatch mentor pairing",
+    "2 full application component reviews per month",
+    "Essays, activities lists, résumés, school lists, and more",
     "Assigned mentor messaging",
     "Personalized student roadmap",
-    "Guidance from real admissions experience"
+    "Detailed written feedback and edits within 1-2 business days"
   ],
   plus: [
+    "Everything in Basic, including 2 full application component reviews per month",
     "2 flexible 1-on-1 session credits per month",
     "College consulting, SAT/ACT prep, or academic tutoring",
     "Full mentor and tutor network messaging",
@@ -15,6 +16,7 @@ export const PLAN_BILLING_HIGHLIGHTS = {
     "Earn and redeem Prelude Coins"
   ],
   pro: [
+    "Everything in Plus, including 2 full application component reviews per month",
     "4 flexible 1-on-1 session credits per month",
     "Mix all session types or focus on one service",
     "Priority mentor-network messaging",
