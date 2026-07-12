@@ -1,3 +1,8 @@
-import handler from "../../server/dashboardApi.js";
+import legacyHandler from "../../server/dashboardApi.js";
+import { createSupabaseDashboardApiMiddleware } from "../../server/supabaseDashboardApi.js";
 
-export default handler;
+const supabaseMiddleware = createSupabaseDashboardApiMiddleware();
+
+export default function handler(req, res) {
+  return supabaseMiddleware(req, res, () => legacyHandler(req, res));
+}

@@ -41,6 +41,12 @@ describe("Supabase rewards and availability schema reconciliation", () => {
     expect(prisma).not.toContain("hourlyAvailability");
   });
 
+  it("routes the deployed dashboard endpoint through Supabase bearer auth", () => {
+    const entrypoint = read("api/dashboard/app-data.js");
+    expect(entrypoint).toContain("createSupabaseDashboardApiMiddleware");
+    expect(entrypoint).toMatch(/supabaseMiddleware\(req, res, \(\) => legacyHandler\(req, res\)\)/);
+  });
+
   it("does not expose raw schema-cache errors in dashboard feature messages", () => {
     const helpers = read("src/lib/dashboardData.js");
     const persistence = read("src/lib/supabaseData.js");
