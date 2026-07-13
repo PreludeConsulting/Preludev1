@@ -1,14 +1,14 @@
 /** Curated benefit bullets for the billing current-plan hero card. */
 export const PLAN_BILLING_HIGHLIGHTS = {
   basic: [
-    "2 full application component reviews per month",
-    "Essays, activities lists, résumés, school lists, and more",
+    "2 full personal statement reviews per month",
+    "2 full supplemental essay reviews for one college per month",
     "Assigned mentor messaging",
     "Personalized student roadmap",
-    "Detailed written feedback and edits within 1-2 business days"
+    "Detailed written feedback and edits within 1–2 business days"
   ],
   plus: [
-    "Everything in Basic, including 2 full application component reviews per month",
+    "Everything in Basic, including personal statement and supplemental essay reviews",
     "2 flexible 1-on-1 session credits per month",
     "College consulting, SAT/ACT prep, or academic tutoring",
     "Full mentor and tutor network messaging",
@@ -16,7 +16,7 @@ export const PLAN_BILLING_HIGHLIGHTS = {
     "Earn and redeem Prelude Coins"
   ],
   pro: [
-    "Everything in Plus, including 2 full application component reviews per month",
+    "Everything in Plus, including Basic essay-review support",
     "4 flexible 1-on-1 session credits per month",
     "Mix all session types or focus on one service",
     "Priority mentor-network messaging",

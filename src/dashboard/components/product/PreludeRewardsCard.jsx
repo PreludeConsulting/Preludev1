@@ -1,4 +1,4 @@
-import { Flag, Gift, Lock } from "lucide-react";
+import { Coins, Diamond, Flag, Gift, Sparkle, Sparkles, User } from "lucide-react";
 import { Link } from "react-router-dom";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { useProgressRewards } from "../../context/ProgressRewardsContext.jsx";
@@ -6,6 +6,38 @@ import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
 import { CoinBalance } from "./rewards/PreludePiggyBank.jsx";
 import { GLASS_PIGGY_IMAGE } from "./rewards/PiggyBankProgress.jsx";
+
+function LockedRewardsIllustration() {
+  return (
+    <div className="dash-prelude-rewards-locked__art" aria-hidden="true">
+      <span className="dash-prelude-rewards-locked__glow" />
+      <span className="dash-prelude-rewards-locked__sparkle dash-prelude-rewards-locked__sparkle--1">
+        <Sparkle />
+      </span>
+      <span className="dash-prelude-rewards-locked__sparkle dash-prelude-rewards-locked__sparkle--2">
+        <Sparkle />
+      </span>
+      <span className="dash-prelude-rewards-locked__sparkle dash-prelude-rewards-locked__sparkle--3">
+        <Sparkle />
+      </span>
+      <span className="dash-prelude-rewards-locked__sparkle dash-prelude-rewards-locked__sparkle--4">
+        <Sparkle />
+      </span>
+      <span className="dash-prelude-rewards-locked__float dash-prelude-rewards-locked__float--gift">
+        <Gift />
+      </span>
+      <span className="dash-prelude-rewards-locked__float dash-prelude-rewards-locked__float--coin">
+        <Coins />
+      </span>
+      <span className="dash-prelude-rewards-locked__float dash-prelude-rewards-locked__float--user">
+        <User />
+      </span>
+      <span className="dash-prelude-rewards-locked__hero">
+        <Diamond />
+      </span>
+    </div>
+  );
+}
 
 export default function PreludeRewardsCard() {
   const { canAccess } = usePlanAccess();
@@ -21,25 +53,29 @@ export default function PreludeRewardsCard() {
   if (!canAccess("rewards")) {
     return (
       <article className="dash-product-card dash-product-card--wide dash-product-card--rewards dash-prelude-rewards-preview dash-prelude-rewards-preview--locked">
-        <header className="dash-product-card__head dash-product-card__head--profile-strength">
-          <p className="dash-product-card__eyebrow">Prelude Rewards</p>
-        </header>
-        <div className="dash-prelude-rewards-preview__locked">
-          <span className="dash-prelude-rewards-preview__locked-icon" aria-hidden="true">
-            <Lock />
-          </span>
-          <h2 className="dash-prelude-rewards-preview__title">Unlock more with Plus and Pro</h2>
-          <p className="dash-prelude-rewards-preview__subtext">
-            Earn coins, unlock bonus mentor sessions, and redeem exclusive rewards.
-          </p>
-          <button
-            type="button"
-            className="dash-btn dash-btn--primary dash-prelude-rewards-preview__cta"
-            onClick={() => openUpgrade("rewards")}
-          >
-            <Gift className="dash-prelude-rewards-preview__cta-icon" aria-hidden="true" />
-            View Plans
-          </button>
+        <div className="dash-prelude-rewards-locked">
+          <div className="dash-prelude-rewards-locked__copy">
+            <p className="dash-prelude-rewards-locked__eyebrow">Prelude Rewards</p>
+            <span className="dash-prelude-rewards-locked__badge" aria-hidden="true">
+              <Diamond />
+            </span>
+            <h2 className="dash-prelude-rewards-locked__title">
+              Get more with{" "}
+              <span className="dash-prelude-rewards-locked__title-accent">Plus &amp; Pro</span>
+            </h2>
+            <p className="dash-prelude-rewards-locked__subtext">
+              Earn coins, access bonus mentor sessions, and unlock exclusive rewards along the way.
+            </p>
+            <button
+              type="button"
+              className="dash-prelude-rewards-locked__cta"
+              onClick={() => openUpgrade("rewards")}
+            >
+              <Sparkles className="dash-prelude-rewards-locked__cta-icon" aria-hidden="true" />
+              Explore Plans
+            </button>
+          </div>
+          <LockedRewardsIllustration />
         </div>
       </article>
     );

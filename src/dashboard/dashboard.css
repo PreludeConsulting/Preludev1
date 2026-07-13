@@ -746,6 +746,64 @@ img.dash-avatar {
   padding: 1rem;
 }
 
+/*
+ * Opt-in: pin the white modal panel under the product nav divider while the
+ * overlay still covers the full viewport (including the nav).
+ * Requires `--dash-header-bottom` from useBelowHeaderModalOffset.
+ */
+.dash-modal-backdrop.dash-overlay--below-header,
+.dash-upgrade-lock.dash-overlay--below-header {
+  place-items: start center;
+  align-content: start;
+  padding-top: calc(var(--dash-header-bottom, 5rem) + 1rem);
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 800;
+}
+
+.dash-modal-backdrop.dash-overlay--below-header > .dash-modal,
+.dash-upgrade-lock.dash-overlay--below-header > .dash-upgrade-lock__panel {
+  max-height: calc(100dvh - var(--dash-header-bottom, 5rem) - 2rem);
+}
+
+.dash-upgrade-lock.dash-overlay--below-header > .dash-upgrade-lock__panel {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Create-event (below-header): scroll fields, keep footer/actions fully visible */
+.dash-modal-backdrop.dash-overlay--below-header > .dash-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dash-modal-backdrop.dash-overlay--below-header > .dash-modal > .dash-modal__head {
+  flex-shrink: 0;
+}
+
+.dash-modal-backdrop.dash-overlay--below-header > .dash-modal > .dash-event-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dash-modal-backdrop.dash-overlay--below-header > .dash-modal .dash-event-form__fields {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 0.15rem;
+}
+
+.dash-modal-backdrop.dash-overlay--below-header > .dash-modal .dash-modal__footer {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid hsl(var(--foreground) / 0.08);
+}
+
 .dash-modal {
   width: min(100%, 28rem);
   padding: 1.25rem;

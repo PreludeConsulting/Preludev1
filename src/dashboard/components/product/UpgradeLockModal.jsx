@@ -4,6 +4,7 @@ import { Coins, Gift, Lock, Sparkles, Users, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { getFeatureLockCopy } from "../../../lib/planFeatures.js";
+import { useBelowHeaderModalOffset } from "../../hooks/useBelowHeaderModalOffset.js";
 
 const REWARDS_BENEFITS = [
   {
@@ -59,6 +60,7 @@ export default function UpgradeLockModal({
   const panelRef = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  useBelowHeaderModalOffset(open);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -93,9 +95,13 @@ export default function UpgradeLockModal({
 
   return createPortal(
     <div
-      className="dash-upgrade-lock"
+      className="dash-upgrade-lock dash-overlay--below-header"
       role="presentation"
-      onClick={onClose}
+      onMouseDown={(event) => {
+        // Use mousedown so the same gesture that opened the modal
+        // (Progress tab click under z-index 800) cannot immediately close it.
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       <div
         ref={panelRef}
@@ -105,6 +111,7 @@ export default function UpgradeLockModal({
         aria-labelledby={titleId}
         aria-describedby={descId}
         tabIndex={-1}
+        onMouseDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
       >
         <button

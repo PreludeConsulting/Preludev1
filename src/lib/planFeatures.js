@@ -117,7 +117,7 @@ export const FEATURE_LOCK_COPY = {
   fullApplicationReview: {
     title: "Upgrade to unlock",
     description:
-      "Pro full application review (final package readiness) is included with Pro. Basic and higher already include 2 full application component reviews per month."
+      "Pro full application review (final package readiness) is included with Pro. Basic and higher already include personal statement and supplemental essay review support."
   },
   advancedRewards: {
     title: "Upgrade to unlock",
@@ -161,7 +161,7 @@ export function getSessionAllowanceLabel(planId) {
   const plan = normalizePlanId(planId) || "basic";
   if (plan === "pro") return "4 flexible session credits included each month";
   if (plan === "plus") return "2 flexible session credits included each month";
-  return "2 full application component reviews included each month";
+  return "2 full personal statement reviews included each month";
 }
 
 /** Monthly application-component review credits (separate from live session credits). */
@@ -174,7 +174,7 @@ export function getMonthlyApplicationReviewLimit(planId) {
 export function getApplicationReviewAllowanceLabel(planId) {
   const limit = getMonthlyApplicationReviewLimit(planId);
   if (!limit) return null;
-  return `${limit} full application component reviews included each month`;
+  return `${limit} full personal statement reviews included each month`;
 }
 
 export function countApplicationReviewsThisPeriod(reviews = [], now = new Date()) {

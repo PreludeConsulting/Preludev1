@@ -8,6 +8,7 @@ import UserAvatar from "../../../components/UserAvatar.jsx";
 import { cn } from "../../../lib/utils.js";
 import { bindFocusTrap } from "../../../lib/focusTrap.js";
 import { isJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
+import { useBelowHeaderModalOffset } from "../../hooks/useBelowHeaderModalOffset.js";
 
 export function DashBadge({ children, variant = "default", className }) {
   return <span className={cn("dash-badge", `dash-badge--${variant}`, className)}>{children}</span>;
@@ -138,12 +139,13 @@ export function SearchInput({ value, onChange, placeholder = "Search…" }) {
   );
 }
 
-export function Modal({ open, onClose, title, children, footer, className, scrollable }) {
+export function Modal({ open, onClose, title, children, footer, className, scrollable, belowHeader = false }) {
   const titleId = useId();
   const backdropRef = useRef(null);
   const returnFocusRef = useRef(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  useBelowHeaderModalOffset(Boolean(open) && belowHeader);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -175,7 +177,12 @@ export function Modal({ open, onClose, title, children, footer, className, scrol
 
   if (!open) return null;
   const modalNode = (
-    <div ref={backdropRef} className="dash-modal-backdrop" role="presentation" onClick={onClose}>
+    <div
+      ref={backdropRef}
+      className={cn("dash-modal-backdrop", belowHeader && "dash-overlay--below-header")}
+      role="presentation"
+      onClick={onClose}
+    >
       <MotionDialog
         className={cn("dash-modal", scrollable && "dash-modal--scrollable", className)}
         role="dialog"

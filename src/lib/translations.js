@@ -272,11 +272,11 @@ export const translations = {
             name: "Basic",
             description: "Foundational support from real college mentors.",
             features: [
-              "2 full application component reviews per month",
-              "Essays, activities lists, résumés, school lists, and more",
+              "2 full personal statement reviews per month",
+              "2 full supplemental essay reviews for one college per month",
               "Assigned mentor messaging",
               "Personalized student roadmap",
-              "Detailed written feedback and edits within 1-2 business days"
+              "Detailed written feedback and edits within 1–2 business days"
             ]
           },
           {
@@ -639,11 +639,11 @@ export const translations = {
             name: "Basic",
             description: "실제 대학 멘토의 기본 지원.",
             features: [
-              "월 2회 전체 지원서 구성요소 리뷰",
-              "에세이, 활동 목록, 이력서, 학교 리스트 등",
+              "월 2회 자기소개서(개인 성명서) 전체 리뷰",
+              "월 1개 대학의 보충 에세이 전체 리뷰 2회",
               "배정된 멘토 메시징",
               "맞춤형 학생 로드맵",
-              "상세 서면 피드백 및 수정 (영업일 기준 1-2일 내)"
+              "상세 서면 피드백 및 수정 (영업일 기준 1–2일 내)"
             ]
           },
           {
@@ -1007,11 +1007,11 @@ export const translations = {
             name: "Basic",
             description: "来自真实大学导师的基础支持。",
             features: [
-              "每月 2 次完整申请材料组成部分审阅",
-              "文书、活动列表、简历、选校清单等",
+              "每月 2 次完整个人陈述审阅",
+              "每月 1 所院校的完整补充文书审阅 2 次",
               "指定导师消息",
               "个性化学生路线图",
-              "详细书面反馈与修改（1-2 个工作日内）"
+              "详细书面反馈与修改（1–2 个工作日内）"
             ]
           },
           {
@@ -1377,11 +1377,11 @@ export const translations = {
             name: "Basic",
             description: "Apoyo fundamental de mentores universitarios reales.",
             features: [
-              "2 revisiones completas de componentes de solicitud al mes",
-              "Ensayos, listas de actividades, currículums, listas de escuelas y más",
+              "2 revisiones completas de personal statement al mes",
+              "2 revisiones completas de ensayos suplementarios para una universidad al mes",
               "Mensajería con mentor asignado",
               "Hoja de ruta personalizada del estudiante",
-              "Comentarios escritos detallados y ediciones en 1-2 días hábiles"
+              "Comentarios escritos detallados y ediciones en 1–2 días hábiles"
             ]
           },
           {

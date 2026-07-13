@@ -60,8 +60,10 @@ The plans differ through mentor access, roadmap depth, messaging access, and hum
 ### Basic
 
 - foundational guidance
-- 2 full application component reviews per month (async written feedback and edits)
-- detailed written feedback and edits within 1-2 business days
+- 2 full personal statement reviews per month
+- 2 full supplemental essay reviews for one college per month
+- a full review means the complete essay with detailed written feedback, suggested edits, and revision guidance
+- detailed written feedback and edits within 1–2 business days
 - assigned mentor messaging
 - personalized milestone-based college roadmap
 - application-progress tracking
@@ -70,7 +72,7 @@ The plans differ through mentor access, roadmap depth, messaging access, and hum
 
 ### Plus
 
-- includes Basic features (including 2 full application component reviews per month)
+- includes Basic features (including personal statement and supplemental essay reviews)
 - two flexible one-on-one mentor sessions per month
 - expanded messaging access
 - enhanced customized roadmap

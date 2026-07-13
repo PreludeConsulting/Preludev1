@@ -101,7 +101,7 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
         text: [
           "## Basic vs. Plus",
           "",
-          "**Basic** is a good fit when you want a roadmap, assigned mentor messaging, and **2 full application component reviews per month** (async written feedback).",
+          "**Basic** is a good fit when you want a roadmap, assigned mentor messaging, **2 full personal statement reviews per month**, and **2 full supplemental essay reviews for one college per month**.",
           "",
           "**Plus** is better when you want **everything in Basic** plus **recurring one-on-one support** and more consistent network messaging.",
           "",
@@ -123,9 +123,9 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
       if (wantsEssay && !wantsFrequent) {
         return {
           text: [
-            "For **written application feedback**, **Basic** includes **2 full application component reviews per month** with detailed written feedback and edits within 1-2 business days.",
+            "For **written application feedback**, **Basic** includes **2 full personal statement reviews per month** and **2 full supplemental essay reviews for one college per month**, with detailed written feedback and edits within 1–2 business days.",
             "",
-            "**Plus** keeps those review credits and adds live 1-on-1 sessions. **Pro** adds higher-touch support, including fuller application review.",
+            "**Plus** keeps that essay-review support and adds live 1-on-1 sessions. **Pro** adds higher-touch support, including fuller application review.",
             "",
             linkLine(["compare_plans"]),
             "",
@@ -137,7 +137,7 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
 
       return {
         text: [
-          "**Basic** is probably enough if you mainly want structure, mentor messaging, and **2 full application component reviews per month**.",
+          "**Basic** is probably enough if you mainly want structure, mentor messaging, **2 full personal statement reviews per month**, and **2 full supplemental essay reviews for one college per month**.",
           "",
           "**Plus** is a stronger fit if you want everything in Basic plus **recurring one-on-one live sessions**.",
           "",
@@ -158,7 +158,7 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
         text: [
           "Yes. Depending on your plan, you can access **mentor messaging** and live sessions.",
           "",
-          "- **Basic** includes assigned mentor messaging plus **2 full application component reviews per month** (no live session credits).",
+          "- **Basic** includes assigned mentor messaging, **2 full personal statement reviews per month**, and **2 full supplemental essay reviews for one college per month** (no live session credits).",
           "- **Plus** includes everything in Basic and adds recurring flexible 1-on-1 sessions.",
           "- **Pro** includes everything in Plus with more session credits and higher-touch application support.",
           "",

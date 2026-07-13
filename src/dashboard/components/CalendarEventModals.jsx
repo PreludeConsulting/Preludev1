@@ -13,6 +13,7 @@ import { EVENT_CATEGORY_LABELS } from "../data/placeholders.js";
 import NotificationPermissionModal from "./NotificationPermissionModal.jsx";
 import { MaskedDateInput, MaskedTimeInput } from "./MaskedInputs.jsx";
 import { IconButton, Modal, PrimaryButton, SecondaryButton } from "./ui/index.jsx";
+import { useBelowHeaderModalOffset } from "../hooks/useBelowHeaderModalOffset.js";
 
 export const CALENDAR_COLOR_OPTIONS = [
   { value: "red", label: "Red" },
@@ -217,6 +218,8 @@ export function CalendarAddEventModal({
   const isSimplifiedForm = isEventForm || isTaskForm;
   const showStudentEventChoice = meetingRequestMode && isEventForm && !initialEvent && role === "student";
   const lockedStudent = students.find((student) => student.id === defaultStudentId);
+  const pinBelowHeader = Boolean(open) && !inline && isEventForm;
+  useBelowHeaderModalOffset(pinBelowHeader);
   useEffect(() => {
     if (!open && !inline) return;
     endTimeManuallyEdited.current = false;
@@ -455,6 +458,7 @@ export function CalendarAddEventModal({
           )}
           onSubmit={handleSubmit}
         >
+          <div className="dash-event-form__fields">
           <label className="prelude-field">
             <span>{titleLabel}</span>
             <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
@@ -631,6 +635,7 @@ export function CalendarAddEventModal({
               </select>
             </label>
           ) : null}
+          </div>
           <div className={cn(
             "dash-modal__footer dash-modal__footer--inline dash-modal__footer--stacked",
             inline && "dash-inline-event-form__footer"
@@ -694,8 +699,20 @@ export function CalendarAddEventModal({
   }
 
   const modalNode = (
-    <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="dash-modal dash-modal--wide" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+    <div
+      className={cn("dash-modal-backdrop", pinBelowHeader && "dash-overlay--below-header")}
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="dash-modal dash-modal--wide"
+        role="dialog"
+        aria-modal="true"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="dash-modal__head">
           <h2 className="dash-modal__title">{modalTitle}</h2>
           <IconButton label="Close" onClick={onClose}><X className="h-4 w-4" /></IconButton>

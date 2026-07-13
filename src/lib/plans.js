@@ -22,11 +22,11 @@ export const PLANS = {
     isRecommended: false,
     description: "Foundational support from real college mentors.",
     features: [
-      "2 full application component reviews per month",
-      "Essays, activities lists, résumés, school lists, and more",
+      "2 full personal statement reviews per month",
+      "2 full supplemental essay reviews for one college per month",
       "Assigned mentor messaging",
       "Personalized student roadmap",
-      "Detailed written feedback and edits within 1-2 business days"
+      "Detailed written feedback and edits within 1–2 business days"
     ],
     aiFeatures: AI_FEATURES,
     softwareAccess: [
@@ -35,11 +35,11 @@ export const PLANS = {
       "Financial aid & scholarship resource library",
       "Prelude AI assistant (full access)"
     ],
-    mentorSessions: "2 full application component reviews / month",
+    mentorSessions: "2 full personal statement reviews / month",
     messaging: "Assigned mentor messaging",
     mentorExtras: [
-      "Detailed written feedback and edits within 1-2 business days",
-      "Guidance from real admissions experience"
+      "2 full supplemental essay reviews for one college per month",
+      "Detailed written feedback and edits within 1–2 business days"
     ],
     roadmapFeatures: ["Personalized college roadmap", "Progress tracking dashboard"],
     sessionCredits: 0,
