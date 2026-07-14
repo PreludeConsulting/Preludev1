@@ -5,6 +5,7 @@ export const HOMEPAGE_SCROLL_SECTIONS = [
   { id: "how-it-works", label: "How It Works" },
   { id: "mentorship", label: "Mentors" },
   { id: "pricing", label: "Pricing" },
+  { id: "bundles", label: "Bundles" },
   { id: "contact", label: "Contact" }
 ];
 

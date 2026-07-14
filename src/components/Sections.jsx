@@ -12,10 +12,11 @@ import { useLanguage } from "../context/LanguageContext.jsx";
 import { Button } from "./ui/button.jsx";
 import PreludeLogo from "./PreludeLogo.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { startBillingCheckout } from "../lib/auth.js";
 import { getPricingPlans } from "../lib/plans.js";
 import PricingCard from "./PricingCard.jsx";
 import RewardsShowcase from "./RewardsShowcase.jsx";
-import { startBillingCheckout } from "../lib/auth.js";
+import SupportBundlesSection from "./SupportBundlesSection.jsx";
 import { FOOTER_LINK_COLUMNS } from "../data/footerLinks.js";
 import AppLink from "./AppLink.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
@@ -236,6 +237,10 @@ export function LowerPlans() {
           </div>
         </div>
       </section>
+
+      <div className="lower-landing__bundles-wrap">
+        <SupportBundlesSection />
+      </div>
     </div>
   );
 }

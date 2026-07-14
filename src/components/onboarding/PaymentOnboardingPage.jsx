@@ -1,19 +1,25 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useRef } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {
   PARENT_ONBOARDING_PATH,
-  PAYMENT_ONBOARDING_PATH,
   dashboardPathForRole,
   postAuthDestination,
   userNeedsPaymentStep
 } from "../../lib/onboardingRoutes.js";
+import { peekPendingBundleIntent } from "../../lib/bundlePurchaseIntent.js";
 import { PlanWalletSelector } from "../PlanSelectionPage.jsx";
 import OnboardingShell from "./OnboardingShell.jsx";
 
 export default function PaymentOnboardingPage() {
   const { user, ready } = useAuth();
   const walletBackRef = useRef(null);
+  const location = useLocation();
+  const search = new URLSearchParams(location.search);
+  const isBundles =
+    search.get("mode") === "bundles" ||
+    location.state?.purchaseMode === "bundles" ||
+    Boolean(peekPendingBundleIntent()?.bundleId);
 
   if (!ready) {
     return (
@@ -40,12 +46,16 @@ export default function PaymentOnboardingPage() {
     <OnboardingShell
       user={user}
       title="Choose your Prelude plan"
-      subtitle="Select one of the three mentorship tiers below. You'll complete secure checkout before your account is activated."
+      subtitle={
+        isBundles
+          ? "Pick a monthly mentorship plan or customize a one-time support bundle. Checkout is secure and one-time bundles never create a recurring subscription."
+          : "Select one of the three mentorship tiers below. You'll complete secure checkout before your account is activated."
+      }
       eyebrow="Final step"
       hideContinue
       hideHomeLink
       onBack={(event) => walletBackRef.current?.(event)}
-      footerNote="Your subscription starts after Stripe confirms payment. You cannot access your dashboard until checkout is complete."
+      footerNote="Your subscription starts after Stripe confirms payment. One-time bundles are charged once. You cannot access your dashboard until checkout is complete."
     >
       <PlanWalletSelector
         context="payment"

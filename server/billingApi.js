@@ -15,9 +15,26 @@ import {
   syncSupabaseCheckoutSession,
   syncSupabaseSubscription
 } from "./lib/supabaseBillingSync.js";
+import { quoteBundleSelection, serializeBundleMetadata } from "../shared/supportBundles.js";
 
 const checkoutSchema = z.object({
   planId: z.enum(["basic", "plus", "pro"]),
+  guestCheckout: z.boolean().optional(),
+  context: z.enum(["onboarding", "public"]).optional()
+});
+
+const bundleCheckoutSchema = z.object({
+  bundleId: z.enum([
+    "essay_support",
+    "flexible_sessions",
+    // Legacy IDs still accepted and remapped by quoteBundleSelection.
+    "application_support",
+    "college_application"
+  ]),
+  quantities: z.record(z.number()).optional(),
+  addOns: z.record(z.boolean()).optional(),
+  services: z.record(z.boolean()).optional(),
+  sessionUses: z.record(z.boolean()).optional(),
   guestCheckout: z.boolean().optional(),
   context: z.enum(["onboarding", "public"]).optional()
 });
@@ -46,6 +63,7 @@ function isBillingPath(pathname) {
   return (
     pathname === "/api/billing/config" ||
     pathname === "/api/billing/checkout" ||
+    pathname === "/api/billing/bundle-checkout" ||
     pathname === "/api/billing/confirm-session" ||
     pathname === "/api/billing/portal" ||
     pathname === "/api/billing/webhook"
@@ -160,6 +178,61 @@ async function handleCheckout(req, res) {
   });
 
   sendJson(res, 200, { url: session.url });
+}
+
+async function handleBundleCheckout(req, res) {
+  const config = getBillingConfig();
+  if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
+
+  const payload = bundleCheckoutSchema.parse(await readJsonBody(req));
+  if (payload.context === "onboarding" && !req.headers.authorization) {
+    return sendJson(res, 401, { error: "unauthenticated", message: "Please sign in before checkout." });
+  }
+
+  const quote = quoteBundleSelection(payload);
+  if (!quote.ok) {
+    return sendJson(res, 400, { error: quote.error || "validation_error", message: quote.message });
+  }
+  if (!quote.totalCents || quote.totalCents < 50) {
+    return sendJson(res, 400, { error: "invalid_amount", message: "That bundle total is too low to checkout." });
+  }
+
+  const authUser = await resolveCheckoutAuth(req, payload);
+  const stripe = getStripeClient(config);
+  const customerId = authUser ? await ensureStripeCustomerForCheckout(authUser, config) : null;
+  const appBaseUrl = getAppBaseUrl(req);
+  const purchaseKey = `bundle_${quote.selection.bundleId}`;
+  const { successUrl, cancelUrl } = checkoutResultUrls(appBaseUrl, purchaseKey, payload.context);
+  const metadata = {
+    ...serializeBundleMetadata(quote),
+    ...(authUser
+      ? { userId: authUser.userId, checkoutContext: payload.context || "public" }
+      : { checkoutMode: "guest_test" })
+  };
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    ...(customerId ? { customer: customerId } : {}),
+    ...(authUser ? { client_reference_id: authUser.userId } : {}),
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "usd",
+          unit_amount: quote.totalCents,
+          product_data: {
+            name: quote.catalog.title,
+            description: quote.summaryLines.slice(0, 3).join(" · ").slice(0, 400)
+          }
+        }
+      }
+    ],
+    metadata
+  });
+
+  sendJson(res, 200, { url: session.url, totalCents: quote.totalCents, bundleId: quote.selection.bundleId });
 }
 
 async function handleConfirmSession(req, res) {
@@ -350,6 +423,7 @@ export function createBillingApiMiddleware() {
     try {
       if (url.pathname === "/api/billing/config" && req.method === "GET") return await handleConfig(req, res);
       if (url.pathname === "/api/billing/checkout" && req.method === "POST") return await handleCheckout(req, res);
+      if (url.pathname === "/api/billing/bundle-checkout" && req.method === "POST") return await handleBundleCheckout(req, res);
       if (url.pathname === "/api/billing/confirm-session" && req.method === "POST") return await handleConfirmSession(req, res);
       if (url.pathname === "/api/billing/portal" && req.method === "POST") return await handlePortal(req, res);
       if (url.pathname === "/api/billing/webhook" && req.method === "POST") return await handleWebhook(req, res);

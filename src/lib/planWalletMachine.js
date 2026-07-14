@@ -79,6 +79,14 @@ export function walletReducer(state, event) {
     case "RESTORE_OPEN":
       return { ...state, status: S.OPEN };
 
+    case "SWAP_DECK":
+      return {
+        ...state,
+        status: S.OPEN,
+        selectedPlanId: event.planId || null,
+        popupPlanId: null
+      };
+
     default:
       return state;
   }

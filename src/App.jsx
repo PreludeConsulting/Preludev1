@@ -52,7 +52,8 @@ function AppContent() {
     }
     if (hash) {
       window.requestAnimationFrame(() => {
-        document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start" });
+        const target = document.getElementById(hash.slice(1));
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
   }, [hash]);

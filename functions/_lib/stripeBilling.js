@@ -333,6 +333,68 @@ export async function handleBillingCheckout(context) {
   return json({ url: session.url });
 }
 
+export async function handleBillingBundleCheckout(context) {
+  const config = getBillingConfig(context);
+  if (!config.enabled) return json(billingNotConfiguredPayload(config), 503);
+
+  const { quoteBundleSelection, serializeBundleMetadata } = await import("../../shared/supportBundles.js");
+  const payload = await readJson(context.request);
+  const checkoutContext = payload.context === "onboarding" ? "onboarding" : "public";
+
+  let authUser = null;
+  const authResult = await requireSupabaseUser(context);
+  if (authResult instanceof Response) {
+    if (checkoutContext === "onboarding") return authResult;
+    if (getEnv(context, "STRIPE_ALLOW_GUEST_CHECKOUT") !== "true") {
+      return json({ error: "unauthenticated", message: "Please sign in before checkout." }, 401);
+    }
+  } else {
+    authUser = authResult.user;
+  }
+
+  const quote = quoteBundleSelection(payload);
+  if (!quote.ok) {
+    return json({ error: quote.error || "validation_error", message: quote.message }, 400);
+  }
+  if (!quote.totalCents || quote.totalCents < 50) {
+    return json({ error: "invalid_amount", message: "That bundle total is too low to checkout." }, 400);
+  }
+
+  const baseUrl = appBaseUrl(context);
+  const purchaseKey = `bundle_${quote.selection.bundleId}`;
+  const { successUrl, cancelUrl } = checkoutResultUrls(baseUrl, purchaseKey, checkoutContext);
+  const metadata = serializeBundleMetadata(quote);
+
+  const params = new URLSearchParams();
+  params.set("mode", "payment");
+  params.set("success_url", successUrl);
+  params.set("cancel_url", cancelUrl);
+  params.set("line_items[0][quantity]", "1");
+  params.set("line_items[0][price_data][currency]", "usd");
+  params.set("line_items[0][price_data][unit_amount]", String(quote.totalCents));
+  params.set("line_items[0][price_data][product_data][name]", quote.catalog.title);
+  params.set(
+    "line_items[0][price_data][product_data][description]",
+    quote.summaryLines.slice(0, 3).join(" · ").slice(0, 400)
+  );
+
+  for (const [key, value] of Object.entries(metadata)) {
+    params.set(`metadata[${key}]`, String(value));
+  }
+  params.set("metadata[checkoutContext]", checkoutContext);
+
+  if (authUser) {
+    params.set("client_reference_id", authUser.id);
+    params.set("metadata[userId]", authUser.id);
+    params.set("customer_email", authUser.email || "");
+  } else {
+    params.set("metadata[checkoutMode]", "cloudflare_guest");
+  }
+
+  const session = await stripeRequest(context, "POST", "/v1/checkout/sessions", params);
+  return json({ url: session.url, totalCents: quote.totalCents, bundleId: quote.selection.bundleId });
+}
+
 export async function handleBillingConfirmSession(context) {
   const config = getBillingConfig(context);
   if (!config.enabled) return json(billingNotConfiguredPayload(config), 503);

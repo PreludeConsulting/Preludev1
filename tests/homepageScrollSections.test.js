@@ -24,7 +24,7 @@ const MOCK_SECTIONS = [
 
 describe("homepageScrollSections", () => {
   it("lists ordered homepage sections with ids and labels", () => {
-    expect(HOMEPAGE_SCROLL_SECTIONS.length).toBe(6);
+    expect(HOMEPAGE_SCROLL_SECTIONS.length).toBe(7);
     expect(HOMEPAGE_SCROLL_SECTIONS[0]).toEqual({ id: "home", label: "Hero" });
     expect(HOMEPAGE_SCROLL_SECTIONS.at(-1)).toEqual({ id: "contact", label: "Contact" });
     expect(HOMEPAGE_SCROLL_SECTIONS.some((section) => section.id === "mentorship")).toBe(true);
@@ -32,6 +32,10 @@ describe("homepageScrollSections", () => {
       "Mentors"
     );
     expect(HOMEPAGE_SCROLL_SECTIONS.some((section) => section.id === "how-it-works")).toBe(true);
+    expect(HOMEPAGE_SCROLL_SECTIONS.find((section) => section.id === "bundles")).toEqual({
+      id: "bundles",
+      label: "Bundles"
+    });
   });
 
   it("resolveActiveScrollSection returns a default when DOM is unavailable", () => {

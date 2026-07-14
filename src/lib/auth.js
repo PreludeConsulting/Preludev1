@@ -217,6 +217,13 @@ export async function startBillingCheckout(planId, options = {}) {
   return api("/api/billing/checkout", { method: "POST", body: JSON.stringify({ planId, ...options }) });
 }
 
+export async function startBundleCheckout(selection, options = {}) {
+  return api("/api/billing/bundle-checkout", {
+    method: "POST",
+    body: JSON.stringify({ ...selection, ...options })
+  });
+}
+
 export async function openBillingPortal() {
   return api("/api/billing/portal", { method: "POST" });
 }

@@ -13,7 +13,7 @@ import {
 import { readCachedPlan } from "../lib/supabaseAuth.js";
 import { getPlan, getPricingPlans } from "../lib/plans.js";
 import { readOnboardingDraft, writeOnboardingDraft } from "../lib/onboardingFlow.js";
-import { startBillingCheckout } from "../lib/auth.js";
+import { startBillingCheckout, startBundleCheckout } from "../lib/auth.js";
 import { markPendingCheckoutPlan, startOnboardingBillingCheckout } from "../lib/onboardingPayment.js";
 import {
   WALLET_STATES,
@@ -31,6 +31,20 @@ import {
 } from "../lib/planWalletBack.js";
 import { usePlanWalletMotion } from "../lib/planWalletMotion.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
+import {
+  clearPendingBundleIntent,
+  peekPendingBundleIntent
+} from "../lib/bundlePurchaseIntent.js";
+import {
+  BUNDLE_IDS,
+  formatUsd,
+  getDefaultBundleSelection,
+  isValidBundleId,
+  listSupportBundles,
+  resolveBundleId,
+  SUPPORT_BUNDLES
+} from "../../shared/supportBundles.js";
+import BundleCustomizePopup from "./BundleCustomizePopup.jsx";
 import OnboardingShell from "./onboarding/OnboardingShell.jsx";
 
 const PUBLIC_PLANS_PATH = "/plans";
@@ -45,10 +59,27 @@ function selectorPath(context) {
 function restoreFromLocation(location) {
   const search = new URLSearchParams(location.search);
   const selected = location.state?.selectedPlanId || search.get("selected");
+  const pending = peekPendingBundleIntent();
+  const bundleParam = resolveBundleId(
+    location.state?.bundleId || search.get("bundle") || pending?.bundleId || null
+  );
+  const modeParam = location.state?.purchaseMode || search.get("mode") || pending?.mode || null;
+  const purchaseMode =
+    modeParam === "bundles" || (!modeParam && isValidBundleId(bundleParam)) ? "bundles" : "monthly";
+  const bundleId = isValidBundleId(bundleParam) ? resolveBundleId(bundleParam) : null;
+
   return {
-    walletOpen: Boolean(location.state?.walletOpen) || search.get("wallet") === "open",
-    detailsOpen: search.get("details") === "open",
-    selectedPlanId: isValidPlanId(selected) ? selected : null
+    walletOpen:
+      Boolean(location.state?.walletOpen) ||
+      search.get("wallet") === "open" ||
+      Boolean(bundleId && purchaseMode === "bundles"),
+    detailsOpen:
+      search.get("details") === "open" ||
+      Boolean(location.state?.detailsOpen) ||
+      Boolean(bundleId && purchaseMode === "bundles"),
+    selectedPlanId: isValidPlanId(selected) ? selected : null,
+    purchaseMode,
+    bundleId
   };
 }
 
@@ -129,6 +160,54 @@ export function WalletPlanCard({
       tabIndex={selectable ? 0 : -1}
     >
       {content}
+    </button>
+  );
+}
+
+export function WalletBundleCard({
+  catalog,
+  index,
+  selected,
+  selectable,
+  onSelect,
+  buttonRef
+}) {
+  const className = `pw-card pw-card--bundle pw-card--${catalog.id} ${selected ? "pw-card--selected" : ""}`;
+
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      className={className}
+      style={{ "--pw-i": index }}
+      onClick={() => onSelect(catalog.id)}
+      disabled={!selectable}
+      aria-haspopup="dialog"
+      aria-pressed={selected}
+      aria-label={`${catalog.shortTitle || catalog.title}, starting at ${formatUsd(catalog.startingCents)}${selected ? ", selected" : ""}`}
+      tabIndex={selectable ? 0 : -1}
+    >
+      <span className="pw-card__surface" aria-hidden="true" />
+      <span className="pw-card__sheen" aria-hidden="true" />
+      <span className="pw-card__top">
+        <span className="pw-card__name">{catalog.shortTitle || catalog.title}</span>
+        {catalog.badge ? <span className="pw-card__badge">{catalog.badge}</span> : null}
+        <span className="pw-card__price">
+          {formatUsd(catalog.startingCents)}
+          <small>starting</small>
+        </span>
+      </span>
+      <span className="pw-card__tagline">{catalog.shortDescription || catalog.description}</span>
+      <span className="pw-card__bundle-action">
+        Customize
+        <ChevronRight aria-hidden="true" />
+      </span>
+      {selected ? (
+        <span className="pw-card__selected-mark">
+          <Check aria-hidden="true" />
+          Selected
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -391,8 +470,18 @@ export function PlanWalletExperience({
     [persistState, user?.id]
   );
 
-  const initialPlanId = isBillingContext
-    ? (isValidPlanId(initialSelectedPlanId) ? initialSelectedPlanId : null)
+  const supportBundles = useMemo(() => listSupportBundles(), []);
+  const [purchaseMode, setPurchaseMode] = useState(() => {
+    if (isBillingContext) return "monthly";
+    if (restored.purchaseMode === "bundles") return "bundles";
+    if (draft.purchaseMode === "bundles") return "bundles";
+    return "monthly";
+  });
+
+  const initialMonthlyPlanId = isBillingContext
+    ? isValidPlanId(initialSelectedPlanId)
+      ? initialSelectedPlanId
+      : null
     : restored.selectedPlanId ||
       (isValidPlanId(draft.selectedPlanId)
         ? draft.selectedPlanId
@@ -400,20 +489,57 @@ export function PlanWalletExperience({
           ? cachedPlan
           : null);
 
+  const initialBundleId =
+    restored.bundleId ||
+    (isValidBundleId(draft.selectedBundleId)
+      ? resolveBundleId(draft.selectedBundleId)
+      : supportBundles[0]?.id) ||
+    null;
+
+  const initialPlanId = purchaseMode === "bundles" ? initialBundleId : initialMonthlyPlanId;
+
   const initialOpen = isBillingContext
     ? initialWalletOpen
-    : restored.walletOpen || Boolean(draft.walletOpen);
+    : restored.walletOpen || Boolean(draft.walletOpen) || purchaseMode === "bundles";
   const initialStatus = isBillingContext
     ? initialOpen
       ? WALLET_STATES.OPEN
       : WALLET_STATES.CLOSED
-    : restored.detailsOpen && initialPlanId
+    : restored.detailsOpen && initialPlanId && purchaseMode === "bundles"
       ? WALLET_STATES.POPUP_OPEN
-      : initialOpen
-        ? WALLET_STATES.OPEN
-        : WALLET_STATES.CLOSED;
+      : restored.detailsOpen && initialPlanId && purchaseMode === "monthly"
+        ? WALLET_STATES.POPUP_OPEN
+        : initialOpen
+          ? WALLET_STATES.OPEN
+          : WALLET_STATES.CLOSED;
 
-  const planIds = useMemo(() => plans.map((plan) => plan.id), [plans]);
+  const planIds = useMemo(
+    () => (purchaseMode === "bundles" ? supportBundles.map((bundle) => bundle.id) : plans.map((plan) => plan.id)),
+    [plans, purchaseMode, supportBundles]
+  );
+
+  const [bundleSelections, setBundleSelections] = useState(() => {
+    const fromDraft = draft.bundleSelections && typeof draft.bundleSelections === "object" ? draft.bundleSelections : {};
+    return Object.fromEntries(
+      BUNDLE_IDS.map((id) => {
+        const defaults = getDefaultBundleSelection(id);
+        const saved = fromDraft[id];
+        if (!saved || typeof saved !== "object") return [id, defaults];
+        return [
+          id,
+          {
+            ...defaults,
+            ...saved,
+            bundleId: id,
+            quantities: { ...defaults.quantities, ...saved.quantities },
+            addOns: { ...defaults.addOns, ...saved.addOns },
+            services: { ...defaults.services, ...saved.services },
+            sessionUses: { ...defaults.sessionUses, ...saved.sessionUses }
+          }
+        ];
+      })
+    );
+  });
 
   const walletRef = useRef(null);
   const interiorRef = useRef(null);
@@ -423,6 +549,8 @@ export function PlanWalletExperience({
   const popupRef = useRef(null);
   const backdropRef = useRef(null);
   const cardRefs = useRef({});
+  const lastMonthlySelectedRef = useRef(initialMonthlyPlanId);
+  const lastBundleSelectedRef = useRef(initialBundleId);
 
   const motionRefs = useMemo(
     () => ({
@@ -468,7 +596,25 @@ export function PlanWalletExperience({
   const showDeck = walletShowsDeck(state.status);
   const selectable = cardsSelectable(state.status);
   const popupOpen = popupVisible(state.status);
-  const popupPlan = state.popupPlanId ? getPlan(state.popupPlanId) : null;
+  const popupPlan = purchaseMode === "monthly" && state.popupPlanId ? getPlan(state.popupPlanId) : null;
+  const popupBundleId =
+    purchaseMode === "bundles" && isValidBundleId(state.popupPlanId)
+      ? resolveBundleId(state.popupPlanId)
+      : null;
+
+  useEffect(() => {
+    if (isBillingContext) return;
+    if (peekPendingBundleIntent()) clearPendingBundleIntent();
+  }, [isBillingContext]);
+
+  useEffect(() => {
+    if (purchaseMode === "monthly" && isValidPlanId(state.selectedPlanId)) {
+      lastMonthlySelectedRef.current = state.selectedPlanId;
+    }
+    if (purchaseMode === "bundles" && isValidBundleId(state.selectedPlanId)) {
+      lastBundleSelectedRef.current = state.selectedPlanId;
+    }
+  }, [purchaseMode, state.selectedPlanId]);
 
   const persistDraft = useCallback(
     (patch) => {
@@ -477,6 +623,26 @@ export function PlanWalletExperience({
     },
     [persistState, user?.id]
   );
+
+  function handlePurchaseModeChange(nextMode) {
+    if (nextMode === purchaseMode || isBillingContext) return;
+    if (popupOpen) {
+      dispatch({ type: "CLOSE_POPUP" });
+    }
+    setPurchaseMode(nextMode);
+    const nextSelected =
+      nextMode === "bundles"
+        ? lastBundleSelectedRef.current || supportBundles[0]?.id || null
+        : lastMonthlySelectedRef.current || plans[0]?.id || null;
+    persistDraft({
+      purchaseMode: nextMode,
+      walletOpen: true,
+      selectedBundleId: nextMode === "bundles" ? nextSelected : lastBundleSelectedRef.current,
+      selectedPlanId: nextMode === "monthly" ? nextSelected : lastMonthlySelectedRef.current
+    });
+    cardRefs.current = {};
+    dispatch({ type: "SWAP_DECK", planId: nextSelected });
+  }
 
   // Restore focus to the selected card when the popup fully closes.
   useEffect(() => {
@@ -558,11 +724,57 @@ export function PlanWalletExperience({
     if (!selectable) return;
     setNotice("");
     dispatch({ type: "SELECT_CARD", planId });
-    persistDraft({ walletOpen: true, selectedPlanId: planId });
+    if (purchaseMode === "bundles") {
+      persistDraft({ walletOpen: true, selectedBundleId: planId, purchaseMode: "bundles" });
+    } else {
+      persistDraft({ walletOpen: true, selectedPlanId: planId, purchaseMode: "monthly" });
+    }
   }
 
   function handleViewOtherPlans() {
     dispatch({ type: "CLOSE_POPUP" });
+  }
+
+  function handleBundleSelectionChange(nextSelection) {
+    if (!nextSelection?.bundleId) return;
+    setBundleSelections((current) => {
+      const updated = { ...current, [nextSelection.bundleId]: nextSelection };
+      persistDraft({ bundleSelections: updated, selectedBundleId: nextSelection.bundleId });
+      return updated;
+    });
+  }
+
+  async function handleChooseBundle(selection) {
+    setNotice("");
+    const requiresRealAccount = user?.authProvider === "demo" || user?.authProvider === "dev";
+
+    if (context === "billing-current") return;
+
+    if (context === "public" && (!isAuthenticated || requiresRealAccount) && !allowGuestCheckout) {
+      setNotice("Create an account or sign in to purchase this bundle.");
+      openRegister();
+      return;
+    }
+
+    setBusyPlan(selection.bundleId);
+    try {
+      const result = await startBundleCheckout(selection, {
+        context: context === "payment" ? "onboarding" : "public",
+        guestCheckout: context === "public" && (!isAuthenticated || requiresRealAccount)
+      });
+      if (result.url) window.location.href = result.url;
+    } catch (error) {
+      if (error.payload?.error === "billing_not_configured") {
+        setNotice("Bundle checkout will turn on after billing is connected.");
+      } else if (error.status === 401 || error.status === 403) {
+        setNotice("Create an account or sign in to continue to checkout.");
+        openRegister();
+      } else {
+        setNotice(error.message || "Bundle checkout is unavailable right now. Please try again.");
+      }
+    } finally {
+      setBusyPlan(null);
+    }
   }
 
   async function handleChooseOnboarding(plan) {
@@ -668,34 +880,78 @@ export function PlanWalletExperience({
     state.status !== WALLET_STATES.CLOSED &&
     state.status !== WALLET_STATES.OPEN;
   const walletControlLabel = state.status === WALLET_STATES.CLOSED ? "Open wallet" : "Close wallet";
+  const deckCount = purchaseMode === "bundles" ? supportBundles.length : plans.length;
+  const showModeSwitch = !isBillingContext;
 
   return (
     <div className={`plan-wallet-experience ${experienceClassName}`.trim()}>
+      {showModeSwitch ? (
+        <div className="pw-mode-switch" role="tablist" aria-label="Purchase type">
+          <button
+            type="button"
+            role="tab"
+            className={`pw-mode-switch__tab${purchaseMode === "monthly" ? " pw-mode-switch__tab--active" : ""}`}
+            aria-selected={purchaseMode === "monthly"}
+            onClick={() => handlePurchaseModeChange("monthly")}
+          >
+            Monthly Plans
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={`pw-mode-switch__tab${purchaseMode === "bundles" ? " pw-mode-switch__tab--active" : ""}`}
+            aria-selected={purchaseMode === "bundles"}
+            onClick={() => handlePurchaseModeChange("bundles")}
+          >
+            One-Time Bundles
+          </button>
+        </div>
+      ) : null}
+
       <div
         ref={walletRef}
-        className={`pw-wallet pw-wallet--${state.status} pw-wallet--count-${plans.length}`}
+        className={`pw-wallet pw-wallet--${state.status} pw-wallet--count-${deckCount}${purchaseMode === "bundles" ? " pw-wallet--bundles" : ""}`}
         data-deck-visible={showDeck ? "true" : "false"}
-        data-popup-plan={popupPlan?.id || state.selectedPlanId || ""}
+        data-popup-plan={popupBundleId || popupPlan?.id || state.selectedPlanId || ""}
         aria-hidden={popupOpen ? "true" : undefined}
         // React 18 forwards unknown attributes as strings; "" enables inert.
         inert={popupOpen ? "" : undefined}
       >
         <div ref={interiorRef} className="pw-wallet__interior" aria-hidden="true" />
 
-        <div className="pw-deck" role="group" aria-label="Prelude plans">
-          {plans.map((plan, index) => (
-            <WalletPlanCard
-              key={plan.id}
-              plan={plan}
-              index={index}
-              selected={state.selectedPlanId === plan.id}
-              selectable={selectable}
-              onSelect={handleSelectCard}
-              buttonRef={(node) => {
-                cardRefs.current[plan.id] = node;
-              }}
-            />
-          ))}
+        <div
+          className="pw-deck"
+          role="group"
+          aria-label={purchaseMode === "bundles" ? "Prelude one-time bundles" : "Prelude plans"}
+          key={purchaseMode}
+        >
+          {purchaseMode === "bundles"
+            ? supportBundles.map((bundle, index) => (
+                <WalletBundleCard
+                  key={bundle.id}
+                  catalog={SUPPORT_BUNDLES[bundle.id]}
+                  index={index}
+                  selected={state.selectedPlanId === bundle.id}
+                  selectable={selectable}
+                  onSelect={handleSelectCard}
+                  buttonRef={(node) => {
+                    cardRefs.current[bundle.id] = node;
+                  }}
+                />
+              ))
+            : plans.map((plan, index) => (
+                <WalletPlanCard
+                  key={plan.id}
+                  plan={plan}
+                  index={index}
+                  selected={state.selectedPlanId === plan.id}
+                  selectable={selectable}
+                  onSelect={handleSelectCard}
+                  buttonRef={(node) => {
+                    cardRefs.current[plan.id] = node;
+                  }}
+                />
+              ))}
         </div>
 
         <div ref={pocketRef} className="pw-wallet__pocket" aria-hidden="true">
@@ -725,6 +981,23 @@ export function PlanWalletExperience({
           </span>
         </div>
       </div>
+
+      {popupOpen && popupBundleId ? (
+        <BundleCustomizePopup
+          bundleId={popupBundleId}
+          selection={bundleSelections[popupBundleId]}
+          onSelectionChange={handleBundleSelectionChange}
+          status={state.status}
+          busy={busyPlan === popupBundleId}
+          notice={notice}
+          context={context}
+          dialogRef={popupRef}
+          backdropRef={backdropRef}
+          onCheckout={handleChooseBundle}
+          onViewOtherBundles={handleViewOtherPlans}
+          onRequestClose={handleViewOtherPlans}
+        />
+      ) : null}
 
       {popupOpen && popupPlan ? (
         <PlanPopup
