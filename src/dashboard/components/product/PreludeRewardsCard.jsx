@@ -88,7 +88,7 @@ export default function PreludeRewardsCard() {
   const nextCoins = nextRewardTarget?.goalCoins ?? featuredReward?.coins ?? goalCoins;
   const awayCopy = piggyCanRedeem
     ? "You can redeem a reward now"
-    : `${coinsAway} more coins needed`;
+    : "more coins needed";
 
   return (
     <article className="dash-product-card dash-product-card--wide dash-product-card--rewards dash-prelude-rewards-preview">
@@ -106,7 +106,7 @@ export default function PreludeRewardsCard() {
         <div className="dash-prelude-rewards-preview__progress">
           <p className="dash-prelude-rewards-preview__away">
             <span className="dash-prelude-rewards-preview__away-num">{piggyCanRedeem ? "✓" : coinsAway}</span>
-            {" "}
+            {piggyCanRedeem ? null : " "}
             {awayCopy}
           </p>
           <div className="dash-prelude-rewards-preview__track" aria-hidden="true">

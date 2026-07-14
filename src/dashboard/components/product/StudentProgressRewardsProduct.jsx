@@ -135,7 +135,7 @@ function RewardsTabs({ active, onChange }) {
 }
 
 function StatusTab() {
-  const { lifetimeCoins, coins, services } = useProgressRewards();
+  const { lifetimeCoins, coins, services, proBoost } = useProgressRewards();
 
   return (
     <div className="dash-rewards-tab-panel dash-rewards-status">
@@ -144,6 +144,7 @@ function StatusTab() {
         lifetimeCoins={lifetimeCoins}
         satActUnlocked={Boolean(services?.satActPrep)}
         tutoringUnlocked={Boolean(services?.academicTutoring)}
+        proBoost={proBoost}
       />
     </div>
   );
@@ -297,6 +298,7 @@ function EarnTab() {
     canMentorCompleteTask,
     isMainAssignedMentor
   } = useProgressRewards();
+  const { canAccess } = usePlanAccess();
 
   const grouped = earnCategoryOrder.reduce((acc, cat) => {
     const items = milestones.filter((m) => m.category === cat);
@@ -330,6 +332,20 @@ function EarnTab() {
           </div>
         </details>
       ))}
+
+      {!isMentorStudentView && !canAccess("advancedRewards") ? (
+        <PlanLockedFeature
+          feature="advancedRewards"
+          title="Unlock Pro Boost"
+          variant="proBoostUnlock"
+          className="dash-rewards-pro-boost"
+        />
+      ) : !isMentorStudentView ? (
+        <div className="dash-rewards-pro-boost dash-rewards-pro-boost--active" role="status">
+          <Zap className="h-4 w-4" aria-hidden="true" />
+          <p>Pro Boost active — earn 25% more coins on every completed milestone.</p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -337,7 +353,6 @@ function EarnTab() {
 export default function StudentProgressRewardsProduct() {
   const { isMentorStudentView } = useDashboardData();
   const [activeTab, setActiveTab] = useState(isMentorStudentView ? "earn" : "redeem");
-  const { canAccess } = usePlanAccess();
   const { syncError, retrySync } = useProgressRewards();
 
   useEffect(() => {
@@ -366,15 +381,6 @@ export default function StudentProgressRewardsProduct() {
           {activeTab === "status" ? <StatusTab /> : null}
           {activeTab === "my-rewards" ? <MyRewardsTab /> : null}
           {activeTab === "earn" ? <EarnTab /> : null}
-
-          {!isMentorStudentView && !canAccess("advancedRewards") ? (
-            <PlanLockedFeature feature="advancedRewards" compact className="dash-rewards-pro-boost" />
-          ) : !isMentorStudentView ? (
-            <div className="dash-rewards-pro-boost dash-rewards-pro-boost--active" role="status">
-              <Zap className="h-4 w-4" aria-hidden="true" />
-              <p>Pro earning boost active — you earn coins faster on every milestone.</p>
-            </div>
-          ) : null}
         </div>
         <RewardsSidebarBottom onViewAllChallenges={() => setActiveTab("earn")} />
       </div>

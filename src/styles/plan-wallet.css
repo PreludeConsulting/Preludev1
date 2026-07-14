@@ -1134,6 +1134,12 @@
   background: #faf8ff;
 }
 
+.pw-bundle-option--included {
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
+}
+
 .pw-bundle-option input {
   position: absolute;
   opacity: 0;

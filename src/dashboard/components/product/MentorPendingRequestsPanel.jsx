@@ -1,15 +1,22 @@
 import { Video } from "lucide-react";
 import MeetingRequestActions from "../MeetingRequestActions.jsx";
 
-function RequestTypeLabel({ type = "" }) {
-  const match = type.match(/^(Zoom)(\s+.*)?$/i);
-  if (!match) return type;
+function RequestDetails({ request }) {
+  const title = request.title || request.type || "Mentor session";
+  const timeRange = [request.requestedStartTime, request.requestedEndTime].filter(Boolean).join(" – ");
+  const when = request.requestedDate
+    ? `${request.requestedDate}${timeRange ? ` · ${timeRange}` : ""}`
+    : request.requestedTime;
 
   return (
-    <>
-      <strong>{match[1]}</strong>
-      {match[2] || ""}
-    </>
+    <div>
+      <p className="dash-mentor-request-row__name">{request.studentName}</p>
+      <p className="dash-mentor-request-row__meta">
+        <strong>{title}</strong>
+        {when ? <> · {when}</> : null}
+      </p>
+      {request.notes ? <p className="dash-mentor-request-row__notes">{request.notes}</p> : null}
+    </div>
   );
 }
 
@@ -32,12 +39,7 @@ export default function MentorPendingRequestsPanel({ requests }) {
               <span className="dash-mentor-request-row__icon" aria-hidden="true">
                 <Video className="h-4 w-4" />
               </span>
-              <div>
-                <p className="dash-mentor-request-row__name">{request.studentName}</p>
-                <p className="dash-mentor-request-row__meta">
-                  {request.requestedTime} · <RequestTypeLabel type={request.type} />
-                </p>
-              </div>
+              <RequestDetails request={request} />
             </div>
             <div className="dash-mentor-request-row__actions">
               <MeetingRequestActions

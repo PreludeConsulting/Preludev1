@@ -16,6 +16,7 @@ import {
   getCheapestRewardTarget,
   getClosestRewards,
   getCoinMultiplier,
+  getStatusCoinMultiplier,
   getCoinsToNextMultiplier,
   getCoinsToNextReward,
   getCurrentStatusMilestone,
@@ -94,6 +95,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   // Plus/Pro include flexible session credits for SAT/ACT and tutoring reward tracks.
   const satActUnlocked = Boolean(profile?.satActPrep) || canAccessFeature(planId, "satActPrep");
   const tutoringUnlocked = Boolean(profile?.academicTutoring) || canAccessFeature(planId, "academicTutoring");
+  const proBoost = canAccessFeature(planId, "advancedRewards");
   const isSupabaseUser = user?.authProvider === "supabase";
   const usesTaskRuntime = isSupabaseUser || isMentorStudentView || Boolean(user?.email);
   const initialRef = useRef(initial);
@@ -349,7 +351,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const currentTier = getStatusTier(lifetimeCoins);
   const nextTier = getNextStatusTier(lifetimeCoins);
   const tierProgress = getTierProgress(lifetimeCoins);
-  const coinMultiplier = getCoinMultiplier(lifetimeCoins);
+  const coinMultiplier = getCoinMultiplier(lifetimeCoins, { proBoost });
+  const statusCoinMultiplier = getStatusCoinMultiplier(lifetimeCoins);
   const coinsToNextMultiplier = getCoinsToNextMultiplier(lifetimeCoins);
   const statusGoalCoins = nextTier?.coinsRequired ?? getCurrentStatusMilestone(lifetimeCoins).coinsRequired;
   const coinsToNextTier = getCoinsToNextMultiplier(lifetimeCoins);
@@ -436,7 +439,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       if (!user?.id && !user?.email) return;
 
       if (isSupabaseUser && user?.id) {
-        const { task, wallet, error } = await claimRewardTask(user.id, milestoneId);
+        const { task, wallet, error } = await claimRewardTask(user.id, milestoneId, { proBoost });
         if (error) {
           showToast(error, "error");
           return;
@@ -461,7 +464,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
 
       const { task, wallet, error } = claimLocalRewardTask(user.email, milestoneId, {
         satActUnlocked,
-        tutoringUnlocked
+        tutoringUnlocked,
+        proBoost
       });
       if (error) {
         showToast(error, "error");
@@ -486,6 +490,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       isMentorStudentView,
       isSupabaseUser,
       play,
+      proBoost,
       refreshRewardTasks,
       satActUnlocked,
       showToast,
@@ -651,6 +656,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       tierProgress,
       coinsToNextTier,
       coinMultiplier,
+      statusCoinMultiplier,
+      proBoost,
       coinsToNextMultiplier,
       statusGoalCoins,
       statusProgressCopy,
@@ -700,6 +707,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       tierProgress,
       coinsToNextTier,
       coinMultiplier,
+      statusCoinMultiplier,
+      proBoost,
       coinsToNextMultiplier,
       statusGoalCoins,
       statusProgressCopy,

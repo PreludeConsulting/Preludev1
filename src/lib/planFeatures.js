@@ -9,7 +9,8 @@ const TIER_RANK = {
   pro: 2
 };
 
-export const PRICING_UPGRADE_HREF = appPath("/#pricing");
+export const PRICING_UPGRADE_HREF = `${appPath("/").replace(/\/$/, "")}/#pricing`;
+export const PRICING_UPGRADE_TO = { pathname: "/", hash: "pricing" };
 
 /** Shared flexible session credits — one pool for consulting, SAT/ACT, and tutoring. */
 export const SESSION_CATEGORIES = [
@@ -122,7 +123,7 @@ export const FEATURE_LOCK_COPY = {
   advancedRewards: {
     title: "Upgrade to unlock",
     description:
-      "Advanced reward earning is included with Pro. Upgrade to earn coins faster and unlock higher-value rewards."
+      "Pro Boost adds +0.25x to your status multiplier so you earn 25% more coins, access Pro-only challenges, and unlock higher-value rewards faster."
   }
 };
 
@@ -161,7 +162,7 @@ export function getSessionAllowanceLabel(planId) {
   const plan = normalizePlanId(planId) || "basic";
   if (plan === "pro") return "4 flexible session credits included each month";
   if (plan === "plus") return "2 flexible session credits included each month";
-  return "2 full personal statement reviews included each month";
+  return null;
 }
 
 /** Monthly application-component review credits (separate from live session credits). */
@@ -172,6 +173,9 @@ export function getMonthlyApplicationReviewLimit(planId) {
 }
 
 export function getApplicationReviewAllowanceLabel(planId) {
+  const plan = normalizePlanId(planId) || "basic";
+  // Basic keeps review credits without marketing the allowance on the session banner.
+  if (plan === "basic") return null;
   const limit = getMonthlyApplicationReviewLimit(planId);
   if (!limit) return null;
   return `${limit} full personal statement reviews included each month`;

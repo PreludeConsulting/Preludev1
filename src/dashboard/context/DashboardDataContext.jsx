@@ -715,7 +715,11 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         ...payload,
         mentorId: payload.mentorId || mentor?.id,
         mentorUserId: payload.mentorUserId || mentor?.userId || mentor?.mentorUserId,
-        sessionCategory: payload.sessionCategory || "college-consulting"
+        sessionCategory: payload.sessionCategory || "college-consulting",
+        studentName: payload.studentName || user?.name || user?.fullName || "Student",
+        studentUserId: payload.studentUserId || user?.id,
+        pillColor: payload.pillColor || payload.calendarColor || undefined,
+        reminderMinutes: payload.reminderMinutes || "none"
       };
       const isPending = enrichedPayload.status === "pending";
       const clientRequestId =
@@ -724,8 +728,53 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         (enrichedPayload.startTime
           ? `meeting-${user?.id}-${enrichedPayload.startTime}-${enrichedPayload.status || "pending"}`
           : undefined);
+      const attachRequestMeta = (meeting) => ({
+        ...meeting,
+        studentName: enrichedPayload.studentName || meeting.studentName,
+        studentUserId: enrichedPayload.studentUserId || meeting.studentUserId,
+        studentId: enrichedPayload.studentId || meeting.studentId,
+        notes: enrichedPayload.notes ?? meeting.notes,
+        sessionCategory: enrichedPayload.sessionCategory || meeting.sessionCategory,
+        pillColor: enrichedPayload.pillColor || meeting.pillColor,
+        reminderMinutes: enrichedPayload.reminderMinutes || meeting.reminderMinutes,
+        title: enrichedPayload.title || meeting.title
+      });
 
       if (useSupabase && user) {
+        // Pending mentor review: store a meeting request only — no calendar event yet.
+        if (isPending) {
+          let stored;
+          try {
+            const { meeting } = await apiCreateMeeting(
+              { ...enrichedPayload, clientRequestId },
+              { idempotencyKey: clientRequestId }
+            );
+            stored = attachRequestMeta(meeting);
+          } catch {
+            stored = attachRequestMeta({
+              id: clientRequestId || `req-${Date.now()}`,
+              title: enrichedPayload.title || "Mentor session",
+              meetingType: enrichedPayload.meetingType || "zoom",
+              startTime: enrichedPayload.startTime || enrichedPayload.start,
+              endTime: enrichedPayload.endTime,
+              notes: enrichedPayload.notes,
+              status: "pending",
+              mentorId: enrichedPayload.mentorId,
+              mentorUserId: enrichedPayload.mentorUserId
+            });
+          }
+          setPendingMeetingRequests((prev) => [...prev.filter((item) => item.id !== stored.id), stored]);
+          const notif = await createNotification(user.id, {
+            title: "Meeting request sent",
+            body: stored.title,
+            link: "/dashboard/student/calendar"
+          });
+          if (notif.notification) {
+            setNotifications((prev) => [notif.notification, ...prev]);
+          }
+          return stored;
+        }
+
         const start = enrichedPayload.startTime || enrichedPayload.start || new Date().toISOString();
         const meetingUrl = enrichedPayload.zoomJoinUrl || null;
 
@@ -736,19 +785,20 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           endTime: enrichedPayload.endTime,
           eventType: "meeting",
           meetingUrl,
-          status: enrichedPayload.status || "pending"
+          status: enrichedPayload.status || "scheduled"
         });
         if (err) throw new Error(err);
 
-        const stored = { ...event, zoomJoinUrl: meetingUrl || event.meetingUrl || event.zoomJoinUrl };
-        if (isPending) {
-          setPendingMeetingRequests((prev) => [...prev, stored]);
-        } else {
-          setMeetings((prev) => [...prev, stored]);
-        }
+        const stored = attachRequestMeta({
+          ...event,
+          zoomJoinUrl: meetingUrl || event.meetingUrl || event.zoomJoinUrl,
+          startTime: event.startTime || start,
+          endTime: event.endTime || enrichedPayload.endTime
+        });
+        setMeetings((prev) => [...prev, stored]);
 
         const notif = await createNotification(user.id, {
-          title: isPending ? "Meeting request sent" : "Session scheduled",
+          title: "Session scheduled",
           body: stored.title,
           link: "/dashboard/student/calendar"
         });
@@ -762,26 +812,27 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         { ...enrichedPayload, clientRequestId },
         { idempotencyKey: clientRequestId }
       );
+      const stored = attachRequestMeta(meeting);
 
-      if (isPending || meeting.status === "pending") {
-        setPendingMeetingRequests((prev) => [...prev, meeting]);
+      if (isPending || stored.status === "pending") {
+        setPendingMeetingRequests((prev) => [...prev, stored]);
         addNotification({
           title: "Meeting request sent",
           body: "Your mentor will review your request and confirm the meeting time.",
           unread: true
         });
-        return meeting;
+        return stored;
       }
 
-      setMeetings((prev) => [...prev, meeting]);
+      setMeetings((prev) => [...prev, stored]);
       addNotification({
         title: "Meeting confirmed",
-        body: meeting.zoomJoinUrl
-          ? `${meeting.title} is scheduled. Join link: ${meeting.zoomJoinUrl}`
-          : `${meeting.title} is scheduled.`,
+        body: stored.zoomJoinUrl
+          ? `${stored.title} is scheduled. Join link: ${stored.zoomJoinUrl}`
+          : `${stored.title} is scheduled.`,
         unread: true
       });
-      return meeting;
+      return stored;
     },
     [addNotification, meetings, mentor?.id, mentor?.userId, pendingMeetingRequests, useSupabase, user]
   );
@@ -1327,8 +1378,18 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     [useSupabase, user, userCalendarEvents, mentorViewStudent, parentViewStudent, localDemo, apiDemo]
   );
 
-  const declineMeetingRequest = useCallback((requestId) => {
+  const declineMeetingRequest = useCallback(async (requestId) => {
     if (!requestId) return;
+    const canPatchBackend = !String(requestId).startsWith("demo-")
+      && !String(requestId).startsWith("req-")
+      && !String(requestId).startsWith("evt-");
+    if (canPatchBackend) {
+      try {
+        await apiUpdateMeeting(requestId, { status: "declined" });
+      } catch {
+        // Still clear locally if the backend patch fails (demo / stale ids).
+      }
+    }
     setPendingMeetingRequests((prev) => prev.filter((item) => item.id !== requestId));
     setResolvedPendingRequestIds((prev) => (prev.includes(requestId) ? prev : [...prev, requestId]));
   }, []);
@@ -1349,22 +1410,31 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         : new Date().toISOString();
       const endTime = request.endTime
         || new Date(new Date(startTime).getTime() + 45 * 60 * 1000).toISOString();
+      const title = request.title || request.type || "Mentor check-in";
+      const notes = request.notes || request.description || "";
+      const pillColor = request.pillColor || request.calendarColor || "blue";
+      const reminderMinutes = request.reminderMinutes || "none";
 
       const backendMeetingId = request.meetingId || request.id;
       const canPatchBackend = !String(backendMeetingId).startsWith("demo-")
-        && !String(backendMeetingId).startsWith("req-");
+        && !String(backendMeetingId).startsWith("req-")
+        && !String(backendMeetingId).startsWith("evt-");
 
       let meeting;
       if (canPatchBackend) {
         const updated = await apiUpdateMeeting(backendMeetingId, {
           status: "scheduled",
           meetingType,
-          zoomJoinUrl
+          zoomJoinUrl,
+          title,
+          notes,
+          startTime,
+          endTime
         });
         meeting = updated.meeting;
       } else {
         const created = await apiCreateMeeting({
-          title: request.title || request.type || "Mentor check-in",
+          title,
           meetingType,
           startTime,
           endTime,
@@ -1372,38 +1442,61 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           studentUserId: request.studentUserId,
           mentorUserId: user.id,
           status: "scheduled",
-          notes: request.notes,
+          notes,
           zoomJoinUrl,
           clientRequestId: `accept-${request.id}`
         });
         meeting = created.meeting;
       }
 
+      const scheduled = {
+        ...meeting,
+        title: meeting?.title || title,
+        notes: meeting?.notes || notes,
+        startTime: meeting?.startTime || startTime,
+        endTime: meeting?.endTime || endTime,
+        pillColor,
+        reminderMinutes,
+        status: "scheduled"
+      };
+
       setPendingMeetingRequests((prev) => prev.filter((item) => item.id !== request.id));
       setResolvedPendingRequestIds((prev) => (prev.includes(request.id) ? prev : [...prev, request.id]));
-      setMeetings((prev) => [...prev.filter((item) => item.id !== meeting.id), meeting]);
+      setMeetings((prev) => [...prev.filter((item) => item.id !== scheduled.id), scheduled]);
 
       await persistCalendarItem({
         id: `evt-${request.id}`,
-        title: meeting.title,
+        title: scheduled.title,
         category: "mentor_meeting",
         start: startTime,
         end: endTime,
-        studentId: meeting.studentId || request.studentId,
-        studentName: request.studentName || meeting.studentName,
+        description: notes,
+        studentId: scheduled.studentId || request.studentId,
+        studentName: request.studentName || scheduled.studentName,
         shared: true,
         formVariant: "event",
         calendarItemType: "event",
         meetingType,
         zoomJoinUrl,
-        meetingRecordId: meeting.id,
+        meetingRecordId: scheduled.id,
         status: "scheduled",
-        pillColor: "blue"
+        pillColor,
+        reminderMinutes
       });
 
-      return meeting;
+      if (reminderMinutes && reminderMinutes !== "none") {
+        scheduleEventReminder({
+          id: `evt-${request.id}`,
+          title: scheduled.title,
+          start: startTime,
+          reminderMinutes,
+          formVariant: "event"
+        });
+      }
+
+      return scheduled;
     },
-    [persistCalendarItem, user?.id]
+    [persistCalendarItem, scheduleEventReminder, user?.id]
   );
 
   const addTask = useCallback(
@@ -1771,26 +1864,51 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       essayTracker: demo?.essayTracker ?? [],
       financialAidTracker: demo?.financialAidTracker ?? [],
       pendingRequests: [
-        ...pendingMeetingRequests.map((m) => ({
-          id: m.id,
-          meetingId: m.id,
-          studentName: m.studentName || "Student",
-          studentId: m.studentId,
-          studentUserId: m.studentUserId,
-          title: m.title,
-          notes: m.notes,
-          meetingType: m.meetingType || "zoom",
-          requestedTime: new Date(m.startTime || m.start).toLocaleString(undefined, {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit"
-          }),
-          startTime: m.startTime || m.start,
-          endTime: m.endTime || m.end,
-          type: m.title || "Zoom check-in"
-        })),
+        ...pendingMeetingRequests.map((m) => {
+          const start = new Date(m.startTime || m.start);
+          const end = m.endTime || m.end ? new Date(m.endTime || m.end) : null;
+          const hasValidStart = !Number.isNaN(start.getTime());
+          const hasValidEnd = end && !Number.isNaN(end.getTime());
+          return {
+            id: m.id,
+            meetingId: m.id,
+            studentName: m.studentName || "Student",
+            studentId: m.studentId,
+            studentUserId: m.studentUserId,
+            title: m.title,
+            notes: m.notes || m.description || "",
+            meetingType: m.meetingType || "zoom",
+            sessionCategory: m.sessionCategory,
+            pillColor: m.pillColor,
+            reminderMinutes: m.reminderMinutes,
+            requestedDate: hasValidStart
+              ? start.toLocaleDateString(undefined, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric"
+                })
+              : "Date TBD",
+            requestedStartTime: hasValidStart
+              ? start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+              : "",
+            requestedEndTime: hasValidEnd
+              ? end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+              : "",
+            requestedTime: hasValidStart
+              ? start.toLocaleString(undefined, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit"
+                })
+              : "Time TBD",
+            startTime: m.startTime || m.start,
+            endTime: m.endTime || m.end,
+            type: m.title || "Mentor session"
+          };
+        }),
         ...(demo?.pendingRequests ?? []).map((request) => ({
           ...request,
           startTime: request.startTime || parseRequestedTime(request.requestedTime)?.toISOString()

@@ -206,6 +206,7 @@ export function CalendarAddEventModal({
   const [form, setForm] = useState({ ...DEFAULT_FORM, category: initialCategory });
   const [errors, setErrors] = useState({});
   const [requestSent, setRequestSent] = useState(false);
+  const [requestSentFading, setRequestSentFading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [scheduledMeeting, setScheduledMeeting] = useState(null);
@@ -235,12 +236,27 @@ export function CalendarAddEventModal({
     }
     setErrors({});
     setRequestSent(false);
+    setRequestSentFading(false);
     setSubmitting(false);
     setSubmitError("");
     setScheduledMeeting(null);
     setPermissionWarning("");
     setReminderSavedWarning("");
   }, [open, inline, initialCategory, initialEvent, defaultStudentId]);
+
+  useEffect(() => {
+    if (!requestSent) return undefined;
+    setRequestSentFading(false);
+    const fadeTimer = window.setTimeout(() => setRequestSentFading(true), 3000);
+    const clearTimer = window.setTimeout(() => {
+      setRequestSent(false);
+      setRequestSentFading(false);
+    }, 3600);
+    return () => {
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [requestSent]);
 
   function handleStartTimeChange(startTime) {
     setForm((current) => {
@@ -336,6 +352,7 @@ export function CalendarAddEventModal({
 
   async function handleSubmit(e, submitMode = "direct") {
     e?.preventDefault?.();
+    if (submitting) return;
     if (!validate()) return;
 
     const start = isTaskForm
@@ -358,7 +375,10 @@ export function CalendarAddEventModal({
           startTime: start.toISOString(),
           endTime: end.toISOString(),
           notes: form.description,
-          status: "pending"
+          status: "pending",
+          reminderMinutes: form.reminderMinutes,
+          pillColor: form.calendarColor || undefined,
+          calendarColor: form.calendarColor || undefined
         });
         setRequestSent(true);
         if (meeting?.zoomJoinUrl) {
@@ -416,6 +436,7 @@ export function CalendarAddEventModal({
     setForm({ ...DEFAULT_FORM, category: initialCategory, reminderMinutes: getDefaultReminderMinutes() });
     setErrors({});
     setRequestSent(false);
+    setRequestSentFading(false);
     setSubmitting(false);
     setSubmitError("");
     setScheduledMeeting(null);
@@ -456,7 +477,7 @@ export function CalendarAddEventModal({
             isTaskForm && "dash-event-form--task",
             isEventForm && "dash-event-form--event"
           )}
-          onSubmit={handleSubmit}
+          onSubmit={(event) => handleSubmit(event, showStudentEventChoice ? "mentor" : "direct")}
         >
           <div className="dash-event-form__fields">
           <label className="prelude-field">
@@ -638,46 +659,37 @@ export function CalendarAddEventModal({
           </div>
           <div className={cn(
             "dash-modal__footer dash-modal__footer--inline dash-modal__footer--stacked",
-            inline && "dash-inline-event-form__footer"
+            inline && "dash-inline-event-form__footer",
+            showStudentEventChoice && "dash-modal__footer--mentor-request"
           )}>
+            {meetingRequestMode && requestSent ? (
+              <p
+                className={cn(
+                  "dash-schedule-form__request-sent",
+                  requestSentFading && "dash-schedule-form__request-sent--fade"
+                )}
+                role="status"
+              >
+                Notified mentor!
+              </p>
+            ) : null}
             <div className="dash-modal__footer-actions">
               {!inline ? <SecondaryButton type="button" onClick={onClose}>Cancel</SecondaryButton> : null}
               {showStudentEventChoice ? (
-                <>
-                  <SecondaryButton
-                    type="button"
-                    disabled={submitting}
-                    onClick={(event) => handleSubmit(event, "mentor")}
-                  >
-                    {submitting ? "Sending…" : "Send to mentor for review"}
-                  </SecondaryButton>
-                  <PrimaryButton
-                    type="button"
-                    disabled={submitting}
-                    onClick={(event) => handleSubmit(event, "direct")}
-                  >
-                    {submitting ? "Saving…" : "Add to my calendar"}
-                  </PrimaryButton>
-                </>
+                <PrimaryButton
+                  type="button"
+                  className="dash-schedule-form__mentor-submit"
+                  disabled={submitting}
+                  onClick={(event) => handleSubmit(event, "mentor")}
+                >
+                  {submitting ? "Sending…" : "Send to mentor for review"}
+                </PrimaryButton>
               ) : (
                 <PrimaryButton type="submit" disabled={submitting}>
                   {resolvedSubmitLabel}
                 </PrimaryButton>
               )}
             </div>
-            {meetingRequestMode && requestSent && !showStudentEventChoice ? (
-              <div className="dash-schedule-form__request-sent" role="status">
-                <p>A request has been sent to your mentor for review.</p>
-                {isValidMeetingJoinUrl(scheduledMeeting?.zoomJoinUrl, scheduledMeeting?.meetingType) ? (
-                  <p>
-                    Join link:{" "}
-                    <a href={scheduledMeeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-link">
-                      {scheduledMeeting.zoomJoinUrl}
-                    </a>
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
             {submitError ? (
               <p className="dash-schedule-form__form-error" role="alert">{submitError}</p>
             ) : null}

@@ -90,8 +90,27 @@ export function getNextStatusMilestone(lifetimeCoins = 0) {
   return STATUS_MILESTONES.find((m) => lifetimeCoins < m.coinsRequired) || null;
 }
 
-export function getCoinMultiplier(lifetimeCoins = 0) {
+/** Flat Pro-plan bonus added on top of the status-tier multiplier. */
+export const PRO_PLAN_COIN_BOOST = 0.25;
+
+export function getStatusCoinMultiplier(lifetimeCoins = 0) {
   return getCurrentStatusMilestone(lifetimeCoins).multiplier;
+}
+
+/**
+ * Final coin multiplier = status tier multiplier (+ Pro boost when eligible).
+ * @param {number} lifetimeCoins
+ * @param {{ proBoost?: boolean }} [options]
+ */
+export function getCoinMultiplier(lifetimeCoins = 0, { proBoost = false } = {}) {
+  const statusMultiplier = getStatusCoinMultiplier(lifetimeCoins);
+  if (!proBoost) return statusMultiplier;
+  return Math.round((statusMultiplier + PRO_PLAN_COIN_BOOST) * 100) / 100;
+}
+
+export function formatMultiplierLabel(multiplier) {
+  const n = Math.round((Number(multiplier) || 1) * 100) / 100;
+  return Number.isInteger(n) ? n.toFixed(1) : String(n);
 }
 
 export function getCoinsToNextMultiplier(lifetimeCoins = 0) {

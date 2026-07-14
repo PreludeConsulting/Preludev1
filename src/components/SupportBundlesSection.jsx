@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import {
   buildBundleWalletPath,
   savePendingBundleIntent
@@ -58,33 +59,13 @@ function SessionsIllustration() {
   );
 }
 
-const PUBLIC_BUNDLE_CARDS = [
-  {
-    id: "essay_support",
-    title: "Essay Support",
-    description: "Guided feedback for personal statements and supplemental essays.",
-    Illustration: EssayIllustration,
-    options: ["6 essay reviews", "8 essay reviews", "10 essay reviews"],
-    summary: "Personal statements, supplemental essays, revisions, and final edits.",
-    ctaLabel: "Customize Essay Support",
-    note: "Choose your essay reviews before checkout",
-    featured: true
-  },
-  {
-    id: "flexible_sessions",
-    title: "Flexible Sessions",
-    description: "Buy sessions and use them wherever your student needs help.",
-    Illustration: SessionsIllustration,
-    options: ["2 sessions", "6 sessions", "8 sessions"],
-    summary: "Use sessions for admissions, essays, SAT/ACT prep, tutoring, or financial aid.",
-    ctaLabel: "Choose Sessions",
-    note: "Choose your session amount before checkout",
-    featured: false
-  }
-];
+const BUNDLE_ILLUSTRATIONS = {
+  essay_support: EssayIllustration,
+  flexible_sessions: SessionsIllustration
+};
 
-function SupportBundleCard({ card, onCustomize }) {
-  const Illustration = card.Illustration;
+function SupportBundleCard({ card, labels, onCustomize }) {
+  const Illustration = BUNDLE_ILLUSTRATIONS[card.id] || EssayIllustration;
 
   return (
     <article
@@ -93,12 +74,12 @@ function SupportBundleCard({ card, onCustomize }) {
       {card.featured ? (
         <span className="support-bundle-card__ribbon">
           <Star aria-hidden="true" />
-          Best Value
+          {labels.bestValue}
         </span>
       ) : null}
 
       <div className="support-bundle-card__top">
-        <span className="support-bundle-card__pill">One-time Payment</span>
+        <span className="support-bundle-card__pill">{labels.oneTimePayment}</span>
       </div>
 
       <div className="support-bundle-card__icon" aria-hidden="true">
@@ -109,11 +90,11 @@ function SupportBundleCard({ card, onCustomize }) {
       <p className="support-bundle-card__desc">{card.description}</p>
 
       <div className="support-bundle-card__divider" role="presentation">
-        <span>Popular options</span>
+        <span>{labels.popularOptions}</span>
       </div>
 
       <ul className="support-bundle-card__options">
-        {card.options.map((option) => (
+        {(card.options || []).map((option) => (
           <li key={option} className="support-bundle-card__option-row">
             <span className="support-bundle-card__option-check" aria-hidden="true">
               <Check />
@@ -149,6 +130,9 @@ function SupportBundleCard({ card, onCustomize }) {
 export default function SupportBundlesSection() {
   const navigate = useNavigate();
   const { user, isAuthenticated, openRegister } = useAuth();
+  const { t } = useLanguage();
+  const copy = t("sections.bundles") || {};
+  const cards = Array.isArray(copy.cards) ? copy.cards : [];
 
   function handleCustomize(bundleId) {
     savePendingBundleIntent(bundleId);
@@ -187,23 +171,29 @@ export default function SupportBundlesSection() {
       </div>
 
       <ScrollReveal className="support-bundles__intro">
-        <p className="support-bundles__eyebrow">One-time bundles</p>
+        <p className="support-bundles__eyebrow">{copy.eyebrow}</p>
         <h2 id="support-bundles-heading" className="support-bundles__title">
-          Support on Your Schedule
+          {copy.title}
         </h2>
-        <p className="support-bundles__lede">
-          Choose essay reviews or flexible sessions with no monthly commitment.
-        </p>
+        <p className="support-bundles__lede">{copy.lede}</p>
         <p className="support-bundles__distinction">
           <Check aria-hidden="true" />
-          No monthly subscription
+          {copy.distinction}
         </p>
       </ScrollReveal>
 
       <div className="support-bundles__grid">
-        {PUBLIC_BUNDLE_CARDS.map((card, index) => (
+        {cards.map((card, index) => (
           <ScrollReveal key={card.id} delay={index * 0.08} className="support-bundles__card-reveal">
-            <SupportBundleCard card={card} onCustomize={handleCustomize} />
+            <SupportBundleCard
+              card={{ ...card, featured: card.id === "essay_support" }}
+              labels={{
+                bestValue: copy.bestValue,
+                oneTimePayment: copy.oneTimePayment,
+                popularOptions: copy.popularOptions
+              }}
+              onCustomize={handleCustomize}
+            />
           </ScrollReveal>
         ))}
       </div>

@@ -10,12 +10,15 @@ import {
   Zap
 } from "lucide-react";
 import {
+  PRO_PLAN_COIN_BOOST,
   STATUS_MILESTONES,
+  formatMultiplierLabel,
   formatStatusProgressCopy,
   getCoinMultiplier,
   getCurrentStatusMilestone,
   getMilestoneNodeStatus,
-  getNextStatusMilestone
+  getNextStatusMilestone,
+  getStatusCoinMultiplier
 } from "../../../lib/progressRewards.js";
 import { getRecommendedEarnAction } from "../../../../lib/rewardTaskCatalog.js";
 import { CoinIcon } from "./PreludePiggyBank.jsx";
@@ -34,12 +37,14 @@ export default function MyStatusProgressBar({
   coins,
   lifetimeCoins,
   satActUnlocked = true,
-  tutoringUnlocked = true
+  tutoringUnlocked = true,
+  proBoost = false
 }) {
   const statusCoins = Number(lifetimeCoins ?? coins ?? 0);
   const current = getCurrentStatusMilestone(statusCoins);
   const next = getNextStatusMilestone(statusCoins);
-  const multiplier = getCoinMultiplier(statusCoins);
+  const statusMultiplier = getStatusCoinMultiplier(statusCoins);
+  const multiplier = getCoinMultiplier(statusCoins, { proBoost });
   const progressCopy = formatStatusProgressCopy(statusCoins);
   const recommended = getRecommendedEarnAction(progressCopy.coinsNeeded || 0, multiplier, {
     satActUnlocked,
@@ -71,13 +76,30 @@ export default function MyStatusProgressBar({
         </div>
 
         <div className="dash-mystatus__mult">
-          <span className="dash-mystatus__mult-label">Current Coin Multiplier</span>
+          <span className="dash-mystatus__mult-label">
+            {proBoost ? "Total Coin Multiplier" : "Current Coin Multiplier"}
+          </span>
           <div className="dash-mystatus__mult-row">
-            <span className="dash-mystatus__mult-value">
-              {multiplier % 1 === 0 ? multiplier.toFixed(1) : String(multiplier)}x
-            </span>
+            <span className="dash-mystatus__mult-value">{formatMultiplierLabel(multiplier)}x</span>
+            {proBoost ? <span className="dash-mystatus__pro-badge">Pro Boost</span> : null}
             <CoinIcon size="lg" className="dash-mystatus__mult-coin" />
           </div>
+          {proBoost ? (
+            <dl className="dash-mystatus__mult-breakdown">
+              <div>
+                <dt>Status Multiplier</dt>
+                <dd>{formatMultiplierLabel(statusMultiplier)}x</dd>
+              </div>
+              <div>
+                <dt>Pro Plan Boost</dt>
+                <dd>+{formatMultiplierLabel(PRO_PLAN_COIN_BOOST)}x</dd>
+              </div>
+              <div className="dash-mystatus__mult-breakdown-total">
+                <dt>Total Coin Multiplier</dt>
+                <dd>{formatMultiplierLabel(multiplier)}x</dd>
+              </div>
+            </dl>
+          ) : null}
         </div>
       </div>
 
@@ -108,10 +130,7 @@ export default function MyStatusProgressBar({
                   <span className="dash-mystatus__label-name">{milestone.name}</span>
                   <span className="dash-mystatus__label-coins">{milestone.coinsRequired.toLocaleString()}</span>
                   <span className="dash-mystatus__label-mult">
-                    {milestone.multiplier % 1 === 0
-                      ? milestone.multiplier.toFixed(1)
-                      : String(milestone.multiplier)}
-                    x
+                    {formatMultiplierLabel(milestone.multiplier)}x
                   </span>
                 </div>
               </div>

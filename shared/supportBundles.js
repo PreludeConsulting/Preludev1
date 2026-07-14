@@ -8,27 +8,38 @@ const BUNDLE_ID_ALIASES = {
   college_application: "essay_support"
 };
 
-const QUANTITY_VOLUME_TIERS = [
-  { min: 5, discount: 0.15 },
-  { min: 3, discount: 0.1 }
-];
+/** Allowed package sizes for both bundle types (1–2 removed; 9 not offered). */
+export const BUNDLE_QUANTITY_OPTIONS = [3, 4, 5, 6, 7, 8, 10];
 
-function clampInt(value, min, max) {
+/** Fixed package prices in USD cents — source of truth for FE + BE checkout. */
+export const ESSAY_SUPPORT_PRICE_CENTS = Object.freeze({
+  3: 14900,
+  4: 18900,
+  5: 22900,
+  6: 26500,
+  7: 29900,
+  8: 32900,
+  10: 39900
+});
+
+export const FLEXIBLE_SESSIONS_PRICE_CENTS = Object.freeze({
+  3: 21900,
+  4: 27900,
+  5: 33900,
+  6: 39900,
+  7: 45900,
+  8: 51900,
+  10: 62900
+});
+
+function clampToAllowedQuantity(value, allowed, fallback) {
   const n = Math.floor(Number(value));
-  if (!Number.isFinite(n)) return min;
-  return Math.min(max, Math.max(min, n));
-}
-
-function volumeDiscount(qty) {
-  for (const tier of QUANTITY_VOLUME_TIERS) {
-    if (qty >= tier.min) return tier.discount;
-  }
-  return 0;
-}
-
-function applyDiscount(subtotalCents, discount) {
-  if (!discount) return subtotalCents;
-  return Math.round(subtotalCents * (1 - discount));
+  if (!Number.isFinite(n)) return fallback;
+  if (allowed.includes(n)) return n;
+  // Snap drafts/legacy values onto the nearest allowed package size.
+  return allowed.reduce((best, option) =>
+    Math.abs(option - n) < Math.abs(best - n) ? option : best
+  );
 }
 
 export function resolveBundleId(bundleId) {
@@ -46,17 +57,18 @@ export const SUPPORT_BUNDLES = {
     ctaLabel: "Customize Essay Support",
     badge: "Best Value",
     currency: "usd",
-    startingCents: 7500,
+    startingCents: ESSAY_SUPPORT_PRICE_CENTS[3],
     note: "Choose your essay reviews before checkout",
     quantities: {
       essayReviews: {
         id: "essayReviews",
         label: "Essay reviews",
         hint: "Reviews for personal statements and supplements",
-        min: 1,
-        max: 12,
-        default: 2,
-        unitCents: 7500
+        min: BUNDLE_QUANTITY_OPTIONS[0],
+        max: BUNDLE_QUANTITY_OPTIONS[BUNDLE_QUANTITY_OPTIONS.length - 1],
+        default: 3,
+        allowed: BUNDLE_QUANTITY_OPTIONS,
+        priceCentsByQty: ESSAY_SUPPORT_PRICE_CENTS
       }
     },
     services: [
@@ -75,17 +87,18 @@ export const SUPPORT_BUNDLES = {
     ctaLabel: "Choose Sessions",
     badge: null,
     currency: "usd",
-    startingCents: 17000,
+    startingCents: FLEXIBLE_SESSIONS_PRICE_CENTS[3],
     note: "Choose your session amount before checkout",
     quantities: {
       sessions: {
         id: "sessions",
         label: "Sessions",
         hint: "Mix consulting, essays, test prep, tutoring, and aid",
-        min: 1,
-        max: 20,
-        default: 4,
-        unitCents: 8500
+        min: BUNDLE_QUANTITY_OPTIONS[0],
+        max: BUNDLE_QUANTITY_OPTIONS[BUNDLE_QUANTITY_OPTIONS.length - 1],
+        default: 3,
+        allowed: BUNDLE_QUANTITY_OPTIONS,
+        priceCentsByQty: FLEXIBLE_SESSIONS_PRICE_CENTS
       }
     },
     sessionUses: [
@@ -113,17 +126,20 @@ export function getDefaultBundleSelection(bundleId) {
   }
 
   const addOns = Object.fromEntries((catalog.addOns || []).map((item) => [item.id, false]));
-  const services = Object.fromEntries(
-    (catalog.services || []).map((item, index) => [item.id, index < 4])
-  );
-  const sessionUses = Object.fromEntries(
-    (catalog.sessionUses || []).map((item) => [item.id, true])
-  );
+  const services = Object.fromEntries((catalog.services || []).map((item) => [item.id, true]));
+  const sessionUses = Object.fromEntries((catalog.sessionUses || []).map((item) => [item.id, true]));
 
   return { bundleId: resolvedId, quantities, addOns, services, sessionUses };
 }
 
-export function normalizeBundleSelection(input = {}) {
+/**
+ * @param {object} input
+ * @param {{ snapInvalidQuantities?: boolean }} [options]
+ *   snapInvalidQuantities=true — coerce legacy/draft sizes onto the nearest package (UI).
+ *   snapInvalidQuantities=false — reject unsupported sizes (checkout / server).
+ */
+export function normalizeBundleSelection(input = {}, options = {}) {
+  const snapInvalidQuantities = options.snapInvalidQuantities === true;
   const bundleId = resolveBundleId(input.bundleId);
   const catalog = SUPPORT_BUNDLES[bundleId];
   if (!catalog) {
@@ -137,7 +153,29 @@ export function normalizeBundleSelection(input = {}) {
     if (bundleId === "essay_support" && key === "essayReviews" && raw == null) {
       raw = input.quantities?.sessions;
     }
-    quantities[key] = clampInt(raw, field.min, field.max);
+
+    const allowed = field.allowed || BUNDLE_QUANTITY_OPTIONS;
+    const exact = Math.floor(Number(raw));
+    const missing = raw == null || String(raw).trim() === "" || !Number.isFinite(exact);
+
+    if (missing) {
+      quantities[key] = field.default;
+      continue;
+    }
+
+    if (!allowed.includes(exact)) {
+      if (!snapInvalidQuantities) {
+        return {
+          ok: false,
+          error: "validation_error",
+          message: `Choose ${allowed.join(", ")} ${field.label.toLowerCase()}.`
+        };
+      }
+      quantities[key] = clampToAllowedQuantity(exact, allowed, field.default);
+      continue;
+    }
+
+    quantities[key] = exact;
   }
 
   const addOns = {};
@@ -145,37 +183,9 @@ export function normalizeBundleSelection(input = {}) {
     addOns[item.id] = Boolean(input.addOns?.[item.id]);
   }
 
-  const services = {};
-  for (const item of catalog.services || []) {
-    services[item.id] = Boolean(input.services?.[item.id]);
-  }
-
-  const sessionUses = {};
-  for (const item of catalog.sessionUses || []) {
-    sessionUses[item.id] = Boolean(input.sessionUses?.[item.id]);
-  }
-
-  if (bundleId === "essay_support") {
-    const selectedCount = Object.values(services).filter(Boolean).length;
-    if (selectedCount < 1) {
-      return {
-        ok: false,
-        error: "validation_error",
-        message: "Select at least one essay focus area."
-      };
-    }
-  }
-
-  if (bundleId === "flexible_sessions") {
-    const selectedUses = Object.values(sessionUses).filter(Boolean).length;
-    if (selectedUses < 1) {
-      return {
-        ok: false,
-        error: "validation_error",
-        message: "Choose at least one service these sessions may be used for."
-      };
-    }
-  }
+  // Essay focus areas and session uses are always included — not customer toggles.
+  const services = Object.fromEntries((catalog.services || []).map((item) => [item.id, true]));
+  const sessionUses = Object.fromEntries((catalog.sessionUses || []).map((item) => [item.id, true]));
 
   return {
     ok: true,
@@ -183,26 +193,27 @@ export function normalizeBundleSelection(input = {}) {
   };
 }
 
-function quantityQuote(catalog, selection, quantityKey, { volumeTiers = false } = {}) {
-  const qty = selection.quantities[quantityKey] || 0;
-  const unit = catalog.quantities[quantityKey].unitCents;
-  const subtotalCents = qty * unit;
-  let discount = 0;
-  if (volumeTiers) {
-    if (qty >= 12) discount = 0.15;
-    else if (qty >= 8) discount = 0.1;
-    else if (qty >= 4) discount = 0.05;
-  } else {
-    discount = volumeDiscount(qty);
+function packageQuote(catalog, selection, quantityKey) {
+  const field = catalog.quantities[quantityKey];
+  const qty = selection.quantities[quantityKey];
+  const totalCents = field.priceCentsByQty?.[qty];
+  if (!Number.isFinite(totalCents)) {
+    return null;
   }
-  const totalCents = applyDiscount(subtotalCents, discount);
-  const savingsCents = Math.max(0, subtotalCents - totalCents);
-  return { qty, subtotalCents, totalCents, savingsCents, discount };
+  return {
+    qty,
+    subtotalCents: totalCents,
+    totalCents,
+    savingsCents: 0,
+    discount: 0
+  };
 }
 
 function essayQuote(selection) {
   const catalog = SUPPORT_BUNDLES.essay_support;
-  const quote = quantityQuote(catalog, selection, "essayReviews");
+  const quote = packageQuote(catalog, selection, "essayReviews");
+  if (!quote) return null;
+
   const selectedServices = (catalog.services || [])
     .filter((item) => selection.services[item.id])
     .map((item) => item.label);
@@ -211,20 +222,21 @@ function essayQuote(selection) {
     subtotalCents: quote.subtotalCents,
     totalCents: quote.totalCents,
     savingsCents: quote.savingsCents,
-    discountPercent: Math.round(quote.discount * 100),
+    discountPercent: 0,
     startingCents: catalog.startingCents,
     summaryLines: [
       `${quote.qty} essay review${quote.qty === 1 ? "" : "s"}`,
       ...selectedServices
     ],
-    savingsLabel:
-      quote.savingsCents > 0 ? `Save ${formatUsd(quote.savingsCents)} with volume pricing` : null
+    savingsLabel: null
   };
 }
 
 function flexibleQuote(selection) {
   const catalog = SUPPORT_BUNDLES.flexible_sessions;
-  const quote = quantityQuote(catalog, selection, "sessions", { volumeTiers: true });
+  const quote = packageQuote(catalog, selection, "sessions");
+  if (!quote) return null;
+
   const selectedUses = (catalog.sessionUses || [])
     .filter((item) => selection.sessionUses?.[item.id])
     .map((item) => item.label);
@@ -233,26 +245,35 @@ function flexibleQuote(selection) {
     subtotalCents: quote.subtotalCents,
     totalCents: quote.totalCents,
     savingsCents: quote.savingsCents,
-    discountPercent: Math.round(quote.discount * 100),
+    discountPercent: 0,
     startingCents: catalog.startingCents,
     summaryLines: [
       `${quote.qty} flexible session${quote.qty === 1 ? "" : "s"}`,
       ...(selectedUses.length ? [`Usable for: ${selectedUses.join(", ")}`] : [])
     ],
-    savingsLabel:
-      quote.savingsCents > 0
-        ? `Save ${formatUsd(quote.savingsCents)} (${Math.round(quote.discount * 100)}% off)`
-        : null
+    savingsLabel: null
   };
 }
 
-export function quoteBundleSelection(rawSelection) {
-  const normalized = normalizeBundleSelection(rawSelection);
+export function quoteBundleSelection(rawSelection, options = {}) {
+  // Checkout must not silently remap sizes; UI may snap legacy drafts.
+  const normalized = normalizeBundleSelection(rawSelection, {
+    snapInvalidQuantities: options.snapInvalidQuantities === true
+  });
   if (!normalized.ok) return normalized;
 
   const { selection } = normalized;
   const catalog = SUPPORT_BUNDLES[selection.bundleId];
-  const quote = selection.bundleId === "essay_support" ? essayQuote(selection) : flexibleQuote(selection);
+  const quote =
+    selection.bundleId === "essay_support" ? essayQuote(selection) : flexibleQuote(selection);
+
+  if (!quote) {
+    return {
+      ok: false,
+      error: "validation_error",
+      message: "That package size is not available."
+    };
+  }
 
   return {
     ok: true,

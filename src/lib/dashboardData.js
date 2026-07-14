@@ -611,7 +611,7 @@ export async function listRewardTaskInstances(userId) {
   return { tasks: (data || []).map(mapRewardTaskInstance), error: error?.message || null };
 }
 
-export async function claimRewardTask(userId, taskInstanceId) {
+export async function claimRewardTask(userId, taskInstanceId, { proBoost = false } = {}) {
   const id = requireUserId(userId);
   const { data: taskRow, error: taskErr } = await db()
     .from("reward_task_instances")
@@ -643,7 +643,7 @@ export async function claimRewardTask(userId, taskInstanceId) {
   const def = getTaskDefinition(updatedTask.task_template_id);
   const catalogBase = Number(def?.coins ?? baseAmount);
   const lifetimeBefore = Number(wallet.lifetime_coins ?? wallet.lifetime_earned ?? 0);
-  const multiplier = getCoinMultiplier(lifetimeBefore);
+  const multiplier = getCoinMultiplier(lifetimeBefore, { proBoost });
   const finalAmount = applyCoinMultiplier(catalogBase || baseAmount, multiplier);
   const nextBalance = Number(wallet.coin_balance || 0) + finalAmount;
   const nextLifetime = lifetimeBefore + finalAmount;

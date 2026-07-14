@@ -1,15 +1,22 @@
 import { Video } from "lucide-react";
 import MeetingRequestActions from "../MeetingRequestActions.jsx";
 
-function RequestTypeLabel({ type = "" }) {
-  const match = type.match(/^(Zoom)(\s+.*)?$/i);
-  if (!match) return type;
+function RequestDetails({ request }) {
+  const title = request.title || request.type || "Mentor session";
+  const timeRange = [request.requestedStartTime, request.requestedEndTime].filter(Boolean).join(" – ");
+  const when = request.requestedDate
+    ? `${request.requestedDate}${timeRange ? ` · ${timeRange}` : ""}`
+    : request.requestedTime;
 
   return (
-    <>
-      <strong>{match[1]}</strong>
-      {match[2] || ""}
-    </>
+    <span className="dash-upcoming-events__content">
+      <span className="dash-upcoming-events__event-title">{request.studentName}</span>
+      <span className="dash-upcoming-events__event-meta">
+        <strong>{title}</strong>
+        {when ? <> · {when}</> : null}
+      </span>
+      {request.notes ? <span className="dash-meetings-requests__notes">{request.notes}</span> : null}
+    </span>
   );
 }
 
@@ -31,12 +38,7 @@ export default function MentorMeetingsRequestsSection({ requests = [], studentFi
           <li key={request.id} className="dash-meetings-requests__item">
             <div className="dash-upcoming-events__row dash-meetings-requests__row">
               <span className="dash-upcoming-events__marker dash-upcoming-events__marker--orange" aria-hidden="true" />
-              <span className="dash-upcoming-events__content">
-                <span className="dash-upcoming-events__event-title">{request.studentName}</span>
-                <span className="dash-upcoming-events__event-meta">
-                  {request.requestedTime} · <RequestTypeLabel type={request.type} />
-                </span>
-              </span>
+              <RequestDetails request={request} />
               <span className="dash-meetings-requests__icon" aria-hidden="true">
                 <Video className="h-4 w-4" />
               </span>

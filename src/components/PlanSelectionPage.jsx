@@ -41,6 +41,7 @@ import {
   getDefaultBundleSelection,
   isValidBundleId,
   listSupportBundles,
+  normalizeBundleSelection,
   resolveBundleId,
   SUPPORT_BUNDLES
 } from "../../shared/supportBundles.js";
@@ -525,18 +526,17 @@ export function PlanWalletExperience({
         const defaults = getDefaultBundleSelection(id);
         const saved = fromDraft[id];
         if (!saved || typeof saved !== "object") return [id, defaults];
-        return [
-          id,
-          {
-            ...defaults,
-            ...saved,
-            bundleId: id,
-            quantities: { ...defaults.quantities, ...saved.quantities },
-            addOns: { ...defaults.addOns, ...saved.addOns },
-            services: { ...defaults.services, ...saved.services },
-            sessionUses: { ...defaults.sessionUses, ...saved.sessionUses }
-          }
-        ];
+        const merged = {
+          ...defaults,
+          ...saved,
+          bundleId: id,
+          quantities: { ...defaults.quantities, ...saved.quantities },
+          addOns: { ...defaults.addOns, ...saved.addOns },
+          services: { ...defaults.services, ...saved.services },
+          sessionUses: { ...defaults.sessionUses, ...saved.sessionUses }
+        };
+        const normalized = normalizeBundleSelection(merged, { snapInvalidQuantities: true });
+        return [id, normalized.ok ? normalized.selection : defaults];
       })
     );
   });
@@ -625,7 +625,7 @@ export function PlanWalletExperience({
   );
 
   function handlePurchaseModeChange(nextMode) {
-    if (nextMode === purchaseMode || isBillingContext) return;
+    if (nextMode === purchaseMode || context === "billing-current") return;
     if (popupOpen) {
       dispatch({ type: "CLOSE_POPUP" });
     }
@@ -760,7 +760,8 @@ export function PlanWalletExperience({
     try {
       const result = await startBundleCheckout(selection, {
         context: context === "payment" ? "onboarding" : "public",
-        guestCheckout: context === "public" && (!isAuthenticated || requiresRealAccount)
+        guestCheckout:
+          context === "public" && (!isAuthenticated || requiresRealAccount)
       });
       if (result.url) window.location.href = result.url;
     } catch (error) {
@@ -881,7 +882,7 @@ export function PlanWalletExperience({
     state.status !== WALLET_STATES.OPEN;
   const walletControlLabel = state.status === WALLET_STATES.CLOSED ? "Open wallet" : "Close wallet";
   const deckCount = purchaseMode === "bundles" ? supportBundles.length : plans.length;
-  const showModeSwitch = !isBillingContext;
+  const showModeSwitch = context !== "billing-current";
 
   return (
     <div className={`plan-wallet-experience ${experienceClassName}`.trim()}>

@@ -51,11 +51,15 @@ function AppContent() {
       return;
     }
     if (hash) {
-      window.requestAnimationFrame(() => {
-        const target = document.getElementById(hash.slice(1));
-        target?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
+      const id = hash.slice(1);
+      const scrollToTarget = () => {
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+      window.requestAnimationFrame(scrollToTarget);
+      const retry = window.setTimeout(scrollToTarget, 120);
+      return () => window.clearTimeout(retry);
     }
+    return undefined;
   }, [hash]);
 
 

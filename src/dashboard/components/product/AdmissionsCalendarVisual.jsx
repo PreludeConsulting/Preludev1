@@ -14,6 +14,7 @@ import AnimatedIcon from "../../../components/interaction/AnimatedIcon.jsx";
 import { loadPreferences } from "../../lib/dashboardPreferences.js";
 import { EVENT_CATEGORY_LABELS } from "../../data/placeholders.js";
 import { EmptyState, Modal, SecondaryButton } from "../ui/index.jsx";
+import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -39,6 +40,7 @@ const CREATE_OPTIONS = [
   { id: "event", label: "Event", category: "mentor_meeting", modalTitle: "Create event", formVariant: "event" },
   { id: "task", label: "Task", category: "personal_task", modalTitle: "Create task", formVariant: "task" }
 ];
+const TASK_ONLY_CREATE_OPTIONS = CREATE_OPTIONS.filter((option) => option.id === "task");
 
 const CALENDAR_EVENT_CATEGORIES = new Set([
   "mentor_meeting",
@@ -551,7 +553,7 @@ function useClickOutside(ref, handler, active) {
   }, [ref, handler, active]);
 }
 
-function CalendarCreateMenu({ onSelect, plusActive = false }) {
+function CalendarCreateMenu({ onSelect, plusActive = false, options = CREATE_OPTIONS }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
@@ -574,7 +576,7 @@ function CalendarCreateMenu({ onSelect, plusActive = false }) {
       </button>
       {open ? (
         <ul className="dash-cal-visual__create-menu" role="menu">
-          {CREATE_OPTIONS.map((option) => (
+          {options.map((option) => (
             <li key={option.id} role="none">
               <button
                 type="button"
@@ -674,6 +676,7 @@ export default function AdmissionsCalendarVisual({
   const { showToast, flashEvent, highlightEventId } = useInteractionFeedback();
   const { play, SOUND_EVENTS } = useInterfaceSound();
   const isMentorCalendar = role === "mentor" || mentorView;
+  const { plan } = usePlanAccess();
   const {
     scheduleEventReminder,
     cancelEventReminder,
@@ -684,8 +687,15 @@ export default function AdmissionsCalendarVisual({
     isMentorStudentView,
     isParentStudentView,
     mentorViewStudent,
-    parentViewStudent
+    parentViewStudent,
+    mentor
   } = useDashboardData();
+  const createOptions = useMemo(() => {
+    if (isMentorCalendar || isMentorStudentView) return CREATE_OPTIONS;
+    if (plan === "basic") return TASK_ONLY_CREATE_OPTIONS;
+    // Plus and Pro: Event (mentor review) + Task
+    return CREATE_OPTIONS;
+  }, [isMentorCalendar, isMentorStudentView, plan]);
   const activeStudent = mentorViewStudent || parentViewStudent || students.find((item) => item.id === defaultStudentId);
   const calendarRole = isMentorStudentView ? "mentor" : role;
   const isGuardianStudentView = isMentorStudentView || isParentStudentView;
@@ -942,7 +952,7 @@ export default function AdmissionsCalendarVisual({
               {isGuardianStudentView ? (
                 <p className="dash-cal-visual__readonly-note">Read-only student calendar</p>
               ) : (
-                <CalendarCreateMenu onSelect={setCreateDraft} plusActive={plusActive} />
+                <CalendarCreateMenu onSelect={setCreateDraft} plusActive={plusActive} options={createOptions} />
               )}
             </div>
           </div>
@@ -1205,9 +1215,21 @@ export default function AdmissionsCalendarVisual({
           !isMentorCalendar &&
           !isGuardianStudentView &&
           calendarRole === "student" &&
-          Boolean(createDraft?.formVariant === "event" && !editDraft)
+          Boolean(createDraft?.formVariant === "event" && !editDraft) &&
+          (plan === "plus" || plan === "pro")
         }
-        onRequestMeeting={(payload) => scheduleMeeting({ ...payload, status: "pending" })}
+        onRequestMeeting={(payload) =>
+          scheduleMeeting({
+            ...payload,
+            status: "pending",
+            sessionCategory: "college-consulting",
+            mentorId: mentor?.id || payload.mentorId,
+            mentorUserId: mentor?.userId || mentor?.mentorUserId || payload.mentorUserId,
+            title: payload.title || "Mentor session",
+            pillColor: payload.pillColor || payload.calendarColor,
+            reminderMinutes: payload.reminderMinutes
+          })
+        }
         onSave={handleSaveLocalEvent}
       />
     </div>

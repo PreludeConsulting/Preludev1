@@ -67,12 +67,10 @@ import { useGamification } from "../../context/GamificationContext.jsx";
 import CollegesExplore from "../../components/product/CollegesExplore.jsx";
 import StudentOverviewProduct from "../../components/product/StudentOverviewProduct.jsx";
 import StudentProgressRewardsProduct from "../../components/product/StudentProgressRewardsProduct.jsx";
-import PlanSessionBanner from "../../components/product/PlanSessionBanner.jsx";
 import StudentApplicationReviewsPanel from "../../components/product/StudentApplicationReviewsPanel.jsx";
 import PlanLockedFeature from "../../components/product/PlanLockedFeature.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
-import { SESSION_CATEGORIES, filterProvidersForSessionCategory, getSessionCategory } from "../../../lib/planFeatures.js";
 
 /* ——— Shared presentational helpers for the redesigned pages ——— */
 
@@ -162,14 +160,11 @@ export function StudentProgressRewards() {
 }
 
 export function StudentCalendar() {
-  const { meetings, events, mentor, deadlines, isMentorStudentView, applicationReviews } = useDashboardData();
+  const { meetings, events, mentor, deadlines, isMentorStudentView } = useDashboardData();
   const [upcomingEventsMountEl, setUpcomingEventsMountEl] = useState(null);
 
   return (
     <div className={cn("dash-page", "dash-page--meetings", isMentorStudentView && "dash-page--mentor-view")}>
-      {!isMentorStudentView ? (
-        <PlanSessionBanner meetings={meetings} applicationReviews={applicationReviews} />
-      ) : null}
       <div className={cn("dash-meetings-layout", isMentorStudentView && "dash-meetings-layout--mentor-view")}>
         <div className="dash-meetings-layout__calendar">
           <AdmissionsCalendarVisual
@@ -663,7 +658,6 @@ function computeLocalProfileCompletion(profile) {
 
 export function StudentProfileStats() {
   const { user } = useAuth();
-  const { canAccess } = usePlanAccess();
   const { profile, mentor, saveProfile, saveOnboarding, savedColleges } = useDashboardData();
   const [editorDraft, setEditorDraft] = useState(() => buildProfileEditorDraft(profile));
   const [activeEditor, setActiveEditor] = useState(null);
@@ -1191,11 +1185,6 @@ export function StudentProfileStats() {
         </div>
       </Modal>
 
-      {!canAccess("rewards") ? (
-        <PlanLockedFeature feature="rewards" compact className="dash-panel" />
-      ) : !canAccess("advancedRewards") ? (
-        <PlanLockedFeature feature="advancedRewards" compact className="dash-panel" />
-      ) : null}
     </div>
   );
 }
@@ -1700,26 +1689,18 @@ function mentorHeadshot(mentor) {
 export function StudentMentor() {
   const {
     mentor,
-    mentors,
     meetings,
     pendingMeetingRequests,
     scheduleMeeting,
     persistCalendarItem,
-    scheduleEventReminder,
-    applicationReviews
+    scheduleEventReminder
   } =
     useDashboardData();
-  const { canAccess, canBookSession, monthlyOneOnOneLimit, sessionCreditBalanceLabel } = usePlanAccess();
-  const [sessionCategory, setSessionCategory] = useState("college-consulting");
+  const { canAccess, canBookSession } = usePlanAccess();
   const [bookingError, setBookingError] = useState("");
   const m = mentor;
   const creditMeetings = [...(meetings || []), ...(pendingMeetingRequests || [])];
   const canBook = canBookSession(creditMeetings);
-  const balanceLabel = sessionCreditBalanceLabel(creditMeetings);
-  const categoryProviders = filterProvidersForSessionCategory(mentors || [], sessionCategory, {
-    assignedMentor: m
-  });
-  const selectedProvider = categoryProviders[0] || m;
   const upcoming = [...(meetings || [])]
     .filter((meeting) => meeting.status !== "pending")
     .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
@@ -1748,7 +1729,6 @@ export function StudentMentor() {
 
   return (
     <div className="dash-page dash-page--premium">
-      <PlanSessionBanner meetings={creditMeetings} applicationReviews={applicationReviews} />
       <div className="dash-mentor-profile">
         <SectionCard className="dash-panel dash-mentor-profile__info">
           <div className="dash-mentor-profile__id">
@@ -1832,49 +1812,13 @@ export function StudentMentor() {
         <SectionCard title="Book a Session" className="dash-panel dash-mentor-sessions-grid__schedule" id="mentor-schedule">
           {canAccess("oneOnOneSessions") ? (
             <>
-              {monthlyOneOnOneLimit > 0 ? (
-                <p className="dash-muted dash-session-credit-balance" role="status">
-                  {balanceLabel}
-                </p>
-              ) : null}
-
-              <div className="dash-session-category-picker" role="group" aria-label="Session type">
-                <p className="dash-session-category-picker__label">What kind of session do you need?</p>
-                <div className="dash-session-category-picker__options">
-                  {SESSION_CATEGORIES.map((category) => (
-                    <button
-                      key={category.id}
-                      type="button"
-                      className={
-                        sessionCategory === category.id
-                          ? "dash-session-category-picker__option dash-session-category-picker__option--selected"
-                          : "dash-session-category-picker__option"
-                      }
-                      onClick={() => {
-                        setSessionCategory(category.id);
-                        setBookingError("");
-                      }}
-                    >
-                      <strong>{category.label}</strong>
-                      <span>{category.description}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <p className="dash-muted">
-                {sessionCategory === "college-consulting"
-                  ? `Booking with your assigned mentor${selectedProvider?.name ? `, ${selectedProvider.name}` : ""}.`
-                  : categoryProviders.length
-                    ? `Showing providers qualified for ${getSessionCategory(sessionCategory)?.label || "this session type"}${
-                        selectedProvider?.name ? ` — starting with ${selectedProvider.name}` : ""
-                      }.`
-                    : "We'll match you with a qualified provider for this session type."}
+                Booking with your assigned mentor{m.name ? `, ${m.name}` : ""}.
               </p>
 
               {!canBook ? (
                 <p className="dash-plan-session-banner__meta" role="alert">
-                  No session credits remaining this month. You can still message your mentor, or upgrade for more flexible sessions.
+                  Session booking is temporarily unavailable. Message your mentor, or check back soon.
                 </p>
               ) : null}
 
@@ -1894,23 +1838,16 @@ export function StudentMentor() {
                   meetingRequestMode
                   onRequestMeeting={async (payload) => {
                     setBookingError("");
-                    try {
-                      await scheduleMeeting({
-                        ...payload,
-                        status: "pending",
-                        sessionCategory,
-                        mentorId: selectedProvider?.id || payload.mentorId,
-                        mentorUserId:
-                          selectedProvider?.userId ||
-                          selectedProvider?.mentorUserId ||
-                          payload.mentorUserId,
-                        title:
-                          payload.title ||
-                          `${getSessionCategory(sessionCategory)?.label || "Mentor"} session`
-                      });
-                    } catch (error) {
-                      setBookingError(error?.message || "Could not book this session.");
-                    }
+                    return scheduleMeeting({
+                      ...payload,
+                      status: "pending",
+                      sessionCategory: "college-consulting",
+                      mentorId: m.id || payload.mentorId,
+                      mentorUserId: m.userId || m.mentorUserId || payload.mentorUserId,
+                      title: payload.title || "Mentor session",
+                      pillColor: payload.pillColor || payload.calendarColor,
+                      reminderMinutes: payload.reminderMinutes
+                    });
                   }}
                   onSave={async (saved) => {
                     const stored = await persistCalendarItem(saved);
@@ -1927,7 +1864,7 @@ export function StudentMentor() {
               ) : null}
             </>
           ) : (
-            <PlanLockedFeature feature="oneOnOneSessions" compact />
+            <PlanLockedFeature feature="oneOnOneSessions" variant="sessionUnlock" />
           )}
         </SectionCard>
       </div>

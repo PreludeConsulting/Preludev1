@@ -310,6 +310,35 @@ export const translations = {
           }
         ]
       },
+      bundles: {
+        eyebrow: "One-time bundles",
+        title: "Support on Your Schedule",
+        lede: "Choose essay reviews or flexible sessions with no monthly commitment.",
+        distinction: "No monthly subscription",
+        oneTimePayment: "One-time Payment",
+        bestValue: "Best Value",
+        popularOptions: "Popular options",
+        cards: [
+          {
+            id: "essay_support",
+            title: "Essay Support",
+            description: "Guided feedback for personal statements and supplemental essays.",
+            options: ["3 essay reviews", "6 essay reviews", "10 essay reviews"],
+            summary: "Personal statements, supplemental essays, revisions, and final edits.",
+            ctaLabel: "Customize Essay Support",
+            note: "Choose your essay reviews before checkout"
+          },
+          {
+            id: "flexible_sessions",
+            title: "Flexible Sessions",
+            description: "Buy sessions and use them wherever your student needs help.",
+            options: ["3 sessions", "6 sessions", "10 sessions"],
+            summary: "Use sessions for admissions, essays, SAT/ACT prep, tutoring, or financial aid.",
+            ctaLabel: "Choose Sessions",
+            note: "Choose your session amount before checkout"
+          }
+        ]
+      },
       cta: {
         headline: "Start your Prelude.",
         body: "Book a free call and learn how Prelude can help you reach your college goals.",
@@ -618,7 +647,10 @@ export const translations = {
       plans: {
         eyebrow: "플랜",
         headline: "목표와 함께 성장하는 지원.",
-        body: "무료 상담을 예약하세요. 더 많은 세션, 에세이 지원, 재정 전략이 필요할 때 업그레이드하세요.",
+        body: "무료 상담을 예약하세요. 컨설팅, SAT/ACT 준비, 교과 과외 등 유연한 세션이 필요할 때 업그레이드하세요.",
+        bodyBefore: "무료 상담을 예약하세요. 업그레이드하면 ",
+        bodyServices: ["컨설팅", "SAT/ACT 준비", "교과 과외"],
+        bodyAfter: " 등 유연한 세션을 이용할 수 있습니다.",
         mostPopular: "가장 인기",
         bestValue: "최고의 가치",
         pleaseWait: "잠시만 기다려 주세요...",
@@ -632,7 +664,7 @@ export const translations = {
         notices: {
           basicFree: "계정을 만들어 Basic 플랜을 선택한 뒤 결제를 완료하여 시작하세요.",
           signInFirst: "먼저 계정을 만들거나 로그인하세요. Stripe가 연결되면 구독이 해당 계정에 연결됩니다.",
-          comingSoon: "유료 구독은 곧 제공됩니다. Stripe 연결 후 플랜 결제가 활성화됩니다.",
+          comingSoon: "유료 결제는 Stripe 설정이 필요합니다. 지금 Basic을 선택하거나 Prelude에 문의해 주세요.",
           unavailable: "현재 결제를 사용할 수 없습니다."
         },
         cards: [
@@ -654,9 +686,8 @@ export const translations = {
             description: "더 많은 멘토 접근, 1:1 지원, 리워드.",
             featureHeader: "Basic의 모든 항목과:",
             features: [
-              "월 2회 1:1 세션",
               "전체 멘토 네트워크 메시징",
-              "맞춤형 입시 가이드",
+              "맞춤형 입시·학업 가이드",
               "진행에 따른 Prelude 코인 적립",
               "코인으로 추가 세션, 멀티 멘토 에세이 피드백, 과외 등 교환"
             ]
@@ -664,18 +695,47 @@ export const translations = {
           {
             id: "pro",
             name: "Pro",
-            description: "우선 지원과 전체 지원서 검토가 포함된 최고 수준의 플랜.",
+            description: "더 많은 유연 세션, 우선 지원, 전체 지원서 검토.",
             featureHeader: "Plus의 모든 항목과:",
             features: [
-              "월 4회 1:1 세션",
               "우선 멘토 네트워크 메시징",
-              "더 깊은 맞춤 전략",
+              "목표에 맞춘 심화 맞춤 전략",
               "전체 지원서 검토",
-              "에세이 및 활동 검토 포함",
+              "에세이 및 활동 검토",
+              "멀티 멘토 에세이 피드백",
+              "최종 지원서 준비 점검",
               "더 높은 비율의 코인 적립",
-              "고급 마일스톤 리워드",
-              "코인으로 1:1, 에세이 검토, 과외 등 교환"
+              "고급 마일스톤 리워드"
             ]
+          }
+        ]
+      },
+      bundles: {
+        eyebrow: "일회성 번들",
+        title: "필요할 때 쓰는 지원",
+        lede: "월 구독 없이 에세이 리뷰 또는 유연한 세션을 선택하세요.",
+        distinction: "월 구독 없음",
+        oneTimePayment: "일회성 결제",
+        bestValue: "최고의 가치",
+        popularOptions: "인기 옵션",
+        cards: [
+          {
+            id: "essay_support",
+            title: "에세이 지원",
+            description: "자기소개서와 보충 에세이를 위한 가이드형 피드백.",
+            options: ["에세이 리뷰 3회", "에세이 리뷰 6회", "에세이 리뷰 10회"],
+            summary: "자기소개서, 보충 에세이, 수정, 최종 편집.",
+            ctaLabel: "에세이 지원 맞춤 설정",
+            note: "결제 전에 에세이 리뷰 횟수를 선택하세요"
+          },
+          {
+            id: "flexible_sessions",
+            title: "유연 세션",
+            description: "학생이 필요한 곳에 쓸 수 있는 세션을 구매하세요.",
+            options: ["세션 3회", "세션 6회", "세션 10회"],
+            summary: "입시, 에세이, SAT/ACT, 과외, 재정보조 안내에 사용 가능.",
+            ctaLabel: "세션 선택",
+            note: "결제 전에 세션 횟수를 선택하세요"
           }
         ]
       },
@@ -987,7 +1047,10 @@ export const translations = {
       plans: {
         eyebrow: "方案",
         headline: "随着你的目标一起成长的支持。",
-        body: "预约免费咨询。当你需要更多课程、文书支持和财务策略时再升级。",
+        body: "预约免费咨询。升级即可获得咨询、SAT/ACT 备考、学科辅导等灵活课程。",
+        bodyBefore: "预约免费咨询。升级即可获得 ",
+        bodyServices: ["咨询", "SAT/ACT 备考", "学科辅导"],
+        bodyAfter: " 等灵活课程。",
         mostPopular: "最受欢迎",
         bestValue: "超值之选",
         pleaseWait: "请稍候...",
@@ -1001,7 +1064,7 @@ export const translations = {
         notices: {
           basicFree: "创建账户以选择 Basic 方案，然后完成结账即可开始。",
           signInFirst: "请先创建或登录账户。Stripe 连接后，订阅会关联到该账户。",
-          comingSoon: "付费订阅即将推出。Stripe 连接后将开启方案结账。",
+          comingSoon: "付费结账需要配置 Stripe。可先选择 Basic，或联系 Prelude 获取方案支持。",
           unavailable: "当前无法使用计费功能。"
         },
         cards: [
@@ -1023,9 +1086,8 @@ export const translations = {
             description: "更多导师接触、1 对 1 支持和奖励。",
             featureHeader: "Basic 的全部内容，以及：",
             features: [
-              "每月 2 次 1 对 1 课程",
               "完整导师网络消息",
-              "个性化申请指导",
+              "个性化升学与学业指导",
               "通过进度赚取 Prelude 币",
               "用币兑换额外课程、多导师文书反馈、辅导等"
             ]
@@ -1033,18 +1095,47 @@ export const translations = {
           {
             id: "pro",
             name: "Pro",
-            description: "我们最高接触度的方案，含优先支持和完整申请审核。",
+            description: "更多灵活课程、优先支持与完整申请审核。",
             featureHeader: "Plus 的全部内容，以及：",
             features: [
-              "每月 4 次 1 对 1 课程",
               "优先导师网络消息",
-              "更深入的个人策略",
+              "针对目标定制的进阶策略",
               "完整申请审核",
-              "含文书与活动审核",
+              "文书与活动审核",
+              "多导师文书反馈",
+              "最终申请就绪检查",
               "更高比例的币赚取",
-              "高级里程碑奖励",
-              "用币兑换 1 对 1、文书审核、辅导等"
+              "高级里程碑奖励"
             ]
+          }
+        ]
+      },
+      bundles: {
+        eyebrow: "一次性套餐",
+        title: "按你的节奏获得支持",
+        lede: "选择文书审阅或灵活课程，无需月付订阅。",
+        distinction: "无月付订阅",
+        oneTimePayment: "一次性付款",
+        bestValue: "超值之选",
+        popularOptions: "热门选项",
+        cards: [
+          {
+            id: "essay_support",
+            title: "文书支持",
+            description: "针对个人陈述与补充文书的指导性反馈。",
+            options: ["3 次文书审阅", "6 次文书审阅", "10 次文书审阅"],
+            summary: "个人陈述、补充文书、修改与终稿润色。",
+            ctaLabel: "定制文书支持",
+            note: "结账前选择文书审阅次数"
+          },
+          {
+            id: "flexible_sessions",
+            title: "灵活课程",
+            description: "购买课程，用在学生最需要帮助的地方。",
+            options: ["3 次课程", "6 次课程", "10 次课程"],
+            summary: "可用于升学咨询、文书、SAT/ACT、辅导或助学指导。",
+            ctaLabel: "选择课程",
+            note: "结账前选择课程次数"
           }
         ]
       },
@@ -1358,7 +1449,10 @@ export const translations = {
       plans: {
         eyebrow: "Planes",
         headline: "Apoyo que crece con tus metas.",
-        body: "Reserva una llamada gratis con nosotros. Mejora tu plan cuando necesites más sesiones, apoyo con ensayos y estrategia financiera.",
+        body: "Reserva una llamada gratis con nosotros. Mejora tu plan para sesiones flexibles de consultoría, preparación SAT/ACT, tutorías académicas y más.",
+        bodyBefore: "Reserva una llamada gratis con nosotros. Mejora tu plan para sesiones flexibles de ",
+        bodyServices: ["consultoría", "preparación SAT/ACT", "tutoría académica"],
+        bodyAfter: ", y más.",
         mostPopular: "Más popular",
         bestValue: "Mejor valor",
         pleaseWait: "Espera un momento...",
@@ -1372,7 +1466,7 @@ export const translations = {
         notices: {
           basicFree: "Crea una cuenta para elegir el plan Basic y completa el pago para empezar.",
           signInFirst: "Crea o inicia sesión en una cuenta primero. Tu suscripción se asociará a esa cuenta cuando Stripe esté conectado.",
-          comingSoon: "Las suscripciones pagadas estarán disponibles pronto. El pago de los planes se activará cuando Stripe esté conectado.",
+          comingSoon: "El pago requiere configurar Stripe. Elige Basic ahora o contacta a Prelude para ayuda con los planes.",
           unavailable: "La facturación no está disponible en este momento."
         },
         cards: [
@@ -1394,9 +1488,8 @@ export const translations = {
             description: "Más acceso a mentores, apoyo 1 a 1 y recompensas.",
             featureHeader: "Todo lo de Basic, y además:",
             features: [
-              "2 sesiones 1 a 1 al mes",
               "Mensajería con toda la red de mentores",
-              "Orientación personalizada de admisiones",
+              "Orientación personalizada universitaria y académica",
               "Gana Prelude Coins por tu progreso",
               "Canjea monedas por sesiones extra, comentarios de ensayos con varios mentores, tutoría y más"
             ]
@@ -1404,18 +1497,47 @@ export const translations = {
           {
             id: "pro",
             name: "Pro",
-            description: "Nuestro plan de mayor contacto con apoyo prioritario y revisión completa de solicitudes.",
+            description: "Más sesiones flexibles, apoyo prioritario y revisión de solicitudes.",
             featureHeader: "Todo lo de Plus, y además:",
             features: [
-              "4 sesiones 1 a 1 al mes",
               "Mensajería prioritaria con la red de mentores",
-              "Estrategia personalizada más profunda",
+              "Estrategia personalizada avanzada según tus metas",
               "Revisión completa de solicitudes",
-              "Revisión de ensayos y actividades incluida",
+              "Revisión de ensayos y actividades",
+              "Comentarios de ensayos con varios mentores",
+              "Revisión final de preparación de la solicitud",
               "Gana monedas a una tasa más alta",
-              "Recompensas avanzadas por hitos",
-              "Canjea monedas por sesiones 1 a 1, revisión de ensayos, tutoría y más"
+              "Recompensas avanzadas por hitos"
             ]
+          }
+        ]
+      },
+      bundles: {
+        eyebrow: "Paquetes de una sola vez",
+        title: "Apoyo a tu ritmo",
+        lede: "Elige revisiones de ensayos o sesiones flexibles sin compromiso mensual.",
+        distinction: "Sin suscripción mensual",
+        oneTimePayment: "Pago único",
+        bestValue: "Mejor valor",
+        popularOptions: "Opciones populares",
+        cards: [
+          {
+            id: "essay_support",
+            title: "Apoyo con ensayos",
+            description: "Comentarios guiados para personal statements y ensayos suplementarios.",
+            options: ["3 revisiones de ensayos", "6 revisiones de ensayos", "10 revisiones de ensayos"],
+            summary: "Personal statements, ensayos suplementarios, revisiones y ediciones finales.",
+            ctaLabel: "Personalizar apoyo con ensayos",
+            note: "Elige tus revisiones de ensayos antes del pago"
+          },
+          {
+            id: "flexible_sessions",
+            title: "Sesiones flexibles",
+            description: "Compra sesiones y úsalas donde tu estudiante más lo necesite.",
+            options: ["3 sesiones", "6 sesiones", "10 sesiones"],
+            summary: "Usa las sesiones para admisiones, ensayos, SAT/ACT, tutoría o ayuda financiera.",
+            ctaLabel: "Elegir sesiones",
+            note: "Elige la cantidad de sesiones antes del pago"
           }
         ]
       },

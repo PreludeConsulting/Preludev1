@@ -105,9 +105,25 @@ export default function MeetingRequestActions({ request, acceptClassName = "", d
       <PrimaryButton type="button" className={acceptClassName} onClick={() => setShowAcceptForm(true)}>
         Accept
       </PrimaryButton>
-      <SecondaryButton type="button" className={declineClassName} onClick={() => declineMeetingRequest(request.id)}>
+      <SecondaryButton
+        type="button"
+        className={declineClassName}
+        disabled={accepting}
+        onClick={async () => {
+          setAccepting(true);
+          setError("");
+          try {
+            await declineMeetingRequest(request.id);
+          } catch (err) {
+            setError(err?.message || "Could not decline this meeting request.");
+          } finally {
+            setAccepting(false);
+          }
+        }}
+      >
         Decline
       </SecondaryButton>
+      {error ? <p className="dash-schedule-form__form-error" role="alert">{error}</p> : null}
     </>
   );
 }

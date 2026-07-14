@@ -136,7 +136,7 @@ export function completeLocalMentorTask({ studentEmail, taskInstanceId, mentorId
   return { task: updated.find((item) => item.id === taskInstanceId), error: null };
 }
 
-export function claimLocalRewardTask(email, taskInstanceId, { satActUnlocked = false, tutoringUnlocked = false } = {}) {
+export function claimLocalRewardTask(email, taskInstanceId, { satActUnlocked = false, tutoringUnlocked = false, proBoost = false } = {}) {
   const tasks = loadLocalRewardTasks(email);
   const task = tasks.find((item) => item.id === taskInstanceId);
   if (!task) return { error: "Reward task not found.", task: null, wallet: null };
@@ -149,7 +149,7 @@ export function claimLocalRewardTask(email, taskInstanceId, { satActUnlocked = f
   const def = getTaskDefinition(task.taskTemplateId);
   const baseAmount = Number(def?.coins ?? task.coins ?? 0);
   const lifetimeBefore = Number(wallet.lifetime_coins || wallet.lifetime_earned || 0);
-  const multiplier = getCoinMultiplier(lifetimeBefore);
+  const multiplier = getCoinMultiplier(lifetimeBefore, { proBoost });
   const finalAmount = applyCoinMultiplier(baseAmount, multiplier);
   const nextLifetime = lifetimeBefore + finalAmount;
   const nextWallet = {

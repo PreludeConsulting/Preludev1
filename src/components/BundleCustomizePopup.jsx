@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   formatUsd,
   getDefaultBundleSelection,
+  normalizeBundleSelection,
   quoteBundleSelection,
   SUPPORT_BUNDLES
 } from "../../shared/supportBundles.js";
@@ -15,7 +16,12 @@ function getTabbable(container) {
   ).filter((el) => el.offsetParent !== null || el === document.activeElement);
 }
 
-function QuantityControl({ label, hint, value, min, max, onChange }) {
+function QuantityControl({ label, hint, value, allowed, onChange }) {
+  const steps = Array.isArray(allowed) && allowed.length ? allowed : [value];
+  const index = steps.indexOf(value);
+  const safeIndex = index >= 0 ? index : 0;
+  const displayValue = index >= 0 ? value : steps[0];
+
   return (
     <div className="pw-bundle-qty">
       <div className="pw-bundle-qty__copy">
@@ -27,20 +33,20 @@ function QuantityControl({ label, hint, value, min, max, onChange }) {
           type="button"
           className="pw-bundle-qty__step"
           aria-label={`Decrease ${label}`}
-          disabled={value <= min}
-          onClick={() => onChange(value - 1)}
+          disabled={safeIndex <= 0}
+          onClick={() => onChange(steps[safeIndex - 1])}
         >
           <Minus aria-hidden="true" />
         </button>
         <span className="pw-bundle-qty__value" aria-live="polite">
-          {value}
+          {displayValue}
         </span>
         <button
           type="button"
           className="pw-bundle-qty__step"
           aria-label={`Increase ${label}`}
-          disabled={value >= max}
-          onClick={() => onChange(value + 1)}
+          disabled={safeIndex >= steps.length - 1}
+          onClick={() => onChange(steps[safeIndex + 1])}
         >
           <Plus aria-hidden="true" />
         </button>
@@ -64,6 +70,19 @@ function CheckboxOption({ checked, label, meta, onChange }) {
   );
 }
 
+function IncludedFeature({ label }) {
+  return (
+    <div className="pw-bundle-option pw-bundle-option--on pw-bundle-option--included">
+      <span className="pw-bundle-option__mark" aria-hidden="true">
+        <Check />
+      </span>
+      <span className="pw-bundle-option__copy">
+        <span className="pw-bundle-option__label">{label}</span>
+      </span>
+    </div>
+  );
+}
+
 export default function BundleCustomizePopup({
   bundleId,
   selection,
@@ -82,9 +101,29 @@ export default function BundleCustomizePopup({
   const bodyRef = useRef(null);
   const firstActionRef = useRef(null);
   const localSelection = selection || getDefaultBundleSelection(bundleId);
-  const quote = useMemo(() => quoteBundleSelection(localSelection), [localSelection]);
+  const quote = useMemo(
+    () => quoteBundleSelection(localSelection, { snapInvalidQuantities: true }),
+    [localSelection]
+  );
   const [priceFlash, setPriceFlash] = useState(false);
   const priceRef = useRef(null);
+
+  useEffect(() => {
+    if (!bundleId || !onSelectionChange) return;
+    const normalized = normalizeBundleSelection(localSelection, { snapInvalidQuantities: true });
+    if (!normalized.ok) return;
+    const next = normalized.selection;
+    const qtyChanged = Object.keys(next.quantities || {}).some(
+      (key) => next.quantities[key] !== localSelection.quantities?.[key]
+    );
+    const servicesChanged = Object.keys(next.services || {}).some(
+      (key) => next.services[key] !== Boolean(localSelection.services?.[key])
+    );
+    const usesChanged = Object.keys(next.sessionUses || {}).some(
+      (key) => next.sessionUses[key] !== Boolean(localSelection.sessionUses?.[key])
+    );
+    if (qtyChanged || servicesChanged || usesChanged) onSelectionChange(next);
+  }, [bundleId, localSelection, onSelectionChange]);
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -121,18 +160,6 @@ export default function BundleCustomizePopup({
   function updateAddOn(id, enabled) {
     patchSelection({
       addOns: { ...localSelection.addOns, [id]: enabled }
-    });
-  }
-
-  function updateService(id, enabled) {
-    patchSelection({
-      services: { ...localSelection.services, [id]: enabled }
-    });
-  }
-
-  function updateSessionUse(id, enabled) {
-    patchSelection({
-      sessionUses: { ...localSelection.sessionUses, [id]: enabled }
     });
   }
 
@@ -201,7 +228,10 @@ export default function BundleCustomizePopup({
             </span>
             <span className="pw-popup__price-period">one-time</span>
             <span className="pw-popup__price-label">
-              {totals?.savingsLabel || `Starting at ${formatUsd(catalog.startingCents)}`}
+              {totals?.savingsLabel ||
+                (totals
+                  ? totals.summaryLines[0]
+                  : `Starting at ${formatUsd(catalog.startingCents)}`)}
             </span>
           </section>
 
@@ -212,8 +242,7 @@ export default function BundleCustomizePopup({
                 label={field.label}
                 hint={field.hint}
                 value={localSelection.quantities[field.id]}
-                min={field.min}
-                max={field.max}
+                allowed={field.allowed}
                 onChange={(next) => updateQuantity(field.id, next)}
               />
             ))}
@@ -238,16 +267,13 @@ export default function BundleCustomizePopup({
             {catalog.services?.length ? (
               <div className="pw-bundle-group">
                 <p className="pw-bundle-group__label">
-                  {bundleId === "essay_support" ? "Essay focus" : "Selectable services"}
+                  {bundleId === "essay_support" ? "Essay focus" : "Included services"}
                 </p>
-                <div className="pw-bundle-group__options">
+                <div className="pw-bundle-group__options" role="list" aria-label="Included in every package">
                   {catalog.services.map((item) => (
-                    <CheckboxOption
-                      key={item.id}
-                      checked={Boolean(localSelection.services?.[item.id])}
-                      label={item.label}
-                      onChange={(enabled) => updateService(item.id, enabled)}
-                    />
+                    <div key={item.id} role="listitem">
+                      <IncludedFeature label={item.label} />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -256,14 +282,11 @@ export default function BundleCustomizePopup({
             {catalog.sessionUses?.length ? (
               <div className="pw-bundle-group">
                 <p className="pw-bundle-group__label">Sessions may be used for</p>
-                <div className="pw-bundle-group__options">
+                <div className="pw-bundle-group__options" role="list" aria-label="Included session uses">
                   {catalog.sessionUses.map((item) => (
-                    <CheckboxOption
-                      key={item.id}
-                      checked={Boolean(localSelection.sessionUses?.[item.id])}
-                      label={item.label}
-                      onChange={(enabled) => updateSessionUse(item.id, enabled)}
-                    />
+                    <div key={item.id} role="listitem">
+                      <IncludedFeature label={item.label} />
+                    </div>
                   ))}
                 </div>
                 <p className="pw-bundle-group__note">Mix different session types within the same bundle.</p>
