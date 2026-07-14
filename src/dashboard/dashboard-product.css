@@ -5631,6 +5631,22 @@
   margin-top: 1.25rem;
 }
 
+.dash-application-reviews--maintenance .dash-section-card__body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 12rem;
+  padding: clamp(2rem, 5vw, 3.5rem) 1.5rem;
+}
+
+.dash-application-reviews__maintenance-message {
+  margin: 0;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: hsl(230 25% 18%);
+}
+
 .dash-application-reviews__form {
   display: grid;
   gap: 1rem;
