@@ -8,6 +8,7 @@ export const PROMO_ERROR_MESSAGES = {
   redemption_limit_reached: "This promotion has reached its maximum number of redemptions.",
   email_ineligible: "This promo code is not available for this account.",
   wrong_plan: "This promo code is not available for this account.",
+  benefit_already_applied: "You can only use one promo or referral code per account.",
   invalid_request: "We could not verify the promo code right now. Please try again.",
   invalid_code_format: "Promo codes can only contain letters, numbers, and hyphens.",
   server_error: "We could not verify the promo code right now. Please try again.",

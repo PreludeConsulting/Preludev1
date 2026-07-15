@@ -12,8 +12,7 @@ import TurnstileWidget from "./auth/TurnstileWidget.jsx";
 import AuthLayout from "./auth/AuthLayout.jsx";
 import AuthDemoSection from "./auth/AuthDemoSection.jsx";
 import AuthRoleSelector from "./auth/AuthRoleSelector.jsx";
-import PromoCodeField from "./auth/PromoCodeField.jsx";
-import ReferralCodeField from "./auth/ReferralCodeField.jsx";
+import PromoOrReferralCodeField from "./auth/PromoOrReferralCodeField.jsx";
 import {
   AuthBanner,
   AuthDivider,
@@ -328,10 +327,9 @@ export function RegisterPage() {
     termsAccepted: false,
     parentInviteToken
   });
-  const [promoCode, setPromoCode] = useState("");
+  const [signupCode, setSignupCode] = useState("");
+  const [signupCodeKind, setSignupCodeKind] = useState(null);
   const [promoSummary, setPromoSummary] = useState(null);
-  const [referralCode, setReferralCode] = useState("");
-  const [referralApplied, setReferralApplied] = useState(false);
   const [formError, setFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [message, setMessage] = useState("");
@@ -429,16 +427,16 @@ export function RegisterPage() {
       };
       const result = await signUp({
         ...payload,
-        promoCode: promoSummary ? promoCode : ""
+        promoCode: signupCodeKind === "promo" && promoSummary ? signupCode : ""
       });
       const userId = result?.id;
       const userEmail = form.email.trim();
       let promoRedemption = null;
 
-      if (promoSummary && promoCode && userId && String(form.role).toUpperCase() === "STUDENT") {
+      if (signupCodeKind === "promo" && promoSummary && signupCode && userId && String(form.role).toUpperCase() === "STUDENT") {
         try {
           promoRedemption = await redeemPromoCodeAtSignup({
-            code: promoCode,
+            code: signupCode,
             email: userEmail,
             userId,
             accessToken: result?.accessToken
@@ -446,25 +444,25 @@ export function RegisterPage() {
           clearPendingPromoRedemption(userEmail);
         } catch (promoError) {
           if (result?.needsEmailConfirmation || result?.verificationEmailSent) {
-            storePendingPromoRedemption(userEmail, promoCode);
+            storePendingPromoRedemption(userEmail, signupCode);
           } else {
             setFormError(promoError.message || "Your account was created, but the promo code could not be redeemed.");
             return;
           }
         }
-      } else if (promoSummary && promoCode && (result?.needsEmailConfirmation || result?.verificationEmailSent)) {
-        storePendingPromoRedemption(userEmail, promoCode);
+      } else if (signupCodeKind === "promo" && promoSummary && signupCode && (result?.needsEmailConfirmation || result?.verificationEmailSent)) {
+        storePendingPromoRedemption(userEmail, signupCode);
       }
 
       if (
-        referralApplied &&
-        referralCode &&
+        signupCodeKind === "referral" &&
+        signupCode &&
         userId &&
         ["STUDENT", "PARENT"].includes(String(role).toUpperCase())
       ) {
         try {
           await associateReferralCode({
-            code: referralCode,
+            code: signupCode,
             role: String(role).toLowerCase(),
             email: userEmail,
             userId,
@@ -615,53 +613,24 @@ export function RegisterPage() {
           error={fieldErrors.email}
           required
         />
-        {!invitedAsParent && (!form.role || form.role === "STUDENT") ? (
-          <PromoCodeField
+        {form.role !== "MENTOR" ? (
+          <PromoOrReferralCodeField
             email={form.email}
-            value={promoCode}
+            role={invitedAsParent ? "PARENT" : form.role}
+            value={signupCode}
+            appliedKind={signupCodeKind}
             appliedSummary={promoSummary}
-            disabled={loading || referralApplied}
-            onChange={setPromoCode}
-            onApplied={({ summary }) => {
-              setPromoSummary(summary);
-              setReferralCode("");
-              setReferralApplied(false);
+            disabled={loading}
+            onChange={setSignupCode}
+            onApplied={({ kind, code, summary }) => {
+              setSignupCode(code || "");
+              setSignupCodeKind(kind);
+              setPromoSummary(kind === "promo" ? summary || null : null);
             }}
             onRemoved={() => {
-              setPromoCode("");
+              setSignupCode("");
+              setSignupCodeKind(null);
               setPromoSummary(null);
-            }}
-          />
-        ) : null}
-        {!invitedAsParent && form.role !== "MENTOR" ? (
-          <ReferralCodeField
-            email={form.email}
-            role={form.role || "STUDENT"}
-            value={referralCode}
-            disabled={loading || Boolean(promoSummary)}
-            onChange={setReferralCode}
-            onApplied={() => {
-              setReferralApplied(true);
-              setPromoCode("");
-              setPromoSummary(null);
-            }}
-            onRemoved={() => {
-              setReferralCode("");
-              setReferralApplied(false);
-            }}
-          />
-        ) : null}
-        {invitedAsParent ? (
-          <ReferralCodeField
-            email={form.email}
-            role="PARENT"
-            value={referralCode}
-            disabled={loading || Boolean(promoSummary)}
-            onChange={setReferralCode}
-            onApplied={() => setReferralApplied(true)}
-            onRemoved={() => {
-              setReferralCode("");
-              setReferralApplied(false);
             }}
           />
         ) : null}
@@ -688,11 +657,12 @@ export function RegisterPage() {
               setForm((current) => ({ ...current, role }));
               if (fieldErrors.role) setFieldErrors((current) => ({ ...current, role: "" }));
               if (role === "MENTOR") {
-                setReferralCode("");
-                setReferralApplied(false);
-              }
-              if (role === "PARENT" || role === "MENTOR") {
-                setPromoCode("");
+                setSignupCode("");
+                setSignupCodeKind(null);
+                setPromoSummary(null);
+              } else if (role === "PARENT" && signupCodeKind === "promo") {
+                setSignupCode("");
+                setSignupCodeKind(null);
                 setPromoSummary(null);
               }
             }}

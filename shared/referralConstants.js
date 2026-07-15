@@ -17,6 +17,7 @@ export const REFERRAL_ERROR_MESSAGES = Object.freeze({
   role_ineligible: "Referral codes cannot be used with the selected account type.",
   already_referred: "This account has already used a referral discount.",
   household_already_referred: "This household has already received a new-customer referral discount.",
+  benefit_already_applied: "You can only use one promo or referral code per account.",
   invalid_code_format: "Referral codes use letters, numbers, and a hyphen (for example PETER-K7Q4).",
   invalid_request: "We could not verify the referral code right now. Please try again.",
   server_error: "We could not verify the referral code right now. Please try again.",

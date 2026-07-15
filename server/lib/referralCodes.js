@@ -254,6 +254,18 @@ export async function associateReferralAtSignup({
   }
 
   const supabase = admin();
+
+  // Mutual exclusion: one signup benefit only (promo OR referral).
+  const { data: existingPromo } = await supabase
+    .from("promo_redemptions")
+    .select("id")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+  if (existingPromo) {
+    return fail("benefit_already_applied");
+  }
+
   const householdId = await ensureHouseholdForUser(userId);
 
   const { data: referral, error } = await supabase
