@@ -1,3 +1,6 @@
+import { createSupabaseAdmin } from "../../server/lib/supabasePasswordReset.js";
+import { REFERRAL_DISCOUNT_PERCENT, REFERRAL_REWARD_NOTIFICATION, isReferralEligibleRole, logReferralEvent } from "../../shared/referralConstants.js";
+
 const PAID_PLAN_IDS = ["basic", "plus", "pro"];
 const STRIPE_API_VERSION = "2026-05-27.dahlia";
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
@@ -305,27 +308,174 @@ async function resolveReferralCouponId(context) {
 }
 
 async function confirmReferralPayment(context, { userId, subscriptionId, paymentId, invoiceId }) {
-  // Prefer Node shared library when process.env is available (Pages Functions with nodejs_compat).
-  try {
-    if (typeof process !== "undefined") {
-      process.env.SUPABASE_URL = process.env.SUPABASE_URL || getEnv(context, "SUPABASE_URL") || getEnv(context, "VITE_SUPABASE_URL");
-      process.env.SUPABASE_SERVICE_ROLE_KEY =
-        process.env.SUPABASE_SERVICE_ROLE_KEY || getEnv(context, "SUPABASE_SERVICE_ROLE_KEY");
-      const { confirmReferralFromPayment, markRewardApplied, revokeRewardsForQualifyingPayment } = await import(
-        "../../server/lib/referralCodes.js"
-      );
-      await confirmReferralFromPayment({
-        userId,
-        subscriptionId,
-        qualifyingPaymentId: paymentId,
-        invoiceId
-      });
-      return { confirmReferralFromPayment, markRewardApplied, revokeRewardsForQualifyingPayment };
-    }
-  } catch (error) {
-    console.error("[prelude-referral] cf confirm fallback", error?.message || error);
+  const env = {
+    SUPABASE_URL: getEnv(context, "SUPABASE_URL") || getEnv(context, "VITE_SUPABASE_URL"),
+    SUPABASE_SERVICE_ROLE_KEY: getEnv(context, "SUPABASE_SERVICE_ROLE_KEY")
+  };
+  const supabase = createSupabaseAdmin(env);
+  if (!supabase || !userId || !paymentId) return null;
+
+  const { data: byPayment } = await supabase
+    .from("referrals")
+    .select("*")
+    .eq("qualifying_payment_id", paymentId)
+    .maybeSingle();
+  if (byPayment) {
+    return { duplicate: true, referral: byPayment };
   }
-  return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, role, pending_referral_id, household_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!profile || !isReferralEligibleRole(profile.role)) return null;
+
+  let referral = null;
+  if (profile.pending_referral_id) {
+    const { data } = await supabase.from("referrals").select("*").eq("id", profile.pending_referral_id).maybeSingle();
+    referral = data;
+  }
+  if (!referral) {
+    const { data } = await supabase
+      .from("referrals")
+      .select("*")
+      .eq("referred_user_id", userId)
+      .in("status", ["entered", "pending_account", "pending_payment"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    referral = data;
+  }
+  if (!referral || !["entered", "pending_account", "pending_payment"].includes(referral.status)) {
+    return null;
+  }
+
+  let referredHouseholdId = referral.referred_household_id || profile.household_id;
+  if (!referredHouseholdId) {
+    const { data } = await supabase.rpc("ensure_household_for_user", { p_user_id: userId });
+    referredHouseholdId = data;
+  }
+
+  const { data: updated, error } = await supabase
+    .from("referrals")
+    .update({
+      status: "confirmed",
+      confirmed_at: new Date().toISOString(),
+      qualifying_payment_id: paymentId,
+      referred_subscription_id: subscriptionId || referral.referred_subscription_id,
+      referred_household_id: referredHouseholdId,
+      metadata: { ...(referral.metadata || {}), invoiceId: invoiceId || null }
+    })
+    .eq("id", referral.id)
+    .in("status", ["entered", "pending_account", "pending_payment"])
+    .select("*")
+    .maybeSingle();
+
+  if (error || !updated) {
+    const { data: race } = await supabase.from("referrals").select("*").eq("qualifying_payment_id", paymentId).maybeSingle();
+    return race ? { duplicate: true, referral: race } : null;
+  }
+
+  await supabase.from("profiles").update({ pending_referral_id: null }).eq("id", userId);
+
+  const { data: existingReward } = await supabase
+    .from("referral_rewards")
+    .select("*")
+    .eq("referral_id", updated.id)
+    .maybeSingle();
+  let reward = existingReward;
+  if (!reward) {
+    const { data: createdReward } = await supabase
+      .from("referral_rewards")
+      .insert({
+        referral_id: updated.id,
+        household_id: updated.referrer_household_id,
+        status: "available",
+        discount_percent: REFERRAL_DISCOUNT_PERCENT,
+        available_at: new Date().toISOString()
+      })
+      .select("*")
+      .single();
+    reward = createdReward;
+  }
+
+  if (reward) {
+    const { data: members } = await supabase
+      .from("household_members")
+      .select("user_id")
+      .eq("household_id", reward.household_id);
+    const notificationIds = [];
+    for (const member of members || []) {
+      const { data: notification } = await supabase
+        .from("notifications")
+        .insert({
+          user_id: member.user_id,
+          title: REFERRAL_REWARD_NOTIFICATION.title,
+          body: REFERRAL_REWARD_NOTIFICATION.body,
+          unread: true,
+          action_type: "claim_referral_reward",
+          action_payload: { rewardId: reward.id, householdId: reward.household_id }
+        })
+        .select("id")
+        .single();
+      if (notification?.id) notificationIds.push(notification.id);
+    }
+    if (notificationIds.length) {
+      await supabase.from("referral_rewards").update({ notification_ids: notificationIds }).eq("id", reward.id);
+    }
+    logReferralEvent("referral_payment_confirmed", {
+      referralId: updated.id,
+      userId,
+      qualifyingPaymentId: paymentId,
+      rewardId: reward.id
+    });
+  }
+
+  return {
+    referral: updated,
+    reward,
+    async markRewardApplied({ rewardId, invoiceId: appliedInvoiceId }) {
+      await supabase
+        .from("referral_rewards")
+        .update({
+          status: "applied",
+          applied_at: new Date().toISOString(),
+          applied_invoice_id: appliedInvoiceId || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", rewardId)
+        .in("status", ["claimed", "scheduled"]);
+      logReferralEvent("reward_applied", { rewardId, invoiceId: appliedInvoiceId });
+    }
+  };
+}
+
+async function revokeReferralRewards(context, paymentId, reason) {
+  const env = {
+    SUPABASE_URL: getEnv(context, "SUPABASE_URL") || getEnv(context, "VITE_SUPABASE_URL"),
+    SUPABASE_SERVICE_ROLE_KEY: getEnv(context, "SUPABASE_SERVICE_ROLE_KEY")
+  };
+  const supabase = createSupabaseAdmin(env);
+  if (!supabase || !paymentId) return;
+  const { data: referral } = await supabase
+    .from("referrals")
+    .select("id")
+    .eq("qualifying_payment_id", paymentId)
+    .maybeSingle();
+  if (!referral) return;
+  const { data: rewards } = await supabase
+    .from("referral_rewards")
+    .select("id, status")
+    .eq("referral_id", referral.id)
+    .in("status", ["available", "claimed", "scheduled"]);
+  for (const reward of rewards || []) {
+    await supabase
+      .from("referral_rewards")
+      .update({ status: "revoked", updated_at: new Date().toISOString() })
+      .eq("id", reward.id);
+    logReferralEvent("reward_revoked", { rewardId: reward.id, reason, qualifyingPaymentId: paymentId });
+  }
 }
 
 async function processWebhookEvent(context, event) {
@@ -379,13 +529,7 @@ async function processWebhookEvent(context, event) {
   if (["charge.refunded", "charge.dispute.created", "invoice.voided"].includes(event.type)) {
     const paymentId = stripeObjectId(object.payment_intent) || object.id;
     try {
-      if (typeof process !== "undefined" && paymentId) {
-        process.env.SUPABASE_URL = process.env.SUPABASE_URL || getEnv(context, "SUPABASE_URL") || getEnv(context, "VITE_SUPABASE_URL");
-        process.env.SUPABASE_SERVICE_ROLE_KEY =
-          process.env.SUPABASE_SERVICE_ROLE_KEY || getEnv(context, "SUPABASE_SERVICE_ROLE_KEY");
-        const { revokeRewardsForQualifyingPayment } = await import("../../server/lib/referralCodes.js");
-        await revokeRewardsForQualifyingPayment(paymentId, event.type);
-      }
+      await revokeReferralRewards(context, paymentId, event.type);
     } catch (error) {
       console.error("[prelude-referral] cf revoke failed", error?.message || error);
     }
