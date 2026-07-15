@@ -620,19 +620,41 @@ export function RegisterPage() {
             email={form.email}
             value={promoCode}
             appliedSummary={promoSummary}
-            disabled={loading}
+            disabled={loading || referralApplied}
             onChange={setPromoCode}
-            onApplied={({ summary }) => setPromoSummary(summary)}
+            onApplied={({ summary }) => {
+              setPromoSummary(summary);
+              setReferralCode("");
+              setReferralApplied(false);
+            }}
             onRemoved={() => {
               setPromoCode("");
               setPromoSummary(null);
             }}
           />
         ) : null}
-        {form.role === "STUDENT" || form.role === "PARENT" || invitedAsParent ? (
+        {!invitedAsParent && form.role !== "MENTOR" ? (
           <ReferralCodeField
             email={form.email}
-            role={invitedAsParent ? "PARENT" : form.role}
+            role={form.role || "STUDENT"}
+            value={referralCode}
+            disabled={loading || Boolean(promoSummary)}
+            onChange={setReferralCode}
+            onApplied={() => {
+              setReferralApplied(true);
+              setPromoCode("");
+              setPromoSummary(null);
+            }}
+            onRemoved={() => {
+              setReferralCode("");
+              setReferralApplied(false);
+            }}
+          />
+        ) : null}
+        {invitedAsParent ? (
+          <ReferralCodeField
+            email={form.email}
+            role="PARENT"
             value={referralCode}
             disabled={loading || Boolean(promoSummary)}
             onChange={setReferralCode}
@@ -665,6 +687,14 @@ export function RegisterPage() {
             onChange={(role) => {
               setForm((current) => ({ ...current, role }));
               if (fieldErrors.role) setFieldErrors((current) => ({ ...current, role: "" }));
+              if (role === "MENTOR") {
+                setReferralCode("");
+                setReferralApplied(false);
+              }
+              if (role === "PARENT" || role === "MENTOR") {
+                setPromoCode("");
+                setPromoSummary(null);
+              }
             }}
             disabled={loading}
             lockedRole={invitedAsParent ? "PARENT" : ""}
