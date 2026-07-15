@@ -4,27 +4,27 @@ import process from "node:process";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 import { STRIPE_API_VERSION } from "../server/billingConfig.js";
-import { getPricingPlans } from "../src/lib/plans.js";
+import { listStripeCatalogOfferings } from "../shared/billingCatalog.js";
+import { getPlan } from "../src/lib/plans.js";
 
 dotenv.config();
 
+const LIVE_MODE = process.argv.includes("--live");
 const WRITE_ENV = process.argv.includes("--write-env");
+const DRY_RUN = process.argv.includes("--dry-run");
 const ENV_PATH = path.resolve(process.cwd(), ".env");
-const CURRENCY = process.env.STRIPE_CURRENCY || "usd";
+const CURRENCY = "usd";
 
-function centsFromPriceLabel(price) {
-  const numeric = Number(String(price).replace(/[^0-9.]/g, ""));
-  if (!Number.isFinite(numeric)) throw new Error(`Could not parse catalog price: ${price}`);
-  return Math.round(numeric * 100);
+if (LIVE_MODE && process.argv.includes("--test")) {
+  throw new Error("Choose exactly one Stripe mode: --test or --live.");
+}
+if (DRY_RUN && WRITE_ENV) {
+  throw new Error("--dry-run cannot be combined with --write-env.");
 }
 
-function envKeyForPlan(planId) {
-  return `STRIPE_PRICE_ID_${planId.toUpperCase()}`;
-}
-
-function lookupKeyForPlan(planId, unitAmount = null) {
-  const base = `prelude_${planId}_monthly`;
-  return unitAmount == null ? base : `${base}_${unitAmount}`;
+function keyMode(apiKey) {
+  const match = /^(?:sk|rk)_(test|live)_/.exec(apiKey || "");
+  return match?.[1] || null;
 }
 
 function upsertEnvValues(values) {
@@ -40,59 +40,107 @@ function upsertEnvValues(values) {
   fs.writeFileSync(ENV_PATH, text);
 }
 
-async function findOrCreateProduct(stripe, plan) {
-  const products = await stripe.products.list({ active: true, limit: 100 });
-  const existing = products.data.find((product) => product.metadata?.preludePlanId === plan.id);
+async function listAll(listPage) {
+  const rows = [];
+  let startingAfter;
+  do {
+    const page = await listPage(startingAfter);
+    rows.push(...page.data);
+    startingAfter = page.has_more ? page.data.at(-1)?.id : null;
+  } while (startingAfter);
+  return rows;
+}
+
+function productDescription(offering) {
+  if (offering.kind === "subscription") {
+    const plan = getPlan(offering.id);
+    return plan.description || plan.tagline;
+  }
+  return offering.description;
+}
+
+async function findOrCreateProduct(stripe, offering, products) {
+  const existing = products.find((product) =>
+    product.metadata?.preludeOfferingId === offering.id ||
+    product.metadata?.preludePlanId === offering.id ||
+    product.name === offering.name
+  );
+
   if (existing) {
-    await stripe.products.update(existing.id, {
-      name: `Prelude ${plan.name}`,
-      description: plan.description || plan.tagline
-    });
+    if (!DRY_RUN && (!existing.active || existing.metadata?.preludeOfferingId !== offering.id)) {
+      const updated = await stripe.products.update(existing.id, {
+        active: true,
+        metadata: { preludeOfferingId: offering.id }
+      });
+      Object.assign(existing, updated);
+    }
     return existing;
   }
 
-  return stripe.products.create({
-    name: `Prelude ${plan.name}`,
-    description: plan.description || plan.tagline,
-    metadata: {
-      preludePlanId: plan.id
-    }
+  if (DRY_RUN) return null;
+  const product = await stripe.products.create({
+    name: offering.name,
+    description: productDescription(offering),
+    metadata: { preludeOfferingId: offering.id }
   });
+  products.push(product);
+  return product;
 }
 
-async function findOrCreatePrice(stripe, product, plan) {
-  const expectedAmount = centsFromPriceLabel(plan.price);
-  const baseLookupKey = lookupKeyForPlan(plan.id);
-  const versionedLookupKey = lookupKeyForPlan(plan.id, expectedAmount);
+function priceMatches(price, offering, priceSpec) {
+  const cadenceMatches = offering.kind === "subscription"
+    ? price.type === "recurring" && price.recurring?.interval === "month" && price.recurring?.interval_count === 1
+    : price.type === "one_time" && !price.recurring;
+  return price.unit_amount === priceSpec.unitAmount &&
+    price.currency === CURRENCY &&
+    cadenceMatches;
+}
 
-  for (const lookupKey of [versionedLookupKey, baseLookupKey]) {
-    const prices = await stripe.prices.list({ active: true, lookup_keys: [lookupKey], limit: 1 });
-    const match = prices.data[0];
-    if (match && match.unit_amount === expectedAmount) return match;
+async function findOrCreatePrice(stripe, product, offering, priceSpec) {
+  if (!product) return null;
+  const prices = await listAll((startingAfter) => stripe.prices.list({
+    product: product.id,
+    limit: 100,
+    ...(startingAfter ? { starting_after: startingAfter } : {})
+  }));
+  const existing = prices.find((price) => priceMatches(price, offering, priceSpec));
+  if (existing) {
+    if (!existing.active && !DRY_RUN) {
+      return stripe.prices.update(existing.id, { active: true });
+    }
+    return existing;
   }
 
+  if (DRY_RUN) return null;
   return stripe.prices.create({
     product: product.id,
-    unit_amount: expectedAmount,
+    unit_amount: priceSpec.unitAmount,
     currency: CURRENCY,
-    recurring: { interval: "month" },
-    lookup_key: versionedLookupKey,
+    ...(offering.kind === "subscription" ? { recurring: { interval: "month" } } : {}),
+    lookup_key: priceSpec.lookupKey,
     metadata: {
-      preludePlanId: plan.id,
-      preludePlanPriceCents: String(expectedAmount)
+      preludeOfferingId: offering.id,
+      ...(priceSpec.quantity == null ? {} : { preludeQuantity: String(priceSpec.quantity) }),
+      preludePriceCents: String(priceSpec.unitAmount)
     }
   });
 }
 
 async function main() {
-  const apiKey = process.env.STRIPE_SECRET_KEY;
+  const requestedMode = LIVE_MODE ? "live" : "test";
+  const modeSpecificKey = LIVE_MODE
+    ? process.env.STRIPE_LIVE_SECRET_KEY
+    : process.env.STRIPE_TEST_SECRET_KEY;
+  const apiKey = modeSpecificKey || process.env.STRIPE_SECRET_KEY;
   if (!apiKey) {
-    console.error("STRIPE_SECRET_KEY is not set. Add a test or live Stripe secret/restricted key to .env first.");
-    process.exit(1);
+    throw new Error(`No ${requestedMode}-mode Stripe key is set. Configure STRIPE_${requestedMode.toUpperCase()}_SECRET_KEY or a matching STRIPE_SECRET_KEY.`);
   }
-  if (!/^(sk|rk)_(test|live)_/.test(apiKey)) {
-    console.error("STRIPE_SECRET_KEY must start with sk_test_, sk_live_, rk_test_, or rk_live_.");
-    process.exit(1);
+  const actualMode = keyMode(apiKey);
+  if (!actualMode) {
+    throw new Error("STRIPE_SECRET_KEY must start with sk_test_, sk_live_, rk_test_, or rk_live_.");
+  }
+  if (actualMode !== requestedMode) {
+    throw new Error(`Refusing to use a ${actualMode}-mode key for --${requestedMode}.`);
   }
 
   const stripe = new Stripe(apiKey, {
@@ -100,31 +148,34 @@ async function main() {
     appInfo: { name: "Prelude", version: "1.0.0" },
     maxNetworkRetries: 2
   });
+  console.log(`Stripe mode: ${requestedMode}`);
+  if (DRY_RUN) console.log("Dry run: missing Products and Prices will be reported, not created.");
 
-  const account = await stripe.accounts.retrieve();
-  console.log(`Connected to Stripe account: ${account.id}${account.settings?.dashboard?.display_name ? ` (${account.settings.dashboard.display_name})` : ""}`);
-
+  const products = await listAll((startingAfter) => stripe.products.list({
+    limit: 100,
+    ...(startingAfter ? { starting_after: startingAfter } : {})
+  }));
   const envValues = {};
-  for (const plan of getPricingPlans()) {
-    const product = await findOrCreateProduct(stripe, plan);
-    const price = await findOrCreatePrice(stripe, product, plan);
-    envValues[envKeyForPlan(plan.id)] = price.id;
-    console.log(`${plan.name}: product ${product.id}, monthly price ${price.id} (${price.unit_amount / 100} ${CURRENCY})`);
+
+  for (const offering of listStripeCatalogOfferings()) {
+    const product = await findOrCreateProduct(stripe, offering, products);
+    console.log(`\n${offering.name}: product ${product?.id || "MISSING"}`);
+    for (const priceSpec of offering.prices) {
+      const price = await findOrCreatePrice(stripe, product, offering, priceSpec);
+      const label = priceSpec.quantity == null ? "monthly" : `${priceSpec.quantity} one-time`;
+      console.log(`  ${label}: ${price?.id || "MISSING"} ($${(priceSpec.unitAmount / 100).toFixed(2)} USD)`);
+      if (price) envValues[priceSpec.envKey] = price.id;
+    }
   }
 
-  console.log("\nStandalone SAT/ACT and Academic Tutoring subscriptions are no longer created.");
-  console.log("Those services are included as flexible session credits inside Plus and Pro.\n");
-
-  console.log("Add these values to .env:");
+  console.log("\nEnvironment values:");
   console.log("BILLING_PROVIDER=stripe");
-  for (const [key, value] of Object.entries(envValues)) {
-    console.log(`${key}=${value}`);
-  }
-  console.log("\nIf Pro was previously $199.99, set STRIPE_PRICE_ID_PRO to the new $239.99 price ID above.");
+  for (const [key, value] of Object.entries(envValues)) console.log(`${key}=${value}`);
+  console.log("\nOutdated Prices were left active; confirm no deployment references them before archiving in Stripe.");
 
   if (WRITE_ENV) {
     upsertEnvValues(envValues);
-    console.log(`\nUpdated ${ENV_PATH} with billing provider and Stripe price IDs.`);
+    console.log(`Updated ${ENV_PATH} with Price IDs only. Existing Stripe secrets were not changed.`);
   }
 }
 

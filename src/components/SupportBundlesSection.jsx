@@ -16,6 +16,7 @@ import {
   postAuthDestination,
   userNeedsPaymentStep
 } from "../lib/onboardingRoutes.js";
+import { formatUsd, SUPPORT_BUNDLES } from "../../shared/supportBundles.js";
 import ScrollReveal from "./motion/ScrollReveal.jsx";
 
 function EssayIllustration() {
@@ -64,7 +65,16 @@ const BUNDLE_ILLUSTRATIONS = {
   flexible_sessions: SessionsIllustration
 };
 
-function SupportBundleCard({ card, labels, onCustomize }) {
+const POPULAR_BUNDLE_QUANTITIES = [3, 6, 10];
+
+function getPopularOptionPrice(bundleId, optionIndex) {
+  const quantity = POPULAR_BUNDLE_QUANTITIES[optionIndex];
+  const quantityConfig = Object.values(SUPPORT_BUNDLES[bundleId]?.quantities || {})[0];
+  const priceCents = quantityConfig?.priceCentsByQty?.[quantity];
+  return Number.isFinite(priceCents) ? formatUsd(priceCents) : null;
+}
+
+export function SupportBundleCard({ card, labels, onCustomize }) {
   const Illustration = BUNDLE_ILLUSTRATIONS[card.id] || EssayIllustration;
 
   return (
@@ -94,14 +104,18 @@ function SupportBundleCard({ card, labels, onCustomize }) {
       </div>
 
       <ul className="support-bundle-card__options">
-        {(card.options || []).map((option) => (
-          <li key={option} className="support-bundle-card__option-row">
-            <span className="support-bundle-card__option-check" aria-hidden="true">
-              <Check />
-            </span>
-            <span>{option}</span>
-          </li>
-        ))}
+        {(card.options || []).map((option, index) => {
+          const price = getPopularOptionPrice(card.id, index);
+          return (
+            <li key={option} className="support-bundle-card__option-row">
+              <span className="support-bundle-card__option-check" aria-hidden="true">
+                <Check />
+              </span>
+              <span className="support-bundle-card__option-label">{option}</span>
+              {price ? <strong className="support-bundle-card__option-price">{price}</strong> : null}
+            </li>
+          );
+        })}
       </ul>
 
       <p className="support-bundle-card__summary">
