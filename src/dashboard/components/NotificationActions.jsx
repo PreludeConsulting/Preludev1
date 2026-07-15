@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { claimReferralReward } from "../../../lib/referralCodes.js";
-import { PrimaryButton, SecondaryButton } from "../../components/ui/index.jsx";
+import { claimReferralReward } from "../../lib/referralCodes.js";
+import { PrimaryButton } from "./ui/index.jsx";
 
-export function NotificationActions({ notification, onClaimed }) {
+export default function NotificationActions({ notification, onClaimed }) {
   const [claimState, setClaimState] = useState({ status: "idle", message: "" });
   const canClaim =
     notification.actionType === "claim_referral_reward" &&
