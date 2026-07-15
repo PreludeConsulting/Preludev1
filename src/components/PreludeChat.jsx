@@ -1,4 +1,4 @@
-import { Bug, CircleHelp, MoreHorizontal, Sparkles, X } from "lucide-react";
+import { CircleHelp, MoreHorizontal, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -104,8 +104,14 @@ export default function PreludeChat() {
 
             <div className="prelude-chat-messages">
               {view === "bug-report" ? <BugReportForm onBack={() => setView("guide")} /> : <>
-                <button type="button" className="prelude-chat-report-bug" onClick={() => setView("bug-report")}><Bug className="h-4 w-4" /><span><strong>Report a Bug</strong><small>Send an issue to Prelude Support</small></span></button>
                 <GuidedAssistant key={sessionKey} onNavigate={handleNavigate} />
+                <div className="prelude-chat-report-bug">
+                  <p>Having an issue?</p>
+                  <button type="button" onClick={() => setView("bug-report")}>
+                    <strong>Report a Bug</strong>
+                    <small>Send an issue to Prelude Support</small>
+                  </button>
+                </div>
               </>}
               {view === "guide" ? <p className="prelude-chat-disclaimer">
                 Guided responses provide general information. See our{" "}
