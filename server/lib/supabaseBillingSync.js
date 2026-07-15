@@ -31,9 +31,9 @@ export async function syncSupabasePaymentComplete(userId, {
   );
 }
 
-export async function syncSupabaseSubscription(subscription) {
+export async function syncSupabaseSubscription(subscription, resolvedPlanId = null) {
   const userId = subscription.metadata?.userId;
-  const planId = subscription.metadata?.planId;
+  const planId = resolvedPlanId || subscription.metadata?.planId;
   if (!userId || !planId) return;
 
   const active = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status);

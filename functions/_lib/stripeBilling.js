@@ -1,15 +1,21 @@
 import { createSupabaseAdmin } from "../../server/lib/supabasePasswordReset.js";
 import { REFERRAL_DISCOUNT_PERCENT, REFERRAL_REWARD_NOTIFICATION, isReferralEligibleRole, logReferralEvent } from "../../shared/referralConstants.js";
+import {
+  BUNDLE_PRICE_ENV_BY_ID,
+  PLAN_PRICE_CENTS,
+  PLAN_PRICE_ENV_BY_ID
+} from "../../shared/billingCatalog.js";
 
 const PAID_PLAN_IDS = ["basic", "plus", "pro"];
 const STRIPE_API_VERSION = "2026-05-27.dahlia";
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 
-const PRICE_ENV_BY_PLAN = {
-  basic: "STRIPE_PRICE_ID_BASIC",
-  plus: "STRIPE_PRICE_ID_PLUS",
-  pro: "STRIPE_PRICE_ID_PRO"
-};
+const PLACEHOLDER_PRICE_ID = /placeholder|replace|change[-_]?me|example|todo|your[-_]?price|x{3,}/i;
+
+function isConfiguredStripePriceId(value) {
+  const priceId = String(value || "").trim();
+  return /^price_[A-Za-z0-9]+$/.test(priceId) && !PLACEHOLDER_PRICE_ID.test(priceId);
+}
 
 function json(payload, status = 200, headers = {}) {
   const responseHeaders = headers instanceof Headers ? headers : new Headers(headers);
@@ -31,12 +37,25 @@ function getBillingConfig(context) {
     plus: getEnv(context, "STRIPE_PRICE_ID_PLUS") || getEnv(context, "STRIPE_PRICE_PLUS_MONTHLY"),
     pro: getEnv(context, "STRIPE_PRICE_ID_PRO") || getEnv(context, "STRIPE_PRICE_PRO_MONTHLY")
   };
+  const bundlePrices = Object.fromEntries(
+    Object.entries(BUNDLE_PRICE_ENV_BY_ID).map(([bundleId, quantityMap]) => [
+      bundleId,
+      Object.fromEntries(
+        Object.entries(quantityMap).map(([quantity, envKey]) => [quantity, getEnv(context, envKey)])
+      )
+    ])
+  );
 
   const missing = [];
   if (provider === "stripe") {
     if (!stripeSecretKey) missing.push("STRIPE_SECRET_KEY");
     for (const planId of PAID_PLAN_IDS) {
-      if (!prices[planId]) missing.push(PRICE_ENV_BY_PLAN[planId]);
+      if (!isConfiguredStripePriceId(prices[planId])) missing.push(PLAN_PRICE_ENV_BY_ID[planId]);
+    }
+    for (const [bundleId, quantityMap] of Object.entries(BUNDLE_PRICE_ENV_BY_ID)) {
+      for (const [quantity, envKey] of Object.entries(quantityMap)) {
+        if (!isConfiguredStripePriceId(bundlePrices[bundleId][quantity])) missing.push(envKey);
+      }
     }
   }
 
@@ -46,6 +65,7 @@ function getBillingConfig(context) {
     webhookEnabled: provider === "stripe" && Boolean(stripeSecretKey) && Boolean(stripeWebhookSecret),
     missing,
     prices,
+    bundlePrices,
     stripePublishableKey,
     stripeSecretKey,
     stripeWebhookSecret
@@ -79,6 +99,35 @@ async function readJson(request) {
 function stripeObjectId(value) {
   if (!value) return null;
   return typeof value === "string" ? value : value.id || null;
+}
+
+function planIdForPriceId(priceId, config) {
+  return PAID_PLAN_IDS.find((planId) => config.prices[planId] === priceId) || null;
+}
+
+async function configuredPriceMatches(context, { priceId, expectedCents, recurring, offeringId }) {
+  if (!isConfiguredStripePriceId(priceId)) return false;
+  let price;
+  try {
+    price = await stripeRequest(
+      context,
+      "GET",
+      `/v1/prices/${encodeURIComponent(priceId)}?expand%5B%5D=product`
+    );
+  } catch {
+    return false;
+  }
+  const cadenceMatches = recurring
+    ? price.type === "recurring" && price.recurring?.interval === "month" && price.recurring?.interval_count === 1
+    : price.type === "one_time" && !price.recurring;
+  const productOfferingId = typeof price.product === "object"
+    ? price.product.metadata?.preludeOfferingId || price.product.metadata?.preludePlanId
+    : null;
+  return Boolean(price.active) &&
+    price.currency?.toLowerCase() === "usd" &&
+    price.unit_amount === expectedCents &&
+    cadenceMatches &&
+    productOfferingId === offeringId;
 }
 
 async function stripeRequest(context, method, path, body = null) {
@@ -196,7 +245,13 @@ async function syncSupabasePaymentComplete(context, userId, {
 
 async function syncSubscription(context, subscription) {
   const userId = subscription.metadata?.userId;
-  const planId = subscription.metadata?.planId;
+  const config = getBillingConfig(context);
+  const metadataPlanId = subscription.metadata?.planId;
+  const planId = PAID_PLAN_IDS.includes(metadataPlanId)
+    ? metadataPlanId
+    : (subscription.items?.data || [])
+      .map((item) => planIdForPriceId(stripeObjectId(item.price), config))
+      .find(Boolean);
   if (!userId || !planId) return;
   const active = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status);
   await syncSupabasePaymentComplete(context, userId, {
@@ -490,8 +545,10 @@ async function processWebhookEvent(context, event) {
     await syncCheckoutSession(context, object);
   }
 
-  if (["invoice.paid", "invoice.payment_succeeded"].includes(event.type) && object.subscription) {
-    const subscriptionId = stripeObjectId(object.subscription);
+  const invoiceSubscriptionId = stripeObjectId(object.subscription) ||
+    stripeObjectId(object.parent?.subscription_details?.subscription);
+  if (["invoice.paid", "invoice.payment_succeeded"].includes(event.type) && invoiceSubscriptionId) {
+    const subscriptionId = invoiceSubscriptionId;
     if (subscriptionId) {
       const subscription = await stripeRequest(context, "GET", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
       await syncSubscription(context, subscription);
@@ -518,8 +575,8 @@ async function processWebhookEvent(context, event) {
     }
   }
 
-  if (event.type === "invoice.payment_failed" && object.subscription) {
-    const subscriptionId = stripeObjectId(object.subscription);
+  if (event.type === "invoice.payment_failed" && invoiceSubscriptionId) {
+    const subscriptionId = invoiceSubscriptionId;
     if (subscriptionId) {
       const subscription = await stripeRequest(context, "GET", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
       await syncSubscription(context, subscription);
@@ -565,7 +622,6 @@ export async function handleBillingCheckout(context) {
   if (!PAID_PLAN_IDS.includes(planId)) {
     return json({ error: "invalid_plan", message: "That paid plan is not available." }, 400);
   }
-
   let authUser = null;
   const authResult = await requireSupabaseUser(context);
   if (authResult instanceof Response) {
@@ -577,13 +633,27 @@ export async function handleBillingCheckout(context) {
     authUser = authResult.user;
   }
 
+  const priceId = config.prices[planId];
+  const priceMatches = await configuredPriceMatches(context, {
+    priceId,
+    expectedCents: PLAN_PRICE_CENTS[planId],
+    recurring: true,
+    offeringId: planId
+  });
+  if (!priceMatches) {
+    return json({
+      error: "billing_price_mismatch",
+      message: `Checkout for ${planId} is unavailable because its Stripe Price does not match the published catalog.`
+    }, 503);
+  }
+
   const baseUrl = appBaseUrl(context);
   const { successUrl, cancelUrl } = checkoutResultUrls(baseUrl, planId, checkoutContext);
   const params = new URLSearchParams();
   params.set("mode", "subscription");
   params.set("success_url", successUrl);
   params.set("cancel_url", cancelUrl);
-  params.set("line_items[0][price]", config.prices[planId]);
+  params.set("line_items[0][price]", priceId);
   params.set("line_items[0][quantity]", "1");
   params.set("metadata[planId]", planId);
   params.set("metadata[checkoutContext]", checkoutContext);
@@ -640,6 +710,20 @@ export async function handleBillingBundleCheckout(context) {
   if (!quote.totalCents || quote.totalCents < 50) {
     return json({ error: "invalid_amount", message: "That bundle total is too low to checkout." }, 400);
   }
+  const quantity = Object.values(quote.selection.quantities)[0];
+  const priceId = config.bundlePrices?.[quote.selection.bundleId]?.[quantity];
+  const priceMatches = await configuredPriceMatches(context, {
+    priceId,
+    expectedCents: quote.totalCents,
+    recurring: false,
+    offeringId: quote.selection.bundleId
+  });
+  if (!priceMatches) {
+    return json({
+      error: "billing_price_mismatch",
+      message: `Checkout for ${quote.selection.bundleId} is unavailable because its Stripe Price does not match the published catalog.`
+    }, 503);
+  }
 
   const baseUrl = appBaseUrl(context);
   const purchaseKey = `bundle_${quote.selection.bundleId}`;
@@ -650,14 +734,8 @@ export async function handleBillingBundleCheckout(context) {
   params.set("mode", "payment");
   params.set("success_url", successUrl);
   params.set("cancel_url", cancelUrl);
+  params.set("line_items[0][price]", priceId);
   params.set("line_items[0][quantity]", "1");
-  params.set("line_items[0][price_data][currency]", "usd");
-  params.set("line_items[0][price_data][unit_amount]", String(quote.totalCents));
-  params.set("line_items[0][price_data][product_data][name]", quote.catalog.title);
-  params.set(
-    "line_items[0][price_data][product_data][description]",
-    quote.summaryLines.slice(0, 3).join(" · ").slice(0, 400)
-  );
 
   for (const [key, value] of Object.entries(metadata)) {
     params.set(`metadata[${key}]`, String(value));

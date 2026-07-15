@@ -1,3 +1,6 @@
+import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
+import { formatUsd } from "../../shared/supportBundles.js";
+
 export const PLAN_IDS = ["basic", "plus", "pro"];
 
 const AI_FEATURES = [
@@ -17,7 +20,7 @@ export const PLANS = {
     name: "Basic",
     tagline: "Async admissions support with written application feedback.",
     priceLabel: "Paid",
-    price: "$49.99",
+    price: formatUsd(PLAN_PRICE_CENTS.basic),
     paid: true,
     isRecommended: false,
     description: "Foundational support from real college mentors.",
@@ -50,7 +53,7 @@ export const PLANS = {
     name: "Plus",
     tagline: "More mentor access, 1-on-1 support, and rewards.",
     priceLabel: "Paid",
-    price: "$149.99",
+    price: formatUsd(PLAN_PRICE_CENTS.plus),
     paid: true,
     isRecommended: false,
     description: "More mentor access, 1-on-1 support, and rewards.",
@@ -85,7 +88,7 @@ export const PLANS = {
     name: "Pro",
     tagline: "Highest-touch support with more flexible sessions and full application review.",
     priceLabel: "Paid",
-    price: "$239.99",
+    price: formatUsd(PLAN_PRICE_CENTS.pro),
     paid: true,
     isRecommended: true,
     description: "End-to-end support with more flexible sessions, priority messaging, and full application review.",

@@ -240,7 +240,7 @@ Developers can work quickly in one process, debug backend routes separately, or 
 | Auth | `/api/auth/register`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/me`, `/api/auth/refresh`, `/api/auth/verify-email`, `/api/auth/request-reset`, `/api/auth/reset-password` | Secure account lifecycle and session management. |
 | Account | `/api/account/profile`, `/api/account/sessions`, `/api/account/sessions/:id` | Profile updates and user-controlled session revocation. |
 | Dashboard | `GET /api/dashboard`, `GET /api/students/:id` | Role-specific dashboard and protected student data. |
-| Billing | `/api/billing/config`, `/api/billing/checkout`, `/api/billing/portal`, `/api/billing/webhook` | Plan checkout, billing portal, subscription state, and webhook sync. |
+| Billing | `/api/billing/config`, `/api/billing/checkout`, `/api/billing/bundle-checkout`, `/api/billing/portal`, `/api/billing/webhook` | Plan and one-time bundle checkout, billing portal, subscription state, and webhook sync. |
 | Datasets | `/api/colleges/*`, `/api/programs/search`, `/api/careers/search`, `/api/high-schools/search` | Public-data search and comparison. |
 | PreludeMatch | `/api/prelude-match-questionnaire` | Account-linked questionnaire submission for matching/personalization. |
 
@@ -364,21 +364,22 @@ If Ollama is not running or the model is missing, `/api/chat` returns a clear se
 
 ## Billing configuration
 
-Billing can remain disabled for local development. To enable Stripe, configure the Stripe secret key, webhook secret, and plan price IDs expected by the billing config. Plus and Pro include flexible session credits for college consulting, SAT/ACT prep, and academic tutoring — there are no separate tutoring subscription price IDs in checkout.
+Billing can remain disabled for local development. To enable Stripe, configure a least-privilege restricted key, webhook secret, and every Price ID listed in `.env.example`. Plus and Pro include flexible session credits for college consulting, SAT/ACT prep, and academic tutoring — there are no separate tutoring subscription price IDs in checkout.
 
 ```env
 BILLING_PROVIDER=stripe
-STRIPE_SECRET_KEY=sk_test_...
+STRIPE_SECRET_KEY=rk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_PRICE_ID_BASIC=price_...
 STRIPE_PRICE_ID_PLUS=price_...
 STRIPE_PRICE_ID_PRO=price_...
+# See .env.example for the 14 one-time Essay Support and Flexible Sessions Price IDs.
 ```
 
 When billing is disabled, the billing config endpoint reports disabled state and checkout/portal routes return a configuration response instead of attempting Stripe calls.
 
-Run `node scripts/setup-stripe-catalog.mjs` to create or refresh the Basic ($49.99), Plus ($149.99), and Pro ($239.99) Stripe products and monthly prices. Add `--write-env` to write the generated price IDs into `.env`. If Pro was previously $199.99, update `STRIPE_PRICE_ID_PRO` to the new $239.99 price ID.
+Run `npm run stripe:catalog -- --write-env` to create or reuse the Basic ($49.99), Plus ($149.99), and Pro ($249.99) monthly Prices plus every displayed Essay Support and Flexible Sessions one-time Price in test mode. The script defaults to test mode, is idempotent, and leaves outdated Prices active. For production, provide a Products/Prices-scoped restricted key as `STRIPE_LIVE_SECRET_KEY` and explicitly run `node scripts/setup-stripe-catalog.mjs --live`; copy the printed Price IDs into Cloudflare only after reviewing them. The script never writes either key.
 
 For the production domain, run `npm run stripe:domain -- --write-env` to register `https://preludeconsultingllc.com/api/billing/webhook` in Stripe, enable the `preludeconsultingllc.com` payment method domain, and set local `PUBLIC_APP_URL` / `VITE_PUBLIC_APP_URL`. Mirror those values in the Cloudflare Pages environment variables for production.
 
@@ -390,7 +391,7 @@ Cloudflare Pages uses the `functions/api/billing/*` routes for the custom domain
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `STRIPE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-- `STRIPE_PRICE_ID_BASIC`, `STRIPE_PRICE_ID_PLUS`, and `STRIPE_PRICE_ID_PRO`
+- All 17 `STRIPE_PRICE_ID_*` variables listed in `.env.example`
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` if webhook events should update Supabase profiles
 
 Guest checkout on Cloudflare is disabled unless both `STRIPE_ALLOW_GUEST_CHECKOUT=true` and `VITE_ALLOW_GUEST_CHECKOUT=true` are set.

@@ -46,7 +46,7 @@ export default function StudentBillingPage() {
     () =>
       buildRecentInvoices({
         planName: current?.name || "Pro",
-        amount: current?.price || "$239.99",
+        amount: current?.price || "$249.99",
         anchorDate: nextBillDate
       }),
     [current?.name, current?.price, nextBillDate]

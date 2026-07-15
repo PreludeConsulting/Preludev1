@@ -5,11 +5,14 @@ import {
   billingNotConfiguredPayload,
   getAppBaseUrl,
   getBillingConfig,
+  getBundlePriceId,
+  getPlanIdForPriceId,
   getPlanPriceId,
   isGuestCheckoutAllowed,
   PAID_PLAN_IDS,
   STRIPE_API_VERSION
 } from "./billingConfig.js";
+import { PLAN_PRICE_CENTS } from "../shared/billingCatalog.js";
 import { requireSupabaseUser, getSupabaseAdmin } from "./lib/supabaseRequestAuth.js";
 import {
   syncSupabaseCheckoutSession,
@@ -69,6 +72,39 @@ function getStripeClient(config = getBillingConfig()) {
 function stripeObjectId(value) {
   if (!value) return null;
   return typeof value === "string" ? value : value.id || null;
+}
+
+function checkoutPriceError(label) {
+  const error = new Error(`Checkout for ${label} is unavailable because its Stripe Price does not match the published catalog.`);
+  error.statusCode = 503;
+  error.code = "billing_price_mismatch";
+  return error;
+}
+
+async function requireMatchingStripePrice(stripe, { priceId, expectedCents, recurring, offeringId, label }) {
+  let price;
+  try {
+    price = await stripe.prices.retrieve(priceId, { expand: ["product"] });
+  } catch {
+    throw checkoutPriceError(label);
+  }
+
+  const cadenceMatches = recurring
+    ? price.type === "recurring" && price.recurring?.interval === "month" && price.recurring?.interval_count === 1
+    : price.type === "one_time" && !price.recurring;
+  const productOfferingId = typeof price.product === "object"
+    ? price.product.metadata?.preludeOfferingId || price.product.metadata?.preludePlanId
+    : null;
+  if (
+    !price.active ||
+    price.currency?.toLowerCase() !== "usd" ||
+    price.unit_amount !== expectedCents ||
+    !cadenceMatches ||
+    productOfferingId !== offeringId
+  ) {
+    throw checkoutPriceError(label);
+  }
+  return price;
 }
 
 function isBillingPath(pathname) {
@@ -168,6 +204,13 @@ async function handleCheckout(req, res) {
   if (!priceId) return sendJson(res, 400, { error: "invalid_plan", message: "That paid plan is not available." });
 
   const stripe = getStripeClient(config);
+  await requireMatchingStripePrice(stripe, {
+    priceId,
+    expectedCents: PLAN_PRICE_CENTS[payload.planId],
+    recurring: true,
+    offeringId: payload.planId,
+    label: payload.planId
+  });
   const customerId = authUser ? await ensureStripeCustomerForCheckout(authUser, config) : null;
   const appBaseUrl = getAppBaseUrl(req);
   const { successUrl, cancelUrl } = checkoutResultUrls(appBaseUrl, payload.planId, payload.context);
@@ -223,6 +266,18 @@ async function handleBundleCheckout(req, res) {
 
   const authUser = await resolveCheckoutAuth(req, payload);
   const stripe = getStripeClient(config);
+  const quantity = Object.values(quote.selection.quantities)[0];
+  const priceId = getBundlePriceId(quote.selection.bundleId, quantity, config);
+  if (!priceId) {
+    return sendJson(res, 400, { error: "invalid_bundle", message: "That bundle is not available for checkout." });
+  }
+  await requireMatchingStripePrice(stripe, {
+    priceId,
+    expectedCents: quote.totalCents,
+    recurring: false,
+    offeringId: quote.selection.bundleId,
+    label: `${quote.selection.bundleId} (${quantity})`
+  });
   const customerId = authUser ? await ensureStripeCustomerForCheckout(authUser, config) : null;
   const appBaseUrl = getAppBaseUrl(req);
   const purchaseKey = `bundle_${quote.selection.bundleId}`;
@@ -240,19 +295,7 @@ async function handleBundleCheckout(req, res) {
     ...(authUser ? { client_reference_id: authUser.userId } : {}),
     success_url: successUrl,
     cancel_url: cancelUrl,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: quote.totalCents,
-          product_data: {
-            name: quote.catalog.title,
-            description: quote.summaryLines.slice(0, 3).join(" · ").slice(0, 400)
-          }
-        }
-      }
-    ],
+    line_items: [{ price: priceId, quantity: 1 }],
     metadata
   });
 
@@ -344,20 +387,40 @@ async function findUserForSubscription(subscription) {
   return null;
 }
 
+function resolvePlanIdFromSubscription(subscription, config = getBillingConfig()) {
+  const metadataPlanId = subscription.metadata?.planId;
+  if (PAID_PLAN_IDS.includes(metadataPlanId)) return metadataPlanId;
+  for (const item of subscription.items?.data || []) {
+    const planId = getPlanIdForPriceId(stripeObjectId(item.price), config);
+    if (planId) return planId;
+  }
+  return null;
+}
+
+function subscriptionPeriodEnd(subscription) {
+  if (subscription.current_period_end) return subscription.current_period_end;
+  const periodEnds = (subscription.items?.data || [])
+    .map((item) => item.current_period_end)
+    .filter(Number.isFinite);
+  return periodEnds.length ? Math.max(...periodEnds) : null;
+}
+
 async function syncSubscription(subscription) {
-  await syncSupabaseSubscription(subscription);
+  const config = getBillingConfig();
+  const planId = resolvePlanIdFromSubscription(subscription, config);
+  await syncSupabaseSubscription(subscription, planId);
 
   const user = await findUserForSubscription(subscription);
   if (!user) return;
 
-  const planId = subscription.metadata?.planId;
   const active = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status);
-  const periodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null;
+  const periodEndTimestamp = subscriptionPeriodEnd(subscription);
+  const periodEnd = periodEndTimestamp ? new Date(periodEndTimestamp * 1000) : null;
 
   await db().user.update({
     where: { id: user.id },
     data: {
-      plan: active ? normalizePlan(planId) : "BASIC",
+      plan: active ? (planId ? normalizePlan(planId) : user.plan) : "BASIC",
       stripeCustomerId: stripeObjectId(subscription.customer) || user.stripeCustomerId,
       stripeSubscriptionId: subscription.id || user.stripeSubscriptionId,
       subscriptionStatus: subscription.status || null,
@@ -387,8 +450,8 @@ async function processWebhookEvent(event) {
     const userId = object.metadata?.userId || object.client_reference_id;
     const customerId = stripeObjectId(object.customer);
     const subscriptionId = stripeObjectId(object.subscription);
-    if (userId) {
-      const planId = object.metadata?.planId;
+    const planId = object.metadata?.planId;
+    if (userId && PAID_PLAN_IDS.includes(planId)) {
       try {
         await db().user.update({
           where: { id: userId },
@@ -404,9 +467,11 @@ async function processWebhookEvent(event) {
       }
     }
   }
-  if (["invoice.paid", "invoice.payment_succeeded"].includes(event.type) && object.subscription) {
+  const invoiceSubscriptionId = stripeObjectId(object.subscription) ||
+    stripeObjectId(object.parent?.subscription_details?.subscription);
+  if (["invoice.paid", "invoice.payment_succeeded"].includes(event.type) && invoiceSubscriptionId) {
     const stripe = getStripeClient();
-    const subscriptionId = stripeObjectId(object.subscription);
+    const subscriptionId = invoiceSubscriptionId;
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     await syncSubscription(subscription);
 
@@ -446,9 +511,9 @@ async function processWebhookEvent(event) {
       }
     }
   }
-  if (event.type === "invoice.payment_failed" && object.subscription) {
+  if (event.type === "invoice.payment_failed" && invoiceSubscriptionId) {
     const stripe = getStripeClient();
-    const subscriptionId = stripeObjectId(object.subscription);
+    const subscriptionId = invoiceSubscriptionId;
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     await syncSubscription(subscription);
   }
@@ -509,7 +574,7 @@ export function createBillingApiMiddleware() {
       const statusCode = error.statusCode || 500;
       if (statusCode >= 500) console.error("[prelude-billing-api]", error);
       return sendJson(res, statusCode, {
-        error: statusCode >= 500 ? "server_error" : "request_failed",
+        error: error.code || (statusCode >= 500 ? "server_error" : "request_failed"),
         message: error.message || "Billing request failed."
       });
     }
