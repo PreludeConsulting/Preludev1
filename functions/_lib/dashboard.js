@@ -152,7 +152,15 @@ async function loadAppData(context, user, token) {
     availability: mapAvailability(availability.status === "fulfilled" ? first(availability.value) : null),
     rewards: mapRewards(wallet.status === "fulfilled" ? first(wallet.value) : null, tasks.status === "fulfilled" ? tasks.value : []),
     notifications: (notifications.value || []).map((item) => ({
-      id: item.id, title: item.title, body: item.body, unread: Boolean(item.unread), link: item.link || null, createdAt: item.created_at
+      id: item.id,
+      title: item.title,
+      body: item.body,
+      unread: Boolean(item.unread),
+      link: item.link || null,
+      createdAt: item.created_at,
+      actionType: item.action_type || null,
+      actionPayload: item.action_payload || {},
+      actionCompletedAt: item.action_completed_at || null
     })),
     events: events.value || [], messages: messages.value || [], featureErrors
   };

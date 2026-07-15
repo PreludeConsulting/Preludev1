@@ -24,6 +24,7 @@ import {
   validateMentorProfileForm
 } from "../../components/mentor/mentorProfileFormShared.jsx";
 import ParentGuardianSettingsPanel from "../../components/settings/ParentGuardianSettingsPanel.jsx";
+import ReferralCodePanel from "../../components/settings/ReferralCodePanel.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { getDemoLinkedChildren, listLinkedChildren } from "../../../lib/parentLinks.js";
@@ -828,6 +829,7 @@ export function StudentSettingsPage() {
             useSupabaseData={useSupabaseData}
             saveProfile={saveProfile}
           />
+          <ReferralCodePanel enabled={useSupabaseData} />
           <SectionCard
             title="Academic profile"
             className="dash-panel"
@@ -1155,6 +1157,7 @@ export function ParentSettingsPage() {
             useSupabaseData={useSupabaseData}
             saveProfile={saveProfile}
           />
+          <ReferralCodePanel enabled={useSupabaseData} />
 
           <SectionCard
             title="Linked children"

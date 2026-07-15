@@ -294,6 +294,17 @@
   color: #be123c;
 }
 
+.auth-field__message--ok {
+  color: #166534;
+}
+
+.auth-field__hint {
+  margin: 0 0 0.55rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: hsl(var(--muted-foreground));
+}
+
 .auth-field__message--hint {
   color: hsl(var(--muted-foreground));
 }

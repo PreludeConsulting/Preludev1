@@ -19,6 +19,7 @@ import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dash
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import StudentHelpSupport from "../../components/product/StudentHelpSupport.jsx";
 import StudentBillingPage from "../../components/product/StudentBillingPage.jsx";
+import NotificationActions from "../../components/NotificationActions.jsx";
 import {
   DashBadge,
   DashboardPageHeader,
@@ -76,9 +77,7 @@ export function StudentNotifications() {
                   </p>
                 ) : null}
               </div>
-              {n.link ? (
-                <Link to={n.link} className="dash-btn dash-btn--secondary dash-btn--sm">View</Link>
-              ) : null}
+              {n.link || n.actionType ? <NotificationActions notification={n} /> : null}
             </li>
           ))}
         </ul>
@@ -292,6 +291,7 @@ export function ParentNotifications() {
                   </p>
                 ) : null}
               </div>
+              {n.link || n.actionType ? <NotificationActions notification={n} /> : null}
             </li>
           ))}
         </ul>

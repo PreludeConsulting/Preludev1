@@ -99,7 +99,10 @@ function mapNotification(row) {
     body: row.body,
     unread: row.unread,
     link: row.link,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    actionType: row.action_type || null,
+    actionPayload: row.action_payload || {},
+    actionCompletedAt: row.action_completed_at || null
   };
 }
 
@@ -269,10 +272,17 @@ export async function sendMessage(userId, payload) {
   return sendSupabaseMessage(userId, payload);
 }
 
-export async function createNotification(userId, { title, body, link }) {
+export async function createNotification(userId, { title, body, link, actionType, actionPayload }) {
   const { data, error } = await db()
     .from("notifications")
-    .insert({ user_id: userId, title, body, link: link || null })
+    .insert({
+      user_id: userId,
+      title,
+      body,
+      link: link || null,
+      action_type: actionType || null,
+      action_payload: actionPayload || {}
+    })
     .select()
     .single();
   return { notification: data ? mapNotification(data) : null, error: error?.message || null };

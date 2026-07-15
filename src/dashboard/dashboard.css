@@ -4874,6 +4874,53 @@ img.dash-avatar {
   gap: clamp(1rem, 2vw, 1.35rem);
 }
 
+.dash-referral-code {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.dash-referral-code__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.dash-referral-code__field {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.dash-referral-code__field .dash-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.dash-referral-code__spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.35rem;
+  vertical-align: -0.15rem;
+  animation: dash-spin 0.9s linear infinite;
+}
+
+.dash-notification-item__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: flex-end;
+  max-width: 16rem;
+}
+
+@keyframes dash-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .dash-avatar-editor {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

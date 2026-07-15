@@ -13,6 +13,7 @@ import AuthLayout from "./auth/AuthLayout.jsx";
 import AuthDemoSection from "./auth/AuthDemoSection.jsx";
 import AuthRoleSelector from "./auth/AuthRoleSelector.jsx";
 import PromoCodeField from "./auth/PromoCodeField.jsx";
+import ReferralCodeField from "./auth/ReferralCodeField.jsx";
 import {
   AuthBanner,
   AuthDivider,
@@ -37,6 +38,7 @@ import {
   redeemPromoCodeAtSignup,
   storePendingPromoRedemption
 } from "../lib/promoCodes.js";
+import { associateReferralCode } from "../lib/referralCodes.js";
 export { default as ResetPasswordPage } from "./auth/ResetPasswordPage.jsx";
 
 const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
@@ -328,6 +330,8 @@ export function RegisterPage() {
   });
   const [promoCode, setPromoCode] = useState("");
   const [promoSummary, setPromoSummary] = useState(null);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralApplied, setReferralApplied] = useState(false);
   const [formError, setFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [message, setMessage] = useState("");
@@ -450,6 +454,30 @@ export function RegisterPage() {
         }
       } else if (promoSummary && promoCode && (result?.needsEmailConfirmation || result?.verificationEmailSent)) {
         storePendingPromoRedemption(userEmail, promoCode);
+      }
+
+      if (
+        referralApplied &&
+        referralCode &&
+        userId &&
+        ["STUDENT", "PARENT"].includes(String(role).toUpperCase())
+      ) {
+        try {
+          await associateReferralCode({
+            code: referralCode,
+            role: String(role).toLowerCase(),
+            email: userEmail,
+            userId,
+            accessToken: result?.accessToken
+          });
+        } catch (referralError) {
+          if (!(result?.needsEmailConfirmation || result?.verificationEmailSent)) {
+            setFormError(
+              referralError.message ||
+                "Your account was created, but the referral code could not be applied. You can contact support if needed."
+            );
+          }
+        }
       }
 
       if (result?.needsEmailConfirmation || result?.verificationEmailSent) {
@@ -598,6 +626,20 @@ export function RegisterPage() {
             onRemoved={() => {
               setPromoCode("");
               setPromoSummary(null);
+            }}
+          />
+        ) : null}
+        {form.role === "STUDENT" || form.role === "PARENT" || invitedAsParent ? (
+          <ReferralCodeField
+            email={form.email}
+            role={invitedAsParent ? "PARENT" : form.role}
+            value={referralCode}
+            disabled={loading || Boolean(promoSummary)}
+            onChange={setReferralCode}
+            onApplied={() => setReferralApplied(true)}
+            onRemoved={() => {
+              setReferralCode("");
+              setReferralApplied(false);
             }}
           />
         ) : null}

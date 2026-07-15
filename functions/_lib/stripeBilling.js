@@ -244,6 +244,90 @@ async function requireSupabaseUser(context) {
   return { user: payload, token };
 }
 
+async function supabaseRest(context, path, { method = "GET", body = null, prefer = "return=representation" } = {}) {
+  const supabaseUrl = getEnv(context, "SUPABASE_URL") || getEnv(context, "VITE_SUPABASE_URL");
+  const serviceRoleKey = getEnv(context, "SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) return null;
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${path}`, {
+    method,
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: prefer
+    },
+    ...(body ? { body: JSON.stringify(body) } : {})
+  });
+  if (response.status === 204) return null;
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+async function loadPendingReferral(context, userId) {
+  const profiles = await supabaseRest(
+    context,
+    `profiles?id=eq.${encodeURIComponent(userId)}&select=pending_referral_id`
+  );
+  const pendingId = Array.isArray(profiles) ? profiles[0]?.pending_referral_id : null;
+  if (!pendingId) return null;
+  const referrals = await supabaseRest(
+    context,
+    `referrals?id=eq.${encodeURIComponent(pendingId)}&select=id,status&status=in.(entered,pending_account,pending_payment)`
+  );
+  return Array.isArray(referrals) ? referrals[0] : null;
+}
+
+async function resolveReferralCouponId(context) {
+  const configured = getEnv(context, "STRIPE_REFERRAL_COUPON_ID").trim();
+  if (configured) return configured;
+  try {
+    const listed = await stripeRequest(context, "GET", "/v1/coupons?limit=100");
+    const existing = (listed.data || []).find(
+      (c) => c.id === "prelude_referral_20_once" || c.metadata?.preludeReferral === "true"
+    );
+    if (existing) return existing.id;
+    const params = new URLSearchParams();
+    params.set("id", "prelude_referral_20_once");
+    params.set("percent_off", "20");
+    params.set("duration", "once");
+    params.set("name", "Prelude referral 20% (one month)");
+    params.set("metadata[preludeReferral]", "true");
+    const created = await stripeRequest(context, "POST", "/v1/coupons", params);
+    return created.id;
+  } catch {
+    return null;
+  }
+}
+
+async function confirmReferralPayment(context, { userId, subscriptionId, paymentId, invoiceId }) {
+  // Prefer Node shared library when process.env is available (Pages Functions with nodejs_compat).
+  try {
+    if (typeof process !== "undefined") {
+      process.env.SUPABASE_URL = process.env.SUPABASE_URL || getEnv(context, "SUPABASE_URL") || getEnv(context, "VITE_SUPABASE_URL");
+      process.env.SUPABASE_SERVICE_ROLE_KEY =
+        process.env.SUPABASE_SERVICE_ROLE_KEY || getEnv(context, "SUPABASE_SERVICE_ROLE_KEY");
+      const { confirmReferralFromPayment, markRewardApplied, revokeRewardsForQualifyingPayment } = await import(
+        "../../server/lib/referralCodes.js"
+      );
+      await confirmReferralFromPayment({
+        userId,
+        subscriptionId,
+        qualifyingPaymentId: paymentId,
+        invoiceId
+      });
+      return { confirmReferralFromPayment, markRewardApplied, revokeRewardsForQualifyingPayment };
+    }
+  } catch (error) {
+    console.error("[prelude-referral] cf confirm fallback", error?.message || error);
+  }
+  return null;
+}
+
 async function processWebhookEvent(context, event) {
   const object = event.data?.object;
   if (!object) return;
@@ -256,11 +340,54 @@ async function processWebhookEvent(context, event) {
     await syncCheckoutSession(context, object);
   }
 
-  if (["invoice.paid", "invoice.payment_succeeded", "invoice.payment_failed"].includes(event.type) && object.subscription) {
+  if (["invoice.paid", "invoice.payment_succeeded"].includes(event.type) && object.subscription) {
     const subscriptionId = stripeObjectId(object.subscription);
     if (subscriptionId) {
       const subscription = await stripeRequest(context, "GET", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
       await syncSubscription(context, subscription);
+      const userId = subscription.metadata?.userId;
+      const paymentId = stripeObjectId(object.payment_intent) || object.id;
+      if (userId && paymentId) {
+        const helpers = await confirmReferralPayment(context, {
+          userId,
+          subscriptionId,
+          paymentId,
+          invoiceId: object.id
+        });
+        if (
+          helpers?.markRewardApplied &&
+          subscription.metadata?.preludeReferralReward === "true" &&
+          subscription.metadata?.referralRewardId
+        ) {
+          await helpers.markRewardApplied({
+            rewardId: subscription.metadata.referralRewardId,
+            invoiceId: object.id
+          });
+        }
+      }
+    }
+  }
+
+  if (event.type === "invoice.payment_failed" && object.subscription) {
+    const subscriptionId = stripeObjectId(object.subscription);
+    if (subscriptionId) {
+      const subscription = await stripeRequest(context, "GET", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
+      await syncSubscription(context, subscription);
+    }
+  }
+
+  if (["charge.refunded", "charge.dispute.created", "invoice.voided"].includes(event.type)) {
+    const paymentId = stripeObjectId(object.payment_intent) || object.id;
+    try {
+      if (typeof process !== "undefined" && paymentId) {
+        process.env.SUPABASE_URL = process.env.SUPABASE_URL || getEnv(context, "SUPABASE_URL") || getEnv(context, "VITE_SUPABASE_URL");
+        process.env.SUPABASE_SERVICE_ROLE_KEY =
+          process.env.SUPABASE_SERVICE_ROLE_KEY || getEnv(context, "SUPABASE_SERVICE_ROLE_KEY");
+        const { revokeRewardsForQualifyingPayment } = await import("../../server/lib/referralCodes.js");
+        await revokeRewardsForQualifyingPayment(paymentId, event.type);
+      }
+    } catch (error) {
+      console.error("[prelude-referral] cf revoke failed", error?.message || error);
     }
   }
 }
@@ -324,6 +451,16 @@ export async function handleBillingCheckout(context) {
     params.set("metadata[userId]", authUser.id);
     params.set("subscription_data[metadata][userId]", authUser.id);
     params.set("customer_email", authUser.email || "");
+
+    const pendingReferral = await loadPendingReferral(context, authUser.id);
+    if (pendingReferral?.id) {
+      const couponId = await resolveReferralCouponId(context);
+      if (couponId) {
+        params.set("discounts[0][coupon]", couponId);
+        params.set("metadata[referralId]", pendingReferral.id);
+        params.set("subscription_data[metadata][referralId]", pendingReferral.id);
+      }
+    }
   } else {
     params.set("metadata[checkoutMode]", "cloudflare_guest");
     params.set("subscription_data[metadata][checkoutMode]", "cloudflare_guest");

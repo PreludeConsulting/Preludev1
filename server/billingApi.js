@@ -10,12 +10,24 @@ import {
   PAID_PLAN_IDS,
   STRIPE_API_VERSION
 } from "./billingConfig.js";
-import { requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
+import { requireSupabaseUser, getSupabaseAdmin } from "./lib/supabaseRequestAuth.js";
 import {
   syncSupabaseCheckoutSession,
   syncSupabaseSubscription
 } from "./lib/supabaseBillingSync.js";
 import { quoteBundleSelection, serializeBundleMetadata } from "../shared/supportBundles.js";
+import {
+  confirmReferralFromPayment,
+  getPendingReferralForUser,
+  markRewardApplied,
+  markRewardAppliedBySubscription,
+  revokeRewardsForQualifyingPayment
+} from "./lib/referralCodes.js";
+import {
+  getOrCreateReferralCoupon,
+  invoiceHasReferralDiscount,
+  invoiceIsQualifyingFirstPayment
+} from "./lib/referralStripe.js";
 
 const checkoutSchema = z.object({
   planId: z.enum(["basic", "plus", "pro"]),
@@ -160,7 +172,7 @@ async function handleCheckout(req, res) {
   const appBaseUrl = getAppBaseUrl(req);
   const { successUrl, cancelUrl } = checkoutResultUrls(appBaseUrl, payload.planId, payload.context);
 
-  const session = await stripe.checkout.sessions.create({
+  const sessionParams = {
     mode: "subscription",
     ...(customerId ? { customer: customerId } : {}),
     ...(authUser ? { client_reference_id: authUser.userId } : {}),
@@ -175,7 +187,19 @@ async function handleCheckout(req, res) {
         ? { userId: authUser.userId, planId: payload.planId, checkoutContext: payload.context || "public" }
         : { planId: payload.planId, checkoutMode: "guest_test" }
     }
-  });
+  };
+
+  if (authUser) {
+    const pending = await getPendingReferralForUser(authUser.userId);
+    if (pending) {
+      const couponId = await getOrCreateReferralCoupon(stripe);
+      sessionParams.discounts = [{ coupon: couponId }];
+      sessionParams.metadata.referralId = pending.id;
+      sessionParams.subscription_data.metadata.referralId = pending.id;
+    }
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionParams);
 
   sendJson(res, 200, { url: session.url });
 }
@@ -380,11 +404,63 @@ async function processWebhookEvent(event) {
       }
     }
   }
-  if (["invoice.paid", "invoice.payment_succeeded", "invoice.payment_failed"].includes(event.type) && object.subscription) {
+  if (["invoice.paid", "invoice.payment_succeeded"].includes(event.type) && object.subscription) {
     const stripe = getStripeClient();
     const subscriptionId = stripeObjectId(object.subscription);
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     await syncSubscription(subscription);
+
+    const userId = subscription.metadata?.userId;
+    const paymentId = object.payment_intent
+      ? stripeObjectId(object.payment_intent)
+      : object.id;
+    if (userId && invoiceIsQualifyingFirstPayment(object)) {
+      await confirmReferralFromPayment({
+        userId,
+        subscriptionId,
+        qualifyingPaymentId: paymentId,
+        invoiceId: object.id
+      });
+    }
+
+    if (invoiceHasReferralDiscount(object) && subscription.metadata?.preludeReferralReward === "true") {
+      const supabase = getSupabaseAdmin();
+      let householdId = null;
+      if (userId && supabase) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("household_id")
+          .eq("id", userId)
+          .maybeSingle();
+        householdId = profile?.household_id || null;
+      }
+      const rewardId = subscription.metadata?.referralRewardId || null;
+      if (rewardId) {
+        await markRewardApplied({ rewardId, invoiceId: object.id });
+      } else {
+        await markRewardAppliedBySubscription({
+          subscriptionId,
+          invoiceId: object.id,
+          householdId
+        });
+      }
+    }
+  }
+  if (event.type === "invoice.payment_failed" && object.subscription) {
+    const stripe = getStripeClient();
+    const subscriptionId = stripeObjectId(object.subscription);
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    await syncSubscription(subscription);
+  }
+
+  if (["charge.refunded", "charge.dispute.created", "invoice.voided"].includes(event.type)) {
+    const paymentId =
+      stripeObjectId(object.payment_intent) ||
+      (event.type.startsWith("charge.") ? object.id : null) ||
+      object.id;
+    if (paymentId) {
+      await revokeRewardsForQualifyingPayment(paymentId, event.type);
+    }
   }
 }
 

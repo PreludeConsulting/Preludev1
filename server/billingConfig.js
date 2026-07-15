@@ -39,7 +39,8 @@ export function getBillingConfig(env = process.env) {
     prices,
     stripePublishableKey,
     stripeSecretKey,
-    stripeWebhookSecret
+    stripeWebhookSecret,
+    referralCouponId: env.STRIPE_REFERRAL_COUPON_ID || ""
   };
 }
 
