@@ -6626,6 +6626,33 @@ html[lang="es"] .shopify-hero__headline-line {
   color: hsl(var(--muted-foreground));
 }
 
+.prelude-chat-report-bug { display:flex; align-items:center; gap:.7rem; width:100%; border:1px solid hsl(var(--primary)/.25); border-radius:1rem; background:hsl(var(--primary)/.08); padding:.75rem .9rem; color:hsl(var(--foreground)); text-align:left; cursor:pointer; }
+.prelude-chat-report-bug:hover { background:hsl(var(--primary)/.13); }
+.prelude-chat-report-bug span { display:flex; flex-direction:column; gap:.1rem; font-family:"Barlow",sans-serif; }
+.prelude-chat-report-bug small { color:hsl(var(--muted-foreground)); font-size:.7rem; }
+.bug-report { display:flex; flex-direction:column; gap:1rem; font-family:"Barlow",sans-serif; }
+.bug-report__back { display:inline-flex; align-items:center; gap:.35rem; width:fit-content; border:0; background:transparent; padding:0; color:hsl(var(--primary)); font:inherit; font-size:.78rem; font-weight:600; cursor:pointer; }
+.bug-report__heading { display:flex; gap:.75rem; align-items:flex-start; }
+.bug-report__heading > span { display:flex; padding:.55rem; border-radius:.75rem; background:hsl(var(--primary)/.1); color:hsl(var(--primary)); }
+.bug-report__heading h2 { margin:0; font-size:1.05rem; }
+.bug-report__heading p { margin:.2rem 0 0; color:hsl(var(--muted-foreground)); font-size:.76rem; line-height:1.4; }
+.bug-report__form { display:flex; flex-direction:column; gap:.8rem; }
+.bug-report__form label { display:flex; flex-direction:column; gap:.35rem; font-size:.75rem; font-weight:600; }
+.bug-report__form label > span { color:hsl(var(--muted-foreground)); font-weight:400; }
+.bug-report__form input, .bug-report__form select, .bug-report__form textarea { width:100%; box-sizing:border-box; border:1px solid hsl(var(--foreground)/.16); border-radius:.7rem; background:hsl(var(--background)); padding:.65rem .75rem; color:hsl(var(--foreground)); font:inherit; font-size:.8rem; outline:none; }
+.bug-report__form textarea { resize:vertical; min-height:7rem; }
+.bug-report__form input:focus, .bug-report__form select:focus, .bug-report__form textarea:focus { border-color:hsl(var(--primary)/.55); box-shadow:0 0 0 2px hsl(var(--primary)/.12); }
+.bug-report__account { margin:0; color:hsl(var(--muted-foreground)); font-size:.7rem; }
+.bug-report__status { margin:0; border-radius:.65rem; padding:.6rem .7rem; font-size:.75rem; line-height:1.4; }
+.bug-report__status--success { background:#e8f6ee; color:#21633f; }
+.bug-report__status--error { background:#fff0ef; color:#912f2a; }
+.bug-report__submit { display:flex; align-items:center; justify-content:center; gap:.45rem; border:0; border-radius:999px; background:hsl(var(--primary)); padding:.7rem 1rem; color:hsl(var(--primary-foreground)); font:inherit; font-size:.8rem; font-weight:700; cursor:pointer; }
+.bug-report__submit:disabled { opacity:.55; cursor:not-allowed; }
+.dash-help-center__bug-report { max-width:46rem; padding:1.25rem; }
+.dash-help-center__bug-report .bug-report__form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.dash-help-center__bug-report .bug-report__form label:nth-of-type(3), .dash-help-center__bug-report .bug-report__account, .dash-help-center__bug-report .bug-report__status, .dash-help-center__bug-report .bug-report__submit { grid-column:1/-1; }
+@media (max-width:640px) { .dash-help-center__bug-report .bug-report__form { display:flex; } }
+
 .prelude-chat-input {
   display: flex;
   align-items: center;

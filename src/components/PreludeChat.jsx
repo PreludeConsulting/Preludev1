@@ -1,4 +1,4 @@
-import { CircleHelp, MoreHorizontal, Sparkles, X } from "lucide-react";
+import { Bug, CircleHelp, MoreHorizontal, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
 import { navigateChatHref } from "../lib/chatLinkSecurity.js";
 import GuidedAssistant from "./GuidedAssistant.jsx";
+import BugReportForm from "./BugReportForm.jsx";
 
 export default function PreludeChat() {
   const { user, isAuthenticated, openSignIn, openAccount } = useAuth();
@@ -13,6 +14,7 @@ export default function PreludeChat() {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sessionKey, setSessionKey] = useState(0);
+  const [view, setView] = useState("guide");
 
   function handleNavigate(href) {
     const navigated = navigateChatHref(href);
@@ -69,6 +71,9 @@ export default function PreludeChat() {
                       <button type="button" className="block w-full px-4 py-2 text-left text-sm hover:bg-foreground/[0.04]" onClick={() => { setSessionKey((value) => value + 1); setMenuOpen(false); }}>
                         Start over
                       </button>
+                      <button type="button" className="block w-full px-4 py-2 text-left text-sm hover:bg-foreground/[0.04]" onClick={() => { setView("bug-report"); setMenuOpen(false); }}>
+                        Report a Bug
+                      </button>
                       {isAuthenticated ? (
                         <Link
                           to="/dashboard"
@@ -98,13 +103,16 @@ export default function PreludeChat() {
             </header>
 
             <div className="prelude-chat-messages">
-              <GuidedAssistant key={sessionKey} onNavigate={handleNavigate} />
-              <p className="prelude-chat-disclaimer">
+              {view === "bug-report" ? <BugReportForm onBack={() => setView("guide")} /> : <>
+                <button type="button" className="prelude-chat-report-bug" onClick={() => setView("bug-report")}><Bug className="h-4 w-4" /><span><strong>Report a Bug</strong><small>Send an issue to Prelude Support</small></span></button>
+                <GuidedAssistant key={sessionKey} onNavigate={handleNavigate} />
+              </>}
+              {view === "guide" ? <p className="prelude-chat-disclaimer">
                 Guided responses provide general information. See our{" "}
                 <button type="button" className="prelude-chat-disclaimer__link" onClick={() => openLegal("terms")}>Terms</button>{" "}
                 and{" "}
                 <button type="button" className="prelude-chat-disclaimer__link" onClick={() => openLegal("privacy")}>Privacy Policy</button>.
-              </p>
+              </p> : null}
             </div>
           </motion.div>
         ) : null}

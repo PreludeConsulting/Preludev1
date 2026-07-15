@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Calendar,
+  Bug,
   ChevronDown,
   CreditCard,
   ExternalLink,
@@ -16,10 +17,18 @@ import {
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { cn } from "../../../lib/utils.js";
 import { PrimaryButton } from "../ui/index.jsx";
+import BugReportForm from "../../../components/BugReportForm.jsx";
 
 const SUPPORT_EMAIL = "support@preludeconsultingllc.com";
 
 const SUPPORT_ACTIONS = [
+  {
+    id: "bug-report",
+    title: "Report a Bug",
+    description: "Send a technical issue to Prelude Support.",
+    icon: Bug,
+    action: "bug-report"
+  },
   {
     id: "contact",
     title: "Contact Support",
@@ -90,7 +99,7 @@ const QUICK_LINKS = [
   { label: "Back to Prelude homepage", to: "/", icon: Sparkles, external: true }
 ];
 
-function SupportActionCard({ action }) {
+function SupportActionCard({ action, onAction }) {
   const Icon = action.icon;
   const content = (
     <>
@@ -106,6 +115,10 @@ function SupportActionCard({ action }) {
   );
 
   const className = "dash-help-center__action-card";
+
+  if (action.action) {
+    return <button type="button" className={className} onClick={() => onAction(action.action)}>{content}</button>;
+  }
 
   if (action.href) {
     return (
@@ -150,6 +163,7 @@ function HelpFaqAccordion({ items, openId, onToggle }) {
 
 export default function StudentHelpSupport() {
   const [openFaqId, setOpenFaqId] = useState(null);
+  const [activeSupportAction, setActiveSupportAction] = useState(null);
 
   return (
     <div className="dash-page dash-page--premium dash-help-center">
@@ -168,9 +182,15 @@ export default function StudentHelpSupport() {
 
       <section className="dash-help-center__actions" aria-label="Support actions">
         {SUPPORT_ACTIONS.map((action) => (
-          <SupportActionCard key={action.id} action={action} />
+          <SupportActionCard key={action.id} action={action} onAction={setActiveSupportAction} />
         ))}
       </section>
+
+      {activeSupportAction === "bug-report" ? (
+        <section className="dash-panel dash-help-center__bug-report" aria-label="Report a bug">
+          <BugReportForm onBack={() => setActiveSupportAction(null)} />
+        </section>
+      ) : null}
 
       <div className="dash-help-center__main">
         <section className="dash-help-center__contact dash-panel" aria-labelledby="help-contact-heading">
