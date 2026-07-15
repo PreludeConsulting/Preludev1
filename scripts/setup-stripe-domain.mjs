@@ -7,19 +7,27 @@ import { STRIPE_API_VERSION } from "../server/billingConfig.js";
 
 dotenv.config();
 
+const LIVE_MODE = process.argv.includes("--live");
 const WRITE_ENV = process.argv.includes("--write-env");
 const ROTATE_WEBHOOK_SECRET = process.argv.includes("--rotate-webhook-secret");
 const ENV_PATH = path.resolve(process.cwd(), ".env");
 const DEFAULT_ORIGIN = "https://preludeconsultingllc.com";
 const WEBHOOK_EVENTS = [
+  "charge.dispute.created",
+  "charge.refunded",
   "checkout.session.completed",
   "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
   "invoice.paid",
   "invoice.payment_succeeded",
-  "invoice.payment_failed"
+  "invoice.payment_failed",
+  "invoice.voided"
 ];
+
+if (LIVE_MODE && process.argv.includes("--test")) {
+  throw new Error("Choose exactly one Stripe mode: --test or --live.");
+}
 
 function getDomainArg() {
   const positional = process.argv.find((arg, index) => index > 1 && !arg.startsWith("--"));
@@ -51,13 +59,26 @@ function upsertEnvValues(values) {
   fs.writeFileSync(ENV_PATH, text);
 }
 
+function keyMode(apiKey) {
+  const match = /^(?:sk|rk)_(test|live)_/.exec(apiKey || "");
+  return match?.[1] || null;
+}
+
 function stripeKey() {
-  const key = process.env.STRIPE_SECRET_KEY?.trim();
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not set. Add a Stripe secret or restricted key to .env first.");
-  if (!/^(sk|rk)_(test|live)_/.test(key)) {
-    throw new Error("STRIPE_SECRET_KEY must start with sk_test_, sk_live_, rk_test_, or rk_live_.");
+  const requestedMode = LIVE_MODE ? "live" : "test";
+  const modeSpecificKey = LIVE_MODE
+    ? process.env.STRIPE_LIVE_SECRET_KEY
+    : process.env.STRIPE_TEST_SECRET_KEY;
+  const apiKey = modeSpecificKey || process.env.STRIPE_SECRET_KEY;
+  if (!apiKey) throw new Error(`No ${requestedMode}-mode Stripe key is configured.`);
+  const actualMode = keyMode(apiKey);
+  if (!actualMode) {
+    throw new Error("Stripe keys must start with sk_test_, sk_live_, rk_test_, or rk_live_.");
   }
-  return key;
+  if (actualMode !== requestedMode) {
+    throw new Error(`Refusing to use a ${actualMode}-mode key for --${requestedMode}.`);
+  }
+  return { apiKey, requestedMode };
 }
 
 async function upsertWebhookEndpoint(stripe, endpointUrl) {
@@ -113,14 +134,14 @@ async function upsertPaymentMethodDomain(stripe, origin) {
 async function main() {
   const origin = normalizeOrigin(getDomainArg());
   const endpointUrl = `${origin}/api/billing/webhook`;
-  const stripe = new Stripe(stripeKey(), {
+  const { apiKey, requestedMode } = stripeKey();
+  const stripe = new Stripe(apiKey, {
     apiVersion: STRIPE_API_VERSION,
     appInfo: { name: "Prelude", version: "1.0.0" },
     maxNetworkRetries: 2
   });
 
-  const account = await stripe.accounts.retrieve();
-  console.log(`Connected to Stripe account: ${account.id}${account.settings?.dashboard?.display_name ? ` (${account.settings.dashboard.display_name})` : ""}`);
+  console.log(`Stripe mode: ${requestedMode}`);
   console.log(`Using domain: ${origin}`);
 
   const { endpoint, signingSecret, created } = await upsertWebhookEndpoint(stripe, endpointUrl);
@@ -144,12 +165,13 @@ async function main() {
   }
 
   if (WRITE_ENV) {
+    const webhookSecretKey = LIVE_MODE ? "STRIPE_LIVE_WEBHOOK_SECRET" : "STRIPE_WEBHOOK_SECRET";
     upsertEnvValues({
       PUBLIC_APP_URL: origin,
       VITE_PUBLIC_APP_URL: origin,
-      ...(signingSecret ? { STRIPE_WEBHOOK_SECRET: signingSecret } : {})
+      ...(signingSecret ? { [webhookSecretKey]: signingSecret } : {})
     });
-    console.log(`\nUpdated ${ENV_PATH} with the domain settings${signingSecret ? " and webhook signing secret" : ""}.`);
+    console.log(`\nUpdated ${ENV_PATH} with the domain settings${signingSecret ? ` and ${webhookSecretKey}` : ""}.`);
   }
 }
 

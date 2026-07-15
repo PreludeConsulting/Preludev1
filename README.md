@@ -370,6 +370,7 @@ Billing can remain disabled for local development. To enable Stripe, configure a
 BILLING_PROVIDER=stripe
 STRIPE_SECRET_KEY=rk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_REFERRAL_COUPON_ID=prelude_referral_20_once
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_PRICE_ID_BASIC=price_...
 STRIPE_PRICE_ID_PLUS=price_...
@@ -381,7 +382,9 @@ When billing is disabled, the billing config endpoint reports disabled state and
 
 Run `npm run stripe:catalog -- --write-env` to create or reuse the Basic ($49.99), Plus ($149.99), and Pro ($249.99) monthly Prices plus every displayed Essay Support and Flexible Sessions one-time Price in test mode. The script defaults to test mode, is idempotent, and leaves outdated Prices active. For production, provide a Products/Prices-scoped restricted key as `STRIPE_LIVE_SECRET_KEY` and explicitly run `node scripts/setup-stripe-catalog.mjs --live`; copy the printed Price IDs into Cloudflare only after reviewing them. The script never writes either key.
 
-For the production domain, run `npm run stripe:domain -- --write-env` to register `https://preludeconsultingllc.com/api/billing/webhook` in Stripe, enable the `preludeconsultingllc.com` payment method domain, and set local `PUBLIC_APP_URL` / `VITE_PUBLIC_APP_URL`. Mirror those values in the Cloudflare Pages environment variables for production.
+Run `npm run stripe:referral -- --write-env` to create or verify the test-mode `prelude_referral_20_once` coupon (20% off, duration `once`) and write only its non-secret ID to `.env`. Run `node scripts/setup-stripe-referral.mjs --live` with a live key that has Coupons read/write access to create the identical live-mode coupon. Set `STRIPE_REFERRAL_COUPON_ID=prelude_referral_20_once` in Cloudflare Production and Preview where referral checkout is enabled.
+
+Run `npm run stripe:domain -- --write-env` for test mode or `npm run stripe:domain:live -- --write-env` for live mode to register `https://preludeconsultingllc.com/api/billing/webhook`, subscribe it to the supported subscription/referral lifecycle events, and enable the `preludeconsultingllc.com` payment method domain. The setup refuses a key from the wrong Stripe mode. A newly created live signing secret is stored locally as `STRIPE_LIVE_WEBHOOK_SECRET`; deploy its value under the runtime name `STRIPE_WEBHOOK_SECRET` without committing either secret.
 
 Cloudflare Pages uses the `functions/api/billing/*` routes for the custom domain. Set these production variables in Cloudflare Pages:
 
