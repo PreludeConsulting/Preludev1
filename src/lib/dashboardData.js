@@ -922,7 +922,15 @@ function mapRewardRedemption(row) {
     coinCost: row.coin_cost,
     status: row.status,
     selection: row.selection || null,
-    redeemedAt: row.redeemed_at
+    redeemedAt: row.redeemed_at,
+    description: row.description || null,
+    fulfillmentType: row.fulfillment_type || null,
+    scope: row.scope || null,
+    wordLimit: row.word_limit ?? null,
+    exclusions: row.exclusions || null,
+    mentorsRequired: row.mentors_required ?? 1,
+    assignedMentorIds: row.assigned_mentor_ids || [],
+    catalogSnapshot: row.catalog_snapshot || null
   };
 }
 
@@ -940,6 +948,27 @@ export async function listRewardRedemptions(userId) {
   };
 }
 
+export async function getRewardShopOffers() {
+  const { data, error } = await db().rpc("get_reward_shop_offers");
+  if (error) {
+    logFeatureError("rewards", error);
+    return { offers: null, error: "Rewards are temporarily unavailable. Retry in a moment." };
+  }
+  return {
+    offers: data
+      ? {
+          rewardIds: data.rewardIds || data.reward_ids || [],
+          periodKey: data.periodKey || data.period_key,
+          refreshAt: Number(data.refreshAt ?? data.refresh_at),
+          featuredRewardId: data.featuredRewardId || data.featured_reward_id,
+          featuredPeriodKey: data.featuredPeriodKey || data.featured_period_key,
+          featuredRefreshAt: Number(data.featuredRefreshAt ?? data.featured_refresh_at)
+        }
+      : null,
+    error: null
+  };
+}
+
 export async function redeemCatalogReward(userId, { rewardId, selection = null }) {
   requireUserId(userId);
   const { data, error } = await db().rpc("redeem_catalog_reward", {
@@ -954,6 +983,12 @@ export async function redeemCatalogReward(userId, { rewardId, selection = null }
     }
     if (/not enough coins/i.test(message) || error.code === "22003") {
       return { error: "Not enough coins to redeem this reward." };
+    }
+    if (/not currently available/i.test(message)) {
+      return { error: "This reward is not available in today’s shop." };
+    }
+    if (/choose a selection|unknown reward/i.test(message) || error.code === "22023") {
+      return { error: message.includes("selection") ? "Choose a selection for this reward." : "This reward is not available." };
     }
     return { error: "Reward redemption is temporarily unavailable. Retry in a moment." };
   }

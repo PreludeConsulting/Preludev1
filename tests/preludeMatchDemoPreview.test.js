@@ -89,7 +89,7 @@ describe("PreludeMatch demo preview", () => {
     expect(html).toContain("Dashboard unlocked");
     expect(html).toContain("Attend mentor meeting");
     expect(html).toContain("+25 coins");
-    expect(html).toContain("Essay Review Session");
-    expect(html).toContain("SAT / ACT Help Session");
+    expect(html).toContain("Personal Statement Review");
+    expect(html).toContain("SAT/ACT Help Session");
   });
 });

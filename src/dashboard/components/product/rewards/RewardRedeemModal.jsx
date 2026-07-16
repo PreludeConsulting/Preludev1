@@ -1,17 +1,24 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { TEST_PREP_OPTIONS } from "../../../lib/progressRewards.js";
+import { TEST_PREP_OPTIONS, TUTORING_SUBJECT_OPTIONS } from "../../../lib/progressRewards.js";
 import RewardIcon from "./RewardIcon.jsx";
 import RewardTierBadge from "./RewardTierBadge.jsx";
 
+function fulfillmentLabel(reward) {
+  if (reward?.fulfillmentType === "live_call") return "Live 30-minute call";
+  return "Asynchronous written review";
+}
+
 export default function RewardRedeemModal({ reward, coins, onClose, onConfirm }) {
-  const [testPrepOption, setTestPrepOption] = useState("");
+  const [selection, setSelection] = useState("");
   const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!reward) return;
-    setTestPrepOption("");
+    setSelection("");
     setSuccess(false);
+    setSubmitting(false);
   }, [reward]);
 
   if (!reward) return null;
@@ -20,14 +27,31 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
   const tierConfig = reward.tierConfig;
   const coinsNeeded = Math.max(0, reward.coins - coins);
   const canAfford = coins >= reward.coins && !reward.redeemed;
-  const needsTestPrep = reward.requiresSelection;
-  const canConfirm = canAfford && (!needsTestPrep || testPrepOption);
+  const needsSelection = reward.requiresSelection;
+  const selectionOptions =
+    reward.selectionType === "tutoring_subject" ? TUTORING_SUBJECT_OPTIONS : TEST_PREP_OPTIONS;
+  const selectionLabel =
+    reward.selectionType === "tutoring_subject" ? "Choose your tutoring subject" : "Choose your test prep focus";
+  const canConfirm = canAfford && (!needsSelection || selection) && !submitting;
+  const displayTitle = reward.title || reward.headline;
+  const details =
+    reward.confirmationDetails ||
+    reward.description ||
+    "Review the details of this reward before redeeming.";
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!canConfirm) return;
-    const result = onConfirm(reward, { testPrepOption: needsTestPrep ? testPrepOption : undefined });
-    if (result?.success) {
-      setSuccess(true);
+    setSubmitting(true);
+    try {
+      const result = await onConfirm(reward, {
+        selection: needsSelection ? selection : undefined,
+        testPrepOption: needsSelection ? selection : undefined
+      });
+      if (result?.success) {
+        setSuccess(true);
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -51,7 +75,11 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
         {success ? (
           <div className="dash-rewards-modal__success">
             <p className="dash-rewards-modal__success-title">Reward redeemed!</p>
-            <p className="dash-rewards-modal__success-desc">A mentor will follow up with next steps.</p>
+            <p className="dash-rewards-modal__success-desc">
+              {reward.fulfillmentType === "live_call"
+                ? "We’ll follow up to schedule your live session."
+                : "A mentor will follow up with next steps."}
+            </p>
             <button type="button" className="dash-btn dash-btn--primary dash-rewards-modal__confirm" onClick={onClose}>
               Done
             </button>
@@ -63,7 +91,7 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
               <div>
                 <div className="dash-rewards-modal__title-row">
                   <h3 id="reward-redeem-title" className="dash-rewards-modal__title">
-                    {reward.headline}
+                    {displayTitle}
                   </h3>
                   <RewardTierBadge tier={tierId} className="dash-rewards-modal__tier-badge" />
                 </div>
@@ -73,7 +101,7 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
               </div>
             </div>
 
-            <p className="dash-rewards-modal__desc">{reward.description}</p>
+            <p className="dash-rewards-modal__desc">{details}</p>
 
             <dl className="dash-rewards-modal__stats">
               <div>
@@ -85,10 +113,24 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
                 <dd>{coins}</dd>
               </div>
               <div>
-                <dt>Value</dt>
-                <dd>${reward.estimatedValue}</dd>
+                <dt>Type</dt>
+                <dd>{fulfillmentLabel(reward)}</dd>
               </div>
             </dl>
+
+            {reward.scope ? (
+              <p className="dash-rewards-modal__subtitle">Includes: {reward.scope}</p>
+            ) : null}
+            {reward.exclusions ? (
+              <p className="dash-rewards-modal__warning" role="note">
+                Note: {reward.exclusions}
+              </p>
+            ) : null}
+            {(reward.mentorsRequired || 1) > 1 ? (
+              <p className="dash-rewards-modal__subtitle">
+                Requires {reward.mentorsRequired} mentors for fulfillment.
+              </p>
+            ) : null}
 
             {!canAfford ? (
               <p className="dash-rewards-modal__warning" role="alert">
@@ -96,19 +138,20 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
               </p>
             ) : null}
 
-            {needsTestPrep ? (
+            {needsSelection ? (
               <div className="dash-rewards-modal__field">
-                <label htmlFor="test-prep-focus" className="dash-rewards-modal__field-label">
-                  Choose your test prep focus
+                <label htmlFor="reward-selection" className="dash-rewards-modal__field-label">
+                  {selectionLabel}
                 </label>
                 <select
-                  id="test-prep-focus"
+                  id="reward-selection"
                   className="dash-rewards-modal__select"
-                  value={testPrepOption}
-                  onChange={(e) => setTestPrepOption(e.target.value)}
+                  value={selection}
+                  onChange={(e) => setSelection(e.target.value)}
+                  disabled={submitting}
                 >
                   <option value="">Select an option…</option>
-                  {TEST_PREP_OPTIONS.map((option) => (
+                  {selectionOptions.map((option) => (
                     <option key={option} value={option}>
                       {option}
                     </option>
@@ -118,7 +161,7 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
             ) : null}
 
             <div className="dash-rewards-modal__actions">
-              <button type="button" className="dash-btn dash-btn--secondary" onClick={onClose}>
+              <button type="button" className="dash-btn dash-btn--secondary" onClick={onClose} disabled={submitting}>
                 Cancel
               </button>
               <button
@@ -127,7 +170,7 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
                 onClick={handleConfirm}
                 disabled={!canConfirm}
               >
-                Confirm Redeem
+                {submitting ? "Redeeming…" : "Confirm Redeem"}
               </button>
             </div>
           </>

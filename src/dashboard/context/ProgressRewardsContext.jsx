@@ -6,6 +6,7 @@ import {
   REWARD_CATALOG,
   applyCoinMultiplier,
   buildJordanDemoServices,
+  buildRewardCatalogSnapshot,
   buildSidebarProgress,
   countMilestonesToReward,
   enrichMilestones,
@@ -20,9 +21,9 @@ import {
   getCoinsToNextMultiplier,
   getCoinsToNextReward,
   getCurrentStatusMilestone,
-  getFeaturedReward,
   getNextAffordableReward,
   getNextStatusTier,
+  getRewardById,
   getStatusTier,
   getTierProgress,
   normalizeRewardsState,
@@ -32,6 +33,7 @@ import {
   claimRewardTask,
   completeMentorControlledRewardTask,
   ensureRewardTaskInstances,
+  getRewardShopOffers,
   getRewardWallet,
   grantRewardsWelcomeBonus,
   isMainMentorForStudent,
@@ -48,6 +50,7 @@ import {
   grantLocalWelcomeBonus,
   loadLocalRewardWallet
 } from "../../lib/progressRewardsRuntime.js";
+import { resolveShopOffers } from "../lib/rewardShop.js";
 import { canAccessFeature, getUserPlan } from "../../lib/planFeatures.js";
 import {
   EARN_CATEGORY_ORDER,
@@ -57,7 +60,6 @@ import {
   getRecommendedEarnAction,
   getTaskDefinition
 } from "../../lib/rewardTaskCatalog.js";
-import { resolveShopRewardIds } from "../lib/rewardShop.js";
 import CoinCelebration from "../components/product/rewards/CoinCelebration.jsx";
 import { useInteractionFeedback } from "../../components/interaction/InteractionFeedback.jsx";
 import { useInterfaceSound } from "../../lib/sound/SoundProvider.jsx";
@@ -83,7 +85,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const [toasts, setToasts] = useState([]);
   const [celebration, setCelebration] = useState(null);
   const [redemptionCelebration, setRedemptionCelebration] = useState(null);
-  const [shopState, setShopState] = useState(() => resolveShopRewardIds({ storageKey: shopStorageKey(user?.email) }));
+  const [shopState, setShopState] = useState(() => resolveShopOffers({ storageKey: shopStorageKey(user?.email) }));
   const [tasks, setTasks] = useState([]);
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncState, setSyncState] = useState(() => createSyncState());
@@ -128,14 +130,36 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
 
   useEffect(() => {
     const key = shopStorageKey(user?.email);
-    const tick = () => {
-      const next = resolveShopRewardIds({ storageKey: key });
-      setShopState((prev) => (prev.periodKey !== next.periodKey ? next : prev));
+    let cancelled = false;
+
+    async function syncOffers() {
+      let serverOffers = null;
+      if (isSupabaseUser) {
+        const { offers } = await getRewardShopOffers();
+        if (offers?.rewardIds?.length) serverOffers = offers;
+      }
+      if (cancelled) return;
+      const next = resolveShopOffers({ storageKey: key, serverOffers });
+      setShopState((prev) => {
+        if (
+          prev.periodKey === next.periodKey &&
+          prev.featuredPeriodKey === next.featuredPeriodKey &&
+          prev.featuredRewardId === next.featuredRewardId &&
+          JSON.stringify(prev.rewardIds) === JSON.stringify(next.rewardIds)
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    }
+
+    syncOffers();
+    const id = window.setInterval(syncOffers, 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
     };
-    tick();
-    const id = window.setInterval(tick, 60000);
-    return () => window.clearInterval(id);
-  }, [user?.email]);
+  }, [isSupabaseUser, user?.email]);
 
   const [isMainAssignedMentor, setIsMainAssignedMentor] = useState(false);
 
@@ -338,7 +362,11 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     () => milestones.filter((m) => m.status === REWARD_TASK_STATUS.CLAIMED).length,
     [milestones]
   );
-  const featuredRewardBase = getFeaturedReward();
+  const featuredRewardBase = useMemo(() => {
+    const fromShop = getRewardById(shopState.featuredRewardId);
+    if (fromShop) return fromShop;
+    return REWARD_CATALOG.find((r) => r.shopPool === "legendary") || REWARD_CATALOG[0];
+  }, [shopState.featuredRewardId]);
   const featuredReward = useMemo(
     () => enrichReward(featuredRewardBase, state.coins, state.redeemed),
     [featuredRewardBase, state.coins, state.redeemed]
@@ -506,7 +534,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const redeemReward = useCallback(
     async (rewardId, options = {}) => {
       const reward = REWARD_CATALOG.find((r) => r.id === rewardId);
-      if (!reward) return { success: false };
+      if (!reward || reward.active === false) return { success: false };
 
       if (state.redeemed.includes(rewardId)) {
         return { success: false, alreadyRedeemed: true };
@@ -516,24 +544,43 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         return { success: false, coinsNeeded: reward.coins - state.coins };
       }
 
-      if (reward.requiresSelection && !options.testPrepOption) {
+      const selectionValue = options.selection || options.testPrepOption;
+      if (reward.requiresSelection && !selectionValue) {
         return { success: false, missingSelection: true };
       }
 
-      const selectionLabel = options.testPrepOption ? ` (${options.testPrepOption})` : "";
+      const availableIds = new Set([
+        ...(shopState.rewardIds || []),
+        shopState.featuredRewardId
+      ].filter(Boolean));
+      if (!availableIds.has(rewardId)) {
+        showToast("This reward is not available in today’s shop.", "error");
+        return { success: false, unavailable: true };
+      }
+
+      const selectionLabel = selectionValue ? ` (${selectionValue})` : "";
+      const snapshot = buildRewardCatalogSnapshot(reward);
       const historyEntry = {
         id: `redemption-${Date.now()}`,
         rewardId,
-        title: `${reward.headline}${selectionLabel}`,
+        title: `${reward.title}${selectionLabel}`,
         status: "ready_to_schedule",
         redeemedAt: new Date().toISOString(),
-        selection: options.testPrepOption || null
+        selection: selectionValue || null,
+        description: reward.description,
+        fulfillmentType: reward.fulfillmentType,
+        scope: reward.scope,
+        wordLimit: reward.wordLimit ?? null,
+        exclusions: reward.exclusions || null,
+        mentorsRequired: reward.mentorsRequired || 1,
+        coinCost: reward.coins,
+        catalogSnapshot: snapshot
       };
 
       if (isSupabaseUser && user?.id) {
         const { redemption, wallet, error, alreadyRedeemed } = await redeemCatalogReward(user.id, {
           rewardId,
-          selection: options.testPrepOption || null
+          selection: selectionValue || null
         });
         if (error) {
           showToast(error, "error");
@@ -563,23 +610,29 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       const enriched = enrichReward(reward, state.coins - reward.coins, [...state.redeemed, rewardId]);
       setRedemptionCelebration({
         tier: enriched.tier,
-        title: reward.headline,
+        title: reward.title,
         coinsBalance: state.coins - reward.coins,
-        goalCoins: featuredRewardBase.coins
+        goalCoins: featuredRewardBase?.coins
       });
       play(SOUND_EVENTS.COIN_COLLECT);
       play(SOUND_EVENTS.REWARD_REDEEMED);
       setTimeout(() => setRedemptionCelebration(null), 3600);
 
-      showToast("Reward redeemed! A mentor will follow up with next steps.", "success");
+      const followUp =
+        reward.fulfillmentType === "live_call"
+          ? "Reward redeemed! We’ll follow up to schedule your live session."
+          : "Reward redeemed! A mentor will follow up with next steps.";
+      showToast(followUp, "success");
       return { success: true };
     },
     [
-      featuredRewardBase.coins,
+      featuredRewardBase?.coins,
       isSupabaseUser,
       persist,
       play,
       refreshRewardTasks,
+      shopState.featuredRewardId,
+      shopState.rewardIds,
       showToast,
       state.coins,
       state.redeemed,

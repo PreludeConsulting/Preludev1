@@ -1,10 +1,12 @@
-import { FileText, Sparkles, Star } from "lucide-react";
+import { Sparkles, Star } from "lucide-react";
 import { CoinIcon } from "./PreludePiggyBank.jsx";
+import RewardIcon from "./RewardIcon.jsx";
 import { ProgressBar } from "./RewardCard.jsx";
 
 export default function FeaturedRewardCard({ reward, onRedeem }) {
   const showProgress = !reward.redeemed && reward.coinsAway > 0;
   const showReady = reward.canRedeem && !reward.redeemed;
+  const displayTitle = reward.title || reward.headline;
 
   return (
     <article className={`dash-feat${reward.redeemed ? " dash-feat--redeemed" : ""}`}>
@@ -19,10 +21,10 @@ export default function FeaturedRewardCard({ reward, onRedeem }) {
 
         <div className="dash-feat__head">
           <div className="dash-feat__icon">
-            <FileText aria-hidden="true" />
+            <RewardIcon reward={reward} large tier="legendary" />
           </div>
           <div className="dash-feat__copy">
-            <h3 className="dash-feat__title">{reward.headline}</h3>
+            <h3 className="dash-feat__title">{displayTitle}</h3>
             {reward.subtitle ? <p className="dash-feat__subtitle">{reward.subtitle}</p> : null}
             {reward.description ? <p className="dash-feat__desc">{reward.description}</p> : null}
           </div>
@@ -93,7 +95,7 @@ export default function FeaturedRewardCard({ reward, onRedeem }) {
         <Sparkles className="dash-feat__spark dash-feat__spark--4" aria-hidden="true" />
 
         <div className="dash-feat__hero-icon" aria-hidden="true">
-          <FileText />
+          <RewardIcon reward={reward} large tier="legendary" />
         </div>
       </div>
     </article>

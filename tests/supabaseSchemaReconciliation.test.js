@@ -35,7 +35,36 @@ describe("Supabase rewards and availability schema reconciliation", () => {
     expect(economy).toMatch(/create table if not exists public\.coin_transactions/i);
     expect(economy).toMatch(/grant_rewards_welcome_bonus/i);
     expect(economy).toMatch(/\('essay-review-session', 'FREE Essay Review Session', 175\)/);
-    expect(economy).toMatch(/\('priority-office-hours', 'FREE Priority Office Hours Pass', 60\)/);
+  });
+
+  it("removes office hours from the redeemable reward catalog", () => {
+    const removal = read("supabase/migrations/20260716000000_remove_office_hours_reward.sql");
+    const catalog = read("src/dashboard/lib/progressRewards.js");
+    expect(removal).toMatch(/function public\.redeem_catalog_reward\s*\(/i);
+    expect(removal).not.toMatch(/'priority-office-hours'/);
+    expect(removal).not.toMatch(/Priority Office Hours Pass/);
+    expect(catalog).not.toMatch(/id: "priority-office-hours"/);
+    expect(catalog).toMatch(/"priority-office-hours"/); // retired id list only
+  });
+
+  it("ships rewards catalog v3 with daily + legendary pools and offer rotations", () => {
+    const migration = read("supabase/migrations/20260716010000_rewards_catalog_v3.sql");
+    const catalog = read("src/dashboard/lib/progressRewards.js");
+    expect(migration).toMatch(/create table if not exists public\.reward_catalog/i);
+    expect(migration).toMatch(/create table if not exists public\.reward_offer_rotations/i);
+    expect(migration).toMatch(/function public\.get_reward_shop_offers\s*\(/i);
+    expect(migration).toMatch(/catalog_snapshot/i);
+    expect(migration).toMatch(/mentors_required/i);
+    expect(migration).toMatch(/'personal-statement-review'/);
+    expect(migration).toMatch(/'two-mentor-personal-statement'/);
+    expect(migration).toMatch(/'retired'/);
+    expect(migration).toMatch(/active boolean not null default true/);
+    expect(catalog).toMatch(/supplemental-essay-one/);
+    expect(catalog).toMatch(/full-written-application-one-college/);
+    expect(catalog).not.toMatch(/FREE Personal Statement Review/);
+    expect(catalog).toMatch(/shopPool: "daily"/);
+    expect(catalog).toMatch(/shopPool: "legendary"/);
+    expect(catalog).toMatch(/RETIRED_REWARD_IDS/);
   });
 
   it("uses mentor_matching_profiles availability_schedule as the only availability model", () => {

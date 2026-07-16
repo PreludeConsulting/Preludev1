@@ -8,13 +8,13 @@ function milestoneById(id) {
   return MILESTONE_CATALOG.find((milestone) => milestone.id === id);
 }
 
-const essayReviewReward = rewardById("essay-review-session");
-const testPrepReward = rewardById("test-prep-help");
+const personalStatementReward = rewardById("personal-statement-review");
+const satActReward = rewardById("sat-act-help-session");
 const mentorMeetingMilestone = milestoneById("mentor-meeting-completed");
 
 export const HERO_DEMO_REWARDS = {
-  essayReview: essayReviewReward,
-  testPrep: testPrepReward
+  essayReview: personalStatementReward,
+  testPrep: satActReward
 };
 
 export const HERO_DEMO_STEPS = [
@@ -94,17 +94,17 @@ export const HERO_DEMO_STEPS = [
     kicker: "Reward shop",
     title: "Coins unlock rewards families would otherwise pay for.",
     body: "The game loop is not decoration. It points students toward the same high-value work that drives applications forward.",
-    metric: "$75",
+    metric: "$70",
     metricLabel: "essay value",
     rewards: [
       {
-        title: essayReviewReward?.title ?? "Essay Review Session",
-        cost: essayReviewReward?.coins ?? 300,
+        title: personalStatementReward?.title ?? "Personal Statement Review",
+        cost: personalStatementReward?.coins ?? 175,
         tag: "Featured"
       },
       {
-        title: testPrepReward?.title ?? "Test Prep Help Session",
-        cost: testPrepReward?.coins ?? 250,
+        title: satActReward?.title ?? "SAT/ACT Help Session",
+        cost: satActReward?.coins ?? 325,
         tag: "Next unlock"
       }
     ]
@@ -122,13 +122,13 @@ export const HERO_RESULT_PAYOFF = {
   ],
   rewards: [
     {
-      title: essayReviewReward?.title ?? "Essay Review Session",
-      coins: essayReviewReward?.coins ?? 300,
+      title: personalStatementReward?.title ?? "Personal Statement Review",
+      coins: personalStatementReward?.coins ?? 175,
       label: "Featured reward"
     },
     {
-      title: testPrepReward?.title ?? "Test Prep Help Session",
-      coins: testPrepReward?.coins ?? 250,
+      title: satActReward?.title ?? "SAT/ACT Help Session",
+      coins: satActReward?.coins ?? 325,
       label: "Next unlock"
     }
   ]

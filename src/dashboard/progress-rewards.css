@@ -2930,6 +2930,7 @@
   line-height: 1.12;
   letter-spacing: -0.02em;
   color: #1f2433;
+  overflow-wrap: anywhere;
 }
 
 .dash-feat__subtitle {
@@ -3274,6 +3275,11 @@
   align-items: stretch;
 }
 
+.dash-reward-shop__grid > .dash-shop-offer {
+  align-self: stretch;
+  height: 100%;
+}
+
 @media (min-width: 720px) {
   .dash-reward-shop__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -3335,29 +3341,42 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
   gap: 0.5rem;
   flex-shrink: 0;
-  padding: 0.85rem 1rem 0.4rem;
-  min-height: 2.25rem;
+  padding: 0.75rem 0.85rem 0.35rem;
+  min-height: 2.35rem;
 }
 
-.dash-shop-offer__label {
+.dash-shop-offer__label,
+.dash-shop-offer .dash-shop-offer__tier-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  flex-shrink: 0;
-  padding: 0.34rem 0.7rem;
+  justify-content: center;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  min-height: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.65rem;
   border-radius: 999px;
+  font-family: var(--dash-font-sans, inherit);
   font-size: 0.625rem;
-  font-weight: 800;
-  letter-spacing: 0.07em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
   text-transform: uppercase;
+  white-space: nowrap;
   color: #fff;
   background: rgb(255 255 255 / 0.2);
   backdrop-filter: blur(6px);
   border: 1px solid rgb(255 255 255 / 0.5);
-  line-height: 1;
   box-shadow: 0 2px 8px rgb(20 20 45 / 0.12);
+}
+
+.dash-shop-offer__label {
+  gap: 0.3rem;
+  margin-right: auto;
 }
 
 .dash-shop-offer__label-icon {
@@ -3367,16 +3386,7 @@
 }
 
 .dash-shop-offer .dash-shop-offer__tier-badge {
-  flex-shrink: 0;
-  padding: 0.34rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.625rem;
-  letter-spacing: 0.07em;
-  color: #fff;
-  background: rgb(255 255 255 / 0.2);
-  backdrop-filter: blur(6px);
-  border: 1px solid rgb(255 255 255 / 0.5);
-  box-shadow: 0 2px 8px rgb(20 20 45 / 0.12);
+  margin-left: auto;
 }
 
 .dash-shop-offer__visual {
@@ -3556,29 +3566,44 @@
 }
 
 .dash-shop-offer__info {
+  display: flex;
+  flex-direction: column;
   flex: 0 0 auto;
-  padding: 1rem 1.25rem 0;
+  gap: 0.35rem;
+  padding: 0.9rem 1.15rem 0;
+}
+
+.dash-shop-offer__title-slot {
+  flex: 0 0 auto;
+  font-size: clamp(1.1875rem, 1.8vw, 1.375rem);
+  height: 2.4em; /* line-height 1.2 × 2 lines */
+  min-height: 2.4em;
 }
 
 .dash-shop-offer__title {
   margin: 0;
-  min-height: 2.96rem;
-  font-size: 1.1875rem;
-  font-weight: 800;
-  line-height: 1.25;
+  height: 100%;
+  font-family: var(--dash-font-sans, inherit);
+  font-size: inherit;
+  font-weight: 700;
+  line-height: 1.2;
   letter-spacing: -0.015em;
   color: var(--rw-navy);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .dash-shop-offer__subtitle {
-  margin: 0.35rem 0 0;
-  min-height: 1.25rem;
-  font-size: 0.9375rem;
-  line-height: 1.35;
+  margin: 0;
+  height: 1.3em;
+  min-height: 1.3em;
+  font-family: var(--dash-font-sans, inherit);
+  font-size: clamp(0.875rem, 1.2vw, 1rem);
+  line-height: 1.3;
   font-weight: 600;
   color: color-mix(in srgb, var(--shop-vibrant, var(--rw-purple)) 70%, #5a5e78);
   display: -webkit-box;
@@ -3588,7 +3613,8 @@
 }
 
 .dash-shop-offer__divider {
-  margin-top: 0.9rem;
+  flex-shrink: 0;
+  margin-top: 0.55rem;
   height: 1px;
   background: rgb(35 39 48 / 0.08);
 }
@@ -3598,39 +3624,45 @@
   flex-direction: column;
   margin-top: auto;
   flex-shrink: 0;
-  padding: 0.9rem 1.25rem 1.5rem;
+  padding: 0.75rem 1.15rem 1.25rem;
+  gap: 0.45rem;
 }
 
 .dash-shop-offer__pricing {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
-  min-height: 1.5rem;
+  min-height: 1.35rem;
 }
 
 .dash-shop-offer__cost {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 1rem;
-  font-weight: 800;
+  gap: 0.35rem;
+  font-family: var(--dash-font-sans, inherit);
+  font-size: 0.9375rem;
+  font-weight: 700;
   color: var(--rw-navy);
   letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .dash-shop-offer__value {
-  font-size: 0.9375rem;
-  font-weight: 800;
+  font-family: var(--dash-font-sans, inherit);
+  font-size: 0.875rem;
+  font-weight: 700;
   color: var(--shop-vibrant, var(--rw-purple));
   letter-spacing: -0.01em;
+  line-height: 1.2;
 }
 
 .dash-shop-offer__ready {
   margin: 0;
+  font-family: var(--dash-font-sans, inherit);
   font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--tier-accent, var(--rw-purple));
 }
@@ -3640,14 +3672,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  min-height: 1.375rem;
-  margin-top: 0.55rem;
+  min-height: 1.25rem;
+  margin-top: 0;
 }
 
 .dash-shop-offer__progress .dash-shop-offer__away {
   margin: 0;
+  font-family: var(--dash-font-sans, inherit);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #595d78;
   white-space: nowrap;
   flex-shrink: 0;
@@ -3681,13 +3714,14 @@
 /* Redeem button */
 
 .dash-shop-offer__btn {
-  margin-top: 0.85rem;
+  margin-top: 0.35rem;
   width: 100%;
-  min-height: 3.5rem;
-  padding: 0.9rem 1.25rem;
+  min-height: 3.25rem;
+  padding: 0.75rem 1.15rem;
   border-radius: 1.0625rem;
-  font-size: 0.9375rem;
-  font-weight: 800;
+  font-family: var(--dash-font-sans, inherit);
+  font-size: 0.875rem;
+  font-weight: 700;
   letter-spacing: -0.01em;
   border: none;
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
@@ -3787,10 +3821,33 @@
   opacity: 0.65;
 }
 
+@media (max-width: 1023px) {
+  .dash-shop-offer__header {
+    padding: 0.65rem 0.7rem 0.3rem;
+  }
+
+  .dash-shop-offer__label,
+  .dash-shop-offer .dash-shop-offer__tier-badge {
+    padding: 0 0.55rem;
+    font-size: 0.5625rem;
+    letter-spacing: 0.04em;
+  }
+
+  .dash-shop-offer__title-slot {
+    font-size: 1.1875rem;
+    height: 2.4em;
+    min-height: 2.4em;
+  }
+
+  .dash-shop-offer__subtitle {
+    font-size: 0.875rem;
+  }
+}
+
 @media (min-width: 1024px) {
   .dash-shop-offer {
-    min-height: 29rem;
-    height: 29rem;
+    min-height: 28.5rem;
+    height: 28.5rem;
   }
 
   .dash-shop-offer__hero {
@@ -3800,6 +3857,12 @@
 
   .dash-shop-offer__visual {
     min-height: 9rem;
+  }
+
+  .dash-shop-offer__title-slot {
+    font-size: 1.375rem;
+    height: 2.4em;
+    min-height: 2.4em;
   }
 }
 

@@ -153,17 +153,28 @@ function StatusTab() {
 function MyRewardsTab() {
   const { redemptionHistory } = useProgressRewards();
 
-  const items = redemptionHistory.map((h) => ({
-    id: h.id,
-    title: h.title,
-    status: h.status === "ready_to_schedule" ? "Ready to schedule" : "Redeemed"
-  }));
+  const items = redemptionHistory.map((h) => {
+    const isLive = h.fulfillmentType === "live_call" || h.catalogSnapshot?.fulfillmentType === "live_call";
+    let statusLabel = "Redeemed";
+    if (h.status === "ready_to_schedule") {
+      statusLabel = isLive ? "Ready to schedule" : "Ready for written review";
+    } else if (h.status === "scheduled") {
+      statusLabel = "Scheduled";
+    } else if (h.status === "fulfilled") {
+      statusLabel = "Fulfilled";
+    }
+    return {
+      id: h.id,
+      title: h.title,
+      status: statusLabel
+    };
+  });
 
   if (!items.length) {
     return (
       <div className="dash-rewards-tab-panel dash-rewards-empty">
         <PiggyBankProgress coins={0} goalCoins={60} size="sm" withDropAnimation={false} />
-        <p>No rewards redeemed yet. Complete milestones to unlock free support.</p>
+        <p>No rewards redeemed yet. Earn coins to unlock application reviews and live help sessions.</p>
       </div>
     );
   }

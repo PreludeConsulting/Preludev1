@@ -27,7 +27,7 @@ export default function ShopOfferCard({ reward, onRedeem }) {
       style={{ "--tier-accent": accent }}
     >
       <div className="dash-shop-offer__hero">
-        <div className="dash-shop-offer__header">
+        <div className="dash-shop-offer__header" aria-label="Offer badges">
           <span className="dash-shop-offer__label">
             <Sparkles className="dash-shop-offer__label-icon" aria-hidden="true" />
             {offerLabel}
@@ -75,7 +75,9 @@ export default function ShopOfferCard({ reward, onRedeem }) {
 
       <div className="dash-shop-offer__body">
         <div className="dash-shop-offer__info">
-          <h4 className="dash-shop-offer__title">{reward.headline}</h4>
+          <div className="dash-shop-offer__title-slot">
+            <h4 className="dash-shop-offer__title">{reward.title || reward.headline}</h4>
+          </div>
           <p className="dash-shop-offer__subtitle">{reward.subtitle || "\u00A0"}</p>
           <div className="dash-shop-offer__divider" aria-hidden="true" />
         </div>

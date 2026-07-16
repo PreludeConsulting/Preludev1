@@ -50,7 +50,16 @@ function mergeRedemptionHistory(serverRows = [], localRows = []) {
     title: row.title,
     status: row.status,
     redeemedAt: row.redeemed_at || row.redeemedAt,
-    selection: row.selection || null
+    selection: row.selection || null,
+    coinCost: row.coin_cost ?? row.coinCost ?? null,
+    description: row.description || null,
+    fulfillmentType: row.fulfillment_type || row.fulfillmentType || null,
+    scope: row.scope || null,
+    wordLimit: row.word_limit ?? row.wordLimit ?? null,
+    exclusions: row.exclusions || null,
+    mentorsRequired: row.mentors_required ?? row.mentorsRequired ?? 1,
+    assignedMentorIds: row.assigned_mentor_ids || row.assignedMentorIds || [],
+    catalogSnapshot: row.catalog_snapshot || row.catalogSnapshot || null
   }));
   const seen = new Set(mapped.map((row) => row.id));
   for (const row of localRows) {

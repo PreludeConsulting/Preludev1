@@ -203,140 +203,382 @@ export const TEST_PREP_OPTIONS = [
   "ACT Science"
 ];
 
+export const TUTORING_SUBJECT_OPTIONS = [
+  "Math",
+  "English / Writing",
+  "Science",
+  "History / Social Studies",
+  "World Language",
+  "Other (confirm with tutor)"
+];
+
+export const REWARD_FULFILLMENT_TYPES = {
+  ASYNC_WRITTEN: "async_written",
+  LIVE_CALL: "live_call"
+};
+
+/** Retired catalog IDs — kept for history readability; not shown in shop rotations. */
+export const RETIRED_REWARD_IDS = [
+  "priority-office-hours",
+  "quick-essay-feedback",
+  "short-application-review",
+  "major-career-fit",
+  "mock-interview",
+  "test-prep-help",
+  "essay-review-session",
+  "bonus-flexible-session",
+  "application-readiness-review",
+  "multi-mentor-review-package",
+  "college-list-review-legacy",
+  "activities-list-review-legacy",
+  "application-strategy-call",
+  "scholarship-search",
+  "parent-strategy-call"
+];
+
+/**
+ * Active redeemable catalog.
+ * `headline` mirrors `title` (no "FREE" prefix) — cards and history use headline.
+ */
 export const REWARD_CATALOG = [
   {
-    id: "priority-office-hours",
-    title: "Priority Office Hours Pass",
-    headline: "FREE Priority Office Hours Pass",
-    subtitle: "Skip-the-Line Access",
-    category: "Mentorship",
-    shopGroup: "quick",
-    coins: 60,
-    estimatedValue: 35,
-    description: "Get priority access to mentor office hours for quick questions and feedback.",
-    iconTone: "purple",
-    tier: "common"
-  },
-  {
-    id: "quick-essay-feedback",
-    title: "Quick Essay Feedback",
-    headline: "FREE Quick Essay Feedback",
-    subtitle: "Fast Written Notes",
+    id: "supplemental-essay-one",
+    title: "Supplemental Essay Review | One Essay",
+    headline: "Supplemental Essay Review | One Essay",
+    subtitle: "Written Application Feedback",
     category: "Essays",
-    shopGroup: "quick",
-    coins: 90,
-    estimatedValue: 45,
-    description: "Get a focused round of written essay feedback from a Prelude mentor.",
+    shopPool: "daily",
+    coins: 125,
+    estimatedValue: 50,
+    description: "Receive detailed written feedback on one supplemental essay from a Prelude mentor. Asynchronous — no live call included.",
+    confirmationDetails:
+      "Includes written feedback on one supplemental essay, up to 350 words. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "One supplemental essay, up to 350 words",
+    wordLimit: 350,
+    exclusions: null,
+    mentorsRequired: 1,
+    similarityGroup: "supplemental",
     iconTone: "mint",
-    tier: "common"
+    tier: "common",
+    active: true
   },
   {
-    id: "short-application-review",
-    title: "Short Written Application Review",
-    headline: "FREE Short Written Application Review",
-    subtitle: "Component Feedback",
-    category: "Admissions",
-    shopGroup: "quick",
-    coins: 100,
-    estimatedValue: 50,
-    description: "A mentor reviews one application component and shares clear next steps.",
-    iconTone: "blue",
-    tier: "common"
-  },
-  {
-    id: "major-career-fit",
-    title: "Major / Career Fit Session",
-    headline: "FREE Major / Career Fit Session",
-    subtitle: "Major Exploration",
-    category: "Planning",
-    shopGroup: "support",
-    coins: 120,
-    estimatedValue: 35,
-    description: "A mentor helps the student explore possible majors, career paths, and college fit.",
-    iconTone: "indigo",
-    tier: "uncommon"
-  },
-  {
-    id: "mock-interview",
-    title: "Mock Interview Session",
-    headline: "FREE Mock Interview Session",
-    subtitle: "Interview Practice",
-    category: "Admissions",
-    shopGroup: "support",
-    coins: 130,
-    estimatedValue: 35,
-    description: "A mentor runs a college-style mock interview and gives feedback.",
-    iconTone: "purple",
-    tier: "rare"
-  },
-  {
-    id: "test-prep-help",
-    title: "SAT / ACT Help Session",
-    headline: "FREE SAT / ACT Help Session",
-    subtitle: "Test Prep Support",
-    category: "Test Prep",
-    shopGroup: "support",
-    coins: 150,
-    estimatedValue: 50,
-    description: "Choose SAT Math, SAT Reading/Writing, ACT Math, ACT English, ACT Reading, or ACT Science after redeeming.",
-    iconTone: "sky",
-    requiresSelection: true,
-    tier: "rare"
-  },
-  {
-    id: "essay-review-session",
-    title: "Essay Review Session",
-    headline: "FREE Essay Review Session",
-    subtitle: "2 Mentor Review",
+    id: "supplemental-essay-college",
+    title: "Supplemental Essay Review | One College",
+    headline: "Supplemental Essay Review | One College",
+    subtitle: "Written Application Feedback",
     category: "Essays",
-    shopGroup: "support",
+    shopPool: "daily",
     coins: 175,
-    estimatedValue: 75,
-    description: "Two mentors review the student's essay and leave detailed feedback.",
-    featured: true,
+    estimatedValue: 70,
+    description: "Receive detailed written feedback on the supplemental essays for one college. Asynchronous — no live call included.",
+    confirmationDetails:
+      "Includes written feedback on all supplemental essays for one college, up to 750 total words. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "All supplemental essays for one college, up to 750 total words",
+    wordLimit: 750,
+    exclusions: null,
+    mentorsRequired: 1,
+    similarityGroup: "supplemental",
     iconTone: "mint",
-    tier: "rare"
+    tier: "rare",
+    active: true
   },
   {
-    id: "bonus-flexible-session",
-    title: "Bonus Flexible 1-on-1 Session",
-    headline: "FREE Bonus Flexible 1-on-1 Session",
-    subtitle: "Extra Live Support",
-    category: "Mentorship",
-    shopGroup: "premium",
-    coins: 200,
-    estimatedValue: 75,
-    description: "Redeem an extra flexible live session for consulting, SAT/ACT, or academic tutoring.",
-    iconTone: "rose",
-    tier: "epic"
-  },
-  {
-    id: "application-readiness-review",
-    title: "Full Application Readiness Review",
-    headline: "FREE Full Application Readiness Review",
-    subtitle: "Submission Check",
-    category: "Admissions",
-    shopGroup: "premium",
-    coins: 225,
-    estimatedValue: 90,
-    description: "A mentor reviews application readiness across essays, activities, and school list priorities.",
-    iconTone: "amber",
-    tier: "epic"
-  },
-  {
-    id: "multi-mentor-review-package",
-    title: "Multi-Mentor Review Package",
-    headline: "FREE Multi-Mentor Review Package",
-    subtitle: "Team Feedback",
+    id: "personal-statement-review",
+    title: "Personal Statement Review",
+    headline: "Personal Statement Review",
+    subtitle: "Written Application Feedback",
     category: "Essays",
-    shopGroup: "premium",
-    coins: 250,
+    shopPool: "daily",
+    coins: 175,
+    estimatedValue: 70,
+    description: "Receive detailed written feedback on one personal statement draft. Asynchronous — no live call included.",
+    confirmationDetails:
+      "Includes written feedback on one Common App personal statement draft. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "One Common App personal statement draft",
+    wordLimit: null,
+    exclusions: null,
+    mentorsRequired: 1,
+    similarityGroup: null,
+    iconTone: "blue",
+    tier: "rare",
+    active: true
+  },
+  {
+    id: "activities-list-review",
+    title: "Activities List Review",
+    headline: "Activities List Review",
+    subtitle: "Written Application Feedback",
+    category: "Activities",
+    shopPool: "daily",
+    coins: 150,
+    estimatedValue: 55,
+    description: "Receive written feedback on the complete Common App activities section.",
+    confirmationDetails:
+      "Includes written feedback on the student’s complete Common App activities section. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "Complete Common App activities section",
+    wordLimit: null,
+    exclusions: null,
+    mentorsRequired: 1,
+    similarityGroup: "activities",
+    iconTone: "indigo",
+    tier: "uncommon",
+    active: true
+  },
+  {
+    id: "activities-honors-review",
+    title: "Activities & Honors Review",
+    headline: "Activities & Honors Review",
+    subtitle: "Written Application Feedback",
+    category: "Activities",
+    shopPool: "daily",
+    coins: 200,
+    estimatedValue: 80,
+    description: "Receive detailed written feedback on your complete activities and honors sections.",
+    confirmationDetails:
+      "Includes written feedback on the complete Common App activities and honors sections. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "Complete Common App activities and honors sections",
+    wordLimit: null,
+    exclusions: null,
+    mentorsRequired: 1,
+    similarityGroup: "activities",
+    iconTone: "indigo",
+    tier: "rare",
+    active: true
+  },
+  {
+    id: "college-list-review",
+    title: "College List Review",
+    headline: "College List Review",
+    subtitle: "Written Application Feedback",
+    category: "Planning",
+    shopPool: "daily",
+    coins: 150,
+    estimatedValue: 55,
+    description: "Receive written feedback on the balance, fit, and overall structure of your college list. Written feedback only — not a live consulting call.",
+    confirmationDetails:
+      "Includes written feedback on one current college list (balance, fit, and structure). This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "One current college list",
+    wordLimit: null,
+    exclusions: null,
+    mentorsRequired: 1,
+    similarityGroup: null,
+    iconTone: "amber",
+    tier: "uncommon",
+    active: true
+  },
+  {
+    id: "student-resume-review",
+    title: "Student Résumé Review",
+    headline: "Student Résumé Review",
+    subtitle: "Written Application Feedback",
+    category: "Activities",
+    shopPool: "daily",
+    coins: 150,
+    estimatedValue: 55,
+    description: "Receive detailed written feedback on one college-application résumé.",
+    confirmationDetails:
+      "Includes written feedback on one college-application résumé. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "One college-application résumé",
+    wordLimit: null,
+    exclusions: null,
+    mentorsRequired: 1,
+    similarityGroup: null,
+    iconTone: "blue",
+    tier: "uncommon",
+    active: true
+  },
+  {
+    id: "scholarship-essay-review",
+    title: "Scholarship Essay Review",
+    headline: "Scholarship Essay Review",
+    subtitle: "Written Application Feedback",
+    category: "Essays",
+    shopPool: "daily",
+    coins: 150,
+    estimatedValue: 55,
+    description: "Receive detailed written feedback on one scholarship essay.",
+    confirmationDetails:
+      "Includes written feedback on one scholarship essay, up to 750 words. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "One scholarship essay, up to 750 words",
+    wordLimit: 750,
+    exclusions: null,
+    mentorsRequired: 1,
+    similarityGroup: null,
+    iconTone: "mint",
+    tier: "uncommon",
+    active: true
+  },
+  {
+    id: "sat-act-help-session",
+    title: "SAT/ACT Help Session",
+    headline: "SAT/ACT Help Session",
+    subtitle: "Live 30-minute call",
+    category: "Test Prep",
+    shopPool: "daily",
+    coins: 325,
     estimatedValue: 100,
-    description: "Multiple mentors review key application materials and share coordinated feedback.",
-    iconTone: "peach",
-    tier: "legendary"
+    description: "Meet with a test-prep mentor for a 30-minute live SAT or ACT help session. Subject availability must be confirmed when scheduling.",
+    confirmationDetails:
+      "Includes one 30-minute live SAT or ACT help session. This is a live call (not asynchronous written feedback). Mentor availability must be confirmed when scheduling.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.LIVE_CALL,
+    scope: "One 30-minute live SAT or ACT help session",
+    wordLimit: null,
+    exclusions: null,
+    mentorsRequired: 1,
+    requiresSelection: true,
+    selectionType: "test_prep",
+    similarityGroup: "live_academic",
+    iconTone: "sky",
+    tier: "epic",
+    active: true
+  },
+  {
+    id: "academic-tutoring-session",
+    title: "Academic Tutoring Session",
+    headline: "Academic Tutoring Session",
+    subtitle: "Live 30-minute call",
+    category: "Tutoring",
+    shopPool: "daily",
+    coins: 375,
+    estimatedValue: 115,
+    description: "Meet with a tutor for one 30-minute academic tutoring session. Subject and tutor availability must be confirmed when scheduling.",
+    confirmationDetails:
+      "Includes one 30-minute live academic tutoring session. This is a live call (not asynchronous written feedback). Subject and tutor availability must be confirmed when scheduling.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.LIVE_CALL,
+    scope: "One 30-minute tutoring session in an available academic subject",
+    wordLimit: null,
+    exclusions: null,
+    mentorsRequired: 1,
+    requiresSelection: true,
+    selectionType: "tutoring_subject",
+    similarityGroup: "live_academic",
+    iconTone: "rose",
+    tier: "epic",
+    active: true
+  },
+  {
+    id: "two-mentor-personal-statement",
+    title: "Two-Mentor Personal Statement Review",
+    headline: "Two-Mentor Personal Statement Review",
+    subtitle: "Written Application Feedback",
+    category: "Essays",
+    shopPool: "legendary",
+    coins: 275,
+    estimatedValue: 110,
+    description: "Two Prelude mentors independently review one personal statement and provide detailed written feedback. Asynchronous — no live call included.",
+    confirmationDetails:
+      "Two Prelude mentors independently review one personal statement draft and provide detailed written feedback. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "One personal statement draft",
+    wordLimit: null,
+    exclusions: null,
+    mentorsRequired: 2,
+    similarityGroup: null,
+    iconTone: "mint",
+    tier: "legendary",
+    active: true
+  },
+  {
+    id: "full-written-application-one-college",
+    title: "Full Written Application Review | One College",
+    headline: "Full Written Application Review | One College",
+    subtitle: "Written Application Feedback",
+    category: "Admissions",
+    shopPool: "legendary",
+    coins: 350,
+    estimatedValue: 140,
+    description: "Receive a complete written review of one college’s application materials, excluding the personal statement. Asynchronous — no live call included.",
+    confirmationDetails:
+      "Includes one college’s supplemental essays and the student’s activities, honors, and Additional Information sections. The personal statement is not included. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "One college’s supplemental essays plus activities, honors, and Additional Information",
+    wordLimit: null,
+    exclusions: "Personal statement is not included",
+    mentorsRequired: 1,
+    similarityGroup: null,
+    iconTone: "amber",
+    tier: "legendary",
+    active: true
+  },
+  {
+    id: "two-mentor-supplemental-one-college",
+    title: "Two-Mentor Supplemental Review | One College",
+    headline: "Two-Mentor Supplemental Review | One College",
+    subtitle: "Written Application Feedback",
+    category: "Essays",
+    shopPool: "legendary",
+    coins: 300,
+    estimatedValue: 120,
+    description: "Two Prelude mentors independently review the supplemental essays for one college. Asynchronous — no live call included.",
+    confirmationDetails:
+      "Two Prelude mentors independently review all supplemental essays for one college, up to 750 total words. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "All supplemental essays for one college, up to 750 total words",
+    wordLimit: 750,
+    exclusions: null,
+    mentorsRequired: 2,
+    similarityGroup: null,
+    iconTone: "mint",
+    tier: "legendary",
+    active: true
+  },
+  {
+    id: "complete-activities-honors-resume",
+    title: "Complete Activities, Honors & Résumé Review",
+    headline: "Complete Activities, Honors & Résumé Review",
+    subtitle: "Written Application Feedback",
+    category: "Activities",
+    shopPool: "legendary",
+    coins: 275,
+    estimatedValue: 110,
+    description: "Receive a complete written review of your activities, honors, and college résumé. Asynchronous — no live call included.",
+    confirmationDetails:
+      "Includes a complete written review of the Common App activities section, honors section, and one college-application résumé. This reward is asynchronous and does not include a live call.",
+    fulfillmentType: REWARD_FULFILLMENT_TYPES.ASYNC_WRITTEN,
+    scope: "Complete activities section, honors section, and one college-application résumé",
+    wordLimit: null,
+    exclusions: null,
+    mentorsRequired: 1,
+    similarityGroup: null,
+    iconTone: "indigo",
+    tier: "legendary",
+    active: true
   }
 ];
+
+export const ACTIVE_REWARD_CATALOG = REWARD_CATALOG.filter((r) => r.active !== false);
+
+export function getRewardById(rewardId, catalog = REWARD_CATALOG) {
+  return catalog.find((r) => r.id === rewardId) || null;
+}
+
+export function buildRewardCatalogSnapshot(reward) {
+  if (!reward) return null;
+  return {
+    id: reward.id,
+    title: reward.title,
+    headline: reward.headline,
+    description: reward.description,
+    confirmationDetails: reward.confirmationDetails || reward.description,
+    coinCost: reward.coins,
+    fulfillmentType: reward.fulfillmentType,
+    scope: reward.scope || null,
+    wordLimit: reward.wordLimit ?? null,
+    exclusions: reward.exclusions || null,
+    mentorsRequired: reward.mentorsRequired || 1,
+    subtitle: reward.subtitle || null,
+    tier: reward.tier || null
+  };
+}
 
 export const STATUS_TIERS = STATUS_MILESTONES.map((m, i) => {
   const next = STATUS_MILESTONES[i + 1];
@@ -388,7 +630,8 @@ export const MILESTONE_CATALOG = [
   { id: "academic-improvement", title: "Academic Improvement Logged", category: "academic_tutoring", coins: 30, grades: ALL_GRADES, priority: ALL_GRADES, requiresService: "academicTutoring" }
 ];
 
-export const FEATURED_REWARD_ID = "essay-review-session";
+/** @deprecated Featured reward rotates weekly — use getFeaturedRewardForPeriod / resolveShopOffers. */
+export const FEATURED_REWARD_ID = "two-mentor-personal-statement";
 
 export function parseGradeLevel(gradeLabel = "") {
   const match = String(gradeLabel).match(/(\d+)/);
@@ -459,7 +702,16 @@ export function getTierProgress(coins) {
 }
 
 export function getFeaturedReward(catalog = REWARD_CATALOG) {
-  return catalog.find((r) => r.featured) || catalog[0];
+  const legendary = catalog.filter((r) => r.shopPool === "legendary" && r.active !== false);
+  return legendary[0] || catalog.find((r) => r.featured) || catalog[0];
+}
+
+export function getLegendaryRewardPool(catalog = REWARD_CATALOG) {
+  return catalog.filter((r) => r.shopPool === "legendary" && r.active !== false);
+}
+
+export function getDailyRewardPool(catalog = REWARD_CATALOG) {
+  return catalog.filter((r) => r.shopPool === "daily" && r.active !== false);
 }
 
 export function getNextAffordableReward(coins, redeemed = []) {
@@ -611,7 +863,7 @@ export const MENTOR_MOMENTUM_MODULES = {
     hint: "1 check-in away"
   },
   nextReward: {
-    headline: "FREE Essay Review Session",
+    headline: "Personal Statement Review",
     coinsAway: 60,
     progressPct: 80
   }
@@ -642,17 +894,21 @@ export const MENTOR_MOMENTUM = [
 export const ENGAGEMENT_STREAKS = MENTOR_MOMENTUM;
 
 export const GRID_REWARD_IDS = [
-  "test-prep-help",
+  "personal-statement-review",
   "college-list-review",
   "activities-list-review",
-  "application-strategy-call",
-  "major-career-fit",
-  "mock-interview"
+  "scholarship-essay-review",
+  "sat-act-help-session",
+  "academic-tutoring-session"
 ];
 
-/** Full pool for the 24-hour Reward Shop (excludes featured reward). */
+/** Daily shop pool — never includes legendary featured rewards. */
 export const REWARD_SHOP_POOL_IDS = REWARD_CATALOG
-  .filter((r) => !r.featured)
+  .filter((r) => r.shopPool === "daily" && r.active !== false)
+  .map((r) => r.id);
+
+export const LEGENDARY_REWARD_IDS = REWARD_CATALOG
+  .filter((r) => r.shopPool === "legendary" && r.active !== false)
   .map((r) => r.id);
 
 export const DAILY_MOMENTUM_STREAK = {

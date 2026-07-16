@@ -1,4 +1,4 @@
-import { Crosshair, Mic, Ticket } from "lucide-react";
+import { Crosshair, FileText, Mic, Ticket } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useLanguage } from "../context/LanguageContext.jsx";
@@ -7,7 +7,8 @@ import ScrollReveal from "./motion/ScrollReveal.jsx";
 
 const CARD_ICONS = {
   interview: Mic,
-  testprep: Crosshair
+  testprep: Crosshair,
+  essay: FileText
 };
 
 function CoinMark() {
