@@ -12,7 +12,9 @@ const mentorUser = {
 const studentUser = {
   id: "11111111-1111-1111-1111-111111111111",
   role: "STUDENT",
-  email: "student@example.com"
+  email: "student@example.com",
+  plan: "PLUS",
+  subscriptionStatus: "active"
 };
 
 function mockReq(url, method = "GET", body = null, headers = {}) {
@@ -55,7 +57,7 @@ function futureIso(hoursAhead = 48) {
 }
 
 async function main() {
-  delete process.env.DATABASE_URL;
+  process.env.DATABASE_URL = "";
 
   const startTime = futureIso(72);
   const endTime = futureIso(73);

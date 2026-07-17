@@ -8479,3 +8479,108 @@
     --pw-billing-scale: 1.12;
   }
 }
+
+.dash-no-access {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgb(15 23 42 / 0.45);
+}
+
+.dash-no-access__panel {
+  position: relative;
+  width: min(100%, 26rem);
+  padding: 1.75rem 1.5rem 1.35rem;
+  border-radius: 1.1rem;
+  background: hsl(var(--background));
+  box-shadow: 0 24px 60px rgb(15 23 42 / 0.22);
+  outline: none;
+}
+
+.dash-no-access__close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+
+.dash-no-access__close:hover,
+.dash-no-access__close:focus-visible {
+  background: hsl(var(--muted) / 0.55);
+  color: hsl(var(--foreground));
+}
+
+.dash-no-access__close svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.dash-no-access__copy {
+  padding-right: 1.5rem;
+}
+
+.dash-no-access__title {
+  margin: 0 0 0.55rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: hsl(var(--foreground));
+}
+
+.dash-no-access__subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-no-access__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 1.35rem;
+}
+
+.dash-no-access__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.dash-no-access__cancel {
+  margin-top: 0.15rem;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.dash-no-access__cancel:hover,
+.dash-no-access__cancel:focus-visible {
+  color: hsl(var(--foreground));
+}
+
+.dash-linkish {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--primary));
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

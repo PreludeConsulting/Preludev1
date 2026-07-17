@@ -43,7 +43,7 @@ export function consumePendingBundleIntent() {
   return intent;
 }
 
-export function buildBundleWalletPath({ payment = false, bundleId } = {}) {
+export function buildBundleWalletPath({ payment = false, bundleId, mentorId, mentorUserId } = {}) {
   const base = payment ? "/onboarding/payment" : "/plans";
   const params = new URLSearchParams({
     mode: "bundles",
@@ -52,5 +52,7 @@ export function buildBundleWalletPath({ payment = false, bundleId } = {}) {
   const resolved = bundleId ? resolveBundleId(bundleId) : null;
   if (resolved) params.set("bundle", resolved);
   if (resolved) params.set("details", "open");
+  if (mentorId) params.set("mentor", String(mentorId));
+  if (mentorUserId) params.set("mentorUserId", String(mentorUserId));
   return `${base}?${params.toString()}`;
 }

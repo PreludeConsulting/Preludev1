@@ -758,10 +758,15 @@ export function PlanWalletExperience({
 
     setBusyPlan(selection.bundleId);
     try {
+      const search = new URLSearchParams(location.search);
+      const mentorId = search.get("mentor") || undefined;
+      const mentorUserId = search.get("mentorUserId") || undefined;
       const result = await startBundleCheckout(selection, {
         context: context === "payment" ? "onboarding" : "public",
         guestCheckout:
-          context === "public" && (!isAuthenticated || requiresRealAccount)
+          context === "public" && (!isAuthenticated || requiresRealAccount),
+        ...(mentorId ? { mentorId } : {}),
+        ...(mentorUserId ? { mentorUserId } : {})
       });
       if (result.url) window.location.href = result.url;
     } catch (error) {

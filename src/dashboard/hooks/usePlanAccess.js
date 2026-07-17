@@ -32,13 +32,16 @@ export function usePlanAccess() {
       sessionAllowanceLabel: getSessionAllowanceLabel(plan),
       remainingOneOnOneSessions: (meetings) => getRemainingOneOnOneSessions(plan, meetings),
       sessionCreditBalanceLabel: (meetings) => getSessionCreditBalanceLabel(plan, meetings),
-      canBookSession: (meetings) => canBookWithSessionCredits(plan, meetings),
+      canBookSession: (meetings, mentorAccess = null) => {
+        if (mentorAccess && typeof mentorAccess.allowed === "boolean") return mentorAccess.allowed;
+        return canBookWithSessionCredits(plan, meetings, user);
+      },
       monthlyApplicationReviewLimit: getMonthlyApplicationReviewLimit(plan),
       applicationReviewAllowanceLabel: getApplicationReviewAllowanceLabel(plan),
       remainingApplicationReviews: (reviews) => getRemainingApplicationReviews(plan, reviews),
       applicationReviewBalanceLabel: (reviews) => getApplicationReviewBalanceLabel(plan, reviews),
       canSubmitReview: (reviews) => canSubmitApplicationReview(plan, reviews)
     }),
-    [plan, planDetails.name]
+    [plan, planDetails.name, user]
   );
 }

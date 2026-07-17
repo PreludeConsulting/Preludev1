@@ -1,11 +1,20 @@
 import { z } from "zod";
 import { db } from "../authApi.js";
+import { PrismaClient } from "@prisma/client";
 import {
   createMeetingRecord,
   findMeetingByIdempotencyKey,
   getMeetingById,
+  listMeetingsForUser,
   updateMeetingRecord
 } from "./meetingStore.js";
+import {
+  assertMentorRequestAccess,
+  canRequestMentor,
+  releasePackageSession,
+  reserveAccessForMeeting
+} from "./mentorAccess.js";
+import { isDatabaseUnavailableError } from "./dbErrors.js";
 
 const meetingTypeSchema = z.enum(["zoom", "google_meet", "in_person", "phone"]);
 const meetingStatusSchema = z.enum(["scheduled", "pending", "approved", "declined", "canceled", "rescheduled"]);
@@ -41,6 +50,15 @@ const updateMeetingSchema = z.object({
   isPrivate: z.boolean().optional(),
   zoomJoinUrl: zoomJoinUrlSchema
 });
+
+function prismaClient() {
+  if (!globalThis.__preludePrisma) globalThis.__preludePrisma = new PrismaClient();
+  return globalThis.__preludePrisma;
+}
+
+function canUsePrisma() {
+  return Boolean(process.env.DATABASE_URL);
+}
 
 function userFacingError(message, statusCode = 400, code = "validation_error") {
   const error = new Error(message);
@@ -176,6 +194,15 @@ function normalizeCreatePayload(body, user) {
   return payload;
 }
 
+function isStudentMentorRequest(role, payload) {
+  return role === "STUDENT" && (payload.status === "pending" || payload.status === "scheduled");
+}
+
+function shouldReleasePackageOnStatus(nextStatus) {
+  const status = String(nextStatus || "").toLowerCase();
+  return status === "canceled" || status === "cancelled" || status === "declined";
+}
+
 export async function scheduleMeeting(body, user, req) {
   const parsed = createMeetingSchema.parse(body);
   validateTimes(parsed.startTime, parsed.endTime);
@@ -199,10 +226,69 @@ export async function scheduleMeeting(body, user, req) {
     studentUserId: payload.studentUserId
   });
 
-  return createMeetingRecord({
-    ...payload,
-    idempotencyKey: idempotencyKey ? String(idempotencyKey) : null
-  });
+  const role = user.role?.toUpperCase();
+  let accessType = null;
+  let sessionPackageId = null;
+
+  if (isStudentMentorRequest(role, payload)) {
+    const studentMeetings = await listMeetingsForUser({
+      userId: payload.studentUserId || user.id,
+      role: "STUDENT"
+    });
+    const access = await assertMentorRequestAccess({
+      studentUserId: payload.studentUserId || user.id,
+      mentorUserId: payload.mentorUserId || null,
+      user,
+      meetings: studentMeetings
+    });
+
+    if (canUsePrisma()) {
+      try {
+        return await prismaClient().$transaction(async (tx) => {
+          const reserved = await reserveAccessForMeeting({
+            access,
+            studentUserId: payload.studentUserId || user.id,
+            mentorUserId: payload.mentorUserId || null,
+            tx
+          });
+          return createMeetingRecord(
+            {
+              ...payload,
+              idempotencyKey: idempotencyKey ? String(idempotencyKey) : null,
+              accessType: reserved.accessType,
+              sessionPackageId: reserved.sessionPackageId
+            },
+            { tx }
+          );
+        });
+      } catch (error) {
+        if (error.statusCode || error.code === "NO_MENTOR_ACCESS") throw error;
+        if (!isDatabaseUnavailableError(error)) throw error;
+      }
+    }
+
+    const reserved = await reserveAccessForMeeting({
+      access,
+      studentUserId: payload.studentUserId || user.id,
+      mentorUserId: payload.mentorUserId || null
+    });
+    accessType = reserved.accessType;
+    sessionPackageId = reserved.sessionPackageId;
+  }
+
+  try {
+    return await createMeetingRecord({
+      ...payload,
+      idempotencyKey: idempotencyKey ? String(idempotencyKey) : null,
+      accessType,
+      sessionPackageId
+    });
+  } catch (error) {
+    if (sessionPackageId) {
+      await releasePackageSession({ packageId: sessionPackageId }).catch(() => {});
+    }
+    throw error;
+  }
 }
 
 export async function updateScheduledMeeting(id, body, user) {
@@ -241,11 +327,21 @@ export async function updateScheduledMeeting(id, body, user) {
     });
   }
 
+  const releasingPackage =
+    existing.accessType === "session_package" &&
+    existing.sessionPackageId &&
+    shouldReleasePackageOnStatus(nextStatus) &&
+    !shouldReleasePackageOnStatus(existing.status);
+
   let meeting = await updateMeetingRecord(id, {
     ...parsed,
     status: nextStatus,
     zoomJoinUrl: parsed.zoomJoinUrl !== undefined ? nextZoomJoinUrl : undefined
   });
+
+  if (releasingPackage) {
+    await releasePackageSession({ packageId: existing.sessionPackageId });
+  }
 
   if (!isVideoMeetingType(nextMeetingType)) {
     meeting = await updateMeetingRecord(id, {
@@ -264,5 +360,6 @@ export {
   updateMeetingSchema,
   isValidZoomJoinUrl,
   isValidGoogleMeetJoinUrl,
-  isValidMeetingJoinUrl
+  isValidMeetingJoinUrl,
+  canRequestMentor
 };

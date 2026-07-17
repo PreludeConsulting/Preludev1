@@ -31,6 +31,8 @@ import {
   invoiceHasReferralDiscount,
   invoiceIsQualifyingFirstPayment
 } from "./lib/referralStripe.js";
+import { creditSessionPackagePurchase } from "./lib/mentorAccess.js";
+import { fulfillFlexibleSessionCheckout } from "./lib/sessionPackageFulfillment.js";
 
 const checkoutSchema = z.object({
   planId: z.enum(["basic", "plus", "pro"]),
@@ -51,7 +53,9 @@ const bundleCheckoutSchema = z.object({
   services: z.record(z.boolean()).optional(),
   sessionUses: z.record(z.boolean()).optional(),
   guestCheckout: z.boolean().optional(),
-  context: z.enum(["onboarding", "public"]).optional()
+  context: z.enum(["onboarding", "public"]).optional(),
+  mentorId: z.string().trim().max(80).optional(),
+  mentorUserId: z.string().uuid().optional()
 });
 
 const confirmSessionSchema = z.object({
@@ -286,7 +290,9 @@ async function handleBundleCheckout(req, res) {
     ...serializeBundleMetadata(quote),
     ...(authUser
       ? { userId: authUser.userId, checkoutContext: payload.context || "public" }
-      : { checkoutMode: "guest_test" })
+      : { checkoutMode: "guest_test" }),
+    ...(payload.mentorUserId ? { mentorUserId: payload.mentorUserId } : {}),
+    ...(payload.mentorId ? { mentorId: payload.mentorId } : {})
   };
 
   const session = await stripe.checkout.sessions.create({
@@ -325,6 +331,7 @@ async function handleConfirmSession(req, res) {
   }
 
   await syncSupabaseCheckoutSession(session);
+  await fulfillFlexibleSessionCheckout(session, creditSessionPackagePurchase);
   sendJson(res, 200, {
     confirmed: true,
     planId: session.metadata?.planId || null,
@@ -447,6 +454,7 @@ async function processWebhookEvent(event) {
   }
   if (event.type === "checkout.session.completed") {
     await syncSupabaseCheckoutSession(object);
+    await fulfillFlexibleSessionCheckout(object, creditSessionPackagePurchase);
     const userId = object.metadata?.userId || object.client_reference_id;
     const customerId = stripeObjectId(object.customer);
     const subscriptionId = stripeObjectId(object.subscription);

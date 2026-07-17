@@ -543,6 +543,33 @@ async function processWebhookEvent(context, event) {
 
   if (event.type === "checkout.session.completed") {
     await syncCheckoutSession(context, object);
+    const { fulfillFlexibleSessionCheckout } = await import("../../server/lib/sessionPackageFulfillment.js");
+    const credit = await fulfillFlexibleSessionCheckout(object, async (payload) => {
+      // Prefer Supabase REST so Workers can write without Prisma.
+      const existing = payload.stripeCheckoutSessionId
+        ? await supabaseRest(
+            context,
+            `session_package_purchases?stripe_checkout_session_id=eq.${encodeURIComponent(payload.stripeCheckoutSessionId)}&select=id`,
+            { method: "GET", prefer: "return=representation" }
+          )
+        : null;
+      if (Array.isArray(existing) && existing.length) return existing[0];
+
+      const inserted = await supabaseRest(context, "session_package_purchases", {
+        method: "POST",
+        body: {
+          student_user_id: payload.studentUserId,
+          mentor_user_id: payload.mentorUserId || null,
+          bundle_id: payload.bundleId,
+          stripe_checkout_session_id: payload.stripeCheckoutSessionId,
+          sessions_purchased: payload.sessionsPurchased,
+          sessions_remaining: payload.sessionsPurchased,
+          status: "active"
+        }
+      });
+      return Array.isArray(inserted) ? inserted[0] : inserted;
+    });
+    void credit;
   }
 
   const invoiceSubscriptionId = stripeObjectId(object.subscription) ||
@@ -729,6 +756,8 @@ export async function handleBillingBundleCheckout(context) {
   const purchaseKey = `bundle_${quote.selection.bundleId}`;
   const { successUrl, cancelUrl } = checkoutResultUrls(baseUrl, purchaseKey, checkoutContext);
   const metadata = serializeBundleMetadata(quote);
+  if (payload.mentorUserId) metadata.mentorUserId = String(payload.mentorUserId);
+  if (payload.mentorId) metadata.mentorId = String(payload.mentorId);
 
   const params = new URLSearchParams();
   params.set("mode", "payment");

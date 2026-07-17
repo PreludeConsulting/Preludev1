@@ -1693,14 +1693,22 @@ export function StudentMentor() {
     pendingMeetingRequests,
     scheduleMeeting,
     persistCalendarItem,
-    scheduleEventReminder
+    scheduleEventReminder,
+    mentorAccess,
+    openNoMentorAccessModal
   } =
     useDashboardData();
-  const { canAccess, canBookSession } = usePlanAccess();
+  const { canAccess, canBookSession, sessionCreditBalanceLabel } = usePlanAccess();
   const [bookingError, setBookingError] = useState("");
+  const [bookingBusy, setBookingBusy] = useState(false);
   const m = mentor;
   const creditMeetings = [...(meetings || []), ...(pendingMeetingRequests || [])];
-  const canBook = canBookSession(creditMeetings);
+  const canBook = canBookSession(creditMeetings, mentorAccess);
+  const remainingLabel =
+    mentorAccess && typeof mentorAccess.remainingSessions === "number"
+      ? `${mentorAccess.remainingSessions} session${mentorAccess.remainingSessions === 1 ? "" : "s"} remaining`
+      : sessionCreditBalanceLabel(creditMeetings);
+  const showBookingSurface = canAccess("oneOnOneSessions") || Boolean(mentorAccess?.packageRemaining > 0);
   const upcoming = [...(meetings || [])]
     .filter((meeting) => meeting.status !== "pending")
     .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
@@ -1810,21 +1818,39 @@ export function StudentMentor() {
         </SectionCard>
 
         <SectionCard title="Book a Session" className="dash-panel dash-mentor-sessions-grid__schedule" id="mentor-schedule">
-          {canAccess("oneOnOneSessions") ? (
+          {showBookingSurface ? (
             <>
-              <p className="dash-muted">
-                Booking with your assigned mentor{m.name ? `, ${m.name}` : ""}.
-              </p>
+              <div className="dash-plan-session-banner">
+                <p className="dash-plan-session-banner__label">
+                  Booking with your assigned mentor{m.name ? `, ${m.name}` : ""}.
+                </p>
+                {remainingLabel ? (
+                  <span className="dash-plan-session-banner__pill">{remainingLabel}</span>
+                ) : null}
+              </div>
 
               {!canBook ? (
                 <p className="dash-plan-session-banner__meta" role="alert">
-                  Session booking is temporarily unavailable. Message your mentor, or check back soon.
+                  No sessions remaining with this mentor.{" "}
+                  <button
+                    type="button"
+                    className="dash-linkish"
+                    onClick={() => openNoMentorAccessModal?.()}
+                  >
+                    Purchase sessions or view subscription
+                  </button>
                 </p>
               ) : null}
 
               {bookingError ? (
                 <p className="dash-plan-session-banner__meta" role="alert">
                   {bookingError}
+                </p>
+              ) : null}
+
+              {bookingBusy ? (
+                <p className="dash-plan-session-banner__meta" aria-live="polite">
+                  Checking access…
                 </p>
               ) : null}
 
@@ -1838,16 +1864,26 @@ export function StudentMentor() {
                   meetingRequestMode
                   onRequestMeeting={async (payload) => {
                     setBookingError("");
-                    return scheduleMeeting({
-                      ...payload,
-                      status: "pending",
-                      sessionCategory: "college-consulting",
-                      mentorId: m.id || payload.mentorId,
-                      mentorUserId: m.userId || m.mentorUserId || payload.mentorUserId,
-                      title: payload.title || "Mentor session",
-                      pillColor: payload.pillColor || payload.calendarColor,
-                      reminderMinutes: payload.reminderMinutes
-                    });
+                    setBookingBusy(true);
+                    try {
+                      return await scheduleMeeting({
+                        ...payload,
+                        status: "pending",
+                        sessionCategory: "college-consulting",
+                        mentorId: m.id || payload.mentorId,
+                        mentorUserId: m.userId || m.mentorUserId || payload.mentorUserId,
+                        title: payload.title || "Mentor session",
+                        pillColor: payload.pillColor || payload.calendarColor,
+                        reminderMinutes: payload.reminderMinutes
+                      });
+                    } catch (error) {
+                      if (error?.code !== "NO_MENTOR_ACCESS" && error?.payload?.code !== "NO_MENTOR_ACCESS") {
+                        setBookingError(error?.message || "Could not send meeting request.");
+                      }
+                      throw error;
+                    } finally {
+                      setBookingBusy(false);
+                    }
                   }}
                   onSave={async (saved) => {
                     const stored = await persistCalendarItem(saved);

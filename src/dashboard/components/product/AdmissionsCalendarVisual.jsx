@@ -676,7 +676,7 @@ export default function AdmissionsCalendarVisual({
   const { showToast, flashEvent, highlightEventId } = useInteractionFeedback();
   const { play, SOUND_EVENTS } = useInterfaceSound();
   const isMentorCalendar = role === "mentor" || mentorView;
-  const { plan } = usePlanAccess();
+  const { plan, canBookSession } = usePlanAccess();
   const {
     scheduleEventReminder,
     cancelEventReminder,
@@ -688,14 +688,18 @@ export default function AdmissionsCalendarVisual({
     isParentStudentView,
     mentorViewStudent,
     parentViewStudent,
-    mentor
+    mentor,
+    mentorAccess,
+    openNoMentorAccessModal
   } = useDashboardData();
+  const canRequestMentorSessions =
+    canBookSession([], mentorAccess) || plan === "plus" || plan === "pro" || Boolean(mentorAccess?.packageRemaining > 0);
   const createOptions = useMemo(() => {
     if (isMentorCalendar || isMentorStudentView) return CREATE_OPTIONS;
-    if (plan === "basic") return TASK_ONLY_CREATE_OPTIONS;
-    // Plus and Pro: Event (mentor review) + Task
+    if (!canRequestMentorSessions && plan === "basic") return TASK_ONLY_CREATE_OPTIONS;
+    // Plus and Pro (or purchased sessions): Event (mentor review) + Task
     return CREATE_OPTIONS;
-  }, [isMentorCalendar, isMentorStudentView, plan]);
+  }, [isMentorCalendar, isMentorStudentView, canRequestMentorSessions, plan]);
   const activeStudent = mentorViewStudent || parentViewStudent || students.find((item) => item.id === defaultStudentId);
   const calendarRole = isMentorStudentView ? "mentor" : role;
   const isGuardianStudentView = isMentorStudentView || isParentStudentView;
@@ -1216,20 +1220,27 @@ export default function AdmissionsCalendarVisual({
           !isGuardianStudentView &&
           calendarRole === "student" &&
           Boolean(createDraft?.formVariant === "event" && !editDraft) &&
-          (plan === "plus" || plan === "pro")
+          canRequestMentorSessions
         }
-        onRequestMeeting={(payload) =>
-          scheduleMeeting({
-            ...payload,
-            status: "pending",
-            sessionCategory: "college-consulting",
-            mentorId: mentor?.id || payload.mentorId,
-            mentorUserId: mentor?.userId || mentor?.mentorUserId || payload.mentorUserId,
-            title: payload.title || "Mentor session",
-            pillColor: payload.pillColor || payload.calendarColor,
-            reminderMinutes: payload.reminderMinutes
-          })
-        }
+        onRequestMeeting={async (payload) => {
+          try {
+            return await scheduleMeeting({
+              ...payload,
+              status: "pending",
+              sessionCategory: "college-consulting",
+              mentorId: mentor?.id || payload.mentorId,
+              mentorUserId: mentor?.userId || mentor?.mentorUserId || payload.mentorUserId,
+              title: payload.title || "Mentor session",
+              pillColor: payload.pillColor || payload.calendarColor,
+              reminderMinutes: payload.reminderMinutes
+            });
+          } catch (error) {
+            if (error?.code === "NO_MENTOR_ACCESS" || error?.payload?.code === "NO_MENTOR_ACCESS") {
+              openNoMentorAccessModal?.();
+            }
+            throw error;
+          }
+        }}
         onSave={handleSaveLocalEvent}
       />
     </div>

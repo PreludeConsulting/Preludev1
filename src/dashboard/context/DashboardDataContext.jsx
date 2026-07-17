@@ -32,9 +32,14 @@ import {
 import {
   canBookWithSessionCredits,
   canSubmitApplicationReview,
-  getMonthlyOneOnOneLimit,
   getUserPlan
 } from "../../lib/planFeatures.js";
+import {
+  evaluateMentorAccess,
+  isNoMentorAccessError,
+  NO_MENTOR_ACCESS_CODE
+} from "../../../shared/mentorAccess.js";
+import NoMentorAccessModal from "../components/product/NoMentorAccessModal.jsx";
 import {
   APPLICATION_REVIEW_STATUS,
   createApplicationReviewRequest,
@@ -328,6 +333,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   });
   const [meetings, setMeetings] = useState([]);
   const [pendingMeetingRequests, setPendingMeetingRequests] = useState([]);
+  const [mentorAccess, setMentorAccess] = useState(null);
+  const [noMentorAccessOpen, setNoMentorAccessOpen] = useState(false);
   const [applicationReviews, setApplicationReviews] = useState([]);
   const [resolvedPendingRequestIds, setResolvedPendingRequestIds] = useState([]);
   const [events, setEvents] = useState([]);
@@ -470,6 +477,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setMentor(data.mentor);
         setMentors(data.mentors || []);
         setMeetings(data.meetings || []);
+        if (appData.mentorAccess) setMentorAccess(appData.mentorAccess);
         setEvents((data.events || []).filter((e) => !e.userCreated));
         setUserCalendarEvents((data.events || []).filter((e) => e.userCreated));
         setMessages(data.messages || []);
@@ -538,6 +546,13 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setMeetings(split.scheduled);
       setPendingMeetingRequests(split.pending);
       setApiDemo(localDemo);
+      setMentorAccess(
+        evaluateMentorAccess({
+          user,
+          meetings: [...(split.scheduled || []), ...(split.pending || [])],
+          packages: localDemo.sessionPackages || []
+        })
+      );
       setSyncStatus("synced");
       setDashboardSyncState(createSyncState({
         status: SYNC_STATUS.SAVED,
@@ -555,6 +570,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setMeetings(split.scheduled);
       setPendingMeetingRequests(split.pending);
       setNotifications(data.notifications || []);
+      if (data.mentorAccess) setMentorAccess(data.mentorAccess);
       setApiDemo(data.demo || null);
       setDashboardSyncState(createSyncState({
         status: SYNC_STATUS.SAVED,
@@ -701,14 +717,19 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
   const scheduleMeeting = useCallback(
     async (payload) => {
-      const planId = getUserPlan(user);
       const creditMeetings = [...(meetings || []), ...(pendingMeetingRequests || [])];
-      if (!canBookWithSessionCredits(planId, creditMeetings)) {
-        throw new Error(
-          getMonthlyOneOnOneLimit(planId)
-            ? "No session credits remaining this month. Upgrade your plan or wait for your next billing cycle."
-            : "Flexible 1-on-1 sessions require Plus or Pro."
+      const allowed = mentorAccess
+        ? mentorAccess.allowed
+        : canBookWithSessionCredits(getUserPlan(user), creditMeetings, user);
+
+      if (!allowed) {
+        setNoMentorAccessOpen(true);
+        const error = new Error(
+          "You need an available session or an active subscription to request this mentor."
         );
+        error.code = NO_MENTOR_ACCESS_CODE;
+        error.payload = { code: NO_MENTOR_ACCESS_CODE, error: NO_MENTOR_ACCESS_CODE };
+        throw error;
       }
 
       const enrichedPayload = {
@@ -750,7 +771,27 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
               { idempotencyKey: clientRequestId }
             );
             stored = attachRequestMeta(meeting);
-          } catch {
+            if (mentorAccess) {
+              setMentorAccess((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      remainingSessions: Math.max(0, (prev.remainingSessions || 1) - 1),
+                      ...(meeting.accessType === "session_package"
+                        ? { packageRemaining: Math.max(0, (prev.packageRemaining || 1) - 1) }
+                        : {
+                            subscriptionRemaining: Math.max(0, (prev.subscriptionRemaining || 1) - 1)
+                          })
+                    }
+                  : prev
+              );
+            }
+          } catch (error) {
+            if (isNoMentorAccessError(error)) {
+              setNoMentorAccessOpen(true);
+              throw error;
+            }
+            // Offline / demo fallback only when the API is unreachable — not for access denials.
             stored = attachRequestMeta({
               id: clientRequestId || `req-${Date.now()}`,
               title: enrichedPayload.title || "Mentor session",
@@ -808,33 +849,66 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         return stored;
       }
 
-      const { meeting } = await apiCreateMeeting(
-        { ...enrichedPayload, clientRequestId },
-        { idempotencyKey: clientRequestId }
-      );
-      const stored = attachRequestMeta(meeting);
+      try {
+        const { meeting } = await apiCreateMeeting(
+          { ...enrichedPayload, clientRequestId },
+          { idempotencyKey: clientRequestId }
+        );
+        const stored = attachRequestMeta(meeting);
 
-      if (isPending || stored.status === "pending") {
-        setPendingMeetingRequests((prev) => [...prev, stored]);
+        if (mentorAccess) {
+          setMentorAccess((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  remainingSessions: Math.max(0, (prev.remainingSessions || 1) - 1),
+                  ...(meeting.accessType === "session_package"
+                    ? { packageRemaining: Math.max(0, (prev.packageRemaining || 1) - 1) }
+                    : {
+                        subscriptionRemaining: Math.max(0, (prev.subscriptionRemaining || 1) - 1)
+                      })
+                }
+              : prev
+          );
+        }
+
+        if (isPending || stored.status === "pending") {
+          setPendingMeetingRequests((prev) => [...prev, stored]);
+          addNotification({
+            title: "Meeting request sent",
+            body: "Your mentor will review your request and confirm the meeting time.",
+            unread: true
+          });
+          return stored;
+        }
+
+        setMeetings((prev) => [...prev, stored]);
         addNotification({
-          title: "Meeting request sent",
-          body: "Your mentor will review your request and confirm the meeting time.",
+          title: "Meeting confirmed",
+          body: stored.zoomJoinUrl
+            ? `${stored.title} is scheduled. Join link: ${stored.zoomJoinUrl}`
+            : `${stored.title} is scheduled.`,
           unread: true
         });
         return stored;
+      } catch (error) {
+        if (isNoMentorAccessError(error)) {
+          setNoMentorAccessOpen(true);
+        }
+        throw error;
       }
-
-      setMeetings((prev) => [...prev, stored]);
-      addNotification({
-        title: "Meeting confirmed",
-        body: stored.zoomJoinUrl
-          ? `${stored.title} is scheduled. Join link: ${stored.zoomJoinUrl}`
-          : `${stored.title} is scheduled.`,
-        unread: true
-      });
-      return stored;
     },
-    [addNotification, meetings, mentor?.id, mentor?.userId, pendingMeetingRequests, useSupabase, user]
+    [
+      addNotification,
+      meetings,
+      mentor?.id,
+      mentor?.userId,
+      mentor?.mentorUserId,
+      mentorAccess,
+      pendingMeetingRequests,
+      useSupabase,
+      user
+    ]
   );
 
   const submitApplicationReview = useCallback(
@@ -1916,6 +1990,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       ].filter((request) => !resolvedPendingRequestIds.includes(request.id)),
       availability: demo?.availability ?? availability,
       rewardsData,
+      mentorAccess,
+      openNoMentorAccessModal: () => setNoMentorAccessOpen(true),
+      closeNoMentorAccessModal: () => setNoMentorAccessOpen(false),
       syncStatus,
       syncError,
       saveAvailability: isGuardianViewMode ? async () => null : saveAvailability,
@@ -1984,6 +2061,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       userCalendarEvents,
       availability,
       rewardsData,
+      mentorAccess,
       syncStatus,
       syncError,
       studentSyncTick,
@@ -2040,7 +2118,17 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     ]
   );
 
-  return <DashboardDataContext.Provider value={value}>{children}</DashboardDataContext.Provider>;
+  return (
+    <DashboardDataContext.Provider value={value}>
+      {children}
+      <NoMentorAccessModal
+        open={noMentorAccessOpen}
+        onClose={() => setNoMentorAccessOpen(false)}
+        mentorId={mentor?.id || null}
+        mentorUserId={mentor?.userId || mentor?.mentorUserId || null}
+      />
+    </DashboardDataContext.Provider>
+  );
 }
 
 export function useDashboardData() {

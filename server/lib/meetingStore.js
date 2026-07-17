@@ -55,7 +55,9 @@ function toRecord(row) {
     status: row.status || "pending",
     notes: row.notes || "",
     isPrivate: Boolean(row.isPrivate),
-    idempotencyKey: row.idempotencyKey ?? null
+    idempotencyKey: row.idempotencyKey ?? null,
+    accessType: row.accessType ?? null,
+    sessionPackageId: row.sessionPackageId ?? null
   };
 }
 
@@ -77,7 +79,9 @@ function fromPayload(payload) {
     status: payload.status || "pending",
     notes: payload.notes || "",
     isPrivate: Boolean(payload.isPrivate),
-    idempotencyKey: payload.idempotencyKey ?? null
+    idempotencyKey: payload.idempotencyKey ?? null,
+    accessType: payload.accessType ?? null,
+    sessionPackageId: payload.sessionPackageId ?? null
   };
 }
 
@@ -139,15 +143,16 @@ export async function listMeetingsForUser({ userId, role }) {
     .map(toRecord);
 }
 
-export async function createMeetingRecord(payload) {
+export async function createMeetingRecord(payload, { tx = null } = {}) {
   const data = fromPayload(payload);
+  const client = tx || (canUsePrisma() ? prismaClient() : null);
 
-  if (canUsePrisma()) {
+  if (client) {
     try {
-      const row = await prismaClient().meeting.create({ data });
+      const row = await client.meeting.create({ data });
       return toRecord(row);
     } catch (error) {
-      if (!isDatabaseUnavailableError(error)) throw error;
+      if (tx || !isDatabaseUnavailableError(error)) throw error;
     }
   }
 
@@ -176,7 +181,9 @@ export async function updateMeetingRecord(id, patch) {
           ...(patch.zoomJoinUrl !== undefined ? { zoomJoinUrl: patch.zoomJoinUrl } : {}),
           ...(patch.zoomHostUrl !== undefined ? { zoomHostUrl: patch.zoomHostUrl } : {}),
           ...(patch.zoomPassword !== undefined ? { zoomPassword: patch.zoomPassword } : {}),
-          ...(patch.isPrivate !== undefined ? { isPrivate: patch.isPrivate } : {})
+          ...(patch.isPrivate !== undefined ? { isPrivate: patch.isPrivate } : {}),
+          ...(patch.accessType !== undefined ? { accessType: patch.accessType } : {}),
+          ...(patch.sessionPackageId !== undefined ? { sessionPackageId: patch.sessionPackageId } : {})
         }
       });
       return toRecord(row);

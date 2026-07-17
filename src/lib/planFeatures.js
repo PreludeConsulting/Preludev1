@@ -1,5 +1,6 @@
 import { getPlan, normalizePlanId } from "./plans.js";
 import { appPath } from "./appPaths.js";
+import { hasActiveMentorSubscription } from "../../shared/mentorAccess.js";
 
 export const PLAN_TIERS = ["basic", "plus", "pro"];
 
@@ -235,7 +236,10 @@ export function getRemainingOneOnOneSessions(planId, meetings = []) {
   return Math.max(0, limit - used);
 }
 
-export function canBookWithSessionCredits(planId, meetings = []) {
+export function canBookWithSessionCredits(planId, meetings = [], user = null) {
+  if (user && !hasActiveMentorSubscription({ ...user, plan: planId || user.plan })) {
+    return false;
+  }
   const limit = getMonthlyOneOnOneLimit(planId);
   if (!limit) return false;
   return getRemainingOneOnOneSessions(planId, meetings) > 0;

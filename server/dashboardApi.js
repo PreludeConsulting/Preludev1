@@ -50,12 +50,22 @@ export function createDashboardApiMiddleware(getSession) {
       if (url.pathname === "/api/dashboard/app-data" && req.method === "GET") {
         const storedMeetings = await listMeetingsForUser({ userId: user.id, role });
         const meetings = storedMeetings.map((m) => sanitizeMeetingForRole(m, role));
+        let mentorAccess = null;
+        if (String(role || "").toUpperCase() === "STUDENT") {
+          const { canRequestMentor } = await import("./lib/mentorAccess.js");
+          mentorAccess = await canRequestMentor({
+            studentId: user.id,
+            user,
+            meetings: storedMeetings
+          });
+        }
         return sendJson(res, 200, {
           role,
           user,
           integrations: readIntegrations(user.id),
           meetings,
-          notifications: []
+          notifications: [],
+          mentorAccess
         });
       }
 
@@ -122,6 +132,7 @@ export function createDashboardApiMiddleware(getSession) {
       logAuthApiError(error, formatted);
       return sendJson(res, formatted.statusCode, {
         error: formatted.error,
+        ...(formatted.code ? { code: formatted.code } : {}),
         message: formatted.message
       });
     }

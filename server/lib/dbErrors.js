@@ -37,17 +37,20 @@ export function formatAuthApiError(error) {
 
   const statusCode = error?.statusCode || 500;
   const isServerError = statusCode >= 500;
+  const customCode = typeof error?.code === "string" && error.code.trim() ? error.code.trim() : null;
 
   return {
     statusCode,
     error:
-      statusCode === 401
+      customCode ||
+      (statusCode === 401
         ? "unauthenticated"
         : statusCode === 403
           ? "forbidden"
           : isServerError
             ? "server_error"
-            : "request_failed",
+            : "request_failed"),
+    code: customCode || undefined,
     message:
       isServerError && isProduction()
         ? "Something went wrong. Please try again later."
