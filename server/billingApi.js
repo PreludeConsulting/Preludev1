@@ -33,6 +33,17 @@ import {
 } from "./lib/referralStripe.js";
 import { creditSessionPackagePurchase } from "./lib/mentorAccess.js";
 import { fulfillFlexibleSessionCheckout } from "./lib/sessionPackageFulfillment.js";
+import {
+  cancelMembershipAtPeriodEnd,
+  claimBillingWebhookEvent,
+  getBillingSummary,
+  listBillingPurchases,
+  reactivateMembershipRenewal,
+  recordPurchaseFromCheckoutSession,
+  recordPurchaseFromInvoice,
+  resolveBillingContext
+} from "./lib/billingMembership.js";
+import { logBillingEvent } from "../shared/billingMembership.js";
 
 const checkoutSchema = z.object({
   planId: z.enum(["basic", "plus", "pro"]),
@@ -60,6 +71,11 @@ const bundleCheckoutSchema = z.object({
 
 const confirmSessionSchema = z.object({
   sessionId: z.string().trim().min(1)
+});
+
+const historyQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional()
 });
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
@@ -118,7 +134,11 @@ function isBillingPath(pathname) {
     pathname === "/api/billing/bundle-checkout" ||
     pathname === "/api/billing/confirm-session" ||
     pathname === "/api/billing/portal" ||
-    pathname === "/api/billing/webhook"
+    pathname === "/api/billing/webhook" ||
+    pathname === "/api/billing/summary" ||
+    pathname === "/api/billing/history" ||
+    pathname === "/api/billing/cancel" ||
+    pathname === "/api/billing/reactivate"
   );
 }
 
@@ -332,6 +352,11 @@ async function handleConfirmSession(req, res) {
 
   await syncSupabaseCheckoutSession(session);
   await fulfillFlexibleSessionCheckout(session, creditSessionPackagePurchase);
+  try {
+    await recordPurchaseFromCheckoutSession(session);
+  } catch (error) {
+    console.error("[prelude-billing] confirm-session purchase history failed", error.message);
+  }
   sendJson(res, 200, {
     confirmed: true,
     planId: session.metadata?.planId || null,
@@ -339,23 +364,85 @@ async function handleConfirmSession(req, res) {
   });
 }
 
+async function resolveStripeCustomerIdForUser(userId) {
+  const ctx = await resolveBillingContext(userId);
+  return (
+    ctx.subscriber?.stripe_customer_id ||
+    ctx.viewer?.stripe_customer_id ||
+    null
+  );
+}
+
 async function handlePortal(req, res) {
   const config = getBillingConfig();
   if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
 
-  const auth = await requireAuth(req);
-  requireCsrf(req);
-  if (!auth.user.stripeCustomerId) {
-    return sendJson(res, 400, { error: "billing_customer_missing", message: "No billing profile exists for this account yet." });
+  let userId = null;
+  let customerId = null;
+  try {
+    const { user } = await requireSupabaseUser(req);
+    userId = user.id;
+    customerId = await resolveStripeCustomerIdForUser(user.id);
+  } catch {
+    const auth = await requireAuth(req);
+    requireCsrf(req);
+    userId = auth.user.id;
+    customerId = auth.user.stripeCustomerId || null;
+  }
+
+  if (!customerId) {
+    return sendJson(res, 400, {
+      error: "billing_customer_missing",
+      message: "No billing profile exists for this account yet."
+    });
   }
 
   const stripe = getStripeClient(config);
+  const returnPath = String(req.headers.referer || "").includes("/settings")
+    ? "/dashboard/student/settings#billing"
+    : "/dashboard/student/billing";
   const session = await stripe.billingPortal.sessions.create({
-    customer: auth.user.stripeCustomerId,
-    return_url: `${getAppBaseUrl(req)}/dashboard`
+    customer: customerId,
+    return_url: `${getAppBaseUrl(req)}${returnPath}`
   });
 
+  logBillingEvent("portal_opened", { userId });
   sendJson(res, 200, { url: session.url });
+}
+
+async function handleSummary(req, res) {
+  const { user } = await requireSupabaseUser(req);
+  const summary = await getBillingSummary(user.id);
+  return sendJson(res, 200, summary);
+}
+
+async function handleHistory(req, res) {
+  const { user } = await requireSupabaseUser(req);
+  const url = new URL(req.url, "http://localhost");
+  const query = historyQuerySchema.parse({
+    limit: url.searchParams.get("limit") || undefined,
+    offset: url.searchParams.get("offset") || undefined
+  });
+  const history = await listBillingPurchases(user.id, query);
+  return sendJson(res, 200, history);
+}
+
+async function handleCancel(req, res) {
+  const { user } = await requireSupabaseUser(req);
+  const config = getBillingConfig();
+  if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
+  const stripe = getStripeClient(config);
+  const result = await cancelMembershipAtPeriodEnd(user.id, { stripe });
+  return sendJson(res, 200, result);
+}
+
+async function handleReactivate(req, res) {
+  const { user } = await requireSupabaseUser(req);
+  const config = getBillingConfig();
+  if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
+  const stripe = getStripeClient(config);
+  const result = await reactivateMembershipRenewal(user.id, { stripe });
+  return sendJson(res, 200, result);
 }
 
 async function readRawBody(req) {
@@ -449,12 +536,25 @@ async function recordWebhookEvent(event) {
 async function processWebhookEvent(event) {
   const object = event.data?.object;
   if (!object) return;
+
+  try {
+    const first = await claimBillingWebhookEvent(event.id, event.type, { type: event.type });
+    if (!first) return;
+  } catch (error) {
+    console.error("[prelude-billing] webhook claim failed", error.message);
+  }
+
   if (["customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"].includes(event.type)) {
     await syncSubscription(object);
   }
   if (event.type === "checkout.session.completed") {
     await syncSupabaseCheckoutSession(object);
     await fulfillFlexibleSessionCheckout(object, creditSessionPackagePurchase);
+    try {
+      await recordPurchaseFromCheckoutSession(object);
+    } catch (error) {
+      console.error("[prelude-billing] webhook purchase history failed", error.message);
+    }
     const userId = object.metadata?.userId || object.client_reference_id;
     const customerId = stripeObjectId(object.customer);
     const subscriptionId = stripeObjectId(object.subscription);
@@ -482,6 +582,11 @@ async function processWebhookEvent(event) {
     const subscriptionId = invoiceSubscriptionId;
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
     await syncSubscription(subscription);
+    try {
+      await recordPurchaseFromInvoice(object, subscription);
+    } catch (error) {
+      console.error("[prelude-billing] invoice purchase history failed", error.message);
+    }
 
     const userId = subscription.metadata?.userId;
     const paymentId = object.payment_intent
@@ -519,21 +624,22 @@ async function processWebhookEvent(event) {
       }
     }
   }
-  if (event.type === "invoice.payment_failed" && invoiceSubscriptionId) {
+  if (["invoice.payment_failed"].includes(event.type) && invoiceSubscriptionId) {
     const stripe = getStripeClient();
-    const subscriptionId = invoiceSubscriptionId;
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const subscription = await stripe.subscriptions.retrieve(invoiceSubscriptionId);
     await syncSubscription(subscription);
+    logBillingEvent("renewal_failed", {
+      subscriptionId: invoiceSubscriptionId,
+      invoiceId: object.id
+    });
   }
-
-  if (["charge.refunded", "charge.dispute.created", "invoice.voided"].includes(event.type)) {
-    const paymentId =
-      stripeObjectId(object.payment_intent) ||
-      (event.type.startsWith("charge.") ? object.id : null) ||
-      object.id;
-    if (paymentId) {
-      await revokeRewardsForQualifyingPayment(paymentId, event.type);
-    }
+  if (["charge.refunded", "charge.dispute.created"].includes(event.type)) {
+    const paymentId = stripeObjectId(object.payment_intent) || object.id;
+    await revokeRewardsForQualifyingPayment(paymentId, event.type);
+  }
+  if (event.type === "invoice.voided") {
+    const paymentId = stripeObjectId(object.payment_intent) || object.id;
+    if (paymentId) await revokeRewardsForQualifyingPayment(paymentId, event.type);
   }
 }
 
@@ -575,6 +681,10 @@ export function createBillingApiMiddleware() {
       if (url.pathname === "/api/billing/bundle-checkout" && req.method === "POST") return await handleBundleCheckout(req, res);
       if (url.pathname === "/api/billing/confirm-session" && req.method === "POST") return await handleConfirmSession(req, res);
       if (url.pathname === "/api/billing/portal" && req.method === "POST") return await handlePortal(req, res);
+      if (url.pathname === "/api/billing/summary" && req.method === "GET") return await handleSummary(req, res);
+      if (url.pathname === "/api/billing/history" && req.method === "GET") return await handleHistory(req, res);
+      if (url.pathname === "/api/billing/cancel" && req.method === "POST") return await handleCancel(req, res);
+      if (url.pathname === "/api/billing/reactivate" && req.method === "POST") return await handleReactivate(req, res);
       if (url.pathname === "/api/billing/webhook" && req.method === "POST") return await handleWebhook(req, res);
       return sendJson(res, 404, { error: "not_found" });
     } catch (error) {

@@ -86,6 +86,8 @@ export function mapSupabaseUser(
     planSelected,
     paymentStepComplete,
     subscriptionStatus: profile?.subscription_status || null,
+    subscriptionCurrentPeriodEnd: profile?.subscription_current_period_end || null,
+    subscriptionCancelAtPeriodEnd: Boolean(profile?.subscription_cancel_at_period_end),
     paymentWaived: Boolean(profile?.payment_waived),
     promoCampaign: profile?.promo_campaign || null,
     promoAccessEndsAt: profile?.promo_access_ends_at || null,

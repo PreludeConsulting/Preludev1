@@ -4921,6 +4921,101 @@ img.dash-avatar {
   }
 }
 
+.dash-billing-membership__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.dash-billing-membership__plan {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.dash-billing-membership__price {
+  margin: 0.2rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.dash-billing-membership__meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem 1.25rem;
+  margin: 0 0 1rem;
+}
+
+.dash-billing-membership__meta dt {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--dash-muted, #6b7280);
+}
+
+.dash-billing-membership__meta dd {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+
+.dash-billing-membership__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.dash-billing-membership__settings-hint {
+  margin-top: 1rem;
+}
+
+.dash-billing-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dash-billing-history__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.dash-billing-history__item:last-child {
+  border-bottom: none;
+}
+
+.dash-billing-history__title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.dash-billing-history__aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .dash-billing-history__item {
+    flex-direction: column;
+  }
+
+  .dash-billing-history__aside {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
 .dash-avatar-editor {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

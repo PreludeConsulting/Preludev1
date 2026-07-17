@@ -52,6 +52,14 @@ export default function NotificationActions({ notification, onClaimed }) {
     );
   }
 
+  if (notification.actionType === "referral_code_rotated" && notification.link) {
+    return (
+      <Link to={notification.link} className="dash-btn dash-btn--secondary dash-btn--sm">
+        View referral code
+      </Link>
+    );
+  }
+
   if (notification.link) {
     return (
       <Link to={notification.link} className="dash-btn dash-btn--secondary dash-btn--sm">

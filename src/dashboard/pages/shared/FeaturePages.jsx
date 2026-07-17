@@ -19,9 +19,9 @@ import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dash
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import StudentHelpSupport from "../../components/product/StudentHelpSupport.jsx";
 import StudentBillingPage from "../../components/product/StudentBillingPage.jsx";
+import BillingMembershipPanel from "../../components/settings/BillingMembershipPanel.jsx";
 import NotificationActions from "../../components/NotificationActions.jsx";
 import {
-  DashBadge,
   DashboardPageHeader,
   EmptyState,
   PrimaryButton,
@@ -301,65 +301,13 @@ export function ParentNotifications() {
 }
 
 export function ParentBilling() {
-  const { user, planDetails, openAccount } = useAuth();
-  const plans = getPricingPlans();
-  const current = planDetails || (user?.plan ? getPlan(user.plan) : null);
-
   return (
     <div className="dash-page dash-page--premium">
       <DashboardPageHeader
         title="Plans and Billing"
-        subtitle="Your parent account subscription and billing details."
+        subtitle="Shared household membership, session balance, and purchase history."
       />
-
-      <SectionCard title="Current plan" className="dash-panel dash-billing-current">
-        {current ? (
-          <>
-            <div className="dash-billing-current__head">
-              <CreditCard className="h-8 w-8 text-primary" aria-hidden="true" />
-              <div>
-                <h2 className="dash-billing-current__name">{current.name}</h2>
-                <p className="dash-billing-current__price">{current.price}<span>/mo</span></p>
-              </div>
-              <DashBadge variant="lavender">Active</DashBadge>
-            </div>
-            <p className="dash-muted">{current.tagline}</p>
-          </>
-        ) : (
-          <EmptyState
-            icon={CreditCard}
-            title="No plan selected"
-            description="Your parent account is active. Plan details will appear here when billing is connected."
-          />
-        )}
-      </SectionCard>
-
-      <SectionCard title="Compare plans" className="dash-panel">
-        <div className="dash-billing-plans">
-          {plans.map((plan) => (
-            <article key={plan.id} className={`dash-billing-plan ${plan.isRecommended ? "dash-billing-plan--featured" : ""}`}>
-              {plan.isRecommended ? <span className="dash-billing-plan__badge">Best value</span> : null}
-              <h3>{plan.name}</h3>
-              <p className="dash-billing-plan__price">{plan.price}/mo</p>
-              <p className="dash-muted">{plan.tagline}</p>
-              {user?.plan === plan.id ? (
-                <DashBadge variant="soft">Current plan</DashBadge>
-              ) : (
-                <Link to="/dashboard/student/billing" className="dash-btn dash-btn--secondary dash-btn--sm">Change plan</Link>
-              )}
-            </article>
-          ))}
-        </div>
-      </SectionCard>
-
-      <SectionCard title="Billing status" className="dash-panel">
-        <p className="dash-muted">
-          Payment processing is not connected yet. When Stripe billing is enabled, you will be able to manage payment methods and invoices here.
-        </p>
-        <SecondaryButton type="button" className="dash-btn--sm" onClick={openAccount}>
-          Open account drawer
-        </SecondaryButton>
-      </SectionCard>
+      <BillingMembershipPanel settingsBasePath={`${PARENT_DASHBOARD_BASE}/settings`} />
     </div>
   );
 }

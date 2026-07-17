@@ -33,11 +33,11 @@ describe("referral code normalization and format", () => {
   it("builds non-sequential sounding candidates from names", () => {
     const a = generateReferralCodeCandidate("Peter Pan");
     const b = generateReferralCodeCandidate("Peter Pan");
-    assert.match(a, /^PETER-[A-Z0-9]{4}$/);
-    assert.match(b, /^PETER-[A-Z0-9]{4}$/);
+    assert.match(a, /^PETER-[A-Z0-9]{6}$/);
+    assert.match(b, /^PETER-[A-Z0-9]{6}$/);
     // Random suffix should usually differ; allow rare collision by regenerating
     const c = generateReferralCodeCandidate("Ada");
-    assert.match(c, /^ADA-[A-Z0-9]{4}$/);
+    assert.match(c, /^ADA-[A-Z0-9]{6}$/);
     assert.equal(nameSlugFromProfile("Ada Lovelace", "Addy"), "ADDY");
   });
 });

@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/cron/rotate-referral-codes",
+      "schedule": "5 5 1 * *"
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }

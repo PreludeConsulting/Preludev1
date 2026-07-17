@@ -12,6 +12,7 @@ import { createOnboardingMentorSelectionMiddleware } from "./onboardingMentorSel
 import { createPromoApiMiddleware } from "./promoApi.js";
 import { createAdminPromoApiMiddleware } from "./adminPromoApi.js";
 import { createReferralApiMiddleware } from "./referralApi.js";
+import { createReferralRotationApiMiddleware } from "./referralRotationApi.js";
 import { createBugReportsMiddleware } from "./bugReportsApi.js";
 import { createMentorActivitiesApiMiddleware } from "./mentorActivitiesApi.js";
 
@@ -41,6 +42,7 @@ export function createPreludeApiStack(env = process.env) {
     createPromoApiMiddleware(env),
     createAdminPromoApiMiddleware(env),
     createReferralApiMiddleware(env),
+    createReferralRotationApiMiddleware(env),
     createAuthApiMiddleware(env),
     createBillingApiMiddleware(),
     createDatasetsApiMiddleware(),

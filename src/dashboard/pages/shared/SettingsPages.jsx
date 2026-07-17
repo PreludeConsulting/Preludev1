@@ -5,6 +5,7 @@ import {
   Calendar,
   Camera,
   ChevronRight,
+  CreditCard,
   HelpCircle,
   Link2,
   Mail,
@@ -25,6 +26,7 @@ import {
 } from "../../components/mentor/mentorProfileFormShared.jsx";
 import ParentGuardianSettingsPanel from "../../components/settings/ParentGuardianSettingsPanel.jsx";
 import ReferralCodePanel from "../../components/settings/ReferralCodePanel.jsx";
+import BillingMembershipPanel from "../../components/settings/BillingMembershipPanel.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { getDemoLinkedChildren, listLinkedChildren } from "../../../lib/parentLinks.js";
@@ -590,6 +592,7 @@ function AccountSettingsPanel({ user, profile, roleLabel, useSupabaseData, saveP
 
 const STUDENT_SETTINGS_TABS = [
   { id: "profile", label: "Profile", icon: User, description: "Your account details" },
+  { id: "billing", label: "Billing", icon: CreditCard, description: "Membership and purchases" },
   { id: "notifications", label: "Notifications", icon: Bell, description: "Email and alerts" },
   { id: "calendar", label: "Calendar", icon: Calendar, description: "Meetings and reminders" },
   { id: "display", label: "Display", icon: Monitor, description: "Layout and accessibility" },
@@ -609,6 +612,7 @@ const MENTOR_SETTINGS_TABS = [
 
 const PARENT_SETTINGS_TABS = [
   { id: "profile", label: "Profile", icon: User, description: "Your account details" },
+  { id: "billing", label: "Billing", icon: CreditCard, description: "Membership and purchases" },
   { id: "notifications", label: "Notifications", icon: Bell, description: "Email and alerts" },
   { id: "calendar", label: "Calendar", icon: Calendar, description: "Meetings and reminders" },
   { id: "display", label: "Display", icon: Monitor, description: "Layout and accessibility" },
@@ -842,6 +846,12 @@ export function StudentSettingsPage() {
             <p className="dash-muted">Manage GPA, test scores, intended majors, college goals, activities, and essays from your academic profile.</p>
           </SectionCard>
         </>
+      ) : null}
+
+      {tab === "billing" ? (
+        <BillingMembershipPanel
+          settingsBasePath={`${STUDENT_DASHBOARD_BASE}/settings`}
+        />
       ) : null}
 
       {tab === "notifications" ? (
@@ -1194,6 +1204,12 @@ export function ParentSettingsPage() {
             ) : null}
           </SectionCard>
         </>
+      ) : null}
+
+      {tab === "billing" ? (
+        <BillingMembershipPanel
+          settingsBasePath={`${PARENT_DASHBOARD_BASE}/settings`}
+        />
       ) : null}
 
       {tab === "notifications" ? (

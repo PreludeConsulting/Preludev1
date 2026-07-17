@@ -2,13 +2,15 @@ import { randomBytes } from "node:crypto";
 import {
   REFERRAL_CLAIM_LEAD_DAYS,
   REFERRAL_CODE_PATTERN,
+  REFERRAL_CODE_SUFFIX_LENGTH,
   REFERRAL_DISCOUNT_PERCENT,
   REFERRAL_ERROR_MESSAGES,
   REFERRAL_REWARD_NOTIFICATION,
   isReferralEligibleRole,
   logReferralEvent,
   normalizeReferralCodeInput,
-  publicReferralError
+  publicReferralError,
+  referralMonthParts
 } from "../../shared/referralConstants.js";
 import { getSupabaseAdmin } from "./supabaseRequestAuth.js";
 
@@ -33,11 +35,12 @@ export function nameSlugFromProfile(fullName, preferredName) {
   return (cleaned.length >= 2 ? cleaned : "FRIEND").slice(0, 12);
 }
 
-export function generateReferralCodeCandidate(seedName) {
+export function generateReferralCodeCandidate(seedName, suffixLength = REFERRAL_CODE_SUFFIX_LENGTH) {
   const slug = nameSlugFromProfile(seedName);
+  const len = Math.max(4, Math.min(8, Number(suffixLength) || REFERRAL_CODE_SUFFIX_LENGTH));
   let suffix = "";
-  const bytes = randomBytes(4);
-  for (let i = 0; i < 4; i += 1) {
+  const bytes = randomBytes(len);
+  for (let i = 0; i < len; i += 1) {
     suffix += SUFFIX_ALPHABET[bytes[i] % SUFFIX_ALPHABET.length];
   }
   return `${slug}-${suffix}`;
@@ -123,20 +126,27 @@ export async function ensureReferralCodeForUser(userId) {
   }
 
   const seed = profile.preferred_name || profile.full_name || "FRIEND";
+  const { validMonthDate } = referralMonthParts();
   const { data: codeRow, error: codeError } = await supabase.rpc("ensure_referral_code_for_household", {
     p_household_id: householdId,
-    p_seed_name: seed
+    p_seed_name: seed,
+    p_valid_month: validMonthDate
   });
   if (codeError) throw codeError;
 
-  logReferralEvent("referral_code_viewed", { userId, householdId });
+  logReferralEvent("referral_code_viewed", { userId, householdId, validMonth: codeRow.valid_month });
   return {
     ok: true,
     eligible: true,
     code: codeRow.code,
     normalizedCode: codeRow.normalized_code,
     status: codeRow.status,
-    householdId
+    householdId,
+    validMonth: codeRow.valid_month
+      ? String(codeRow.valid_month).slice(0, 7)
+      : referralMonthParts().validMonth,
+    expiresAt: codeRow.expires_at || null,
+    timezone: "America/New_York"
   };
 }
 
@@ -179,8 +189,10 @@ export async function validateReferralCode({
     return fail("not_found");
   }
   if (codeRow.status !== "active") {
-    logReferralEvent("referral_validation_failed", { error: "disabled", userId });
-    return fail("disabled");
+    const expiredStatuses = new Set(["retired", "disabled", "expired"]);
+    const errorCode = expiredStatuses.has(codeRow.status) ? "expired" : "disabled";
+    logReferralEvent("referral_validation_failed", { error: errorCode, userId, status: codeRow.status });
+    return fail(errorCode);
   }
 
   if (userId) {

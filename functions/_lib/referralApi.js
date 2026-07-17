@@ -143,7 +143,8 @@ async function validateCode(supabase, { code, role, userId }) {
     return { valid: false, error: "not_found", message: publicReferralError("not_found") };
   }
   if (codeRow.status !== "active") {
-    return { valid: false, error: "disabled", message: publicReferralError("disabled") };
+    const errorCode = codeRow.status === "retired" || codeRow.status === "disabled" ? "expired" : "disabled";
+    return { valid: false, error: errorCode, message: publicReferralError(errorCode) };
   }
 
   if (userId) {
@@ -192,7 +193,8 @@ async function handleCode(context, env, supabase) {
     const seed = profile.preferred_name || profile.full_name || "FRIEND";
     const { data: codeRow, error: codeError } = await supabase.rpc("ensure_referral_code_for_household", {
       p_household_id: householdId,
-      p_seed_name: seed
+      p_seed_name: seed,
+      p_valid_month: null
     });
     if (codeError || !codeRow) {
       return json({ eligible: false, error: "server_error", message: publicReferralError("server_error") }, 500);
@@ -204,7 +206,10 @@ async function handleCode(context, env, supabase) {
       code: codeRow.code,
       normalizedCode: codeRow.normalized_code,
       status: codeRow.status,
-      householdId
+      householdId,
+      validMonth: codeRow.valid_month ? String(codeRow.valid_month).slice(0, 7) : null,
+      expiresAt: codeRow.expires_at || null,
+      timezone: "America/New_York"
     });
   }
   logReferralEvent("referral_code_viewed", { userId: user.id });
