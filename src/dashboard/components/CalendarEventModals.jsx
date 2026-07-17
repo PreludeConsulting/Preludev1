@@ -201,7 +201,11 @@ export function CalendarAddEventModal({
   meetingRequestMode = false,
   onRequestMeeting,
   inline = false,
-  defaultStudentId = ""
+  defaultStudentId = "",
+  bookingSlotDates = null,
+  bookingSlotsLoading = false,
+  bookingSlotsError = "",
+  onRefreshBookingSlots = null
 }) {
   const [form, setForm] = useState({ ...DEFAULT_FORM, category: initialCategory });
   const [errors, setErrors] = useState({});
@@ -218,9 +222,18 @@ export function CalendarAddEventModal({
   const isTaskForm = formVariant === "task";
   const isSimplifiedForm = isEventForm || isTaskForm;
   const showStudentEventChoice = meetingRequestMode && isEventForm && !initialEvent && role === "student";
+  const useAvailabilitySlots = Boolean(showStudentEventChoice && Array.isArray(bookingSlotDates));
   const lockedStudent = students.find((student) => student.id === defaultStudentId);
   const pinBelowHeader = Boolean(open) && !inline && isEventForm;
   useBelowHeaderModalOffset(pinBelowHeader);
+
+  const selectedDay = useAvailabilitySlots
+    ? bookingSlotDates.find((day) => day.date === form.date) || null
+    : null;
+  const availableTimeOptions = (selectedDay?.slots || []).filter((slot) => slot.available);
+  const dateOptions = useAvailabilitySlots
+    ? bookingSlotDates.filter((day) => day.slots?.some((slot) => slot.available))
+    : [];
   useEffect(() => {
     if (!open && !inline) return;
     endTimeManuallyEdited.current = false;
@@ -245,6 +258,36 @@ export function CalendarAddEventModal({
   }, [open, inline, initialCategory, initialEvent, defaultStudentId]);
 
   useEffect(() => {
+    if (!useAvailabilitySlots) return;
+    const openDays = (bookingSlotDates || []).filter((day) =>
+      day.slots?.some((slot) => slot.available)
+    );
+    if (!openDays.length) return;
+
+    const currentDay = openDays.find((day) => day.date === form.date) || openDays[0];
+    const openSlots = (currentDay.slots || []).filter((slot) => slot.available);
+    const currentSlotOk = openSlots.some((slot) => slot.startTime === form.startTime);
+    const nextSlot = currentSlotOk
+      ? openSlots.find((slot) => slot.startTime === form.startTime)
+      : openSlots[0];
+
+    if (
+      form.date === currentDay.date &&
+      form.startTime === (nextSlot?.startTime || "") &&
+      form.endTime === (nextSlot?.endTime || "")
+    ) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      date: currentDay.date,
+      startTime: nextSlot?.startTime || "",
+      endTime: nextSlot?.endTime || ""
+    }));
+  }, [useAvailabilitySlots, bookingSlotDates, form.date, form.startTime, form.endTime]);
+
+  useEffect(() => {
     if (!requestSent) return undefined;
     setRequestSentFading(false);
     const fadeTimer = window.setTimeout(() => setRequestSentFading(true), 3000);
@@ -257,6 +300,26 @@ export function CalendarAddEventModal({
       window.clearTimeout(clearTimer);
     };
   }, [requestSent]);
+
+  function handleSlotDateChange(date) {
+    const day = bookingSlotDates?.find((item) => item.date === date);
+    const firstSlot = day?.slots?.find((slot) => slot.available);
+    setForm((current) => ({
+      ...current,
+      date,
+      startTime: firstSlot?.startTime || "",
+      endTime: firstSlot?.endTime || ""
+    }));
+  }
+
+  function handleSlotTimeChange(startTime) {
+    const slot = availableTimeOptions.find((item) => item.startTime === startTime);
+    setForm((current) => ({
+      ...current,
+      startTime,
+      endTime: slot?.endTime || addHoursToTime(startTime, 1)
+    }));
+  }
 
   function handleStartTimeChange(startTime) {
     setForm((current) => {
@@ -333,9 +396,15 @@ export function CalendarAddEventModal({
     if (!form.title.trim()) next.title = "Title is required.";
     if (!form.date || form.date.length < 10) next.date = "Enter a complete date (mm/dd/yyyy).";
     if (!isTaskForm) {
-      if (!form.startTime || form.startTime.length < 5) next.startTime = "Enter a complete start time.";
+      if (!form.startTime || form.startTime.length < 5) {
+        next.startTime = useAvailabilitySlots ? "Choose an available time." : "Enter a complete start time.";
+      }
       if (!form.endTime || form.endTime.length < 5) next.endTime = "Enter a complete end time.";
       if (form.startTime && form.endTime && form.endTime <= form.startTime) next.endTime = "End must be after start.";
+      if (useAvailabilitySlots && form.startTime) {
+        const slot = availableTimeOptions.find((item) => item.startTime === form.startTime);
+        if (!slot) next.startTime = "That time is no longer available. Choose another slot.";
+      }
     }
     if (role === "mentor" && !defaultStudentId && (isEventForm || (!isSimplifiedForm && form.category === "mentor_meeting")) && !form.studentId) {
       next.studentId = "Select a student.";
@@ -355,12 +424,20 @@ export function CalendarAddEventModal({
     if (submitting) return;
     if (!validate()) return;
 
+    const selectedSlot = useAvailabilitySlots
+      ? availableTimeOptions.find((item) => item.startTime === form.startTime)
+      : null;
+
     const start = isTaskForm
       ? new Date(`${form.date}T09:00:00`)
-      : new Date(`${form.date}T${form.startTime}`);
+      : selectedSlot
+        ? new Date(selectedSlot.startIso)
+        : new Date(`${form.date}T${form.startTime}`);
     const end = isTaskForm
       ? new Date(`${form.date}T09:00:00`)
-      : new Date(`${form.date}T${form.endTime}`);
+      : selectedSlot
+        ? new Date(selectedSlot.endIso)
+        : new Date(`${form.date}T${form.endTime}`);
 
     const meetingType = isTaskForm ? "zoom" : form.meetingType;
     const sendToMentor = submitMode === "mentor";
@@ -384,8 +461,10 @@ export function CalendarAddEventModal({
         if (meeting?.zoomJoinUrl) {
           setScheduledMeeting(meeting);
         }
+        onRefreshBookingSlots?.();
       } catch (error) {
         setSubmitError(error?.message || "Could not send your meeting request. Please try again.");
+        onRefreshBookingSlots?.();
       } finally {
         setSubmitting(false);
       }
@@ -497,7 +576,23 @@ export function CalendarAddEventModal({
           ) : null}
           <label className="prelude-field">
             <span>Date</span>
-            {isSimplifiedForm ? (
+            {useAvailabilitySlots ? (
+              <select
+                value={form.date}
+                onChange={(e) => handleSlotDateChange(e.target.value)}
+                disabled={bookingSlotsLoading || !dateOptions.length}
+              >
+                {!dateOptions.length ? (
+                  <option value="">No open days</option>
+                ) : (
+                  dateOptions.map((day) => (
+                    <option key={day.date} value={day.date}>
+                      {day.label}
+                    </option>
+                  ))
+                )}
+              </select>
+            ) : isSimplifiedForm ? (
               <MaskedDateInput value={form.date} onChange={(date) => setForm((f) => ({ ...f, date }))} />
             ) : (
               <input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))} />
@@ -505,26 +600,70 @@ export function CalendarAddEventModal({
             {errors.date ? <em className="dash-field-error">{errors.date}</em> : null}
           </label>
           {!isTaskForm ? (
-            <div className="dash-event-form__row">
+            useAvailabilitySlots ? (
               <label className="prelude-field">
-                <span>Start time</span>
-                {isSimplifiedForm ? (
-                  <MaskedTimeInput value={form.startTime} onChange={handleStartTimeChange} />
-                ) : (
-                  <input type="time" value={form.startTime} onChange={(e) => handleStartTimeChange(e.target.value)} />
-                )}
+                <span>Available 1-hour time</span>
+                <select
+                  value={form.startTime}
+                  onChange={(e) => handleSlotTimeChange(e.target.value)}
+                  disabled={bookingSlotsLoading || !availableTimeOptions.length}
+                >
+                  {!availableTimeOptions.length ? (
+                    <option value="">No open times</option>
+                  ) : (
+                    availableTimeOptions.map((slot) => (
+                      <option key={`${slot.startTime}-${slot.endTime}`} value={slot.startTime}>
+                        {slot.label}
+                      </option>
+                    ))
+                  )}
+                </select>
+                <em className="dash-field-hint">Sessions are one hour. Taken slots are hidden from this list.</em>
                 {errors.startTime ? <em className="dash-field-error">{errors.startTime}</em> : null}
+                {bookingSlotsLoading ? (
+                  <em className="dash-field-hint">Loading mentor availability…</em>
+                ) : null}
+                {bookingSlotsError ? <em className="dash-field-error">{bookingSlotsError}</em> : null}
+                {!bookingSlotsLoading && !bookingSlotsError && !dateOptions.length ? (
+                  <em className="dash-field-hint">
+                    Your mentor has no open 1-hour slots right now.
+                  </em>
+                ) : null}
               </label>
-              <label className="prelude-field">
-                <span>End time</span>
-                {isSimplifiedForm ? (
-                  <MaskedTimeInput value={form.endTime} onChange={handleEndTimeChange} />
-                ) : (
-                  <input type="time" value={form.endTime} onChange={(e) => handleEndTimeChange(e.target.value)} />
-                )}
-                {errors.endTime ? <em className="dash-field-error">{errors.endTime}</em> : null}
-              </label>
-            </div>
+            ) : (
+              <div className="dash-event-form__row">
+                <label className="prelude-field">
+                  <span>Start time</span>
+                  {isSimplifiedForm ? (
+                    <MaskedTimeInput value={form.startTime} onChange={handleStartTimeChange} />
+                  ) : (
+                    <input type="time" value={form.startTime} onChange={(e) => handleStartTimeChange(e.target.value)} />
+                  )}
+                  {errors.startTime ? <em className="dash-field-error">{errors.startTime}</em> : null}
+                </label>
+                <label className="prelude-field">
+                  <span>End time</span>
+                  {isSimplifiedForm ? (
+                    <MaskedTimeInput value={form.endTime} onChange={handleEndTimeChange} />
+                  ) : (
+                    <input type="time" value={form.endTime} onChange={(e) => handleEndTimeChange(e.target.value)} />
+                  )}
+                  {errors.endTime ? <em className="dash-field-error">{errors.endTime}</em> : null}
+                </label>
+              </div>
+            )
+          ) : null}
+          {showStudentEventChoice ? (
+            <label className="prelude-field">
+              <span>Meeting platform</span>
+              <select
+                value={form.meetingType}
+                onChange={(e) => setForm((f) => ({ ...f, meetingType: e.target.value }))}
+              >
+                <option value="zoom">Zoom</option>
+                <option value="google_meet">Google Meet</option>
+              </select>
+            </label>
           ) : null}
           <label className={cn(
             "prelude-field dash-form-full dash-event-form__description",
@@ -679,7 +818,7 @@ export function CalendarAddEventModal({
                 <PrimaryButton
                   type="button"
                   className="dash-schedule-form__mentor-submit"
-                  disabled={submitting}
+                  disabled={submitting || bookingSlotsLoading || (useAvailabilitySlots && !availableTimeOptions.length)}
                   onClick={(event) => handleSubmit(event, "mentor")}
                 >
                   {submitting ? "Sending…" : "Send to mentor for review"}

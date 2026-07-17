@@ -17,6 +17,11 @@ import {
   listSessionPackagesForStudent
 } from "../../server/lib/mentorAccess.js";
 import { scheduleMeeting } from "../../server/lib/meetingSchedule.js";
+import {
+  addDaysToIsoDate,
+  getZonedParts,
+  zonedDateTimeToUtc
+} from "../../shared/mentorBookingSlots.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PACKAGE_STORE = join(__dirname, "../../server/data/session-packages.json");
@@ -25,11 +30,37 @@ const MEETING_STORE = join(__dirname, "../../server/data/meetings.json");
 const studentId = "11111111-1111-4111-a111-111111111111";
 const mentorId = "22222222-2222-4222-a222-222222222222";
 
+const ALL_DAY_SCHEDULE = {
+  timezone: "ET",
+  days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(
+    (dayOfWeek) => ({
+      dayOfWeek,
+      enabled: true,
+      startTime: "00:00",
+      endTime: "23:59"
+    })
+  )
+};
+
 function resetStores() {
   const dir = dirname(PACKAGE_STORE);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   writeFileSync(PACKAGE_STORE, JSON.stringify({ packages: [] }, null, 2));
   writeFileSync(MEETING_STORE, JSON.stringify({ meetings: [] }, null, 2));
+  globalThis.__preludeMentorSchedules = {
+    [mentorId]: ALL_DAY_SCHEDULE
+  };
+}
+
+function futureHourSlot(daysAhead = 2, hour = 10) {
+  const parts = getZonedParts(new Date(), "ET");
+  const isoDate = addDaysToIsoDate(parts.isoDate, daysAhead);
+  const start = `${String(hour).padStart(2, "0")}:00`;
+  const end = `${String(hour + 1).padStart(2, "0")}:00`;
+  return {
+    startTime: zonedDateTimeToUtc(isoDate, start, "ET").toISOString(),
+    endTime: zonedDateTimeToUtc(isoDate, end, "ET").toISOString()
+  };
 }
 
 function futureIso(hoursAhead = 48) {
@@ -78,11 +109,12 @@ async function main() {
   assert.equal(packageAccess.accessType, "session_package");
   assert.equal(packageAccess.remainingSessions, 2);
 
+  const slot1 = futureHourSlot(2, 10);
   const packageMeeting = await scheduleMeeting(
     {
       title: "Package session",
-      startTime: futureIso(50),
-      endTime: futureIso(51),
+      startTime: slot1.startTime,
+      endTime: slot1.endTime,
       status: "pending",
       mentorUserId: mentorId,
       clientRequestId: `pkg-req-${Date.now()}`
@@ -106,12 +138,14 @@ async function main() {
   assert.equal(subAccess.allowed, true);
   assert.equal(subAccess.accessType, "subscription");
 
+  const slot2 = futureHourSlot(3, 11);
   const subMeeting = await scheduleMeeting(
     {
       title: "Sub session",
-      startTime: futureIso(60),
-      endTime: futureIso(61),
+      startTime: slot2.startTime,
+      endTime: slot2.endTime,
       status: "pending",
+      mentorUserId: mentorId,
       clientRequestId: `sub-req-${Date.now()}`
     },
     subscribedStudent(),
@@ -210,9 +244,10 @@ async function main() {
     scheduleMeeting(
       {
         title: "Race A",
-        startTime: futureIso(100),
-        endTime: futureIso(101),
+        startTime: futureHourSlot(5, 10).startTime,
+        endTime: futureHourSlot(5, 10).endTime,
         status: "pending",
+        mentorUserId: mentorId,
         clientRequestId: `race-a-${Date.now()}`
       },
       { id: studentId, role: "STUDENT", plan: "basic" },
@@ -221,9 +256,10 @@ async function main() {
     scheduleMeeting(
       {
         title: "Race B",
-        startTime: futureIso(102),
-        endTime: futureIso(103),
+        startTime: futureHourSlot(6, 10).startTime,
+        endTime: futureHourSlot(6, 10).endTime,
         status: "pending",
+        mentorUserId: mentorId,
         clientRequestId: `race-b-${Date.now()}`
       },
       { id: studentId, role: "STUDENT", plan: "basic" },

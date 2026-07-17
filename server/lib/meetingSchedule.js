@@ -14,6 +14,7 @@ import {
   releasePackageSession,
   reserveAccessForMeeting
 } from "./mentorAccess.js";
+import { assertMentorSlotBookable } from "./mentorBookingSlots.js";
 import { isDatabaseUnavailableError } from "./dbErrors.js";
 
 const meetingTypeSchema = z.enum(["zoom", "google_meet", "in_person", "phone"]);
@@ -241,6 +242,14 @@ export async function scheduleMeeting(body, user, req) {
       user,
       meetings: studentMeetings
     });
+
+    if (isVideoMeetingType(payload.meetingType)) {
+      await assertMentorSlotBookable({
+        mentorUserId: payload.mentorUserId || null,
+        startTime: payload.startTime,
+        endTime: payload.endTime
+      });
+    }
 
     if (canUsePrisma()) {
       try {

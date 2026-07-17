@@ -143,6 +143,34 @@ export async function listMeetingsForUser({ userId, role }) {
     .map(toRecord);
 }
 
+/** All non-canceled meetings for a mentor (includes pending holds for other students). */
+export async function listMeetingsForMentor(mentorUserId) {
+  if (!mentorUserId) return [];
+  if (canUsePrisma()) {
+    try {
+      const rows = await prismaClient().meeting.findMany({
+        where: {
+          mentorUserId,
+          status: { notIn: ["canceled", "declined"] }
+        },
+        orderBy: { startTime: "asc" }
+      });
+      return rows.map(toRecord);
+    } catch (error) {
+      if (!isDatabaseUnavailableError(error)) throw error;
+    }
+  }
+
+  const { meetings } = readJsonStore();
+  return meetings
+    .filter((m) => {
+      if (m.mentorUserId !== mentorUserId) return false;
+      const status = String(m.status || "").toLowerCase();
+      return status !== "canceled" && status !== "cancelled" && status !== "declined";
+    })
+    .map(toRecord);
+}
+
 export async function createMeetingRecord(payload, { tx = null } = {}) {
   const data = fromPayload(payload);
   const client = tx || (canUsePrisma() ? prismaClient() : null);

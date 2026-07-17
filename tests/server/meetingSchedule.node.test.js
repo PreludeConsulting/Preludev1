@@ -1,20 +1,43 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createDashboardApiMiddleware } from "../../server/dashboardApi.js";
 import { scheduleMeeting, updateScheduledMeeting } from "../../server/lib/meetingSchedule.js";
+import {
+  addDaysToIsoDate,
+  getZonedParts,
+  zonedDateTimeToUtc
+} from "../../shared/mentorBookingSlots.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const MEETING_STORE = join(__dirname, "../../server/data/meetings.json");
 
 const mentorUser = {
-  id: "22222222-2222-2222-2222-222222222222",
+  id: "22222222-2222-4222-a222-222222222222",
   role: "MENTOR",
   email: "mentor@example.com"
 };
 const studentUser = {
-  id: "11111111-1111-1111-1111-111111111111",
+  id: "11111111-1111-4111-a111-111111111111",
   role: "STUDENT",
   email: "student@example.com",
   plan: "PLUS",
   subscriptionStatus: "active"
+};
+
+const ALL_DAY_SCHEDULE = {
+  timezone: "ET",
+  days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(
+    (dayOfWeek) => ({
+      dayOfWeek,
+      enabled: true,
+      startTime: "00:00",
+      endTime: "23:59"
+    })
+  )
 };
 
 function mockReq(url, method = "GET", body = null, headers = {}) {
@@ -52,15 +75,29 @@ function mockRes() {
   return res;
 }
 
-function futureIso(hoursAhead = 48) {
-  return new Date(Date.now() + hoursAhead * 60 * 60 * 1000).toISOString();
+function futureHourSlot(daysAhead = 2, hour = 10) {
+  const parts = getZonedParts(new Date(), "ET");
+  const isoDate = addDaysToIsoDate(parts.isoDate, daysAhead);
+  const startTime = `${String(hour).padStart(2, "0")}:00`;
+  const endTime = `${String(hour + 1).padStart(2, "0")}:00`;
+  return {
+    startTime: zonedDateTimeToUtc(isoDate, startTime, "ET").toISOString(),
+    endTime: zonedDateTimeToUtc(isoDate, endTime, "ET").toISOString()
+  };
 }
 
 async function main() {
   process.env.DATABASE_URL = "";
+  const dir = dirname(MEETING_STORE);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(MEETING_STORE, JSON.stringify({ meetings: [] }, null, 2));
+  globalThis.__preludeMentorSchedules = {
+    [mentorUser.id]: ALL_DAY_SCHEDULE
+  };
 
-  const startTime = futureIso(72);
-  const endTime = futureIso(73);
+  const slot = futureHourSlot(3, 10);
+  const startTime = slot.startTime;
+  const endTime = slot.endTime;
   const zoomJoinUrl = "https://zoom.us/j/5551234567";
 
   const pending = await scheduleMeeting(
@@ -70,6 +107,7 @@ async function main() {
       endTime,
       status: "pending",
       meetingType: "zoom",
+      mentorUserId: mentorUser.id,
       clientRequestId: `dup-key-${Date.now()}`
     },
     studentUser,
@@ -112,11 +150,12 @@ async function main() {
   assert.equal(scheduled.zoomJoinUrl, zoomJoinUrl);
 
   const googleMeetUrl = "https://meet.google.com/abc-defg-hij";
+  const googleSlot = futureHourSlot(4, 11);
   const googleScheduled = await scheduleMeeting(
     {
       title: "Google Meet review",
-      startTime,
-      endTime,
+      startTime: googleSlot.startTime,
+      endTime: googleSlot.endTime,
       meetingType: "google_meet",
       status: "scheduled",
       zoomJoinUrl: googleMeetUrl
@@ -135,7 +174,31 @@ async function main() {
   assert.equal(approved.status, "scheduled");
   assert.equal(approved.zoomJoinUrl, zoomJoinUrl);
 
-  const authedMiddleware = createDashboardApiMiddleware(async () => ({ user: studentUser }));
+  // Second student cannot take the same pending/scheduled slot once held.
+  let conflictFailed = false;
+  try {
+    await scheduleMeeting(
+      {
+        title: "Conflict",
+        startTime,
+        endTime,
+        status: "pending",
+        meetingType: "zoom",
+        mentorUserId: mentorUser.id,
+        clientRequestId: `conflict-${Date.now()}`
+      },
+      {
+        ...studentUser,
+        id: "33333333-3333-4333-a333-333333333333"
+      },
+      mockReq("/api/meetings", "POST")
+    );
+  } catch (error) {
+    conflictFailed = true;
+    assert.equal(error.code, "slot_taken");
+  }
+  assert.equal(conflictFailed, true);
+
   const unauthorizedMiddleware = createDashboardApiMiddleware(async () => null);
   const unauthorized = await new Promise((resolve) => {
     const req = mockReq("/api/meetings", "POST", { title: "Test", startTime, endTime });

@@ -15,6 +15,7 @@ import { loadPreferences } from "../../lib/dashboardPreferences.js";
 import { EVENT_CATEGORY_LABELS } from "../../data/placeholders.js";
 import { EmptyState, Modal, SecondaryButton } from "../ui/index.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
+import { useMentorBookingSlots } from "../../hooks/useMentorBookingSlots.js";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -690,10 +691,24 @@ export default function AdmissionsCalendarVisual({
     parentViewStudent,
     mentor,
     mentorAccess,
-    openNoMentorAccessModal
+    openNoMentorAccessModal,
+    meetings,
+    pendingMeetingRequests
   } = useDashboardData();
   const canRequestMentorSessions =
     canBookSession([], mentorAccess) || plan === "plus" || plan === "pro" || Boolean(mentorAccess?.packageRemaining > 0);
+  const mentorUserId = mentor?.userId || mentor?.mentorUserId || null;
+  const {
+    dates: bookingSlotDates,
+    loading: bookingSlotsLoading,
+    error: bookingSlotsError,
+    refresh: refreshBookingSlots
+  } = useMentorBookingSlots({
+    mentorUserId,
+    schedule: mentor?.availabilitySchedule || null,
+    meetings: [...(meetings || []), ...(pendingMeetingRequests || [])],
+    enabled: Boolean(!isMentorCalendar && canRequestMentorSessions && mentorUserId)
+  });
   const createOptions = useMemo(() => {
     if (isMentorCalendar || isMentorStudentView) return CREATE_OPTIONS;
     if (!canRequestMentorSessions && plan === "basic") return TASK_ONLY_CREATE_OPTIONS;
@@ -1222,6 +1237,10 @@ export default function AdmissionsCalendarVisual({
           Boolean(createDraft?.formVariant === "event" && !editDraft) &&
           canRequestMentorSessions
         }
+        bookingSlotDates={bookingSlotDates}
+        bookingSlotsLoading={bookingSlotsLoading}
+        bookingSlotsError={bookingSlotsError}
+        onRefreshBookingSlots={refreshBookingSlots}
         onRequestMeeting={async (payload) => {
           try {
             return await scheduleMeeting({
@@ -1239,6 +1258,8 @@ export default function AdmissionsCalendarVisual({
               openNoMentorAccessModal?.();
             }
             throw error;
+          } finally {
+            refreshBookingSlots();
           }
         }}
         onSave={handleSaveLocalEvent}

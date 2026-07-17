@@ -70,6 +70,7 @@ import StudentProgressRewardsProduct from "../../components/product/StudentProgr
 import StudentApplicationReviewsPanel from "../../components/product/StudentApplicationReviewsPanel.jsx";
 import PlanLockedFeature from "../../components/product/PlanLockedFeature.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
+import { useMentorBookingSlots } from "../../hooks/useMentorBookingSlots.js";
 import { usePlanUpgrade } from "../../context/PlanUpgradeContext.jsx";
 
 /* ——— Shared presentational helpers for the redesigned pages ——— */
@@ -1661,7 +1662,39 @@ export function StudentWorkspace() {
   );
 }
 
-function MentorAvailabilityList({ availability }) {
+function MentorAvailabilityList({ availability, slotDates = [] }) {
+  if (slotDates.length) {
+    const upcoming = slotDates
+      .flatMap((day) =>
+        (day.slots || []).map((slot) => ({
+          key: `${day.date}-${slot.startTime}`,
+          label: `${day.label} · ${slot.label}`,
+          available: slot.available,
+          taken: slot.taken
+        }))
+      )
+      .slice(0, 12);
+
+    if (!upcoming.length) {
+      return <p className="dash-muted">Availability will appear here once your mentor sets their hours.</p>;
+    }
+
+    return (
+      <ul className="dash-slot-list">
+        {upcoming.map((slot) => (
+          <li key={slot.key}>
+            <span className="dash-slot-list__time">
+              <Clock className="h-4 w-4" /> {slot.label}
+            </span>
+            <DashBadge variant={slot.available ? "soft" : "urgent"}>
+              {slot.available ? "Open" : "Taken"}
+            </DashBadge>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   const slots = (availability || "")
     .split("·")
     .map((s) => s.trim())
@@ -1704,6 +1737,18 @@ export function StudentMentor() {
   const m = mentor;
   const creditMeetings = [...(meetings || []), ...(pendingMeetingRequests || [])];
   const canBook = canBookSession(creditMeetings, mentorAccess);
+  const mentorUserId = m?.userId || m?.mentorUserId || null;
+  const {
+    dates: bookingSlotDates,
+    loading: bookingSlotsLoading,
+    error: bookingSlotsError,
+    refresh: refreshBookingSlots
+  } = useMentorBookingSlots({
+    mentorUserId,
+    schedule: m?.availabilitySchedule || null,
+    meetings: creditMeetings,
+    enabled: Boolean(m && canBook)
+  });
   const remainingLabel =
     mentorAccess && typeof mentorAccess.remainingSessions === "number"
       ? `${mentorAccess.remainingSessions} session${mentorAccess.remainingSessions === 1 ? "" : "s"} remaining`
@@ -1810,7 +1855,7 @@ export function StudentMentor() {
 
         <SectionCard title="Mentor Availability" className="dash-panel dash-mentor-sessions-grid__availability">
           <div className="dash-mentor-sessions-grid__availability-inner">
-            <MentorAvailabilityList availability={m.availability} />
+            <MentorAvailabilityList availability={m.availability} slotDates={bookingSlotDates} />
             <a href="#mentor-schedule" className="dash-btn dash-btn--secondary dash-btn--sm">
               <Calendar className="h-4 w-4" /> Request a time
             </a>
@@ -1862,6 +1907,10 @@ export function StudentMentor() {
                   formVariant="event"
                   initialCategory="mentor_meeting"
                   meetingRequestMode
+                  bookingSlotDates={bookingSlotDates}
+                  bookingSlotsLoading={bookingSlotsLoading}
+                  bookingSlotsError={bookingSlotsError}
+                  onRefreshBookingSlots={refreshBookingSlots}
                   onRequestMeeting={async (payload) => {
                     setBookingError("");
                     setBookingBusy(true);
@@ -1883,6 +1932,7 @@ export function StudentMentor() {
                       throw error;
                     } finally {
                       setBookingBusy(false);
+                      refreshBookingSlots();
                     }
                   }}
                   onSave={async (saved) => {

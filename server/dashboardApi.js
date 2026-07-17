@@ -100,6 +100,38 @@ export function createDashboardApiMiddleware(getSession) {
         }
       }
 
+      if (url.pathname === "/api/meetings/available-slots" && req.method === "GET") {
+        const mentorUserId = url.searchParams.get("mentorUserId") || url.searchParams.get("mentorId");
+        if (!mentorUserId) {
+          return sendJson(res, 400, {
+            error: "validation_error",
+            message: "mentorUserId is required."
+          });
+        }
+        const { getAvailableMentorSlots } = await import("./lib/mentorBookingSlots.js");
+        const slots = await getAvailableMentorSlots({ mentorUserId });
+        return sendJson(res, 200, {
+          mentorUserId,
+          timezone: slots.schedule.timezone,
+          schedule: slots.schedule,
+          dates: slots.dates.map((day) => ({
+            date: day.date,
+            weekday: day.weekday,
+            label: day.label,
+            hasAvailability: day.hasAvailability,
+            slots: day.slots.map((slot) => ({
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              label: slot.label,
+              startIso: slot.startIso,
+              endIso: slot.endIso,
+              available: slot.available,
+              taken: slot.taken
+            }))
+          }))
+        });
+      }
+
       if (url.pathname === "/api/meetings" && req.method === "GET") {
         const stored = await listMeetingsForUser({ userId: user.id, role });
         const meetings = stored.map((m) => sanitizeMeetingForRole(m, role));
@@ -113,7 +145,12 @@ export function createDashboardApiMiddleware(getSession) {
       }
 
       const meetingId = url.pathname.split("/").filter(Boolean).pop();
-      if (url.pathname.startsWith("/api/meetings/") && req.method === "PATCH") {
+      if (
+        url.pathname.startsWith("/api/meetings/") &&
+        req.method === "PATCH" &&
+        meetingId &&
+        meetingId !== "available-slots"
+      ) {
         const body = await readJsonBody(req);
         const updated = await updateScheduledMeeting(meetingId, body, user);
         return sendJson(res, 200, { meeting: sanitizeMeetingForRole(updated, role) });

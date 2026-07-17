@@ -42,6 +42,11 @@ export async function createMeeting(payload, options = {}) {
   });
 }
 
+export async function getAvailableMentorSlots(mentorUserId) {
+  const params = new URLSearchParams({ mentorUserId: String(mentorUserId) });
+  return dashboardRequest(`/api/meetings/available-slots?${params.toString()}`);
+}
+
 export async function updateMeeting(id, payload) {
   return api(`/api/meetings/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
 }
