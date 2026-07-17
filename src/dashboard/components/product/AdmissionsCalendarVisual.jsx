@@ -692,7 +692,7 @@ export default function AdmissionsCalendarVisual({
     mentor,
     mentorAccess,
     openNoMentorAccessModal,
-    meetings,
+    meetings: dashboardMeetings,
     pendingMeetingRequests
   } = useDashboardData();
   const canRequestMentorSessions =
@@ -706,7 +706,7 @@ export default function AdmissionsCalendarVisual({
   } = useMentorBookingSlots({
     mentorUserId,
     schedule: mentor?.availabilitySchedule || null,
-    meetings: [...(meetings || []), ...(pendingMeetingRequests || [])],
+    meetings: [...(dashboardMeetings || []), ...(pendingMeetingRequests || [])],
     enabled: Boolean(!isMentorCalendar && canRequestMentorSessions && mentorUserId)
   });
   const createOptions = useMemo(() => {
