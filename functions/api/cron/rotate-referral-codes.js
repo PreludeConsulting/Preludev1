@@ -2,13 +2,13 @@
  * Cloudflare Pages Function for monthly referral rotation.
  * Auth: Authorization Bearer CRON_SECRET or x-cron-secret.
  */
-import { createSupabaseAdmin } from "../../server/lib/supabasePasswordReset.js";
+import { createSupabaseAdmin } from "../../_lib/supabasePasswordReset.js";
 import {
   REFERRAL_BUSINESS_TIMEZONE,
   formatReferralMonthLabel,
   logReferralEvent,
   referralMonthParts
-} from "../../shared/referralConstants.js";
+} from "../../../shared/referralConstants.js";
 
 function json(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
