@@ -81,7 +81,8 @@ function shopStorageKey(email) {
 export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const { isMentorStudentView, mentor: assignedMentor } = useDashboardData();
   const { user: authUser } = useAuth();
-  const [state, setState] = useState(() => normalizeRewardsState(initial));
+  const normalizedInitial = useMemo(() => normalizeRewardsState(initial), [initial]);
+  const [state, setState] = useState(() => normalizedInitial);
   const [toasts, setToasts] = useState([]);
   const [celebration, setCelebration] = useState(null);
   const [redemptionCelebration, setRedemptionCelebration] = useState(null);

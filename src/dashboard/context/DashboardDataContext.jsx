@@ -92,6 +92,7 @@ import {
   subscribeStudentDashboardChanged
 } from "../lib/studentDashboardSync.js";
 import { playLiveNotificationSound } from "../lib/notificationSounds.js";
+import { listMentorActivities } from "../../lib/mentorActivitiesApi.js";
 import {
   enrichMentorStudentCalendarItem,
   enrichParentStudentCalendarItem,
@@ -343,6 +344,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   const [conversations, setConversations] = useState([]);
   const [mentor, setMentor] = useState(null);
   const [mentors, setMentors] = useState([]);
+  const [assignedStudents, setAssignedStudents] = useState([]);
   const [profile, setProfile] = useState(null);
   const [availability, setAvailability] = useState([]);
   const [rewardsData, setRewardsData] = useState(null);
@@ -398,10 +400,10 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     setSyncStatus("loading");
     setSyncError(null);
     setDashboardSyncState(createSyncState({ status: SYNC_STATUS.LOADING, source: "dashboard" }));
+    const store = localDemo ? loadLocalDashboardStore(user.id) : {};
 
     // Demo accounts always use local fixtures, even when Supabase is configured for real users.
     if (localDemo) {
-      const store = loadLocalDashboardStore(user.id);
       setUserCalendarEvents(store.calendarEvents || []);
       setLocalTasks(store.tasks?.length ? store.tasks : null);
       setLocalEssays(store.essays?.length ? store.essays : null);
@@ -420,6 +422,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setOnboarding(localDemo.onboarding || EMPTY_ONBOARDING);
       setMentor(localDemo.mentor || null);
       setMentors(localDemo.mentors || []);
+      setAssignedStudents(localDemo.students || []);
       setEvents(localDemo.events || []);
       setMessages(localDemo.messages || []);
       setConversations(
@@ -476,6 +479,12 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setOnboarding(data.onboarding || EMPTY_ONBOARDING);
         setMentor(data.mentor);
         setMentors(data.mentors || []);
+        if (roleFromUser(user) === "mentor") {
+          const activityData = await listMentorActivities(undefined, user).catch(() => null);
+          setAssignedStudents(activityData?.students || []);
+        } else {
+          setAssignedStudents([]);
+        }
         setMeetings(data.meetings || []);
         if (appData.mentorAccess) setMentorAccess(appData.mentorAccess);
         setEvents((data.events || []).filter((e) => !e.userCreated));
@@ -532,7 +541,6 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
     // Browser-local dashboard stores are reserved for explicitly labeled demo
     // accounts; authenticated production users must see server data or an error.
-    const store = localDemo ? loadLocalDashboardStore(user.id) : {};
     setUserCalendarEvents(store.calendarEvents || []);
     setLocalTasks(store.tasks?.length ? store.tasks : null);
     setLocalEssays(store.essays?.length ? store.essays : null);
@@ -603,6 +611,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setConversations([]);
       setMentor(null);
       setMentors([]);
+      setAssignedStudents([]);
       setProfile(null);
       setAvailability([]);
       setRewardsData(null);
@@ -1794,9 +1803,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     const isParentStudentViewMode = Boolean(parentViewStudent);
     const isGuardianViewMode = isMentorStudentViewMode || isParentStudentViewMode;
     const isMentorAccount = roleFromUser(user) === "mentor" && !isGuardianViewMode;
-    const assignedStudents = demo?.students ?? [];
-    const aggregatedStudentCalendar = isMentorAccount && assignedStudents.length
-      ? aggregateStudentCalendars(assignedStudents)
+    const resolvedAssignedStudents = demo?.students ?? assignedStudents;
+    const aggregatedStudentCalendar = isMentorAccount && resolvedAssignedStudents.length
+      ? aggregateStudentCalendars(resolvedAssignedStudents)
       : null;
 
     const resolvedProfile = resolveStudentProfile(profile, profileOverrides, isStudent, demo?.profile, useSupabase);
@@ -1902,7 +1911,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       toggleTask: isGuardianViewMode ? async () => null : toggleTask,
       mentor: resolvedMentor,
       mentors,
-      students: demo?.students ?? [],
+      students: resolvedAssignedStudents,
       messages: demo?.messages ?? messages,
       conversations: resolvedConversations,
       gamification: demo?.gamification ?? null,
@@ -2076,6 +2085,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       profileOverrides,
       mentor,
       mentors,
+      assignedStudents,
       messages,
       conversations,
       profile,

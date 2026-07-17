@@ -97,6 +97,42 @@ enum SecurityEventSeverity {
   @@map("security_event_severity")
 }
 
+enum MentorActivityType {
+  PERSONAL_STATEMENT
+  SUPPLEMENTAL_ESSAY
+  ADDITIONAL_ESSAY
+  ACTIVITIES_LIST
+  RESUME
+  CUSTOM_ACTIVITY
+
+  @@map("mentor_activity_type")
+}
+
+enum MentorActivityStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  NEEDS_REVISION
+  COMPLETED
+
+  @@map("mentor_activity_status")
+}
+
+enum ActivitySubmissionMethod {
+  DOCUMENT_LINK
+  FILE_UPLOAD
+
+  @@map("activity_submission_method")
+}
+
+enum AllowedSubmissionMethod {
+  DOCUMENT_LINK
+  FILE_UPLOAD
+  EITHER
+
+  @@map("allowed_submission_method")
+}
+
 model User {
   id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   firstName               String                   @map("first_name") @db.VarChar(80)
@@ -134,6 +170,10 @@ model User {
   messagesSent            Message[]                @relation("MessagesSent")
   messagesReceived        Message[]                @relation("MessagesReceived")
   preludeMatchQuestionnaire PreludeMatchQuestionnaire?
+  mentorActivitiesCreated MentorAssignedActivity[] @relation("MentorActivitiesCreated")
+  mentorActivitiesAssigned MentorAssignedActivity[] @relation("StudentActivitiesAssigned")
+  activitySubmissions ActivitySubmission[] @relation("StudentActivitySubmissions")
+  activityFeedbackAuthored ActivityFeedback[] @relation("MentorActivityFeedback")
 
   @@index([role, status], map: "idx_users_role_status")
   @@index([emailVerified, status], map: "idx_users_verified_status")
@@ -466,6 +506,76 @@ model Essay {
   @@index([studentProfileId, status], map: "idx_essays_student_status")
   @@index([collegeApplicationId], map: "idx_essays_application")
   @@map("essays")
+}
+
+model MentorAssignedActivity {
+  id                      String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mentorId                String                  @map("mentor_id") @db.Uuid
+  studentId               String                  @map("student_id") @db.Uuid
+  title                   String                  @db.VarChar(180)
+  activityType            MentorActivityType      @map("activity_type")
+  collegeName             String?                 @map("college_name") @db.VarChar(180)
+  essayPrompt             String?                 @map("essay_prompt") @db.Text
+  wordLimit               Int?                    @map("word_limit")
+  instructions            String?                 @db.Text
+  dueDate                 DateTime?               @map("due_date") @db.Timestamptz(6)
+  allowedSubmissionMethod AllowedSubmissionMethod @default(EITHER) @map("allowed_submission_method")
+  status                  MentorActivityStatus    @default(NOT_STARTED)
+  createdAt               DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt             DateTime?               @map("completed_at") @db.Timestamptz(6)
+
+  mentor      User                 @relation("MentorActivitiesCreated", fields: [mentorId], references: [id], onDelete: Cascade)
+  student     User                 @relation("StudentActivitiesAssigned", fields: [studentId], references: [id], onDelete: Cascade)
+  submissions ActivitySubmission[]
+  feedback    ActivityFeedback[]
+
+  @@index([studentId, status, dueDate], map: "idx_mentor_activities_student_status_due")
+  @@index([mentorId, status, createdAt], map: "idx_mentor_activities_mentor_status_created")
+  @@map("mentor_assigned_activities")
+}
+
+model ActivitySubmission {
+  id               String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activityId       String                   @map("activity_id") @db.Uuid
+  studentId        String                   @map("student_id") @db.Uuid
+  submissionMethod ActivitySubmissionMethod @map("submission_method")
+  documentUrl      String?                  @map("document_url") @db.VarChar(2048)
+  storagePath      String?                  @map("storage_path") @db.Text
+  originalFileName String?                  @map("original_file_name") @db.VarChar(255)
+  fileMimeType     String?                  @map("file_mime_type") @db.VarChar(120)
+  fileSize         Int?                     @map("file_size")
+  isDraft          Boolean                  @default(true) @map("is_draft")
+  idempotencyKey   String?                  @unique @map("idempotency_key") @db.VarChar(120)
+  submittedAt      DateTime?                @map("submitted_at") @db.Timestamptz(6)
+  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  activity MentorAssignedActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  student  User                   @relation("StudentActivitySubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+  feedback ActivityFeedback[]
+
+  @@index([activityId, createdAt], map: "idx_activity_submissions_activity_created")
+  @@index([studentId, isDraft, updatedAt], map: "idx_activity_submissions_student_draft")
+  @@map("activity_submissions")
+}
+
+model ActivityFeedback {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activityId   String   @map("activity_id") @db.Uuid
+  submissionId String?  @map("submission_id") @db.Uuid
+  mentorId     String   @map("mentor_id") @db.Uuid
+  feedbackText String   @map("feedback_text") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  activity   MentorAssignedActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  submission ActivitySubmission?    @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  mentor     User                   @relation("MentorActivityFeedback", fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@index([activityId, createdAt], map: "idx_activity_feedback_activity_created")
+  @@index([submissionId], map: "idx_activity_feedback_submission")
+  @@map("activity_feedback")
 }
 
 model ActivityLog {

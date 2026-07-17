@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import { Calendar, ChevronRight, Flame, MoreVertical } from "lucide-react";
+import { Calendar, ChevronRight, Flame, MoreVertical, Plus } from "lucide-react";
 import { Avatar, IconButton } from "../ui/index.jsx";
 import { ProgressRing } from "../ui/gamification.jsx";
 
-export default function MentorStudentDirectoryCard({ student, basePath }) {
+export default function MentorStudentDirectoryCard({ student, basePath, onAssign }) {
   const streak = student.gamification?.streak ?? 0;
   const profileStrength = student.profileCompletion ?? 0;
   const nextDeadline = student.nextMeeting || student.nextDeadline || "TBD";
@@ -51,6 +51,14 @@ export default function MentorStudentDirectoryCard({ student, basePath }) {
       </div>
 
       <div className="dash-mentor-directory-card__footer">
+        <button
+          type="button"
+          className="dash-btn dash-btn--primary dash-mentor-directory-card__cta"
+          onClick={() => onAssign?.(student)}
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          <span>Assign Activity</span>
+        </button>
         <Link
           to={`${basePath}/students/${student.id}/overview`}
           className="dash-btn dash-btn--secondary dash-mentor-directory-card__cta"

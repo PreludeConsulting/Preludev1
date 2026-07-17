@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, ChevronDown, Search, Users } from "lucide-react";
+import { useAuth } from "../../../context/AuthContext.jsx";
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { listMentorActivities } from "../../../lib/mentorActivitiesApi.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { EmptyState } from "../ui/index.jsx";
+import { AssignActivityModal } from "./MentorActivitiesPanel.jsx";
 import MentorStudentDirectoryCard from "./MentorStudentDirectoryCard.jsx";
 
 const PAGE_SIZE = 4;
@@ -79,16 +82,31 @@ function MentorStudentsPagination({ page, totalPages, onPageChange }) {
 }
 
 export default function MentorStudentsProduct() {
+  const { user } = useAuth();
   const { students, summaryCards } = useDashboardData();
+  const [activityStudents, setActivityStudents] = useState([]);
+  const [assignStudent, setAssignStudent] = useState(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("name");
   const [gradeFilter, setGradeFilter] = useState("");
   const [page, setPage] = useState(1);
 
+  const rosterStudents = useMemo(() => (
+    students.length ? students : activityStudents.map((student) => ({
+      ...student,
+      grade: student.grade || "",
+      major: "",
+      gamification: { streak: 0 },
+      profileCompletion: 0,
+      upcomingDeadlines: 0,
+      nextDeadline: "TBD"
+    }))
+  ), [students, activityStudents]);
+
   const filteredStudents = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return [...students]
+    return [...rosterStudents]
       .filter((student) => {
         if (!normalizedQuery) return true;
         return (
@@ -104,7 +122,15 @@ export default function MentorStudentsProduct() {
         }
         return a.name.localeCompare(b.name);
       });
-  }, [students, query, gradeFilter, sort]);
+  }, [rosterStudents, query, gradeFilter, sort]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listMentorActivities(undefined, user).then((data) => {
+      if (!cancelled) setActivityStudents(data.students || []);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [user?.email]);
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
   const pageStudents = filteredStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -117,9 +143,9 @@ export default function MentorStudentsProduct() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const studentCount = summaryCards?.students ?? students.length;
+  const studentCount = summaryCards?.students ?? rosterStudents.length;
   const deadlinesThisWeek = summaryCards?.upcomingDeadlines
-    ?? students.reduce((sum, student) => sum + (student.upcomingDeadlines ?? 0), 0);
+    ?? rosterStudents.reduce((sum, student) => sum + (student.upcomingDeadlines ?? 0), 0);
 
   return (
     <div className="dash-page dash-page--mentor-students">
@@ -200,7 +226,7 @@ export default function MentorStudentsProduct() {
       <div className="dash-mentor-directory-body">
         <div className="dash-mentor-directory-grid">
           {pageStudents.map((student) => (
-            <MentorStudentDirectoryCard key={student.id} student={student} basePath={MENTOR_DASHBOARD_BASE} />
+            <MentorStudentDirectoryCard key={student.id} student={student} basePath={MENTOR_DASHBOARD_BASE} onAssign={setAssignStudent} />
           ))}
         </div>
 
@@ -214,6 +240,14 @@ export default function MentorStudentsProduct() {
 
         <MentorStudentsPagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
+
+      <AssignActivityModal
+        open={Boolean(assignStudent)}
+        onClose={() => setAssignStudent(null)}
+        students={rosterStudents}
+        presetStudentId={assignStudent?.id || ""}
+        user={user}
+      />
     </div>
   );
 }

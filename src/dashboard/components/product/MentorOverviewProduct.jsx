@@ -8,6 +8,7 @@ import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { buildMentorCalendarExtras } from "../../lib/mentorCalendarFeed.js";
 import AdmissionsCalendarVisual from "./AdmissionsCalendarVisual.jsx";
 import MentorDashboardCards from "./MentorDashboardCards.jsx";
+import MentorActivitiesPanel from "./MentorActivitiesPanel.jsx";
 
 function greetingForHour(hour) {
   if (hour < 12) return "Good Morning";
@@ -87,6 +88,8 @@ export default function MentorOverviewProduct() {
           />
         </section>
       </div>
+
+      <MentorActivitiesPanel />
     </div>
   );
 }

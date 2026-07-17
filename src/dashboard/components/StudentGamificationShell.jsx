@@ -12,7 +12,10 @@ export default function StudentGamificationShell({ user, children }) {
   const { gamification, progressRewards, profile } = useDashboardData();
   const isJordan = isJordanDemoEmail(user?.email);
   const isSupabaseUser = user?.authProvider === "supabase";
-  const initialGamification = gamification || EMPTY_GAMIFICATION;
+  const initialGamification = useMemo(
+    () => gamification || EMPTY_GAMIFICATION,
+    [gamification]
+  );
   const initialRewards = useMemo(() => {
     if (isSupabaseUser) return EMPTY_REWARDS;
     return progressRewards || buildDefaultProgressRewards(isJordan);
