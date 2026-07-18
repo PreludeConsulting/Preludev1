@@ -10,6 +10,18 @@ export async function submitBugReport(payload) {
     body: JSON.stringify(payload)
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error("Something went wrong sending your report. Please try again.");
+  if (!response.ok) {
+    if (import.meta.env.DEV) {
+      console.error("[prelude-bug-report] submission failed", {
+        status: response.status,
+        error: data.error,
+        message: data.debugMessage || data.message
+      });
+    }
+    const error = new Error(data.debugMessage || data.message || "Something went wrong sending your report. Please try again.");
+    error.status = response.status;
+    error.code = data.error;
+    throw error;
+  }
   return data;
 }

@@ -62,6 +62,11 @@ export async function sendBugReport({ env = process.env, payload, verifiedAccoun
     const error = new Error("Bug report email could not be delivered.");
     error.statusCode = 503;
     error.code = result.reason === "missing_provider" ? "email_not_configured" : "email_delivery_failed";
+    error.details = {
+      reason: result.reason,
+      providerStatus: result.status,
+      providerMessage: result.providerMessage
+    };
     throw error;
   }
   return { message: "Thanks — your bug report was sent to Prelude Support." };

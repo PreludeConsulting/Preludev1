@@ -33,8 +33,14 @@ export function createBugReportsMiddleware(env = process.env) {
       return sendJson(res, 200, result);
     } catch (error) {
       if (error instanceof z.ZodError) return sendJson(res, 400, { error: "validation_error", message: "Please check the required fields." });
-      if ((error.statusCode || 500) >= 500) console.error("[prelude-bug-report]", error.message || error);
-      return sendJson(res, error.statusCode || 500, { error: error.code || "server_error", message: "Something went wrong sending your report. Please try again." });
+      if ((error.statusCode || 500) >= 500) console.error("[prelude-bug-report]", {
+        code: error.code,
+        message: error.message,
+        details: error.details
+      });
+      const response = { error: error.code || "server_error", message: "Something went wrong sending your report. Please try again." };
+      if (env.NODE_ENV !== "production") response.debugMessage = error.details?.providerMessage || error.message;
+      return sendJson(res, error.statusCode || 500, response);
     }
   };
 }

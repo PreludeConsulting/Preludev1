@@ -37,9 +37,11 @@ export default function BugReportForm({ onBack }) {
       setForm(initialForm());
       setStatus("success");
       setMessage(result.message || "Thanks — your bug report was sent to Prelude Support.");
-    } catch {
+    } catch (error) {
       setStatus("error");
-      setMessage("Something went wrong sending your report. Please try again.");
+      setMessage(import.meta.env.DEV && error?.message
+        ? error.message
+        : "Something went wrong sending your report. Please try again.");
     }
   }
 
