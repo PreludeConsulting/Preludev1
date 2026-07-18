@@ -14,26 +14,38 @@ import "../styles/mentors-page.css";
 
 const MENTOR_REVIEWS = [
   {
-    quote: "Peter helped me turn my rough essay draft into something that sounded like me instead of a template.",
-    name: "Alex Williams",
-    label: "Brown student"
+    quote:
+      "Working with Moon completely changed the way I saw my application. He helped me connect my identity and passions into one story that finally felt true to who I am. His guidance gave me so much confidence, and it inspired me to become a mentor too!",
+    name: "Destiny Park",
+    label: "Emory University",
+    highlight: "Moon"
   },
   {
-    quote: "Kai gave me a school-list reality check in ten minutes that saved me weeks of guessing.",
-    name: "Kye Taylor",
-    label: "Brown student"
+    quote:
+      "Asim was genuinely incredible. He taught me testing strategies that completely changed how I approached the SAT, especially with question patterns and time management. With his help, I was able to push my score past a 1540!",
+    name: "Emily Carter",
+    label: "Northwestern University",
+    highlight: "Asim"
   },
   {
-    quote: "Asim helped me turn a bunch of activities into an actual application story.",
-    name: "Kai Thomas",
-    label: "Essay support"
-  },
-  {
-    quote: "Jess made my essay feedback specific, honest, and actually useful in a way I could act on.",
-    name: "Keegan Walker",
-    label: "Brown student"
+    quote:
+      "Peter completely opened my eyes to computer science. He explained the different paths within the field and what studying CS really looks like today. Because of him, I found a real passion for computer science and now feel so excited about my future in it!",
+    name: "Jackson Fleece",
+    label: "Carnegie Mellon University",
+    highlight: "Peter"
   }
 ];
+
+function renderQuote(quote, highlight) {
+  if (!highlight) return quote;
+  const parts = quote.split(highlight);
+  return parts.map((part, index) => (
+    <span key={index}>
+      {part}
+      {index < parts.length - 1 ? <strong>{highlight}</strong> : null}
+    </span>
+  ));
+}
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -122,7 +134,7 @@ function MentorsPageContent() {
                         <p className="mentors-page__review-name">{review.name}</p>
                         <p className="mentors-page__review-label">{review.label}</p>
                       </header>
-                      <p className="mentors-page__review-quote">&ldquo;{review.quote}&rdquo;</p>
+                      <p className="mentors-page__review-quote">&ldquo;{renderQuote(review.quote, review.highlight)}&rdquo;</p>
                     </article>
                   ))}
                 </div>
