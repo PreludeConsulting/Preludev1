@@ -27,6 +27,7 @@ import {
 import ParentGuardianSettingsPanel from "../../components/settings/ParentGuardianSettingsPanel.jsx";
 import ReferralCodePanel from "../../components/settings/ReferralCodePanel.jsx";
 import BillingMembershipPanel from "../../components/settings/BillingMembershipPanel.jsx";
+import BugReportForm from "../../../components/BugReportForm.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { getDemoLinkedChildren, listLinkedChildren } from "../../../lib/parentLinks.js";
@@ -622,6 +623,10 @@ const PARENT_SETTINGS_TABS = [
   { id: "support", label: "Support", icon: HelpCircle, description: "Help and contact" }
 ];
 
+const ADMIN_SETTINGS_TABS = [
+  { id: "support", label: "Support", icon: HelpCircle, description: "Help and contact" }
+];
+
 const NOTIFICATION_PREF_KEYS = [
   "emailUpdates",
   "securityAlerts",
@@ -640,6 +645,55 @@ const PRIVACY_PREF_KEYS = ["profileVisibility", "dataExportRequestedAt"];
 
 function sectionDirty(current, initial, keys) {
   return keys.some((key) => current?.[key] !== initial?.[key]);
+}
+
+function SupportSettingsSection({ helpPath, onOpenAccount }) {
+  const [showBugReport, setShowBugReport] = useState(false);
+
+  if (showBugReport) {
+    return (
+      <SectionCard className="dash-panel">
+        <BugReportForm onBack={() => setShowBugReport(false)} />
+      </SectionCard>
+    );
+  }
+
+  return (
+    <SectionCard title="Support" className="dash-panel">
+      <button type="button" className="dash-setting-link" onClick={() => setShowBugReport(true)}>
+        <span>
+          <span className="dash-setting-link__label">Report a Bug</span>
+          <span className="dash-setting-link__desc">Tell us what went wrong so Prelude Support can take a look.</span>
+        </span>
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
+      </button>
+      <a className="dash-setting-link" href="mailto:preludesupport@preludeconsultingllc.com">
+        <span>
+          <span className="dash-setting-link__label"><Mail className="h-4 w-4" aria-hidden="true" /> Contact support</span>
+          <span className="dash-setting-link__desc">preludesupport@preludeconsultingllc.com</span>
+        </span>
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
+      </a>
+      {helpPath ? (
+        <Link className="dash-setting-link" to={helpPath}>
+          <span>
+            <span className="dash-setting-link__label">Help center</span>
+            <span className="dash-setting-link__desc">Browse common questions and support resources.</span>
+          </span>
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      ) : null}
+      {onOpenAccount ? (
+        <button type="button" className="dash-setting-link" onClick={onOpenAccount}>
+          <span>
+            <span className="dash-setting-link__label">Account &amp; plan</span>
+            <span className="dash-setting-link__desc">View or change your subscription.</span>
+          </span>
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+      ) : null}
+    </SectionCard>
+  );
 }
 
 function renderSetting(setting, prefs, setPref) {
@@ -966,24 +1020,7 @@ export function StudentSettingsPage() {
         </SectionCard>
       ) : null}
 
-      {tab === "support" ? (
-        <SectionCard title="Support" className="dash-panel">
-          <a className="dash-setting-link" href="mailto:preludesupport@preludeconsultingllc.com">
-            <span>
-              <span className="dash-setting-link__label"><Mail className="h-4 w-4" aria-hidden="true" /> Contact support</span>
-              <span className="dash-setting-link__desc">preludesupport@preludeconsultingllc.com</span>
-            </span>
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </a>
-          <button type="button" className="dash-setting-link" onClick={openAccount}>
-            <span>
-              <span className="dash-setting-link__label">Account &amp; plan</span>
-              <span className="dash-setting-link__desc">View or change your subscription.</span>
-            </span>
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </SectionCard>
-      ) : null}
+      {tab === "support" ? <SupportSettingsSection onOpenAccount={openAccount} /> : null}
     </SettingsPageShell>
   );
 }
@@ -1044,17 +1081,7 @@ export function MentorSettingsPage() {
 
       {tab === "security" ? <SecuritySettingsPanel user={user} onOpenAccount={openAccount} /> : null}
 
-      {tab === "support" ? (
-        <SectionCard title="Support" className="dash-panel">
-          <a className="dash-setting-link" href="mailto:preludesupport@preludeconsultingllc.com">
-            <span>
-              <span className="dash-setting-link__label"><Mail className="h-4 w-4" aria-hidden="true" /> Contact support</span>
-              <span className="dash-setting-link__desc">preludesupport@preludeconsultingllc.com</span>
-            </span>
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </a>
-        </SectionCard>
-      ) : null}
+      {tab === "support" ? <SupportSettingsSection /> : null}
     </SettingsPageShell>
   );
 }
@@ -1288,31 +1315,7 @@ export function ParentSettingsPage() {
 
       {tab === "security" ? <SecuritySettingsPanel user={user} onOpenAccount={openAccount} /> : null}
 
-      {tab === "support" ? (
-        <SectionCard title="Support" className="dash-panel">
-          <a className="dash-setting-link" href="mailto:preludesupport@preludeconsultingllc.com">
-            <span>
-              <span className="dash-setting-link__label"><Mail className="h-4 w-4" aria-hidden="true" /> Contact support</span>
-              <span className="dash-setting-link__desc">preludesupport@preludeconsultingllc.com</span>
-            </span>
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </a>
-          <Link className="dash-setting-link" to={`${PARENT_DASHBOARD_BASE}/help`}>
-            <span>
-              <span className="dash-setting-link__label">Help center</span>
-              <span className="dash-setting-link__desc">Common questions for parent accounts.</span>
-            </span>
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
-          <button type="button" className="dash-setting-link" onClick={openAccount}>
-            <span>
-              <span className="dash-setting-link__label">Account &amp; plan</span>
-              <span className="dash-setting-link__desc">View or change your subscription.</span>
-            </span>
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </SectionCard>
-      ) : null}
+      {tab === "support" ? <SupportSettingsSection helpPath={`${PARENT_DASHBOARD_BASE}/help`} onOpenAccount={openAccount} /> : null}
     </SettingsPageShell>
   );
 }
@@ -1322,3 +1325,22 @@ export const StudentProfileSettings = StudentSettingsPage;
 
 /** @deprecated Use MentorSettingsPage */
 export const MentorProfileSettings = MentorSettingsPage;
+
+export function AdminSettingsPage() {
+  const { user } = useAuth();
+  const { profile } = useDashboardData();
+
+  return (
+    <SettingsPageShell
+      user={user}
+      profile={profile}
+      roleLabel="Admin"
+      tabs={ADMIN_SETTINGS_TABS}
+      activeTab="support"
+      onTabChange={() => {}}
+      accountActionLabel="Account"
+    >
+      <SupportSettingsSection />
+    </SettingsPageShell>
+  );
+}

@@ -28,7 +28,7 @@ const MentorStudents = lazyNamed(() => import("./pages/mentor/MentorPages.jsx"),
 const ParentOverview = lazyNamed(() => import("./pages/parent/ParentPages.jsx"), "ParentOverview");
 const ParentChildRoutes = lazyNamed(() => import("./pages/parent/ParentPages.jsx"), "ParentChildRoutes");
 import MentorStudentDashboard from "./components/product/MentorStudentDashboard.jsx";
-import { MentorSettingsPage, ParentSettingsPage, StudentSettingsPage } from "./pages/shared/SettingsPages.jsx";
+import { AdminSettingsPage, MentorSettingsPage, ParentSettingsPage, StudentSettingsPage } from "./pages/shared/SettingsPages.jsx";
 import { PRODUCT_PARENT_NAV } from "./config/parentNav.js";
 import { PARENT_ROUTE_META } from "./config/parentRouteMeta.js";
 import { PARENT_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
@@ -185,6 +185,7 @@ function AdminRoutes() {
         <Route element={<DashboardLayout productNav={[{ to: "/matching", label: "Matching", icon: UserCheck }, { to: "/promo-codes", label: "Promo codes", icon: UserCheck }]} basePath={ADMIN_DASHBOARD_BASE} routeMeta={{}} />}>
           <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
           <Route path="promo-codes" element={<PromoCodesAdminPage />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
           <Route path="mentor-review" element={<Navigate to="../matching" replace />} />
           <Route index element={<Navigate to="matching" replace />} />
         </Route>
