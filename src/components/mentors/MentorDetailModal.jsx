@@ -62,7 +62,12 @@ export default function MentorDetailModal({ mentor, onClose }) {
                 <img
                   src={mentor.photo}
                   alt={`${mentor.name}, ${mentor.university}`}
-                  style={{ objectPosition: mentor.objectPosition }}
+                  style={{
+                    objectPosition: mentor.objectPosition,
+                    ...(mentor.photoScale
+                      ? { transform: `scale(${mentor.photoScale})`, transformOrigin: "center 22%" }
+                      : {})
+                  }}
                   width={420}
                   height={525}
                 />

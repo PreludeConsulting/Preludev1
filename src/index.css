@@ -5804,29 +5804,39 @@ html[lang="es"] .shopify-hero__headline-line {
   color: hsl(var(--muted-foreground));
 }
 
-.student-network-panel--network {
-  --sn-network-canvas: #e7e2f9;
+.student-network-panel.student-network-panel--network {
+  /* Exact mentor graphic canvas — one continuous lavender surface */
+  --sn-network-canvas: #ddd3f6;
   position: relative;
   gap: 0;
   padding: clamp(1.75rem, 4vw, 2.5rem) 0 0;
   border: 1px solid hsl(var(--foreground) / 0.06);
-  background: #e7e2f9;
+  /* Kill base .student-network-panel white gradient completely */
+  background: var(--sn-network-canvas);
+  background-color: var(--sn-network-canvas);
+  background-image: none;
   overflow: hidden;
   box-shadow:
     0 1px 2px hsl(var(--foreground) / 0.04),
     0 18px 42px hsl(var(--primary) / 0.07);
 }
 
-.student-network-panel--network .student-network-panel__title,
-.student-network-panel--network .student-network-panel__caption {
+.student-network-panel.student-network-panel--network .student-network-panel__title,
+.student-network-panel.student-network-panel--network .student-network-panel__caption {
   position: relative;
   z-index: 2;
   padding-inline: clamp(1.75rem, 4vw, 2.5rem);
   background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
-.student-network-panel--network .student-network-panel__title {
+.student-network-panel.student-network-panel--network .student-network-panel__title {
   margin: 0;
+}
+
+.student-network-panel.student-network-panel--network .student-network-panel__caption {
+  margin-bottom: clamp(0.55rem, 1.4vw, 0.9rem);
 }
 
 .student-network-panel--chat {
@@ -5843,70 +5853,45 @@ html[lang="es"] .shopify-hero__headline-line {
   margin-top: 0;
 }
 
-/* Mentor team visual (left panel) */
-.student-network-panel--network .sn-network-graphic {
+/* Mentor team visual — transparent wrapper flush to card canvas */
+.student-network-panel.student-network-panel--network .sn-network-graphic {
   position: relative;
   z-index: 1;
-  display: flex;
-  flex: 1;
-  min-height: clamp(20rem, 44vw, 28rem);
+  display: block;
+  flex: 1 1 auto;
   width: 100%;
-  margin-top: 0;
-  background: transparent;
-}
-
-.student-network-panel--network .sn-network-graphic__stage {
-  position: relative;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  justify-content: flex-end;
-  width: 100%;
-  height: 100%;
-  min-height: inherit;
   margin: 0;
   padding: 0;
   line-height: 0;
   background: transparent;
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  outline: none;
   overflow: hidden;
 }
 
-.student-network-panel--network .sn-network-graphic__image {
+.student-network-panel.student-network-panel--network .sn-network-graphic__image {
   display: block;
-  flex-shrink: 0;
-  width: 132%;
+  width: 100%;
   max-width: none;
   height: auto;
-  margin: 0 0 0 -16%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  background-color: transparent;
+  background-image: none;
+  box-shadow: none;
   object-fit: contain;
   object-position: center bottom;
-  transform: translateY(-2%) scale(1.08);
-  transform-origin: center bottom;
-  backface-visibility: hidden;
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    #000 0%,
-    #000 76%,
-    rgb(0 0 0 / 0.98) 80%,
-    rgb(0 0 0 / 0.9) 84%,
-    rgb(0 0 0 / 0.76) 88%,
-    rgb(0 0 0 / 0.55) 92%,
-    rgb(0 0 0 / 0.32) 96%,
-    rgb(0 0 0 / 0.12) 98.5%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    #000 0%,
-    #000 76%,
-    rgb(0 0 0 / 0.98) 80%,
-    rgb(0 0 0 / 0.9) 84%,
-    rgb(0 0 0 / 0.76) 88%,
-    rgb(0 0 0 / 0.55) 92%,
-    rgb(0 0 0 / 0.32) 96%,
-    rgb(0 0 0 / 0.12) 98.5%,
-    transparent 100%
-  );
+  -webkit-mask-image: none;
+  mask-image: none;
+  filter: none;
 }
 
 /* Animated chat demo (right panel) */

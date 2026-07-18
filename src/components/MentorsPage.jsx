@@ -14,14 +14,14 @@ import "../styles/mentors-page.css";
 
 const MENTOR_REVIEWS = [
   {
-    quote: "Declan helped me turn my rough essay draft into something that sounded like me instead of a template.",
+    quote: "Peter helped me turn my rough essay draft into something that sounded like me instead of a template.",
     name: "Alex Williams",
     label: "Brown student"
   },
   {
-    quote: "Ryan gave me a school-list reality check in ten minutes that saved me weeks of guessing.",
+    quote: "Kai gave me a school-list reality check in ten minutes that saved me weeks of guessing.",
     name: "Kye Taylor",
-    label: "Penn student"
+    label: "Brown student"
   },
   {
     quote: "Asim helped me turn a bunch of activities into an actual application story.",

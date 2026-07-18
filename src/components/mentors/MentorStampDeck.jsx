@@ -130,7 +130,12 @@ export default function MentorStampDeck({ mentors, onSelectMentor }) {
                 <img
                   src={mentor.photo}
                   alt=""
-                  style={{ objectPosition: mentor.objectPosition }}
+                  style={{
+                    objectPosition: mentor.objectPosition,
+                    ...(mentor.photoScale
+                      ? { transform: `scale(${mentor.photoScale})`, transformOrigin: "center 22%" }
+                      : {})
+                  }}
                   width={200}
                   height={250}
                   loading="eager"
