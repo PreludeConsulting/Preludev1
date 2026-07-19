@@ -8,7 +8,7 @@ export const EXAMPLE_MENTORS = [
     major: "Engineering",
     specialty: "STEM",
     specialties: ["STEM", "Engineering essays", "Project stories"],
-    description: "Mechanical engineering mentor who helps students turn technical interests into clear project stories.",
+    description: "Software developer with standout project experience and a strong understanding of what makes a compelling CS application.",
     emblem: `${mediaBase}media/universities/georgia-tech.svg`,
     photo: `${mediaBase}media/mentors/declan-brooks.png`,
     objectPosition: "50% 50%"
@@ -20,7 +20,7 @@ export const EXAMPLE_MENTORS = [
     major: "Economics",
     specialty: "Economics",
     specialties: ["Economics", "College List", "Application strategy"],
-    description: "Economics student who helps students think through school fit, application strategy, and building a balanced college list.",
+    description: "Businessman with a talent for interviews and helping students communicate with confidence.",
     emblem: `${mediaBase}media/universities/cornell.svg`,
     photo: `${mediaBase}media/mentors/kai-koblentz.png`,
     objectPosition: "50% 20%"
@@ -32,7 +32,7 @@ export const EXAMPLE_MENTORS = [
     major: "Computer Science",
     specialty: "STEM",
     specialties: ["STEM", "Research positioning", "Technical activities"],
-    description: "CS mentor who guides students through research interests, technical activities, and essay positioning.",
+    description: "Sports medicine specialist known for strong time management and helping students build a strong, personalized roadmap.",
     emblem: `${mediaBase}media/universities/georgia-tech.svg`,
     photo: `${mediaBase}media/mentors/asim-patel.png`,
     objectPosition: "50% 50%"
@@ -44,7 +44,7 @@ export const EXAMPLE_MENTORS = [
     major: "Business",
     specialty: "Ivy Admissions",
     specialties: ["Ivy Admissions", "Leadership", "Entrepreneurship"],
-    description: "Business mentor who helps students connect leadership, entrepreneurship, and community impact.",
+    description: "Consultant and essay mentor with a sharp entrepreneurial mindset who helps students turn ambitious ideas into compelling applications.",
     emblem: `${mediaBase}media/universities/brown.svg`,
     photo: `${mediaBase}media/mentors/harrison-kim.png`,
     objectPosition: "50% 50%"
@@ -56,7 +56,7 @@ export const EXAMPLE_MENTORS = [
     major: "English",
     specialty: "Essays",
     specialties: ["Essays", "Personal statements", "Application voice"],
-    description: "English mentor who specializes in personal statements, voice, and shaping memorable application narratives.",
+    description: "Sports agent and essay mentor who helps students shape their passions into a powerful story that feels entirely their own.",
     emblem: `${mediaBase}media/universities/brown.svg`,
     photo: `${mediaBase}media/mentors/jess-lin.png`,
     objectPosition: "50% 50%"
