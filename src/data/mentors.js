@@ -33,7 +33,7 @@ export const EXAMPLE_MENTORS = [
     specialty: "STEM",
     specialties: ["STEM", "Research positioning", "Technical activities"],
     description: "Sports medicine specialist known for strong time management and helping students build a strong, personalized roadmap.",
-    emblem: `${mediaBase}media/universities/georgia-tech.svg`,
+    emblem: `${mediaBase}media/universities/georgia-tech.png`,
     photo: `${mediaBase}media/mentors/asim-patel.png`,
     objectPosition: "50% 50%"
   },

@@ -5809,7 +5809,8 @@ html[lang="es"] .shopify-hero__headline-line {
   --sn-network-canvas: #ddd3f6;
   position: relative;
   gap: 0;
-  padding: clamp(1.75rem, 4vw, 2.5rem) 0 0;
+  padding: clamp(1.75rem, 4vw, 2.5rem) clamp(1.1rem, 3vw, 1.75rem)
+    clamp(1.5rem, 3.5vw, 2.25rem);
   border: 1px solid hsl(var(--foreground) / 0.06);
   /* Kill base .student-network-panel white gradient completely */
   background: var(--sn-network-canvas);
@@ -5825,7 +5826,7 @@ html[lang="es"] .shopify-hero__headline-line {
 .student-network-panel.student-network-panel--network .student-network-panel__caption {
   position: relative;
   z-index: 2;
-  padding-inline: clamp(1.75rem, 4vw, 2.5rem);
+  padding-inline: clamp(0.65rem, 2vw, 0.85rem);
   background: transparent;
   border: 0;
   box-shadow: none;
@@ -5836,7 +5837,7 @@ html[lang="es"] .shopify-hero__headline-line {
 }
 
 .student-network-panel.student-network-panel--network .student-network-panel__caption {
-  margin-bottom: clamp(0.55rem, 1.4vw, 0.9rem);
+  margin-bottom: 0;
 }
 
 .student-network-panel--chat {
@@ -5853,45 +5854,21 @@ html[lang="es"] .shopify-hero__headline-line {
   margin-top: 0;
 }
 
-/* Mentor team visual — transparent wrapper flush to card canvas */
-.student-network-panel.student-network-panel--network .sn-network-graphic {
+/* Mentor carousel under “Learn from different experiences” */
+.mentor-experiences-carousel {
   position: relative;
   z-index: 1;
-  display: block;
-  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
   width: 100%;
-  margin: 0;
-  padding: 0;
-  line-height: 0;
-  background: transparent;
-  background-color: transparent;
-  background-image: none;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  outline: none;
-  overflow: hidden;
+  margin-top: clamp(1.25rem, 3vw, 2rem);
+  margin-bottom: 0.25rem;
 }
 
-.student-network-panel.student-network-panel--network .sn-network-graphic__image {
-  display: block;
-  width: 100%;
-  max-width: none;
-  height: auto;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  outline: none;
-  background: transparent;
-  background-color: transparent;
-  background-image: none;
-  box-shadow: none;
-  object-fit: contain;
-  object-position: center bottom;
-  -webkit-mask-image: none;
-  mask-image: none;
-  filter: none;
+@media (max-width: 480px) {
+  .mentor-experiences-carousel .carousel-container {
+    width: min(100%, 290px) !important;
+  }
 }
 
 /* Animated chat demo (right panel) */
@@ -8082,7 +8059,7 @@ html[lang="es"] .shopify-hero__headline-line {
   color: hsl(var(--muted-foreground));
 }
 
-/* Parent showcase — replaces "Why families choose Prelude" */
+/* Parent showcase — Built for Parents + TrueFocus cards */
 .parent-showcase {
   position: relative;
   overflow: hidden;
@@ -8090,75 +8067,50 @@ html[lang="es"] .shopify-hero__headline-line {
   color: hsl(var(--foreground));
 }
 
-.parent-showcase::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 58%;
-  transform: translate(-50%, -50%);
-  width: min(92%, 72rem);
-  height: min(70%, 36rem);
-  background:
-    radial-gradient(ellipse at center, hsl(var(--primary) / 0.1), transparent 68%),
-    radial-gradient(ellipse at 50% 100%, hsl(var(--primary) / 0.05), transparent 72%);
-  pointer-events: none;
-}
-
-.parent-showcase__inner {
+.parents-section {
   position: relative;
   z-index: 1;
-  width: min(100%, 68rem);
-  margin-inline: auto;
-  padding: clamp(4rem, 9vw, 7rem) clamp(1.5rem, 5vw, 3rem);
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: clamp(72px, 8vw, 120px) clamp(24px, 6vw, 80px);
+}
+
+.parents-section__copy {
+  position: relative;
+  z-index: 2;
+  max-width: 760px;
+  margin: 0 auto;
   text-align: center;
 }
 
-.parent-showcase__intro {
-  margin-inline: auto;
-  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+.parents-section__copy .lower-landing__eyebrow {
+  display: inline-block;
+  margin: 0 0 0.9rem;
 }
 
-.parent-showcase__headline {
-  margin: 0 auto;
-  font-family: "Barlow", sans-serif;
-  font-size: clamp(1.85rem, 4.2vw, 3.75rem);
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+.parents-section__copy .lower-landing__headline--section {
+  margin-bottom: 0;
+}
+
+.parents-section__subheadline {
+  margin: clamp(1rem, 2vw, 1.35rem) 0 0;
   color: hsl(var(--foreground));
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
 }
 
-.parent-showcase__visual {
-  margin-top: 0;
-  display: flex;
-  justify-content: center;
+.parents-section__copy .lower-landing__body {
+  max-width: 36rem;
+  margin-top: 1rem;
 }
 
-.parent-showcase__card {
-  width: 100%;
-  max-width: 52rem;
-  border-radius: clamp(1.25rem, 2.5vw, 1.75rem);
-  overflow: hidden;
-  background: #ffffff;
-  box-shadow:
-    0 1px 2px hsl(var(--foreground) / 0.04),
-    0 16px 40px hsl(var(--primary) / 0.09),
-    0 32px 64px hsl(var(--foreground) / 0.05);
-}
-
-.parent-showcase__card--hq {
-  max-width: 56rem;
-  box-shadow: var(--shadow-card);
-}
-
-.parent-showcase__image {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.parent-showcase__image--enhanced {
-  image-rendering: auto;
+.parents-section__focus {
+  position: relative;
+  z-index: 2;
+  margin-top: clamp(2.75rem, 6vw, 4.75rem);
 }
 
 .lower-landing__plan {

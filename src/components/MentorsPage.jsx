@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 import AccountPanel from "./AccountPanel.jsx";
 import Navbar from "./Navbar.jsx";
@@ -59,9 +59,27 @@ const fadeUp = {
 function MentorsPageContent() {
   const { requestPersonalizedAi } = useAuth();
   const reducedMotion = useReducedMotion();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedMentor, setSelectedMentor] = useState(null);
   const featuredMentors = EXAMPLE_MENTORS.slice(0, 5);
   const reviewSlides = reducedMotion ? MENTOR_REVIEWS : [...MENTOR_REVIEWS, ...MENTOR_REVIEWS];
+
+  useEffect(() => {
+    const mentorName = searchParams.get("mentor");
+    if (!mentorName) return;
+    const match = EXAMPLE_MENTORS.find(
+      (mentor) => mentor.name.toLowerCase() === mentorName.toLowerCase()
+    );
+    if (match) setSelectedMentor(match);
+  }, [searchParams]);
+
+  function handleCloseMentor() {
+    setSelectedMentor(null);
+    if (!searchParams.get("mentor")) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("mentor");
+    setSearchParams(next, { replace: true });
+  }
 
   const MotionTag = reducedMotion ? "p" : motion.p;
   const MotionH1 = reducedMotion ? "h1" : motion.h1;
@@ -144,7 +162,7 @@ function MentorsPageContent() {
         </main>
       </div>
 
-      <MentorDetailModal mentor={selectedMentor} onClose={() => setSelectedMentor(null)} />
+      <MentorDetailModal mentor={selectedMentor} onClose={handleCloseMentor} />
       <PreludeChat />
       <SignInModal />
       <AccountPanel onOpenPersonalizedAi={requestPersonalizedAi} />

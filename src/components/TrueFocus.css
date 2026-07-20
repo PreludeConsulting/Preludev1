@@ -1,0 +1,236 @@
+.focus-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 2rem;
+  width: 100%;
+  outline: none;
+  user-select: none;
+}
+
+.focus-word {
+  position: relative;
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  width: 100%;
+  max-width: 260px;
+  aspect-ratio: 3 / 4;
+  min-width: 180px;
+  padding: 0;
+  overflow: hidden;
+
+  background: #ffffff;
+  border: 1px solid rgba(124, 58, 237, 0.1);
+  border-radius: 26px;
+  box-shadow:
+    0 18px 45px rgba(35, 28, 89, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  cursor: default;
+  opacity: 0.78;
+  transform: translateY(0) scale(0.985);
+  transition:
+    filter 0.3s ease,
+    opacity 0.3s ease,
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+  outline: none;
+  user-select: none;
+}
+
+.focus-word:nth-child(1) {
+  animation: parent-card-float 6s ease-in-out infinite;
+}
+
+.focus-word:nth-child(2) {
+  animation: parent-card-float 7s ease-in-out -1.5s infinite;
+}
+
+.focus-word:nth-child(3) {
+  animation: parent-card-float 6.5s ease-in-out -3s infinite;
+}
+
+.focus-word.active {
+  z-index: 2;
+  filter: blur(0);
+  opacity: 1;
+  transform: translateY(-6px) scale(1.015);
+  box-shadow:
+    0 26px 65px rgba(62, 43, 148, 0.15),
+    0 0 42px rgba(124, 58, 237, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  animation-play-state: paused;
+}
+
+.focus-word:hover {
+  opacity: 1;
+  transform: translateY(-6px) scale(1.01);
+  box-shadow:
+    0 24px 58px rgba(62, 43, 148, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.focus-word__visual {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  width: calc(100% - 1.5rem);
+  height: 58%;
+  display: block;
+  padding: 0;
+  box-sizing: border-box;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 18px;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: high-quality;
+  filter: contrast(1.16) saturate(1.14) brightness(1.03);
+  pointer-events: none;
+  user-select: none;
+}
+
+.focus-word__copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  height: auto;
+  padding: 0.85rem 0.9rem 1.15rem;
+  box-sizing: border-box;
+  text-align: center;
+  font-family: "Barlow", sans-serif;
+}
+
+.focus-word__eyebrow {
+  margin: 0;
+  color: #6d3df5;
+  font-family: "Barlow", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.focus-word__value {
+  margin: 0.4rem 0 0;
+  color: #111557;
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(1.4rem, 2.5vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+}
+
+.focus-word__detail {
+  margin: 0.35rem 0 0;
+  color: rgba(17, 21, 87, 0.68);
+  font-family: "Barlow", sans-serif;
+  font-size: clamp(0.92rem, 1.4vw, 1.05rem);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.focus-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  pointer-events: none;
+  box-sizing: content-box;
+  border: none;
+}
+
+.corner {
+  position: absolute;
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 3px solid var(--border-color, #7c3aed);
+  border-radius: 5px;
+  filter:
+    drop-shadow(0 0 5px var(--glow-color))
+    drop-shadow(0 0 12px var(--glow-color));
+}
+
+.top-left {
+  top: -9px;
+  left: -9px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.top-right {
+  top: -9px;
+  right: -9px;
+  border-left: none;
+  border-bottom: none;
+}
+
+.bottom-left {
+  bottom: -9px;
+  left: -9px;
+  border-right: none;
+  border-top: none;
+}
+
+.bottom-right {
+  right: -9px;
+  bottom: -9px;
+  border-left: none;
+  border-top: none;
+}
+
+@keyframes parent-card-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: 0 -7px;
+  }
+}
+
+@media (max-width: 900px) {
+  .focus-container {
+    gap: 1.25rem;
+  }
+
+  .focus-word {
+    flex-basis: calc(50% - 1rem);
+    min-width: 160px;
+  }
+}
+
+@media (max-width: 600px) {
+  .focus-container {
+    flex-direction: column;
+    align-items: center;
+    gap: 1.15rem;
+  }
+
+  .focus-word {
+    flex: none;
+    width: min(100%, 260px);
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focus-word {
+    animation: none;
+    transition: none;
+  }
+
+  .focus-frame {
+    transition: none;
+  }
+}

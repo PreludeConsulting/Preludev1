@@ -200,8 +200,10 @@ export const translations = {
         imageAlt: "PreludeMatch mentorship preview"
       },
       benefits: {
+        eyebrow: "FOR PARENTS",
         headline: "Built for Parents",
-        imageAlt: "Parent view of a student dashboard showing progress, savings, mentor match, and upcoming milestones."
+        subheadline: "Stay involved without taking over",
+        body: "Follow meetings, feedback, and important milestones through one simple parent portal."
       },
       academicPrograms: {
         headline: "Earn Rewards, Boost Progress",
@@ -600,8 +602,10 @@ export const translations = {
         imageAlt: "PreludeMatch 멘토링 미리보기"
       },
       benefits: {
+        eyebrow: "학부모를 위해",
         headline: "학부모를 위해 설계되었습니다",
-        imageAlt: "학생 진행 상황, 절약, 멘토 매칭, 예정된 마일스톤을 보여주는 학부모용 대시보드 화면."
+        subheadline: "대신하지 않아도 함께할 수 있습니다",
+        body: "미팅, 피드백, 중요한 마일스톤을 하나의 간단한 학부모 포털에서 확인하세요."
       },
       academicPrograms: {
         headline: "Earn Rewards, Boost Progress",
@@ -1000,8 +1004,10 @@ export const translations = {
         imageAlt: "PreludeMatch 导师辅导预览"
       },
       benefits: {
+        eyebrow: "致家长",
         headline: "为家长而打造",
-        imageAlt: "家长视角的学生仪表盘，展示进度、节省金额、导师匹配和即将到来的里程碑。"
+        subheadline: "参与其中，但不越界",
+        body: "通过一个简洁的家长门户，跟进会议、反馈和重要里程碑。"
       },
       academicPrograms: {
         headline: "Earn Rewards, Boost Progress",
@@ -1402,8 +1408,10 @@ export const translations = {
         imageAlt: "Vista previa de mentoría PreludeMatch"
       },
       benefits: {
+        eyebrow: "PARA PADRES",
         headline: "Diseñado para padres",
-        imageAlt: "Vista para padres de un panel del estudiante con progreso, ahorros, mentor asignado y próximos hitos."
+        subheadline: "Involúcrate sin tomar el control",
+        body: "Sigue reuniones, comentarios e hitos importantes desde un portal parental simple."
       },
       academicPrograms: {
         headline: "Earn Rewards, Boost Progress",

@@ -3,7 +3,7 @@ import { useLanguage } from "../context/LanguageContext.jsx";
 import { useSetPieceAnimation } from "../lib/useAnimeScrollAnimation.js";
 import { mountStudentNetworkSetPiece } from "../lib/animeScrollSetPieces.js";
 import AnimatedChatDemo from "./student-network/AnimatedChatDemo.jsx";
-import NetworkGraphic from "./student-network/NetworkGraphic.jsx";
+import MentorExperiencesCarousel from "./student-network/MentorExperiencesCarousel.jsx";
 
 export default function StudentNetworkSection() {
   const { t } = useLanguage();
@@ -50,7 +50,7 @@ export default function StudentNetworkSection() {
             <p className="student-network-panel__caption">
               {t("studentNetwork.insightDescription")}
             </p>
-            <NetworkGraphic />
+            <MentorExperiencesCarousel />
           </div>
 
           <div

@@ -22,13 +22,12 @@ import AppLink from "./AppLink.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
 import { dashboardPathForRole } from "../lib/onboardingRoutes.js";
 import ScrollReveal from "./motion/ScrollReveal.jsx";
+import TrueFocus from "./TrueFocus.jsx";
 export { default as AdmissionsCostBanner } from "./AdmissionsCostBanner.jsx";
 
 const mediaBase = import.meta.env.BASE_URL;
 const media = {
-  mentorLoop: `${mediaBase}media/mentor-lounge-loop.gif`,
-  parentShowcaseHq: `${mediaBase}media/parent-dashboard-showcase-hq.png`,
-  parentShowcaseDuplicate: `${mediaBase}media/parent-dashboard-showcase-duplicate.png`
+  mentorLoop: `${mediaBase}media/mentor-lounge-loop.gif`
 };
 
 export function LowerFeatureIntro() {
@@ -98,28 +97,38 @@ export function LowerBenefits() {
   const { t } = useLanguage();
 
   return (
-    <section className="parent-showcase scroll-mt-28" id="how-it-works" data-section-nav="how-it-works" aria-labelledby="parent-showcase-heading">
+    <section
+      className="parent-showcase scroll-mt-28"
+      id="how-it-works"
+      data-section-nav="how-it-works"
+      aria-labelledby="parent-showcase-heading"
+    >
       <span id="roadmap" className="sr-only" aria-hidden="true" />
       <span id="clarity" className="sr-only" aria-hidden="true" />
-      <div className="parent-showcase__inner">
-        <ScrollReveal className="parent-showcase__intro">
-          <h2 id="parent-showcase-heading" className="parent-showcase__headline">
+      <div className="parents-section">
+        <ScrollReveal className="parents-section__copy">
+          <p className="lower-landing__eyebrow">{t("sections.benefits.eyebrow")}</p>
+          <h2
+            id="parent-showcase-heading"
+            className="lower-landing__headline lower-landing__headline--center lower-landing__headline--section"
+          >
             {t("sections.benefits.headline")}
           </h2>
+          <h3 className="parents-section__subheadline">{t("sections.benefits.subheadline")}</h3>
+          <p className="lower-landing__body lower-landing__body--center">{t("sections.benefits.body")}</p>
         </ScrollReveal>
 
-        <ScrollReveal className="parent-showcase__visual" delay={0.08}>
-          <div className="parent-showcase__card parent-showcase__card--hq">
-            <img
-              src={media.parentShowcaseDuplicate}
-              srcSet={`${media.parentShowcaseHq} 1024w, ${media.parentShowcaseDuplicate} 2048w`}
-              sizes="(min-width: 896px) 896px, 100vw"
-              alt={t("sections.benefits.imageAlt")}
-              className="parent-showcase__image parent-showcase__image--enhanced"
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
+        <ScrollReveal className="parents-section__focus" delay={0.08}>
+          <TrueFocus
+            sentence="14 hrs saved driving this month|$24,650 potential aid|Next up: Essay Review"
+            separator="|"
+            manualMode={false}
+            blurAmount={2.5}
+            borderColor="#7C3AED"
+            glowColor="rgba(124, 58, 237, 0.28)"
+            animationDuration={0.65}
+            pauseBetweenAnimations={1.25}
+          />
         </ScrollReveal>
       </div>
     </section>
