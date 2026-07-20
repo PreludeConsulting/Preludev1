@@ -29,10 +29,10 @@ const MENTOR_REVIEWS = [
   },
   {
     quote:
-      "Peter completely opened my eyes to computer science. He explained the different paths within the field and what studying CS really looks like today. Because of him, I found a real passion for computer science and now feel so excited about my future in it!",
+      "Ryan completely opened my eyes to computer science. He explained the different paths within the field and what studying CS really looks like today. Because of him, I found a real passion for computer science and now feel so excited about my future in it!",
     name: "Jackson Fleece",
     label: "Carnegie Mellon University",
-    highlight: "Peter"
+    highlight: "Ryan"
   }
 ];
 

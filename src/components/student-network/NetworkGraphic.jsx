@@ -1,4 +1,4 @@
-const mentorTeamImage = `${import.meta.env.BASE_URL}media/mentor-team-cards.png?v=lavender-blend`;
+const mentorTeamImage = `${import.meta.env.BASE_URL}media/mentor-team-cards.png?v=ryan-cain`;
 
 export default function NetworkGraphic() {
   return (

@@ -2,14 +2,14 @@ const mediaBase = (import.meta.env?.BASE_URL ?? "/");
 
 export const EXAMPLE_MENTORS = [
   {
-    name: "Peter Kim",
-    university: "Georgia Tech",
-    institutionShort: "Georgia Tech",
+    name: "Ryan Cain",
+    university: "University of Pennsylvania",
+    institutionShort: "Penn",
     major: "Engineering",
     specialty: "STEM",
     specialties: ["STEM", "Engineering essays", "Project stories"],
     description: "Software developer with standout project experience and a strong understanding of what makes a compelling CS application.",
-    emblem: `${mediaBase}media/universities/georgia-tech.svg`,
+    emblem: `${mediaBase}media/universities/upenn.svg`,
     photo: `${mediaBase}media/mentors/declan-brooks.png`,
     objectPosition: "50% 50%"
   },
