@@ -4,8 +4,8 @@ import { getPlanBadgeLabel } from "../../../../lib/planBadges.js";
 import { PLAN_BILLING_HIGHLIGHTS } from "./billingDisplayData.js";
 
 export default function BillingCurrentPlanCard({ plan }) {
-  const { language } = useLanguage();
-  const badgeLabel = getPlanBadgeLabel(plan.id, language);
+  const { preferredLanguage } = useLanguage();
+  const badgeLabel = getPlanBadgeLabel(plan.id, preferredLanguage);
   const highlights = PLAN_BILLING_HIGHLIGHTS[plan.id] || plan.features.slice(0, 5);
 
   return (

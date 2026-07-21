@@ -465,7 +465,7 @@ export function PlanWalletExperience({
   const navigate = useNavigate();
   const location = useLocation();
   const reducedMotion = useReducedMotion();
-  const { language } = useLanguage();
+  const { preferredLanguage } = useLanguage();
   const plans = plansProp ?? getPricingPlans();
   const { isAuthenticated, openRegister, saveUserPlan, refreshUser } = useAuth();
   const isBillingContext = context === "billing" || context === "billing-current";
@@ -958,7 +958,7 @@ export function PlanWalletExperience({
                 <WalletPlanCard
                   key={plan.id}
                   plan={plan}
-                  language={language}
+                  language={preferredLanguage}
                   index={index}
                   selected={state.selectedPlanId === plan.id}
                   selectable={selectable}
@@ -1018,7 +1018,7 @@ export function PlanWalletExperience({
       {popupOpen && popupPlan ? (
         <PlanPopup
           plan={popupPlan}
-          language={language}
+          language={preferredLanguage}
           status={state.status}
           busy={busyPlan === popupPlan.id}
           notice={notice}

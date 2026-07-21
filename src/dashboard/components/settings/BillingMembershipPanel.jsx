@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CreditCard, Loader2, Package, RefreshCw } from "lucide-react";
+import { CreditCard, Loader2, Package, RefreshCw, Sparkles } from "lucide-react";
+import { useLanguage } from "../../../context/LanguageContext.jsx";
+import { getPlanBadgeLabel } from "../../../lib/planBadges.js";
 import {
   cancelMembership,
   fetchBillingHistory,
@@ -27,6 +29,7 @@ export default function BillingMembershipPanel({
   compact = false,
   settingsBasePath = "/dashboard/student/settings"
 }) {
+  const { preferredLanguage } = useLanguage();
   const [summary, setSummary] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyMeta, setHistoryMeta] = useState({ hasMore: false, offset: 0, total: 0 });
@@ -132,6 +135,7 @@ export default function BillingMembershipPanel({
   }
 
   const membership = summary.membership || {};
+  const planBadgeLabel = getPlanBadgeLabel(summary.plan?.id, preferredLanguage);
   const actions = membership.actions || {};
   const sessionsHref = buildPurchaseSessionsPath();
   const plansHref = "/plans";
@@ -142,7 +146,18 @@ export default function BillingMembershipPanel({
         <div className="dash-billing-membership">
           <div className="dash-billing-membership__head">
             <div>
-              <p className="dash-billing-membership__plan">{summary.plan?.name || "Basic"} plan</p>
+              <p className="dash-billing-membership__plan">
+                {summary.plan?.name || "Basic"} plan
+                {planBadgeLabel ? (
+                  <>
+                    {" "}
+                    <DashBadge variant="lavender" className="dash-billing-membership__plan-badge">
+                      <Sparkles className="h-3 w-3 dash-billing-membership__plan-badge-icon" aria-hidden="true" />
+                      {planBadgeLabel}
+                    </DashBadge>
+                  </>
+                ) : null}
+              </p>
               <p className="dash-billing-membership__price">
                 {summary.plan?.priceLabel || "—"}
                 <span className="dash-muted"> / month</span>
