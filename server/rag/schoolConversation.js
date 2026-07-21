@@ -1,5 +1,6 @@
 import { sanitizeConversationHistory } from "./conversationHistory.js";
 import { normalizeForIntentDetection } from "./inputNormalize.js";
+import { isGuaranteeRequest } from "./guaranteeIntent.js";
 import { lookupUniversityByName, lookupUniversityInText } from "./universityLookup.js";
 
 const SCHOOL_CLARIFICATION_RE =
@@ -118,6 +119,7 @@ function isSchoolFollowUp(message, lastSchool) {
 
 export function deriveSchoolConversationContext(message, conversationHistory = [], priorState = {}) {
   const trimmed = normalizeForIntentDetection(message).text;
+  const guaranteeRequest = isGuaranteeRequest(trimmed);
   const history = getRecentMessages(conversationHistory);
   const lastAssistant = getLastAssistantMessage(history);
   const askedForSchool = assistantAskedForSchool(lastAssistant);
@@ -154,11 +156,13 @@ export function deriveSchoolConversationContext(message, conversationHistory = [
   }
 
   const needsSchoolClarification =
+    !guaranteeRequest &&
     !school &&
-    (questionIntent === "school_fact" || questionIntent === "admission_prediction" || questionIntent === "sat_benchmark");
+    (questionIntent === "school_fact" || questionIntent === "sat_benchmark");
 
   return {
     school,
+    guaranteeRequest,
     topic,
     questionIntent,
     needsSchoolClarification,
@@ -171,6 +175,7 @@ export function deriveSchoolConversationContext(message, conversationHistory = [
 
 export function shouldHandleSchoolQuestion(context) {
   if (!context) return false;
+  if (context.guaranteeRequest) return false;
   if (context.questionIntent === "school_recommendation") return false;
   if (context.school) return true;
   return Boolean(context.needsSchoolClarification && context.questionIntent);

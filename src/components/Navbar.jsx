@@ -1,7 +1,6 @@
 import { ArrowUpRight, Menu, Search, X } from "lucide-react";
 import AccountMenuButton from "./AccountMenuButton.jsx";
 import UserMenuDropdown from "./UserMenuDropdown.jsx";
-import { AnimatePresence, motion, useScroll, useTransform } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { NAV_LINKS } from "../data/navLinks.js";
@@ -15,8 +14,6 @@ import SiteSearchPanel from "./SiteSearchPanel.jsx";
 export default function Navbar() {
   const { isAuthenticated, user, openSignIn, openAccount } = useAuth();
   const { t } = useLanguage();
-  const { scrollY } = useScroll();
-  const barOpacity = useTransform(scrollY, [0, 48, 120], [0, 0.78, 0.96]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const searchTriggerRef = useRef(null);
@@ -47,14 +44,13 @@ export default function Navbar() {
 
   return (
     <header className={`nav-bar fixed left-0 right-0 top-0 z-50 px-4 py-5 md:px-8 lg:px-4${isAuthenticated ? " nav-bar--authenticated" : ""}`}>
-      <motion.div
+      <div
         aria-hidden="true"
         className="nav-bar__backdrop absolute inset-0 border-b border-foreground/8"
-        style={{ opacity: barOpacity }}
       />
       <div className="nav-bar__content relative z-10 mx-auto max-w-[118rem]">
         <div className="nav-bar__row">
-          <AppLink href="#home" className="nav-bar__logo-link shrink-0" aria-label={t("nav.homeLabel")}>
+          <AppLink href="/" className="nav-bar__logo-link shrink-0" aria-label={t("nav.homeLabel")}>
             <PreludeLogo className="prelude-logo--nav" />
           </AppLink>
 
@@ -112,16 +108,11 @@ export default function Navbar() {
           </div>
         </div>
 
-        <AnimatePresence>
           {mobileOpen ? (
-            <motion.nav
+            <nav
               id="nav-mobile-menu"
               className="nav-bar__mobile-menu paper-card sm:hidden"
               aria-label={t("nav.primaryLabel")}
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
             >
               {NAV_LINKS.map(({ labelKey, href }) => (
                 <AppLink
@@ -154,9 +145,8 @@ export default function Navbar() {
                   />
                 </div>
               )}
-            </motion.nav>
+            </nav>
           ) : null}
-        </AnimatePresence>
       </div>
     </header>
   );

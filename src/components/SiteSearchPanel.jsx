@@ -1,12 +1,14 @@
 import { Search } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { bindFocusTrap } from "../lib/focusTrap.js";
 import { filterSiteSearch, navigateToSiteResult, SITE_SEARCH_ITEMS } from "../lib/siteSearch.js";
 
 export default function SiteSearchPanel({ open, onClose, triggerRef }) {
   const { t } = useLanguage();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef(null);
@@ -16,9 +18,9 @@ export default function SiteSearchPanel({ open, onClose, triggerRef }) {
   const results = filterSiteSearch(query, SITE_SEARCH_ITEMS, t);
 
   const handleSelect = useCallback((item) => {
-    navigateToSiteResult(item);
+    navigateToSiteResult(item, { pathname: location.pathname, navigate });
     onClose();
-  }, [onClose]);
+  }, [location.pathname, navigate, onClose]);
 
   useEffect(() => {
     if (!open) {
@@ -41,7 +43,8 @@ export default function SiteSearchPanel({ open, onClose, triggerRef }) {
     const frame = requestAnimationFrame(() => {
       releaseTrap = bindFocusTrap(panelRef.current, {
         onEscape: onClose,
-        returnFocusRef: triggerRef
+        returnFocusRef: triggerRef,
+        isolatePage: false
       });
     });
 
@@ -74,20 +77,15 @@ export default function SiteSearchPanel({ open, onClose, triggerRef }) {
     };
   }, [activeIndex, handleSelect, onClose, open, results, triggerRef]);
 
+  if (!open) return null;
+
   return (
-    <AnimatePresence>
-      {open ? (
-        <motion.div
+        <div
           ref={panelRef}
           id="site-search-dropdown"
           className="site-search"
           role="dialog"
-          aria-modal="true"
           aria-label={t("nav.searchLabel")}
-          initial={{ opacity: 0, y: -6, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -4, scale: 0.98 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
         >
           <div className="site-search__inner">
             <div className="site-search__field">
@@ -119,8 +117,8 @@ export default function SiteSearchPanel({ open, onClose, triggerRef }) {
                       className={index === activeIndex ? "site-search__result site-search__result--active" : "site-search__result"}
                     >
                       <button type="button" className="site-search__result-btn" onClick={() => handleSelect(item)}>
-                        <span className="site-search__result-label">{item.label}</span>
-                        {item.hint ? <span className="site-search__result-hint">{item.hint}</span> : null}
+                        <span className="site-search__result-label">{t(item.labelKey)}</span>
+                        {item.hintKey ? <span className="site-search__result-hint">{t(item.hintKey)}</span> : null}
                       </button>
                     </li>
                   ))
@@ -132,8 +130,6 @@ export default function SiteSearchPanel({ open, onClose, triggerRef }) {
               )}
             </ul>
           </div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+        </div>
   );
 }

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createRagChatCompletion } from "../../server/chatHandler.js";
-import { lookupUniversityInText, lookupUniversityByName } from "../../server/rag/universityLookup.js";
+import {
+  listUniversities,
+  lookupUniversitiesInText,
+  lookupUniversityInText,
+  lookupUniversityByName
+} from "../../server/rag/universityLookup.js";
 import { deriveSchoolConversationContext } from "../../server/rag/schoolConversation.js";
 import { tryBuildSchoolAnswer } from "../../server/rag/handlers/schoolHandler.js";
 
@@ -21,6 +26,121 @@ describe("university lookup", () => {
     const upenn = lookupUniversityByName("UPenn");
     assert.ok(upenn);
     assert.equal(upenn.metadata.name, "University of Pennsylvania");
+  });
+
+  it("resolves explicit Georgia Tech names and aliases inside natural language", () => {
+    for (const message of [
+      "Georgia Tech",
+      "Georgia Institute of Technology-Main Campus",
+      "GT",
+      "Tell me about Georgia Tech",
+      "More about Georgia Tech"
+    ]) {
+      const result = lookupUniversityInText(message);
+      assert.ok(result, message);
+      assert.match(result.metadata.name, /Georgia Institute of Technology/i, message);
+    }
+  });
+
+  it("does not infer a university from conversational or generic school text", () => {
+    const messages = [
+      "yes",
+      "no",
+      "ok",
+      "what is the best school for cs",
+      "school university college institute tech campus"
+    ];
+
+    assert.deepEqual(
+      messages.map((message) => lookupUniversityInText(message)?.metadata.name ?? null),
+      messages.map(() => null)
+    );
+  });
+
+  it("returns every explicitly named university in text occurrence order", () => {
+    const results = lookupUniversitiesInText(
+      "Compare Georgia Tech, Harvard University, and UCLA"
+    );
+
+    assert.deepEqual(
+      results.map((record) => record.metadata.name),
+      [
+        "Georgia Institute of Technology-Main Campus",
+        "Harvard University",
+        "University of California-Los Angeles"
+      ]
+    );
+  });
+
+  it("accepts a strict multi-token fuzzy match for a real university name", () => {
+    const canonical = listUniversities().find(
+      (record) => record.title === "Kennesaw State University"
+    );
+    assert.ok(canonical);
+
+    const result = lookupUniversityByName("Kennessaw State University");
+    assert.ok(result);
+    assert.equal(result.id, canonical.id);
+    assert.match(result.matchMethod, /^fuzzy_/);
+    assert.ok(result.matchScore >= 0.88, `matchScore was ${result.matchScore}`);
+  });
+
+  it("rejects generic near-matches and long whole-sentence fuzzy input", () => {
+    assert.equal(
+      lookupUniversityByName("universty institue technolgy campus"),
+      null
+    );
+
+    const longSentence =
+      "please can you tell me whether kennessaw state university is a good fit for my planned computer science degree next fall";
+    assert.ok(longSentence.split(/\s+/).length > 16);
+    assert.equal(lookupUniversityByName(longSentence), null);
+  });
+
+  it("rejects a multi-token fuzzy name below the per-token threshold", () => {
+    assert.equal(lookupUniversityByName("Kenesaw Stete University"), null);
+  });
+
+  it("rejects a zero-margin fuzzy match between real Northwest Technical schools", () => {
+    const candidates = listUniversities()
+      .filter((record) =>
+        ["Northwest Technical Institute", "Northwest Technical College"].includes(
+          record.title
+        )
+      )
+      .map((record) => record.title)
+      .sort();
+
+    assert.deepEqual(candidates, [
+      "Northwest Technical College",
+      "Northwest Technical Institute"
+    ]);
+    assert.equal(lookupUniversityByName("Northwest Technical University"), null);
+  });
+
+  it("rejects ambiguous standalone input while extracting both explicit schools from text", () => {
+    const input = "Georgia Tech and Harvard University";
+    assert.equal(lookupUniversityByName(input), null);
+    assert.deepEqual(
+      lookupUniversitiesInText(input).map((record) => record.metadata.name),
+      ["Georgia Institute of Technology-Main Campus", "Harvard University"]
+    );
+  });
+
+  it("preserves the canonical GT record and exposes exact alias match metadata", () => {
+    const canonical = listUniversities().find(
+      (record) => record.title === "Georgia Institute of Technology-Main Campus"
+    );
+    assert.ok(canonical);
+
+    const result = lookupUniversityByName("GT");
+    assert.ok(result);
+    assert.equal(result.id, canonical.id);
+    assert.equal(result.title, canonical.title);
+    assert.deepEqual(result.metadata, canonical.metadata);
+    assert.equal(result.matchMethod, "exact_alias");
+    assert.equal(result.matchScore, 1);
+    assert.equal(result.matchConfidence, "high");
   });
 });
 

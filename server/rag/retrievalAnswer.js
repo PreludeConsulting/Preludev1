@@ -14,7 +14,7 @@ function collegeLabel(summary) {
 }
 
 function sourceSuffix(record) {
-  return "";
+  return record?.source ? ` · Source: ${record.source}` : "";
 }
 
 function formatKnowledgeAnswer(records) {
@@ -211,11 +211,6 @@ export function buildRetrievalAssistedAnswer(message, retrieval, conversationSta
     .filter((record) => record.type !== "notice");
 
   if (!records.length) return null;
-  const knowledgeRecords = records.filter((record) => record.type === "knowledge");
-  if (knowledgeRecords.length) {
-    return formatKnowledgeAnswer(knowledgeRecords);
-  }
-
   const majorHint =
     normalizeMajorTerm(retrieval.major) ||
     conversationState.intendedMajor ||
@@ -276,8 +271,24 @@ export function buildRetrievalAssistedAnswer(message, retrieval, conversationSta
     return `For **${majorHint || "this major"}**, here are verified program examples from College Scorecard:\n\n${lines.join("\n")}\n\nI can also list colleges in your state that offer this major if you share your budget.`;
   }
 
-  if (records[0]?.summary) {
+  const knowledgeRecords = records.filter((record) => record.type === "knowledge");
+  const explicitlyRequestedKnowledge = knowledgeRecords.filter((record) => {
+    if (record.sourceType === "scholarship") return /\b(scholarships?|merit aid|award)\b/i.test(message);
+    if (record.sourceType === "summer_program") return /\b(summer program|pre-college)\b/i.test(message);
+    if (record.sourceType === "extracurricular") return /\b(extracurricular|activities?|club|volunteer)\b/i.test(message);
+    if (record.sourceType === "cs_project") return /\b(cs|computer science|coding)\s+projects?\b/i.test(message);
+    if (record.sourceType === "sat_report") return /\b(sat|psat)\b/i.test(message);
+    if (record.sourceType === "act_report") return /\bact\b/i.test(message);
+    return record.sourceType === "university" && !colleges.length;
+  });
+  if (explicitlyRequestedKnowledge.length) {
+    return formatKnowledgeAnswer(explicitlyRequestedKnowledge);
+  }
+
+  const eligibleFallbackRecords = records.filter((record) => record.type !== "knowledge");
+  if (eligibleFallbackRecords[0]?.summary) {
     return `Based on verified reference data:\n\n${records
+      .filter((record) => record.type !== "knowledge")
       .slice(0, 5)
       .map((record, index) => `${index + 1}. ${record.summary}${sourceSuffix(record)}`)
       .join("\n")}\n\nWhat should we compare next — cost, programs, or location?`;

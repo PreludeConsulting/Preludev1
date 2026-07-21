@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCsv } from "../../scripts/lib/csvParse.js";
 import { dashboardDataDir } from "../../scripts/lib/knowledgeIngest.js";
-import { similarityScore, findBestFuzzyMatch } from "./fuzzyMatch.js";
+import { similarityScore } from "./fuzzyMatch.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UNIVERSITY_CSV = path.join(dashboardDataDir, "university_database.csv");
@@ -33,16 +33,48 @@ const ALIAS_ENTRIES = [
 let universityIndex = null;
 const aliasLookup = new Map();
 
+const GENERIC_NAME_TOKENS = new Set([
+  "a",
+  "an",
+  "and",
+  "at",
+  "campus",
+  "campuses",
+  "college",
+  "colleges",
+  "community",
+  "for",
+  "in",
+  "institute",
+  "institution",
+  "main",
+  "of",
+  "on",
+  "school",
+  "schools",
+  "the",
+  "tech",
+  "technology",
+  "universities",
+  "university"
+]);
+const FUZZY_THRESHOLD = 0.88;
+const FUZZY_RUNNER_UP_MARGIN = 0.08;
+const MAX_FUZZY_NAME_TOKENS = 16;
+
 for (const entry of ALIAS_ENTRIES) {
   for (const alias of entry.aliases) {
-    aliasLookup.set(normalizeKey(alias), entry.name);
+    const key = normalizeKey(alias);
+    const targets = aliasLookup.get(key) ?? new Set();
+    targets.add(entry.name);
+    aliasLookup.set(key, targets);
   }
 }
 
 function normalizeKey(value) {
   return String(value ?? "")
     .toLowerCase()
-    .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -75,6 +107,77 @@ function toUniversityRecord(row) {
   };
 }
 
+function meaningfulTokens(value, { fuzzyGeneric = false } = {}) {
+  return normalizeKey(value)
+    .split(" ")
+    .filter(Boolean)
+    .filter((token) => {
+      if (GENERIC_NAME_TOKENS.has(token)) return false;
+      if (!fuzzyGeneric) return true;
+      return ![...GENERIC_NAME_TOKENS].some(
+        (generic) => generic.length >= 4 && similarityScore(token, generic) >= FUZZY_THRESHOLD
+      );
+    });
+}
+
+function isSearchablePhrase(value) {
+  return meaningfulTokens(value).length > 0;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function phrasePattern(value) {
+  return new RegExp(`(?:^|\\s)(${escapeRegExp(value)})(?=$|\\s)`, "gi");
+}
+
+function buildSearchEntries(byName) {
+  const aliases = [];
+  for (const [alias, targetNames] of aliasLookup.entries()) {
+    if (!isSearchablePhrase(alias) || targetNames.size !== 1) continue;
+    const [targetName] = targetNames;
+    const records = byName.get(normalizeKey(targetName)) ?? [];
+    if (records.length !== 1) continue;
+    aliases.push({
+      phrase: alias,
+      pattern: phrasePattern(alias),
+      record: records[0],
+      method: "exact_alias"
+    });
+  }
+
+  const canonical = [];
+  for (const [name, records] of byName.entries()) {
+    if (!isSearchablePhrase(name) || records.length !== 1) continue;
+    canonical.push({
+      phrase: name,
+      pattern: phrasePattern(name),
+      record: records[0],
+      method: "exact_canonical"
+    });
+  }
+
+  const fuzzy = [];
+  const addFuzzyCandidate = (value, record, method) => {
+    const normalized = normalizeKey(value);
+    const rawTokens = normalized.split(" ").filter(Boolean);
+    const significant = meaningfulTokens(normalized);
+    if (
+      rawTokens.length < 2 ||
+      rawTokens.length > MAX_FUZZY_NAME_TOKENS ||
+      significant.length < 2
+    ) {
+      return;
+    }
+    fuzzy.push({ normalized, rawTokens, significant, record, method });
+  };
+
+  for (const item of aliases) addFuzzyCandidate(item.phrase, item.record, "fuzzy_alias");
+  for (const item of canonical) addFuzzyCandidate(item.phrase, item.record, "fuzzy_canonical");
+  return { aliases, canonical, fuzzy };
+}
+
 function loadUniversityIndex() {
   if (universityIndex) return universityIndex;
 
@@ -86,121 +189,142 @@ function loadUniversityIndex() {
   for (const row of rows) {
     const record = toUniversityRecord(row);
     all.push(record);
-    byName.set(normalizeKey(record.title), record);
+    const name = normalizeKey(record.title);
+    const records = byName.get(name) ?? [];
+    records.push(record);
+    byName.set(name, records);
   }
 
   universityIndex = { all, byName };
+  universityIndex.search = buildSearchEntries(byName);
   return universityIndex;
 }
 
-function scoreNameMatch(query, recordName) {
-  const q = normalizeKey(query);
-  const name = normalizeKey(recordName);
-  if (!q || !name) return 0;
-  if (q === name) return 100;
-  if (name.includes(q) || q.includes(name)) return 80;
-  if (name.startsWith(q) || q.startsWith(name)) return 70;
-
-  const qTokens = q.split(" ").filter((token) => token.length >= 3);
-  const nameTokens = new Set(name.split(" ").filter((token) => token.length >= 3));
-  let overlap = 0;
-  for (const token of qTokens) {
-    if (nameTokens.has(token)) overlap += 1;
-  }
-  return overlap * 15;
+function annotateMatch(record, { method, score, confidence, matchedAlias } = {}) {
+  return {
+    ...record,
+    matchMethod: method,
+    matchScore: score,
+    matchConfidence: confidence,
+    ...(matchedAlias ? { matchedAlias } : {})
+  };
 }
 
-function fuzzyAliasLookup(query) {
-  const normalized = normalizeKey(query);
-  if (aliasLookup.has(normalized)) {
-    return { name: aliasLookup.get(normalized), confidence: "high" };
+function getUniqueRecordByName(index, name) {
+  const records = index.byName.get(normalizeKey(name)) ?? [];
+  return records.length === 1 ? records[0] : null;
+}
+
+function tokenLevelScore(queryTokens, candidateTokens) {
+  if (queryTokens.length !== candidateTokens.length || candidateTokens.length < 2) return 0;
+  let total = 0;
+  for (let index = 0; index < candidateTokens.length; index += 1) {
+    const score = similarityScore(queryTokens[index], candidateTokens[index]);
+    if (score < FUZZY_THRESHOLD) return 0;
+    total += score;
+  }
+  return total / candidateTokens.length;
+}
+
+function fuzzyStandaloneLookup(normalized, index) {
+  const rawTokens = normalized.split(" ").filter(Boolean);
+  if (rawTokens.length < 2 || rawTokens.length > MAX_FUZZY_NAME_TOKENS) return null;
+  const queryTokens = meaningfulTokens(normalized, { fuzzyGeneric: true });
+  if (queryTokens.length < 2) return null;
+
+  const bestByRecord = new Map();
+  for (const candidate of index.search.fuzzy) {
+    if (candidate.rawTokens.length !== rawTokens.length) continue;
+    const score = tokenLevelScore(queryTokens, candidate.significant);
+    if (score < FUZZY_THRESHOLD) continue;
+    const prior = bestByRecord.get(candidate.record.id);
+    if (!prior || score > prior.score) {
+      bestByRecord.set(candidate.record.id, { ...candidate, score });
+    }
   }
 
-  const candidates = [...aliasLookup.keys()];
-  const match = findBestFuzzyMatch(normalized, candidates, { threshold: 0.82, minLength: 4 });
-  if (match) {
-    return { name: aliasLookup.get(match.value), confidence: match.confidence };
+  const ranked = [...bestByRecord.values()].sort((left, right) => right.score - left.score);
+  const best = ranked[0];
+  if (!best) return null;
+  const runnerUp = ranked[1];
+  if (runnerUp && best.score - runnerUp.score < FUZZY_RUNNER_UP_MARGIN) return null;
+
+  return annotateMatch(best.record, {
+    method: best.method,
+    score: best.score,
+    confidence: "medium",
+    matchedAlias: normalized
+  });
+}
+
+function exactMatchesInText(normalized, index) {
+  const found = new Map();
+  const entries = [...index.search.aliases, ...index.search.canonical];
+
+  for (const entry of entries) {
+    entry.pattern.lastIndex = 0;
+    let match;
+    while ((match = entry.pattern.exec(normalized))) {
+      const position = match.index + match[0].length - match[1].length;
+      const prior = found.get(entry.record.id);
+      if (
+        !prior ||
+        position < prior.position ||
+        (position === prior.position && entry.phrase.length > prior.phrase.length)
+      ) {
+        found.set(entry.record.id, { ...entry, position });
+      }
+      if (!entry.pattern.global) break;
+    }
   }
-  return null;
+
+  return [...found.values()]
+    .sort((left, right) => left.position - right.position)
+    .map((match) =>
+      annotateMatch(match.record, {
+        method: match.method,
+        score: 1,
+        confidence: "high",
+        ...(match.method === "exact_alias" ? { matchedAlias: match.phrase } : {})
+      })
+    );
 }
 
 export function lookupUniversityByName(name) {
   if (!name) return null;
   const index = loadUniversityIndex();
   const normalized = normalizeKey(name);
-  const fuzzyAlias = fuzzyAliasLookup(name);
-  if (fuzzyAlias?.name) {
-    const exact = index.byName.get(normalizeKey(fuzzyAlias.name));
-    if (exact) {
-      return {
-        ...exact,
-        matchConfidence: fuzzyAlias.confidence,
+  if (!normalized) return null;
+
+  const aliasTargets = aliasLookup.get(normalized);
+  if (aliasTargets?.size === 1) {
+    const [targetName] = aliasTargets;
+    const record = getUniqueRecordByName(index, targetName);
+    if (record) {
+      return annotateMatch(record, {
+        method: "exact_alias",
+        score: 1,
+        confidence: "high",
         matchedAlias: name
-      };
+      });
     }
   }
 
-  const aliasTarget = aliasLookup.get(normalized);
-  if (aliasTarget) {
-    const exact = index.byName.get(normalizeKey(aliasTarget));
-    if (exact) return { ...exact, matchConfidence: "high", matchedAlias: name };
+  const exact = getUniqueRecordByName(index, normalized);
+  if (exact) {
+    return annotateMatch(exact, { method: "exact_canonical", score: 1, confidence: "high" });
   }
 
-  const exact = index.byName.get(normalized);
-  if (exact) return { ...exact, matchConfidence: "high" };
-
-  let best = null;
-  let bestScore = 0;
-  for (const record of index.all) {
-    const score = scoreNameMatch(name, record.title);
-    if (score > bestScore) {
-      bestScore = score;
-      best = record;
-    }
-  }
-
-  if (!best || bestScore < 30) {
-    const fuzzy = findBestFuzzyMatch(
-      normalized,
-      index.all.map((record) => record.title),
-      { threshold: 0.78, minLength: 5 }
-    );
-    if (fuzzy) {
-      const record = index.byName.get(normalizeKey(fuzzy.value));
-      if (record) {
-        return { ...record, matchConfidence: fuzzy.confidence, matchedAlias: name };
-      }
-    }
-    return null;
-  }
-  return { ...best, matchConfidence: bestScore >= 70 ? "high" : "medium" };
+  return fuzzyStandaloneLookup(normalized, index);
 }
 
 export function lookupUniversitiesInText(text) {
   const raw = stripPossessives(String(text ?? "").trim());
   if (!raw) return [];
-
-  const found = new Map();
   const index = loadUniversityIndex();
-
-  for (const [alias, targetName] of aliasLookup.entries()) {
-    const pattern = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-    if (!pattern.test(raw)) continue;
-    const record = index.byName.get(normalizeKey(targetName));
-    if (record) found.set(record.id, { ...record, matchConfidence: "high", matchedAlias: alias });
-  }
-
-  for (const record of index.all) {
-    const nameKey = normalizeKey(record.title);
-    if (nameKey.length > 10 && normalizeKey(raw).includes(nameKey)) {
-      found.set(record.id, { ...record, matchConfidence: "high" });
-    }
-  }
-
-  const primary = lookupUniversityInText(raw);
-  if (primary) found.set(primary.id, primary);
-
-  return [...found.values()].slice(0, 4);
+  const normalized = normalizeKey(raw);
+  const exact = exactMatchesInText(normalized, index);
+  return exact.slice(0, 4);
 }
 
 function stripPossessives(text) {
@@ -212,50 +336,10 @@ export function lookupUniversityInText(text) {
   if (!raw) return null;
 
   const normalized = normalizeKey(raw);
-  if (aliasLookup.has(normalized)) {
-    return lookupUniversityByName(raw);
-  }
-
-  const direct = lookupUniversityByName(raw);
-  if (direct) return direct;
-
   const index = loadUniversityIndex();
-  let best = null;
-  let bestScore = 0;
-
-  for (const record of index.all) {
-    const nameKey = normalizeKey(record.title);
-    if (normalized.includes(nameKey) && nameKey.length > 8) {
-      const score = nameKey.length + 50;
-      if (score > bestScore) {
-        bestScore = score;
-        best = record;
-      }
-      continue;
-    }
-
-    for (const [alias, targetName] of aliasLookup.entries()) {
-      if (alias.length < 4) continue;
-      const aliasPattern = new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-      if (!aliasPattern.test(raw)) continue;
-      if (normalizeKey(record.title) === normalizeKey(targetName)) {
-        const score = 90;
-        if (score > bestScore) {
-          bestScore = score;
-          best = record;
-        }
-      }
-    }
-
-    const score = scoreNameMatch(raw, record.title);
-    if (score > bestScore) {
-      bestScore = score;
-      best = record;
-    }
-  }
-
-  if (!best || bestScore < 45) return null;
-  return { ...best, matchConfidence: bestScore >= 75 ? "high" : "medium" };
+  const exact = exactMatchesInText(normalized, index);
+  if (exact.length) return exact[0];
+  return null;
 }
 
 export function listUniversities() {

@@ -21,6 +21,11 @@ import { classifyIntent, isPreludeBusinessIntent } from "./rag/intent.js";
 import { buildPreludeBusinessAnswer } from "./rag/preludeBusiness.js";
 import { routeActiveConversation } from "./rag/intentRouter.js";
 import { buildAdmissionsCopilotAnswer } from "./rag/admissionsCopilot.js";
+import {
+  CHAT_DISPATCH_ROUTES,
+  dispatchGuardedChatRoute
+} from "./rag/guardedDispatcher.js";
+import { isGuaranteeRequest } from "./rag/guaranteeIntent.js";
 import { retrieveContext } from "./rag/retrieval.js";
 import { buildKnowledgeRetrieval } from "./rag/knowledgeRetrieval.js";
 import {
@@ -45,6 +50,30 @@ function mergeRetrieval(primary, secondary) {
     ...primary,
     blocks: [...(primary.blocks ?? []), ...(secondary.blocks ?? [])],
     sources: [...(primary.sources ?? []), ...(secondary.sources ?? [])]
+  };
+}
+
+function dashboardKnowledgePolicy(message, dispatchRoute) {
+  const explicitScholarshipIntent =
+    /\b(scholarships?|merit aid|scholarship awards?|award opportunities|financial aid)\b/i.test(message);
+
+  if (explicitScholarshipIntent) {
+    return {
+      enabled: true,
+      sourceTypes: ["scholarship"],
+      skipAdmissionsCopilot: true,
+      retrievalIntent: "financial_aid"
+    };
+  }
+
+  return {
+    enabled: ![
+      CHAT_DISPATCH_ROUTES.STRUCTURED_ADMISSIONS,
+      CHAT_DISPATCH_ROUTES.RECOMMENDATION_OR_COMPARISON
+    ].includes(dispatchRoute),
+    sourceTypes: null,
+    skipAdmissionsCopilot: false,
+    retrievalIntent: null
   };
 }
 
@@ -86,15 +115,43 @@ export async function createRagChatCompletion({ message, conversationHistory = [
       .reverse()
       .find((item) => item.conversationState && typeof item.conversationState === "object")?.conversationState ?? {};
 
-  let activeFlow = null;
-  try {
-    activeFlow = routeActiveConversation({
-      message: trimmedMessage,
-      conversationHistory: history
+  if (isGuaranteeRequest(trimmedMessage)) {
+    return normalizeChatResponse({
+      text:
+        "I can’t predict or guarantee an admission outcome. Admissions depend on academics, course rigor, activities, essays, recommendations, fit, and the applicant pool. I can help you compare your profile with published benchmarks and build a balanced reach/target/likely list.",
+      provider: "prelude",
+      model: "guidance",
+      intent: "guarantee_refusal",
+      guidanceReason: "admissions_chances",
+      actions: [],
+      sources: [],
+      sourceLabels: [],
+      retrievedRecords: [],
+      conversationState: priorState
     });
-  } catch (error) {
-    if (!(error instanceof DatabaseNotFoundError)) {
-      throw error;
+  }
+
+  const dispatchRoute = dispatchGuardedChatRoute({
+    message: trimmedMessage,
+    conversationHistory: history,
+    priorState
+  });
+  const knowledgePolicy = dashboardKnowledgePolicy(trimmedMessage, dispatchRoute);
+
+  let activeFlow = null;
+  if (
+    dispatchRoute === CHAT_DISPATCH_ROUTES.CONVERSATION_FOLLOW_UP ||
+    dispatchRoute === CHAT_DISPATCH_ROUTES.SCHOOL_SPECIFIC
+  ) {
+    try {
+      activeFlow = routeActiveConversation({
+        message: trimmedMessage,
+        conversationHistory: history
+      });
+    } catch (error) {
+      if (!(error instanceof DatabaseNotFoundError)) {
+        throw error;
+      }
     }
   }
 
@@ -102,12 +159,16 @@ export async function createRagChatCompletion({ message, conversationHistory = [
     return normalizeChatResponse(activeFlow);
   }
 
-  const copilotAnswer = await buildAdmissionsCopilotAnswer({
-    message: trimmedMessage,
-    conversationHistory: history,
-    profile,
-    priorState
-  });
+  const useAdmissionsCopilot =
+    dispatchRoute === CHAT_DISPATCH_ROUTES.GENERAL && !knowledgePolicy.skipAdmissionsCopilot;
+  const copilotAnswer = useAdmissionsCopilot
+    ? await buildAdmissionsCopilotAnswer({
+        message: trimmedMessage,
+        conversationHistory: history,
+        profile,
+        priorState
+      })
+    : null;
   if (copilotAnswer?.text) {
     return normalizeChatResponse({
       ...copilotAnswer,
@@ -138,19 +199,34 @@ export async function createRagChatCompletion({ message, conversationHistory = [
   }
 
   let retrieval = { intent: classifiedIntent, blocks: [], sources: [], conversationState: {} };
-  try {
-    retrieval = retrieveContext(trimmedMessage, history);
-  } catch (error) {
-    if (!(error instanceof DatabaseNotFoundError)) {
-      throw error;
+  if (knowledgePolicy.retrievalIntent) {
+    retrieval = {
+      intent: knowledgePolicy.retrievalIntent,
+      blocks: [],
+      sources: [],
+      conversationState: priorState
+    };
+  } else {
+    try {
+      retrieval = retrieveContext(trimmedMessage, history);
+    } catch (error) {
+      if (!(error instanceof DatabaseNotFoundError)) {
+        throw error;
+      }
+      retrieval = { intent: classifiedIntent, blocks: [], sources: [], conversationState: {} };
     }
-    retrieval = { intent: classifiedIntent, blocks: [], sources: [], conversationState: {} };
   }
 
   try {
     if (!retrieval.intent) retrieval.intent = classifiedIntent;
-    const knowledgeRetrieval = await buildKnowledgeRetrieval(trimmedMessage, { limit: 8, profile });
-    retrieval = mergeRetrieval(retrieval, knowledgeRetrieval);
+    if (knowledgePolicy.enabled) {
+      const knowledgeRetrieval = await buildKnowledgeRetrieval(trimmedMessage, {
+        limit: 8,
+        profile,
+        sourceTypes: knowledgePolicy.sourceTypes
+      });
+      retrieval = mergeRetrieval(retrieval, knowledgeRetrieval);
+    }
   } catch (error) {
     if (error instanceof DatabaseNotFoundError) {
       error.code = "DATABASE_NOT_FOUND";

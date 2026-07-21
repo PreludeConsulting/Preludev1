@@ -8,7 +8,7 @@ import {
   SAVINGS_TARGET_AMOUNT
 } from "../lib/admissionsCostBannerMotion.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
-import ScrollReveal from "./motion/ScrollReveal.jsx";
+import { useViewportActivity } from "../lib/motion/useViewportActivity.js";
 
 const mediaBase = import.meta.env.BASE_URL;
 const PIGGY_IMAGE = `${mediaBase}media/admissions-savings-piggy.png`;
@@ -41,45 +41,78 @@ export default function AdmissionsCostBanner() {
   const savingsButtonRef = useRef(null);
   const headlineRef = useRef(null);
   const fakeCursorRef = useRef(null);
+  const amountTextRef = useRef(null);
   const frameRef = useRef(0);
+  const countStateRef = useRef({ elapsed: 0, startedAt: 0, running: false });
   const fakeTimelineRef = useRef(null);
   const demoCompleteRef = useRef(false);
 
-  const [savingsValue, setSavingsValue] = useState(0);
   const [counting, setCounting] = useState(false);
-  const [demoLive, setDemoLive] = useState(false);
+  const { active } = useViewportActivity(sectionRef, {
+    threshold: 0.35,
+    rootMargin: "0px 0px -8% 0px"
+  });
 
-  const runSavingsCount = useCallback(() => {
-    window.cancelAnimationFrame(frameRef.current);
-    setSavingsValue(0);
+  const setSavingsDisplay = useCallback((value) => {
+    if (amountTextRef.current) amountTextRef.current.textContent = formatSavingsAmount(value);
+  }, []);
 
-    if (reducedMotion) {
-      setCounting(false);
-      setSavingsValue(SAVINGS_TARGET_AMOUNT);
-      return;
-    }
-
-    setCounting(true);
-    const start = performance.now();
-
-    const tick = (now) => {
-      const elapsed = now - start;
+  const tickSavings = useCallback((now) => {
+      const state = countStateRef.current;
+      const elapsed = state.elapsed + (now - state.startedAt);
       const next = savingsCountValue(elapsed);
-      setSavingsValue(next);
+      setSavingsDisplay(next);
 
       if (elapsed < SAVINGS_COUNT_DURATION_MS) {
-        frameRef.current = window.requestAnimationFrame(tick);
+        frameRef.current = window.requestAnimationFrame(tickSavings);
         return;
       }
 
       frameRef.current = 0;
+      state.elapsed = SAVINGS_COUNT_DURATION_MS;
+      state.startedAt = 0;
+      state.running = false;
       setCounting(false);
-      setSavingsValue(SAVINGS_TARGET_AMOUNT);
+      setSavingsDisplay(SAVINGS_TARGET_AMOUNT);
       demoCompleteRef.current = true;
-    };
+  }, [setSavingsDisplay]);
 
-    frameRef.current = window.requestAnimationFrame(tick);
-  }, [reducedMotion]);
+  const resumeSavingsCount = useCallback(() => {
+    const state = countStateRef.current;
+    if (!state.running || frameRef.current) return;
+    state.startedAt = performance.now();
+    setCounting(true);
+    frameRef.current = window.requestAnimationFrame(tickSavings);
+  }, [tickSavings]);
+
+  const pauseSavingsCount = useCallback(() => {
+    const state = countStateRef.current;
+    if (!state.running || !frameRef.current) return;
+    state.elapsed = Math.min(
+      SAVINGS_COUNT_DURATION_MS,
+      state.elapsed + (performance.now() - state.startedAt)
+    );
+    state.startedAt = 0;
+    window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = 0;
+    setCounting(false);
+  }, []);
+
+  const runSavingsCount = useCallback(() => {
+    window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = 0;
+    setSavingsDisplay(0);
+
+    if (reducedMotion) {
+      countStateRef.current = { elapsed: SAVINGS_COUNT_DURATION_MS, startedAt: 0, running: false };
+      setCounting(false);
+      setSavingsDisplay(SAVINGS_TARGET_AMOUNT);
+      return;
+    }
+
+    countStateRef.current = { elapsed: 0, startedAt: 0, running: true };
+    resumeSavingsCount();
+  }, [reducedMotion, resumeSavingsCount, setSavingsDisplay]);
 
   const stopFakeCursor = useCallback(() => {
     fakeTimelineRef.current?.cancel();
@@ -89,15 +122,16 @@ export default function AdmissionsCostBanner() {
   const resetSavingsDemo = useCallback(() => {
     window.cancelAnimationFrame(frameRef.current);
     frameRef.current = 0;
+    countStateRef.current = { elapsed: 0, startedAt: 0, running: false };
     setCounting(false);
     demoCompleteRef.current = false;
-    setSavingsValue(0);
-  }, []);
+    setSavingsDisplay(0);
+  }, [setSavingsDisplay]);
 
   const startFakeCursor = useCallback(() => {
     stopFakeCursor();
     if (reducedMotion || demoCompleteRef.current) {
-      setSavingsValue(SAVINGS_TARGET_AMOUNT);
+      setSavingsDisplay(SAVINGS_TARGET_AMOUNT);
       return;
     }
 
@@ -112,53 +146,47 @@ export default function AdmissionsCostBanner() {
       onActivate: runSavingsCount
     });
     fakeTimelineRef.current?.play();
-  }, [reducedMotion, resetSavingsDemo, runSavingsCount, stopFakeCursor]);
+  }, [reducedMotion, resetSavingsDemo, runSavingsCount, setSavingsDisplay, stopFakeCursor]);
 
   useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return undefined;
+    if (!active) {
+      fakeTimelineRef.current?.pause();
+      pauseSavingsCount();
+      return undefined;
+    }
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) {
-          setDemoLive(false);
-          stopFakeCursor();
-          if (reducedMotion || demoCompleteRef.current) {
-            setSavingsValue(SAVINGS_TARGET_AMOUNT);
-          } else {
-            resetSavingsDemo();
-          }
-          return;
-        }
-
-        setDemoLive(true);
-        startFakeCursor();
-      },
-      { threshold: 0.35, rootMargin: "0px 0px -8% 0px" }
-    );
-
-    observer.observe(section);
-
-    const onResize = () => {
-      if (!fakeTimelineRef.current) return;
+    if (fakeTimelineRef.current) {
+      fakeTimelineRef.current.play();
+      resumeSavingsCount();
+    } else {
       startFakeCursor();
+    }
+
+    let resizeFrame = 0;
+    const onResize = () => {
+      window.cancelAnimationFrame(resizeFrame);
+      resizeFrame = window.requestAnimationFrame(startFakeCursor);
     };
 
     window.addEventListener("resize", onResize, { passive: true });
 
     return () => {
-      observer.disconnect();
       window.removeEventListener("resize", onResize);
-      stopFakeCursor();
-      window.cancelAnimationFrame(frameRef.current);
-      frameRef.current = 0;
+      window.cancelAnimationFrame(resizeFrame);
     };
-  }, [resetSavingsDemo, startFakeCursor, stopFakeCursor]);
+  }, [active, pauseSavingsCount, resumeSavingsCount, startFakeCursor]);
+
+  useEffect(() => () => {
+    stopFakeCursor();
+    window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = 0;
+  }, [stopFakeCursor]);
 
   return (
     <section
       ref={sectionRef}
-      className={`admissions-cost-banner${demoLive ? " admissions-cost-banner--demo-live" : ""}`}
+      className={`admissions-cost-banner${active ? " admissions-cost-banner--demo-live" : ""}`}
+      data-motion-active={active ? "true" : "false"}
       id="about-cost"
       aria-labelledby="admissions-cost-headline"
     >
@@ -174,17 +202,19 @@ export default function AdmissionsCostBanner() {
         </>
       ) : null}
       <div className="admissions-cost-banner__inner">
-        <ScrollReveal className="admissions-cost-banner__visual">
+        <div className="admissions-cost-banner__visual">
           <div className="admissions-cost-banner__stage">
             <img
               src={PIGGY_IMAGE}
               alt={t("sections.cost.imageAlt")}
-              className={`admissions-cost-banner__image admissions-cost-banner__piggy${demoLive ? " admissions-cost-banner__piggy--float" : ""}`}
+              className={`admissions-cost-banner__image admissions-cost-banner__piggy${active ? " admissions-cost-banner__piggy--float" : ""}`}
+              loading="lazy"
+              decoding="async"
             />
           </div>
-        </ScrollReveal>
+        </div>
 
-        <ScrollReveal className="admissions-cost-banner__copy" delay={0.12}>
+        <div className="admissions-cost-banner__copy">
           <p className="admissions-cost-banner__body max-w-lg text-lg leading-7 text-white md:text-xl md:leading-8">
             {t("sections.cost.bodyBefore")}{" "}
             <button
@@ -194,7 +224,7 @@ export default function AdmissionsCostBanner() {
               onClick={runSavingsCount}
               aria-label="Animate savings from zero to $6,500"
             >
-              <span aria-live="polite">{formatSavingsAmount(savingsValue)}</span>
+              <span ref={amountTextRef} aria-live="polite">{formatSavingsAmount(0)}</span>
             </button>{" "}
             {t("sections.cost.bodyAfter")}
           </p>
@@ -207,7 +237,7 @@ export default function AdmissionsCostBanner() {
               {t("sections.cost.headline")}
             </h2>
           </div>
-        </ScrollReveal>
+        </div>
       </div>
     </section>
   );

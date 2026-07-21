@@ -7,7 +7,7 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { Button } from "./ui/button.jsx";
 import PreludeLogo from "./PreludeLogo.jsx";
@@ -136,6 +136,7 @@ export function LowerBenefits() {
 }
 
 export function LowerPlans() {
+  const navigate = useNavigate();
   const { user, isAuthenticated, openRegister } = useAuth();
   const { t, language } = useLanguage();
   const [billingNotice, setBillingNotice] = useState("");
@@ -165,7 +166,7 @@ export function LowerPlans() {
     const requiresRealAccount = user?.authProvider === "demo" || user?.authProvider === "dev";
     if (!plan.paid) {
       if (isAuthenticated && !requiresRealAccount) {
-        window.location.hash = "dashboard";
+        navigate("/dashboard");
       } else {
         setBillingNotice(t("sections.plans.notices.basicFree"));
         openRegister();

@@ -188,6 +188,7 @@ async function queryDatabaseKnowledge(message, { limit = 8, profile = null, sour
   const terms = extractTerms(message);
   const categoryHints = categoryHintsForMessage(message);
   const sourceTypeHints = resolveSourceTypeHints(message, sourceTypes);
+  const hasExplicitSourceTypes = Array.isArray(sourceTypes) && sourceTypes.length > 0;
   const profileHints = parseProfileHints(profile, message);
 
   const whereOr = [];
@@ -222,7 +223,7 @@ async function queryDatabaseKnowledge(message, { limit = 8, profile = null, sour
 
   if (sourceTypeHints.length) {
     const typedMatches = normalized.filter((row) => sourceTypeHints.includes(row.sourceType));
-    if (typedMatches.length) normalized = typedMatches;
+    if (hasExplicitSourceTypes || typedMatches.length) normalized = typedMatches;
   }
 
   if (sourceTypeHints.includes("university") && profileHints.sat) {
@@ -251,15 +252,15 @@ function loadDashboardCsvFallback() {
 }
 
 function resolveSourceTypeHints(message, sourceTypes = null) {
-  const fromMessage = sourceTypeHintsForMessage(message);
   if (Array.isArray(sourceTypes) && sourceTypes.length) {
-    return [...new Set([...sourceTypes, ...fromMessage])];
+    return [...new Set(sourceTypes.filter(Boolean))];
   }
-  return fromMessage;
+  return sourceTypeHintsForMessage(message);
 }
 
 function queryLocalKnowledge(message, { limit = 8, profile = null, sourceTypes = null } = {}) {
   const sourceTypeHints = resolveSourceTypeHints(message, sourceTypes);
+  const hasExplicitSourceTypes = Array.isArray(sourceTypes) && sourceTypes.length > 0;
   const dashboardDocs = loadDashboardCsvFallback().map(normalizeRow);
   const verifiedDocs = loadSampleDocs().map(normalizeRow);
   const docs = sourceTypeHints.length ? dashboardDocs : [...verifiedDocs, ...dashboardDocs];
@@ -275,7 +276,7 @@ function queryLocalKnowledge(message, { limit = 8, profile = null, sourceTypes =
   let filtered = docs.filter((row) => scoreRow(row, terms, { sourceTypeHints, profileHints }) > 0);
   if (sourceTypeHints.length) {
     const typedMatches = filtered.filter((row) => sourceTypeHints.includes(row.sourceType));
-    if (typedMatches.length) filtered = typedMatches;
+    if (hasExplicitSourceTypes || typedMatches.length) filtered = typedMatches;
   }
 
   return filtered.slice(0, limit);
@@ -283,18 +284,19 @@ function queryLocalKnowledge(message, { limit = 8, profile = null, sourceTypes =
 
 export async function retrieveKnowledgeChunks(message, { limit = 8, profile = null, sourceTypes = null } = {}) {
   const sourceTypeHints = resolveSourceTypeHints(message, sourceTypes);
+  const hasExplicitSourceTypes = Array.isArray(sourceTypes) && sourceTypes.length > 0;
   let dbRows = [];
   try {
-    dbRows = await queryDatabaseKnowledge(message, { limit, profile, sourceTypes: sourceTypeHints });
+    dbRows = await queryDatabaseKnowledge(message, { limit, profile, sourceTypes });
   } catch {
     dbRows = [];
   }
 
   const dbHasRequestedTypes =
-    !sourceTypeHints.length || dbRows.some((row) => sourceTypeHints.includes(row.sourceType));
+    !hasExplicitSourceTypes || dbRows.every((row) => sourceTypeHints.includes(row.sourceType));
 
   if (dbRows.length && dbHasRequestedTypes) return dbRows;
-  return queryLocalKnowledge(message, { limit, profile, sourceTypes: sourceTypeHints });
+  return queryLocalKnowledge(message, { limit, profile, sourceTypes });
 }
 
 function formatRecordSummary(chunk) {

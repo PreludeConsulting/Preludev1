@@ -198,6 +198,20 @@ describe("createRagChatCompletion fallback integration", () => {
     assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
   });
 
+  it("short-circuits guarantee requests with normalized empty retrieval metadata", async () => {
+    const result = await createRagChatCompletion({
+      message: "Can you guarantee I will get into Georgia Tech?",
+      conversationHistory: []
+    });
+
+    assert.equal(result.model, "guidance");
+    assert.equal(result.intent, "guarantee_refusal");
+    assert.match(result.answer, /can’t predict|cannot predict|can't predict|guarantee/i);
+    assert.deepEqual(result.sources, []);
+    assert.deepEqual(result.sourceLabels, []);
+    assert.deepEqual(result.retrievedRecords, []);
+  });
+
   it("continues essay mode when the user says scratch variants", async () => {
     const baseHistory = [
       { role: "user", content: "I need help with essays" },

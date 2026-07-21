@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import { Calendar } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext.jsx";
+import { usePreludeMotion } from "../../context/MotionContext.jsx";
+import { useViewportActivity } from "../../lib/motion/useViewportActivity.js";
 
 const CHAT_MESSAGES = [
   {
@@ -39,7 +41,9 @@ const FADE_S = 0.42;
 export default function AnimatedChatDemo() {
   const { t } = useLanguage();
   const messages = t("studentNetwork.chat.messages");
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = usePreludeMotion().reducedMotion;
+  const rootRef = useRef(null);
+  const { active } = useViewportActivity(rootRef, { rootMargin: "120px 0px" });
   const [visibleCount, setVisibleCount] = useState(reduceMotion ? CHAT_MESSAGES.length : 0);
 
   useEffect(() => {
@@ -48,43 +52,18 @@ export default function AnimatedChatDemo() {
       return undefined;
     }
 
-    let cancelled = false;
-    const timeouts = [];
+    if (!active) return undefined;
 
-    const schedule = (fn, delay) => {
-      const id = window.setTimeout(() => {
-        if (!cancelled) {
-          fn();
-        }
-      }, delay);
-      timeouts.push(id);
-    };
-
-    const runCycle = () => {
-      setVisibleCount(0);
-      let elapsed = RESET_MS;
-
-      CHAT_MESSAGES.forEach((_, index) => {
-        schedule(() => setVisibleCount(index + 1), elapsed);
-        elapsed += STAGGER_MS;
-      });
-
-      schedule(() => {
-        setVisibleCount(0);
-        schedule(runCycle, RESET_MS);
-      }, elapsed + HOLD_MS);
-    };
-
-    runCycle();
-
-    return () => {
-      cancelled = true;
-      timeouts.forEach((id) => window.clearTimeout(id));
-    };
-  }, [reduceMotion]);
+    const complete = visibleCount >= CHAT_MESSAGES.length;
+    const timeoutId = window.setTimeout(
+      () => setVisibleCount((count) => (count >= CHAT_MESSAGES.length ? 0 : count + 1)),
+      complete ? HOLD_MS + RESET_MS : STAGGER_MS
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [active, reduceMotion, visibleCount]);
 
   return (
-    <div className="sn-chat-demo" aria-hidden="true">
+    <div ref={rootRef} className="sn-chat-demo" aria-hidden="true" data-motion-active={active ? "true" : "false"}>
       <header className="sn-chat-demo__header">
         <span className="sn-chat-demo__avatar sn-chat-demo__avatar--mentor">MP</span>
         <div className="sn-chat-demo__header-text">
