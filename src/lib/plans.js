@@ -22,7 +22,7 @@ export const PLANS = {
     priceLabel: "Paid",
     price: formatUsd(PLAN_PRICE_CENTS.basic),
     paid: true,
-    isRecommended: false,
+    isFeatured: false,
     description: "Foundational support from real college mentors.",
     features: [
       "2 full personal statement reviews per month",
@@ -55,7 +55,7 @@ export const PLANS = {
     priceLabel: "Paid",
     price: formatUsd(PLAN_PRICE_CENTS.plus),
     paid: true,
-    isRecommended: false,
+    isFeatured: false,
     description: "More mentor access, 1-on-1 support, and rewards.",
     features: [
       "Full mentor-network messaging",
@@ -90,7 +90,7 @@ export const PLANS = {
     priceLabel: "Paid",
     price: formatUsd(PLAN_PRICE_CENTS.pro),
     paid: true,
-    isRecommended: true,
+    isFeatured: true,
     description: "End-to-end support with more flexible sessions, priority messaging, and full application review.",
     features: [
       "Priority mentor-network messaging",
