@@ -15,6 +15,32 @@ describe("LLM answer quality", () => {
     assert.equal(isLowQualityLlmAnswer("Georgia Tech and UGA differ in CS strength and campus setting."), false);
   });
 
+  it("does not fall through to scholarships when financial records were not requested", () => {
+    const answer = buildRetrievalAssistedAnswer(
+      "show me affordable Georgia colleges",
+      {
+        intent: "affordability",
+        blocks: [
+          {
+            heading: "Unrestricted supplemental knowledge",
+            records: [
+              {
+                type: "knowledge",
+                sourceType: "scholarship",
+                title: "Unrelated scholarship",
+                summary: "A generic scholarship list",
+                source: "Prelude dashboard database"
+              }
+            ]
+          }
+        ]
+      },
+      {}
+    );
+
+    assert.equal(answer, null);
+  });
+
   it("returns retrieval-first answer for best CS school question", async () => {
     const result = await createRagChatCompletion({
       message: "what is the best school for cs",

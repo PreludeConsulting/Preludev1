@@ -316,8 +316,6 @@ function addAssembly(timeline, runtime, mobile) {
   if (!planItem || !planExpand) return;
 
   const expandAt = CINEMATIC_LABELS.assemblyShow;
-  const expandHeight = mobile ? 148 : 168;
-
   timeline
     .add(
       layoutRoot,
@@ -337,7 +335,8 @@ function addAssembly(timeline, runtime, mobile) {
       planExpand,
       {
         opacity: [0, 1],
-        maxHeight: [0, expandHeight],
+        translateY: [8, 0],
+        scaleY: [0.94, 1],
         duration: 680,
         ease: CINEMATIC_EASE_SOFT
       },
@@ -621,8 +620,8 @@ function addLoopBridge(timeline, runtime, mobile) {
  */
 export function buildPreludeMatchCinematicTimeline({
   mobile = false,
+  lite = false,
   runtime = null,
-  onUpdate,
   onLoop,
   onLoopReset
 } = {}) {
@@ -635,7 +634,6 @@ export function buildPreludeMatchCinematicTimeline({
   const timeline = createTimeline({
     autoplay: false,
     defaults: { ease: CINEMATIC_EASE },
-    onUpdate,
     onComplete: () => {
       onLoopReset?.();
       onLoop?.();
@@ -646,14 +644,16 @@ export function buildPreludeMatchCinematicTimeline({
   });
 
   labelTimeline(timeline, times);
-  addAtmosphere(timeline, runtime, mobile);
-  addCameraMotion(timeline, runtime, times);
+  if (!lite) {
+    addAtmosphere(timeline, runtime, mobile);
+    addCameraMotion(timeline, runtime, times);
+  }
   addOpener(timeline, runtime);
   addMentorReveal(timeline, runtime);
   addProgressDetail(timeline, runtime, times);
   addAssembly(timeline, runtime, mobile);
   addPigMoment(timeline, runtime, mobile);
-  addBankScene(timeline, runtime);
+  if (!lite) addBankScene(timeline, runtime);
   addExitAndWordmark(timeline, runtime);
   addLoopBridge(timeline, runtime, mobile);
 

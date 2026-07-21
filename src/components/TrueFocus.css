@@ -33,7 +33,6 @@
   opacity: 0.78;
   transform: translateY(0) scale(0.985);
   transition:
-    filter 0.3s ease,
     opacity 0.3s ease,
     transform 0.3s ease,
     box-shadow 0.3s ease;
@@ -55,7 +54,6 @@
 
 .focus-word.active {
   z-index: 2;
-  filter: blur(0);
   opacity: 1;
   transform: translateY(-6px) scale(1.015);
   box-shadow:
@@ -147,6 +145,7 @@
   pointer-events: none;
   box-sizing: content-box;
   border: none;
+  transform-origin: top left;
 }
 
 .corner {
@@ -233,4 +232,10 @@
   .focus-frame {
     transition: none;
   }
+}
+
+.focus-container[data-motion-active="false"] .focus-word,
+html[data-document-visible="false"] .focus-word,
+html[data-motion-tier="lite"] .focus-word {
+  animation-play-state: paused;
 }

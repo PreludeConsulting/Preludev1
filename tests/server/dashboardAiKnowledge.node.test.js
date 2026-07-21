@@ -80,11 +80,25 @@ describe("Prelude dashboard AI guardrails", () => {
 
   it("returns source labels for scholarship retrieval answers", async () => {
     const result = await createRagChatCompletion({
-      message: "What scholarships fit a high school senior with leadership?",
+      message: "What scholarships fit a high school senior with leadership for college tuition?",
       conversationHistory: []
     });
     assert.ok(Array.isArray(result.sourceLabels));
-    assert.ok(result.retrievedRecords.length > 0 || result.sourceLabels.length > 0);
+    assert.equal(result.retrievedRecords[0]?.sourceType, "scholarship");
+    assert.ok(result.retrievedRecords.length > 0);
+    assert.ok(result.retrievedRecords.every((record) => record.sourceType === "scholarship"));
+    assert.ok(result.sourceLabels.length > 0);
+    assert.match(result.answer, /scholarship|award/i);
+  });
+
+  it("keeps scholarship records available for explicit financial-aid requests", async () => {
+    const result = await createRagChatCompletion({
+      message: "Show me financial aid opportunities from the Prelude database.",
+      conversationHistory: []
+    });
+
+    assert.equal(result.retrievedRecords[0]?.sourceType, "scholarship");
+    assert.ok(result.sourceLabels.length > 0);
   });
 
   it("does not fabricate a fake scholarship name in retrieval-first answers", async () => {

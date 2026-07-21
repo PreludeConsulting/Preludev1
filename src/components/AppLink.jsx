@@ -1,5 +1,10 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { isAppRoute } from "../lib/appPaths.js";
+import {
+  landingRouteForTarget,
+  parseLandingTarget,
+  scrollToLandingTarget
+} from "../lib/landingNavigation.js";
 
 /**
  * Router-aware link: uses <Link> for /paths, plain <a> for hashes and external URLs.
@@ -7,21 +12,40 @@ import { isAppRoute } from "../lib/appPaths.js";
  */
 export default function AppLink({ to, href, className, children, onClick, ...rest }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const target = to ?? href ?? "/";
-  const isHashOnlyTarget = typeof target === "string" && target.startsWith("#");
-  const routeTarget = isHashOnlyTarget && location.pathname !== "/" ? `/${target}` : target;
+  const landingTarget = parseLandingTarget(target);
+  const routeTarget = landingRouteForTarget(target, location.pathname);
 
   function handleClick(event) {
     onClick?.(event);
-    if (event.defaultPrevented || !isHashOnlyTarget || location.pathname !== "/") return;
+    if (event.defaultPrevented) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 
-    const id = target.slice(1);
-    if (!id) return;
+    if (landingTarget.kind === "top" && location.pathname === "/") {
+      event.preventDefault();
+      if (window.location.hash) {
+        window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+      }
+      scrollToLandingTarget(landingTarget.id);
+      return;
+    }
 
-    // Always scroll to the anchor, even when the hash is already active.
-    window.requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    if (landingTarget.kind !== "section") return;
+    event.preventDefault();
+    if (location.pathname === "/" && location.hash === target) {
+      scrollToLandingTarget(landingTarget.id);
+      return;
+    }
+    navigate(routeTarget, { state: { landingScroll: true } });
+  }
+
+  if (landingTarget.kind === "section") {
+    return (
+      <Link to={routeTarget} className={className} onClick={handleClick} {...rest}>
+        {children}
+      </Link>
+    );
   }
 
   if (isAppRoute(routeTarget)) {

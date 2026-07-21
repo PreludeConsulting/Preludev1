@@ -127,6 +127,9 @@ export function createCostBannerFakeCursorTimeline({
     play() {
       timeline.play();
     },
+    pause() {
+      timeline.pause();
+    },
     cancel() {
       timeline.cancel();
       clearActiveState();

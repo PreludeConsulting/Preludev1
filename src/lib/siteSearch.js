@@ -1,12 +1,12 @@
-import { appPath } from "./appPaths.js";
 import { NAV_LINKS } from "../data/navLinks.js";
+import { landingRouteForTarget, parseLandingTarget, scrollToLandingTarget } from "./landingNavigation.js";
 
 export const SCROLL_STORAGE_KEY = "preludeSearchScroll";
 
 /** Searchable destinations — pages, tabs, and sections. */
 export const SITE_SEARCH_ITEMS = [
   ...NAV_LINKS.map((link) => ({
-    id: link.href.startsWith("#") ? link.href.slice(1) : link.href.replace(/^\//, ""),
+    id: link.scrollTarget || (link.href.startsWith("#") ? link.href.slice(1) : link.href.replace(/^\//, "")),
     labelKey: link.labelKey,
     href: link.href,
     keywords: []
@@ -14,14 +14,14 @@ export const SITE_SEARCH_ITEMS = [
   {
     id: "financial-aid",
     labelKey: "nav.searchItems.financialAid",
-    href: "#dashboard",
+    href: "/dashboard",
     scrollTarget: "roadmap-financial",
     keywords: ["aid", "scholarships", "fafsa", "css profile", "finances"]
   },
   {
     id: "college-list",
     labelKey: "nav.searchItems.collegeList",
-    href: "#dashboard",
+    href: "/dashboard",
     scrollTarget: "roadmap-college-list",
     keywords: ["schools", "list", "colleges", "universities"]
   },
@@ -50,43 +50,37 @@ export function filterSiteSearch(query, items, t) {
   });
 }
 
-function scrollToElement(id) {
-  if (!id) return;
-  requestAnimationFrame(() => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-}
-
 /** Navigate to a search result and close the search panel. */
-export function navigateToSiteResult(item) {
+export function navigateToSiteResult(item, { pathname = window.location.pathname, navigate } = {}) {
+  if (typeof navigate !== "function") return false;
+
+  const landingTarget = parseLandingTarget(item.href);
+  if (landingTarget.kind === "top") {
+    if (pathname === "/") {
+      if (window.location.hash) {
+        window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+      }
+      scrollToLandingTarget(landingTarget.id);
+    } else {
+      navigate("/");
+    }
+    return true;
+  }
+
+  if (item.scrollTarget) sessionStorage.setItem(SCROLL_STORAGE_KEY, item.scrollTarget);
+
   if (item.href.startsWith("/")) {
-    window.location.href = appPath(item.href);
-    return;
-  }
-
-  if (item.scrollTarget) {
-    sessionStorage.setItem(SCROLL_STORAGE_KEY, item.scrollTarget);
-  }
-
-  if (window.location.pathname !== appPath("/")) {
-    window.location.href = appPath(`/${item.href}`);
-    return;
+    navigate(item.href);
+    return true;
   }
 
   const hashId = item.href.replace(/^#/, "");
-
-  if (window.location.hash === item.href) {
-    scrollToElement(item.scrollTarget || hashId);
-    return;
+  if (pathname === "/" && window.location.hash === item.href) {
+    scrollToLandingTarget(item.scrollTarget || hashId);
+    return true;
   }
-
-  const onHashChange = () => {
-    window.removeEventListener("hashchange", onHashChange);
-    if (!item.scrollTarget) scrollToElement(hashId);
-  };
-
-  window.addEventListener("hashchange", onHashChange);
-  window.location.hash = hashId;
+  navigate(landingRouteForTarget(item.href, pathname), { state: { landingScroll: true } });
+  return true;
 }
 
 export function consumeSearchScrollTarget() {

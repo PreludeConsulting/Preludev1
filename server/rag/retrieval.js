@@ -19,6 +19,7 @@ import {
   extractMajorTerms,
   extractState
 } from "./intent.js";
+import { isGuaranteeRequest } from "./guaranteeIntent.js";
 
 function sourceEntry(label, records) {
   return { label, records };
@@ -215,6 +216,15 @@ function retrieveCollegeSearch(conversationState, message) {
 }
 
 export function retrieveContext(message, conversationHistory = []) {
+  if (isGuaranteeRequest(message)) {
+    return {
+      intent: "guarantee_refusal",
+      blocks: [],
+      sources: [],
+      conversationState: {}
+    };
+  }
+
   const conversationState = deriveConversationState(message, conversationHistory);
   const correction = parseCorrection(message, conversationState);
 

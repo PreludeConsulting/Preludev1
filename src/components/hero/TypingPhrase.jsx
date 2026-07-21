@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
+import { useViewportActivity } from "../../lib/motion/useViewportActivity.js";
 
 const TYPE_DELAY = 125;
 const DELETE_DELAY = 80;
@@ -8,6 +9,8 @@ const BETWEEN_PHRASES_PAUSE = 500;
 
 export default function TypingPhrase({ phrases = [], staticPhrase, className = "" }) {
   const reducedMotion = useReducedMotion();
+  const rootRef = useRef(null);
+  const { active } = useViewportActivity(rootRef);
   const safePhrases = useMemo(() => phrases.filter(Boolean), [phrases]);
   const fallback = staticPhrase || safePhrases[0] || "";
   const [phraseIndex, setPhraseIndex] = useState(0);
@@ -16,7 +19,7 @@ export default function TypingPhrase({ phrases = [], staticPhrase, className = "
   const reservedCharacters = Math.max(fallback.length, ...safePhrases.map((phrase) => phrase.length), 1);
 
   useEffect(() => {
-    if (reducedMotion || safePhrases.length === 0) return undefined;
+    if (reducedMotion || !active || safePhrases.length === 0) return undefined;
 
     const phrase = safePhrases[phraseIndex % safePhrases.length];
     let delay = deleting ? DELETE_DELAY : TYPE_DELAY;
@@ -39,11 +42,13 @@ export default function TypingPhrase({ phrases = [], staticPhrase, className = "
 
     const timeoutId = window.setTimeout(nextStep, delay);
     return () => window.clearTimeout(timeoutId);
-  }, [deleting, phraseIndex, reducedMotion, safePhrases, text]);
+  }, [active, deleting, phraseIndex, reducedMotion, safePhrases, text]);
 
   return (
     <span
+      ref={rootRef}
       className={`typing-phrase ${className}`.trim()}
+      data-motion-active={active ? "true" : "false"}
       style={{ "--typing-reserved-chars": reservedCharacters }}
     >
       <span className="sr-only">{fallback}</span>

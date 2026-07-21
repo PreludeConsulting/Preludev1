@@ -18,6 +18,24 @@ function questionnaireFor(interest) {
   };
 }
 
+async function invokeChatApi(body) {
+  let statusCode = 0;
+  let responseBody = null;
+  const res = {
+    setHeader() {},
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(response) {
+      responseBody = response;
+    }
+  };
+
+  await chatApiHandler({ method: "POST", body }, res);
+  return { statusCode, responseBody };
+}
+
 describe("Prelude mentor matching", () => {
   it("accepts completed questionnaires for any academic interest", () => {
     for (const interest of ["Engineering", "Business", "Biology", "Undecided or exploring"]) {
@@ -59,22 +77,25 @@ describe("Prelude mentor matching", () => {
     assert.equal(calls, 0);
   });
 
-  it("rejects the former open-ended chat payload", async () => {
-    let statusCode = 0;
-    let responseBody = null;
-    const res = {
-      setHeader() {},
-      status(code) {
-        statusCode = code;
-        return this;
-      },
-      json(body) {
-        responseBody = body;
-      }
-    };
+  it("accepts a non-empty admissions guidance message", async () => {
+    const { statusCode, responseBody } = await invokeChatApi({ message: "I need help with essays" });
 
-    await chatApiHandler({ method: "POST", body: { message: "Write my admissions essay" } }, res);
-    assert.equal(statusCode, 410);
-    assert.equal(responseBody.error, "guided_assistant_only");
+    assert.equal(statusCode, 200);
+    assert.equal(responseBody.answer, responseBody.text);
+    assert.equal(responseBody.provider, "prelude");
+    assert.equal(responseBody.model, "guidance");
+    assert.ok(Array.isArray(responseBody.sources));
+    assert.ok(Array.isArray(responseBody.actions));
+    assert.match(responseBody.answer, /Common App essay|supplementals|topic ideas|outlines|editing/i);
+  });
+
+  it("rejects missing, blank, and unsupported chat bodies", async () => {
+    for (const body of [{}, { message: "   " }, { message: { text: "Help with my essay" } }]) {
+      const { statusCode, responseBody } = await invokeChatApi(body);
+
+      assert.equal(statusCode, 400);
+      assert.equal(responseBody.error, "invalid_chat_request");
+      assert.match(responseBody.message, /mentorMatch payload|message string/i);
+    }
   });
 });

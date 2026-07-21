@@ -8,6 +8,8 @@ import {
   getCinematicDurationMs
 } from "../../lib/preludeMatchCinematicMotion.js";
 import { initPreludeMatchCinematicRuntime } from "../../lib/preludeMatchCinematicRuntime.js";
+import { usePreludeMotion } from "../../context/MotionContext.jsx";
+import { useViewportActivity } from "../../lib/motion/useViewportActivity.js";
 
 function useMobileCinematic() {
   const [mobile, setMobile] = useState(() => {
@@ -18,8 +20,12 @@ function useMobileCinematic() {
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
     const onChange = (event) => setMobile(event.matches);
-    media.addEventListener("change", onChange);
-    return () => media.removeEventListener("change", onChange);
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", onChange);
+      return () => media.removeEventListener("change", onChange);
+    }
+    media.addListener?.(onChange);
+    return () => media.removeListener?.(onChange);
   }, []);
 
   return mobile;
@@ -32,12 +38,13 @@ function resetCinematicLayers(runtime) {
 
 export default function PreludeMatchIntro({ reducedMotion, onStart }) {
   const mobile = useMobileCinematic();
+  const { motionTier } = usePreludeMotion();
   const rootRef = useRef(null);
+  const { active } = useViewportActivity(rootRef);
   const scopeRef = useRef(null);
   const timelineRef = useRef(null);
   const runtimeRef = useRef(null);
   const hoveredRef = useRef(false);
-  const inViewRef = useRef(true);
   const hasStartedRef = useRef(false);
 
   useEffect(() => {
@@ -60,45 +67,22 @@ export default function PreludeMatchIntro({ reducedMotion, onStart }) {
 
         const timeline = buildPreludeMatchCinematicTimeline({
           mobile,
+          lite: motionTier === "lite",
           runtime,
-          onUpdate: (self) => {
-            container.dataset.cinematicCurrentMs = String(Math.round(self.currentTime));
-          },
-          onLoopReset: () => resetCinematicLayers(runtime),
-          onLoop: () => {
-            container.dataset.cinematicLoops = String(Number(container.dataset.cinematicLoops || 0) + 1);
-          }
+          onLoopReset: () => resetCinematicLayers(runtime)
         });
 
         runtime.showOpener();
         timelineRef.current = timeline;
-        timeline.play();
+        if (active) timeline.play();
         hasStartedRef.current = true;
-        container.dataset.cinematicReady = "1";
       } catch (error) {
         console.error("PreludeMatch cinematic failed to start", error);
         runtimeRef.current?.showOpener?.();
       }
     });
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        const timeline = timelineRef.current;
-        if (!timeline || !hasStartedRef.current) return;
-        inViewRef.current = entry.isIntersecting;
-        if (!entry.isIntersecting || hoveredRef.current) {
-          timeline.pause();
-          return;
-        }
-        timeline.play();
-      },
-      { threshold: 0.01 }
-    );
-
-    observer.observe(container);
-
     return () => {
-      observer.disconnect();
       hasStartedRef.current = false;
       timelineRef.current?.pause?.();
       timelineRef.current = null;
@@ -107,7 +91,14 @@ export default function PreludeMatchIntro({ reducedMotion, onStart }) {
       scopeRef.current?.revert?.();
       scopeRef.current = null;
     };
-  }, [reducedMotion, mobile]);
+  }, [mobile, motionTier, reducedMotion]);
+
+  useEffect(() => {
+    const timeline = timelineRef.current;
+    if (!timeline || !hasStartedRef.current) return;
+    if (active && !hoveredRef.current) timeline.play();
+    else timeline.pause();
+  }, [active]);
 
   function handlePointerEnter() {
     hoveredRef.current = true;
@@ -116,7 +107,7 @@ export default function PreludeMatchIntro({ reducedMotion, onStart }) {
 
   function handlePointerLeave() {
     hoveredRef.current = false;
-    if (inViewRef.current) {
+    if (active) {
       timelineRef.current?.play?.();
     }
   }
@@ -147,7 +138,8 @@ export default function PreludeMatchIntro({ reducedMotion, onStart }) {
   return (
     <div
       ref={rootRef}
-      className="pm-intro pm-intro--cinematic"
+      className={`pm-intro pm-intro--cinematic${active ? " pm-intro--motion-active" : ""}${motionTier === "lite" ? " pm-intro--lite" : ""}`}
+      data-motion-active={active ? "true" : "false"}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
       data-cinematic-duration-ms={getCinematicDurationMs(mobile)}

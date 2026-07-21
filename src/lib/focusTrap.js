@@ -54,15 +54,15 @@ export function lockBodyScroll(enabled) {
 
 /**
  * @param {HTMLElement | null} container
- * @param {{ onEscape?: () => void, returnFocusRef?: { current: HTMLElement | null } }} options
+ * @param {{ onEscape?: () => void, returnFocusRef?: { current: HTMLElement | null }, isolatePage?: boolean }} options
  */
-export function bindFocusTrap(container, { onEscape, returnFocusRef } = {}) {
+export function bindFocusTrap(container, { onEscape, returnFocusRef, isolatePage = true } = {}) {
   if (!container) return () => {};
 
   const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const openedFromKeyboard = Boolean(previousFocus?.matches?.(":focus-visible"));
-  const releaseInert = setBackgroundInert(true);
-  const releaseScroll = lockBodyScroll(true);
+  const releaseInert = isolatePage ? setBackgroundInert(true) : () => {};
+  const releaseScroll = isolatePage ? lockBodyScroll(true) : () => {};
 
   const frame = window.requestAnimationFrame(() => {
     const focusTarget = openedFromKeyboard ? getTabbable(container)[0] : container;

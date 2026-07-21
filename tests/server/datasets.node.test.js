@@ -65,4 +65,35 @@ describe("RAG retrieval", () => {
     const retrieval = retrieveContext("Can you guarantee I will get into Georgia Tech?");
     assert.equal(retrieval.blocks.length, 0);
   });
+
+  it("classifies admission guarantees before broad get-into school facts", () => {
+    for (const message of [
+      "Can you guarantee I will get into Georgia Tech?",
+      "Will Prelude guarantee my acceptance to Georgia Tech?",
+      "What are my chances?",
+      "Can you say I have a 100% chance of admission?"
+    ]) {
+      const classification = classifyIntent(message);
+      assert.equal(classification.intent, "guarantee_refusal", message);
+      assert.equal(classification.needsRetrieval, false, message);
+      assert.equal(retrieveContext(message).blocks.length, 0, message);
+    }
+  });
+
+  it("keeps informational get-into questions in the school-fact route", () => {
+    for (const message of [
+      "How hard is it to get into Georgia Tech?",
+      "What GPA do I need to get into Georgia Tech?"
+    ]) {
+      const classification = classifyIntent(message);
+      assert.equal(classification.intent, "school_fact", message);
+      assert.equal(classification.needsRetrieval, true, message);
+    }
+  });
+
+  it("does not mistake recommendation certainty for an admission guarantee", () => {
+    const classification = classifyIntent("Can you definitely recommend a school?");
+    assert.equal(classification.intent, "school_search");
+    assert.equal(classification.needsRetrieval, true);
+  });
 });

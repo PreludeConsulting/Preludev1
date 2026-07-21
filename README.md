@@ -204,13 +204,15 @@ Prelude can validate pricing and paid-plan flows without blocking development wh
 
 ### 12. Internationalization and accessibility-friendly UX
 
-The app includes a language switcher, translation utilities, reduced-motion hook, responsive navigation, mobile menus, semantic dashboard sections, and reusable UI primitives.
+The app includes a language switcher, translation utilities, a centralized motion policy, responsive navigation, mobile menus, semantic dashboard sections, and reusable UI primitives.
 
 **Languages, APIs, and tools**
 
 - React context for language state.
 - JavaScript translation catalog.
 - CSS responsive and reduced-motion styling hooks.
+- `usePreludeMotion()` exposes `{ reducedMotion, motionTier, documentVisible }`. `motionTier` is `full`, `lite`, or `reduced`; capability hints select `lite`, while OS or Prelude preferences select `reduced`.
+- `useViewportActivity(ref)` combines section intersection with document visibility so persistent landing animations stop offscreen and while the tab is hidden.
 
 **Problem fixed**
 
@@ -243,6 +245,8 @@ Developers can work quickly in one process, debug backend routes separately, or 
 | Billing | `/api/billing/config`, `/api/billing/checkout`, `/api/billing/bundle-checkout`, `/api/billing/portal`, `/api/billing/webhook` | Plan and one-time bundle checkout, billing portal, subscription state, and webhook sync. |
 | Datasets | `/api/colleges/*`, `/api/programs/search`, `/api/careers/search`, `/api/high-schools/search` | Public-data search and comparison. |
 | PreludeMatch | `/api/prelude-match-questionnaire` | Account-linked questionnaire submission for matching/personalization. |
+
+`POST /api/chat` accepts either `{ "message": "..." }` for admissions guidance (with optional `conversationHistory` and `profile`) or `{ "mentorMatch": { ... } }` for a completed PreludeMatch questionnaire.
 
 ## Public page summary
 

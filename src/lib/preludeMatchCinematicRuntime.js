@@ -98,7 +98,7 @@ function applyInitialStates(elements) {
   }
 
   if (elements.planExpand) {
-    utils.set(elements.planExpand, { maxHeight: 0, opacity: 0 });
+    utils.set(elements.planExpand, { opacity: 0, scaleY: 0.94, translateY: 8 });
   }
 
   if (elements.progressFill) {

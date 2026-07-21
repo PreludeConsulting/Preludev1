@@ -2,6 +2,7 @@
 import { useAuth } from "../context/AuthContext.jsx";
 import { getPreludeMatchQuestionnaire, savePreludeMatchQuestionnaire } from "../lib/auth.js";
 import { Button } from "./ui/button.jsx";
+import { useNavigate } from "react-router-dom";
 
 const QUESTIONS = [
   "What is your current grade level in high school?",
@@ -41,6 +42,7 @@ function answersFromSubmission(questionnaire) {
 }
 
 export default function QuestionnairePage() {
+  const navigate = useNavigate();
   const { isAuthenticated, openRegister, ready } = useAuth();
   const [answers, setAnswers] = useState({});
   const [status, setStatus] = useState("");
@@ -87,7 +89,7 @@ export default function QuestionnairePage() {
       };
       await savePreludeMatchQuestionnaire(payload);
       setStatus("Saved to your Prelude account. Redirecting you to pricing…");
-      window.location.hash = "#pricing";
+      navigate("/#pricing", { state: { landingScroll: true } });
     } catch (err) {
       setError(err.message || "We could not save your PreludeMatch Questionnaire.");
     } finally {

@@ -1,5 +1,7 @@
+import { useRef } from "react";
 import { motion } from "motion/react";
 import { useLanguage } from "../context/LanguageContext.jsx";
+import { useViewportActivity } from "../lib/motion/useViewportActivity.js";
 
 function Reveal({ children, className = "", delay = 0 }) {
   return (
@@ -32,14 +34,18 @@ function HeadlineLine({ line, accent }) {
 
 export default function NetworkSection() {
   const { t } = useLanguage();
+  const sectionRef = useRef(null);
+  const { active } = useViewportActivity(sectionRef, { rootMargin: "120px 0px" });
   const metrics = t("network.metrics");
   const headlineAccent = t("network.headlineAccent");
 
   return (
     <section
+      ref={sectionRef}
       id="mentorship"
       data-section-nav="mentorship"
       className="network-section"
+      data-motion-active={active ? "true" : "false"}
       aria-labelledby="network-section-heading"
     >
       <div className="network-section__inner">

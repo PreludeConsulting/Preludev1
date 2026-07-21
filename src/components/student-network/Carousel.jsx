@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion, useMotionValue, useTransform } from "motion/react";
+import { motion } from "motion/react";
 import { Circle, Code, FileText, Layers, Layout } from "lucide-react";
+import { usePreludeMotion } from "../../context/MotionContext.jsx";
+import { useViewportActivity } from "../../lib/motion/useViewportActivity.js";
 
 import "./Carousel.css";
 
@@ -40,28 +42,17 @@ const DEFAULT_ITEMS = [
 const DRAG_BUFFER = 0;
 const VELOCITY_THRESHOLD = 500;
 const GAP = 16;
-const SPRING_OPTIONS = { type: "spring", stiffness: 300, damping: 30 };
 
-function CarouselItem({ item, index, itemWidth, round, trackItemOffset, x, transition }) {
-  const range = [
-    -(index + 1) * trackItemOffset,
-    -index * trackItemOffset,
-    -(index - 1) * trackItemOffset
-  ];
-  const outputRange = [90, 0, -90];
-  const rotateY = useTransform(x, range, outputRange, { clamp: false });
-
+function CarouselItem({ item, index, itemWidth, round }) {
   return (
-    <motion.div
+    <div
       key={`${item?.id ?? index}-${index}`}
       className={`carousel-item ${round ? "round" : ""}`}
       style={{
         width: itemWidth,
         height: round ? itemWidth : "24rem",
-        rotateY: rotateY,
         ...(round && { borderRadius: "50%" })
       }}
-      transition={transition}
     >
       <div className={`carousel-item-header ${round ? "round" : ""}`}>
         <span className="carousel-icon-container">{item.icon}</span>
@@ -86,7 +77,7 @@ function CarouselItem({ item, index, itemWidth, round, trackItemOffset, x, trans
           ) : null}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -109,12 +100,14 @@ export default function Carousel({
   }, [items, loop]);
 
   const [position, setPosition] = useState(loop ? 1 : 0);
-  const x = useMotionValue(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isJumping, setIsJumping] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
   const containerRef = useRef(null);
+  const jumpFrameRef = useRef(0);
+  const { reducedMotion, motionTier } = usePreludeMotion();
+  const { active } = useViewportActivity(containerRef, { rootMargin: "120px 0px" });
   useEffect(() => {
     if (pauseOnHover && containerRef.current) {
       const container = containerRef.current;
@@ -130,21 +123,20 @@ export default function Carousel({
   }, [pauseOnHover]);
 
   useEffect(() => {
-    if (!autoplay || itemsForRender.length <= 1) return undefined;
+    if (!autoplay || !active || reducedMotion || itemsForRender.length <= 1) return undefined;
     if (pauseOnHover && isHovered) return undefined;
 
     const timer = setInterval(() => {
       setPosition((prev) => Math.min(prev + 1, itemsForRender.length - 1));
-    }, autoplayDelay);
+    }, motionTier === "lite" ? Math.round(autoplayDelay * 1.5) : autoplayDelay);
 
     return () => clearInterval(timer);
-  }, [autoplay, autoplayDelay, isHovered, pauseOnHover, itemsForRender.length]);
+  }, [active, autoplay, autoplayDelay, isHovered, motionTier, pauseOnHover, reducedMotion, itemsForRender.length]);
 
   useEffect(() => {
     const startingPosition = loop ? 1 : 0;
     setPosition(startingPosition);
-    x.set(-startingPosition * trackItemOffset);
-  }, [items.length, loop, trackItemOffset, x]);
+  }, [items.length, loop, trackItemOffset]);
 
   useEffect(() => {
     if (!loop && position > itemsForRender.length - 1) {
@@ -152,7 +144,11 @@ export default function Carousel({
     }
   }, [itemsForRender.length, loop, position]);
 
-  const effectiveTransition = isJumping ? { duration: 0 } : SPRING_OPTIONS;
+  const effectiveTransition = isJumping || reducedMotion || !active
+    ? { duration: 0 }
+    : { duration: motionTier === "lite" ? 0.34 : 0.45, ease: [0.22, 1, 0.36, 1] };
+
+  useEffect(() => () => cancelAnimationFrame(jumpFrameRef.current), []);
 
   const handleAnimationStart = () => {
     setIsAnimating(true);
@@ -169,8 +165,7 @@ export default function Carousel({
       setIsJumping(true);
       const target = 1;
       setPosition(target);
-      x.set(-target * trackItemOffset);
-      requestAnimationFrame(() => {
+      jumpFrameRef.current = requestAnimationFrame(() => {
         setIsJumping(false);
         setIsAnimating(false);
       });
@@ -181,8 +176,7 @@ export default function Carousel({
       setIsJumping(true);
       const target = items.length;
       setPosition(target);
-      x.set(-target * trackItemOffset);
-      requestAnimationFrame(() => {
+      jumpFrameRef.current = requestAnimationFrame(() => {
         setIsJumping(false);
         setIsAnimating(false);
       });
@@ -230,6 +224,7 @@ export default function Carousel({
     <div
       ref={containerRef}
       className={`carousel-container ${round ? "round" : ""}`}
+      data-motion-active={active ? "true" : "false"}
       style={{
         width: `${baseWidth}px`,
         ...(round && { height: `${baseWidth}px`, borderRadius: "50%" })
@@ -237,14 +232,11 @@ export default function Carousel({
     >
       <motion.div
         className="carousel-track"
-        drag={isAnimating ? false : "x"}
+        drag={isAnimating || reducedMotion || !active ? false : "x"}
         {...dragProps}
         style={{
           width: itemWidth,
-          gap: `${GAP}px`,
-          perspective: 1000,
-          perspectiveOrigin: `${position * trackItemOffset + itemWidth / 2}px 50%`,
-          x
+          gap: `${GAP}px`
         }}
         onDragEnd={handleDragEnd}
         animate={{ x: -(position * trackItemOffset) }}
@@ -259,9 +251,6 @@ export default function Carousel({
             index={index}
             itemWidth={itemWidth}
             round={round}
-            trackItemOffset={trackItemOffset}
-            x={x}
-            transition={effectiveTransition}
           />
         ))}
       </motion.div>

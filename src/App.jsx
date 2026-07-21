@@ -4,13 +4,12 @@ import PreludeChat from "./components/PreludeChat.jsx";
 import SignInModal from "./components/SignInModal.jsx";
 import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Hero from "./components/Hero.jsx";
 import NetworkSection from "./components/NetworkSection.jsx";
 import StudentNetworkSection from "./components/StudentNetworkSection.jsx";
 import UniversityCarousel from "./components/UniversityCarousel.jsx";
-import { SCROLL_STORAGE_KEY } from "./lib/siteSearch.js";
 import {
   AdmissionsCostBanner,
   LowerBenefits,
@@ -19,14 +18,15 @@ import {
   LowerFooter,
   LowerPlans
 } from "./components/Sections.jsx";
-import HomepageScrollProgress from "./components/motion/HomepageScrollProgress.jsx";
 import AuraCursor from "./components/motion/AuraCursor.jsx";
 import AnimeButtonHoverBinder from "./components/motion/AnimeButtonHoverBinder.jsx";
+import { scrollToLandingTarget } from "./lib/landingNavigation.js";
 
 function AppContent() {
   const { requestPersonalizedAi } = useAuth();
   const navigate = useNavigate();
-  const [hash, setHash] = useState(window.location.hash);
+  const location = useLocation();
+  const hash = location.hash;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -40,27 +40,15 @@ function AppContent() {
   }, [navigate]);
 
   useEffect(() => {
-    const onHashChange = () => setHash(window.location.hash);
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
-  
-  useEffect(() => {
-    if (hash === "#dashboard" && !sessionStorage.getItem(SCROLL_STORAGE_KEY)) {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-      return;
-    }
-    if (hash) {
-      const id = hash.slice(1);
-      const scrollToTarget = () => {
-        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      };
-      window.requestAnimationFrame(scrollToTarget);
-      const retry = window.setTimeout(scrollToTarget, 120);
-      return () => window.clearTimeout(retry);
-    }
-    return undefined;
-  }, [hash]);
+    if (!hash || hash === "#dashboard" || hash === "#preludematch") return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const handled = scrollToLandingTarget(hash.slice(1), {
+        behavior: location.state?.landingScroll ? "smooth" : "auto"
+      });
+      if (!handled) window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [hash, location.key, location.state]);
 
 
   useEffect(() => {
@@ -73,10 +61,6 @@ function AppContent() {
   useEffect(() => {
     if (hash === "#dashboard") navigate("/dashboard", { replace: true });
   }, [hash, navigate]);
-
-  if (hash === "#dashboard") {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -96,7 +80,6 @@ function AppContent() {
           <LowerFooter />
         </main>
       </div>
-      <HomepageScrollProgress />
       <AuraCursor />
       <AnimeButtonHoverBinder />
       <PreludeChat />

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { usePreludeMotion } from "../context/MotionContext.jsx";
+import { useViewportActivity } from "../lib/motion/useViewportActivity.js";
 import "./TrueFocus.css";
 
 const mediaBase = import.meta.env.BASE_URL;
@@ -38,7 +39,7 @@ const TrueFocus = ({
   sentence = "True Focus",
   separator = " ",
   manualMode = false,
-  blurAmount = 5,
+  blurAmount: _blurAmount = 5,
   borderColor = "green",
   glowColor = "rgba(0, 255, 0, 0.6)",
   animationDuration = 0.5,
@@ -49,24 +50,14 @@ const TrueFocus = ({
   const [lastActiveIndex, setLastActiveIndex] = useState(null);
   const containerRef = useRef(null);
   const wordRefs = useRef([]);
-  const [focusRect, setFocusRect] = useState({
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0
-  });
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const frameRef = useRef(null);
+  const frameAnimationRef = useRef(null);
+  const lastRectRef = useRef(null);
+  const { reducedMotion, motionTier } = usePreludeMotion();
+  const { active } = useViewportActivity(containerRef, { rootMargin: "120px 0px" });
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setReducedMotion(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    if (manualMode || reducedMotion) return undefined;
+    if (manualMode || reducedMotion || !active) return undefined;
 
     const interval = setInterval(
       () => {
@@ -76,41 +67,95 @@ const TrueFocus = ({
     );
 
     return () => clearInterval(interval);
-  }, [manualMode, animationDuration, pauseBetweenAnimations, words.length, reducedMotion]);
+  }, [active, manualMode, animationDuration, pauseBetweenAnimations, words.length, reducedMotion]);
 
   useEffect(() => {
     if (currentIndex === null || currentIndex === -1) return undefined;
     if (!wordRefs.current[currentIndex] || !containerRef.current) return undefined;
 
+    let frameId = 0;
     const updateFocusRect = () => {
       const parentRect = containerRef.current?.getBoundingClientRect();
       const activeRect = wordRefs.current[currentIndex]?.getBoundingClientRect();
+      const frame = frameRef.current;
 
-      if (!parentRect || !activeRect) return;
+      if (!parentRect || !activeRect || !frame) return;
 
-      setFocusRect({
+      const next = {
         x: activeRect.left - parentRect.left,
         y: activeRect.top - parentRect.top,
         width: activeRect.width,
         height: activeRect.height
-      });
+      };
+      const previous = lastRectRef.current;
+      lastRectRef.current = next;
+
+      frameAnimationRef.current?.cancel();
+      frame.style.width = `${next.width}px`;
+      frame.style.height = `${next.height}px`;
+      frame.style.opacity = "1";
+
+      if (!previous || reducedMotion || !active) {
+        frame.style.transform = `translate3d(${next.x}px, ${next.y}px, 0)`;
+        frame.style.willChange = "auto";
+        return;
+      }
+
+      frame.style.willChange = "transform, opacity";
+      if (typeof frame.animate !== "function") {
+        frame.style.transform = `translate3d(${next.x}px, ${next.y}px, 0)`;
+        frame.style.willChange = "auto";
+        return;
+      }
+
+      const animation = frame.animate(
+        [
+          {
+            transform: `translate3d(${previous.x}px, ${previous.y}px, 0) scale(${previous.width / next.width}, ${previous.height / next.height})`
+          },
+          { transform: `translate3d(${next.x}px, ${next.y}px, 0) scale(1, 1)` }
+        ],
+        {
+          duration: motionTier === "lite" ? Math.min(animationDuration * 1000, 360) : animationDuration * 1000,
+          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+          fill: "forwards"
+        }
+      );
+      frameAnimationRef.current = animation;
+      animation.finished
+        .catch(() => undefined)
+        .finally(() => {
+          if (frameAnimationRef.current !== animation) return;
+          frame.style.transform = `translate3d(${next.x}px, ${next.y}px, 0)`;
+          frame.style.willChange = "auto";
+          animation.cancel();
+          frameAnimationRef.current = null;
+        });
     };
 
-    updateFocusRect();
+    const scheduleUpdate = () => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(updateFocusRect);
+    };
 
-    const resizeObserver = new ResizeObserver(updateFocusRect);
-    resizeObserver.observe(containerRef.current);
+    scheduleUpdate();
+
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(scheduleUpdate);
+    resizeObserver?.observe(containerRef.current);
     wordRefs.current.forEach((node) => {
-      if (node) resizeObserver.observe(node);
+      if (node) resizeObserver?.observe(node);
     });
 
-    window.addEventListener("resize", updateFocusRect);
+    window.addEventListener("resize", scheduleUpdate, { passive: true });
 
     return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", updateFocusRect);
+      cancelAnimationFrame(frameId);
+      frameAnimationRef.current?.cancel();
+      frameAnimationRef.current = null;
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", scheduleUpdate);
     };
-  }, [currentIndex, words.length]);
+  }, [active, animationDuration, currentIndex, motionTier, reducedMotion, words.length]);
 
   const handleMouseEnter = (index) => {
     if (manualMode) {
@@ -126,7 +171,7 @@ const TrueFocus = ({
   };
 
   return (
-    <div className="focus-container" ref={containerRef}>
+    <div className="focus-container" ref={containerRef} data-motion-active={active ? "true" : "false"}>
       {words.map((word, index) => {
         const trimmedWord = word.trim();
         const isActive = reducedMotion ? true : index === currentIndex;
@@ -145,12 +190,7 @@ const TrueFocus = ({
             ]
               .filter(Boolean)
               .join(" ")}
-            style={{
-              filter: isActive ? "blur(0px)" : `blur(${blurAmount}px)`,
-              "--border-color": borderColor,
-              "--glow-color": glowColor,
-              transition: `filter ${animationDuration}s ease`
-            }}
+            style={{ "--border-color": borderColor, "--glow-color": glowColor }}
             onMouseEnter={() => handleMouseEnter(index)}
             onMouseLeave={handleMouseLeave}
           >
@@ -162,7 +202,7 @@ const TrueFocus = ({
                   className="focus-word__visual"
                   width={item.width}
                   height={item.height}
-                  loading="eager"
+                  loading="lazy"
                   decoding="async"
                   draggable={false}
                   aria-hidden="true"
@@ -179,29 +219,20 @@ const TrueFocus = ({
       })}
 
       {!reducedMotion ? (
-        <motion.div
+        <div
+          ref={frameRef}
           className="focus-frame"
-          animate={{
-            x: focusRect.x,
-            y: focusRect.y,
-            width: focusRect.width,
-            height: focusRect.height,
-            opacity: currentIndex >= 0 ? 1 : 0
-          }}
-          transition={{
-            duration: animationDuration,
-            ease: "easeInOut"
-          }}
           style={{
             "--border-color": borderColor,
-            "--glow-color": glowColor
+            "--glow-color": glowColor,
+            opacity: currentIndex >= 0 ? 1 : 0
           }}
         >
           <span className="corner top-left" />
           <span className="corner top-right" />
           <span className="corner bottom-left" />
           <span className="corner bottom-right" />
-        </motion.div>
+        </div>
       ) : null}
     </div>
   );

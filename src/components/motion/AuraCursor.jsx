@@ -6,7 +6,7 @@ import {
   lerpPoint,
   pointerCoords
 } from "../../lib/auraCursorMotion.js";
-import { useReducedMotion } from "../../lib/useReducedMotion.js";
+import { usePreludeMotion } from "../../context/MotionContext.jsx";
 
 const BUTTON_SELECTOR = "[data-landing-content] button, [data-landing-content] a";
 
@@ -20,15 +20,19 @@ function useFinePointer() {
     const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
     const sync = () => setFine(mq.matches);
     sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
+    if (typeof mq.addEventListener === "function") {
+      mq.addEventListener("change", sync);
+      return () => mq.removeEventListener("change", sync);
+    }
+    mq.addListener?.(sync);
+    return () => mq.removeListener?.(sync);
   }, []);
 
   return fine;
 }
 
 export default function AuraCursor() {
-  const reducedMotion = useReducedMotion();
+  const { reducedMotion, motionTier, documentVisible } = usePreludeMotion();
   const finePointer = useFinePointer();
   const blobRef = useRef(null);
   const activeRef = useRef(false);
@@ -39,7 +43,7 @@ export default function AuraCursor() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!finePointer || reducedMotion) return undefined;
+    if (!finePointer || reducedMotion || motionTier !== "full" || !documentVisible) return undefined;
 
     const paint = () => {
       const blob = blobRef.current;
@@ -129,9 +133,9 @@ export default function AuraCursor() {
       activeRef.current = false;
       hoverTargetRef.current = null;
     };
-  }, [finePointer, reducedMotion]);
+  }, [documentVisible, finePointer, motionTier, reducedMotion]);
 
-  if (!finePointer || reducedMotion) return null;
+  if (!finePointer || reducedMotion || motionTier !== "full" || !documentVisible) return null;
 
   return createPortal(
     <div

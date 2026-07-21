@@ -27,9 +27,9 @@ describe("PreludeMatch demo preview", () => {
     expect(html).toContain("Four minutes of context.");
     expect(html).toContain("One mentor who actually fits.");
     expect(html).not.toContain("pm-cinematic__opener-accent");
-    expect(html).toContain("Asim Patel");
-    expect(html).toContain("Georgia Tech - STEM");
-    expect(html).toContain("media/mentors/asim-patel.png");
+    expect(html).toContain("Ryan Cain");
+    expect(html).toContain("University of Pennsylvania - STEM");
+    expect(html).toContain("media/mentors/declan-brooks.png");
     expect(html).toContain("Top mentor found");
     expect(html).toContain("Mentor profile complete");
     expect(html).toContain("Great job.");

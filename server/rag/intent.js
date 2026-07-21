@@ -1,4 +1,5 @@
 import { isPreludeBusinessIntent } from "./preludeBusiness.js";
+import { isGuaranteeRequest } from "./guaranteeIntent.js";
 
 const COLLEGE_CONTEXT = /\b(college|university|institute of technology|georgia tech|uga|ucla|gt|community college)\b/i;
 const HIGH_SCHOOL_CONTEXT =
@@ -72,11 +73,6 @@ const INTENT_PATTERNS = [
   {
     intent: "school_fact",
     re: /\b(need on the sat|sat to get into|what sat|get into)\b/i
-  },
-  {
-    intent: "guarantee_refusal",
-    re: /\b(?:guarantee|guaranteed|100%|surely get in|will i (?:get|be) (?:in|into|accepted|admitted)|chances? of (?:getting|being) (?:in|into|accepted|admitted)|what are my chances|my chances of|odds of (?:getting|being) (?:in|into|accepted|admitted)|admission chances|chance of admission)/i,
-    unless: /\b(average sat|sat average|admission rate|acceptance rate|tuition|cost|how much|need on the sat|sat to get into)\b/i
   },
   {
     intent: "high_school_search",
@@ -265,14 +261,14 @@ export function classifyIntent(message) {
   const text = message.trim();
   if (!text) return { intent: "getting_started", needsRetrieval: false };
 
+  if (isGuaranteeRequest(text)) {
+    return { intent: "guarantee_refusal", needsRetrieval: false };
+  }
+
   for (const pattern of INTENT_PATTERNS) {
     const { intent, re, unless } = pattern;
     if (!re.test(text)) continue;
     if (unless?.test(text)) continue;
-
-    if (intent === "guarantee_refusal") {
-      return { intent, needsRetrieval: false };
-    }
 
     if (intent === "school_fact") {
       return { intent, needsRetrieval: true };

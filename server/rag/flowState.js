@@ -90,9 +90,16 @@ export function deriveActiveConversationState(message, conversationHistory = [])
   }
 
   return {
-    mode: schoolContext.school || schoolContext.needsSchoolClarification ? "school_facts" : mode,
+    mode:
+      mode === "essay_help"
+        ? mode
+        : schoolContext.school || schoolContext.needsSchoolClarification
+          ? "school_facts"
+          : mode,
     stage:
-      schoolContext.continuedFromPrior
+      mode === "essay_help"
+        ? stage
+        : schoolContext.continuedFromPrior
         ? "school_follow_up"
         : schoolContext.needsSchoolClarification
           ? "awaiting_school"

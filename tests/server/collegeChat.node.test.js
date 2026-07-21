@@ -8,6 +8,80 @@ import { retrieveContext } from "../../server/rag/retrieval.js";
 import { buildRetrievalAssistedAnswer } from "../../server/rag/retrievalAnswer.js";
 import { searchPrograms } from "../../server/datasets/programs.js";
 import { searchColleges } from "../../server/datasets/colleges.js";
+import {
+  CHAT_DISPATCH_ROUTES,
+  dispatchGuardedChatFacts,
+  dispatchGuardedChatRoute
+} from "../../server/rag/guardedDispatcher.js";
+
+describe("guarded chat dispatcher", () => {
+  it("returns every public route and preserves routing precedence from plain facts", () => {
+    const route = (overrides = {}) =>
+      dispatchGuardedChatFacts({
+        safety: false,
+        activeEssayFollowUp: false,
+        structuredFinancial: false,
+        comparisonOrCorrection: false,
+        explicitHighConfidenceSchoolCount: 0,
+        supportedSchoolFact: false,
+        persistedSchoolFollowUp: false,
+        needsSchoolClarification: false,
+        structuredOverview: false,
+        structuredSearchContext: false,
+        recommendation: false,
+        comparisonContext: false,
+        ...overrides
+      });
+
+    assert.equal(
+      route({ safety: true, activeEssayFollowUp: true, structuredFinancial: true }),
+      CHAT_DISPATCH_ROUTES.SAFETY
+    );
+    assert.equal(
+      route({ activeEssayFollowUp: true, explicitHighConfidenceSchoolCount: 1, supportedSchoolFact: true }),
+      CHAT_DISPATCH_ROUTES.CONVERSATION_FOLLOW_UP
+    );
+    assert.equal(
+      route({ explicitHighConfidenceSchoolCount: 1, supportedSchoolFact: true }),
+      CHAT_DISPATCH_ROUTES.SCHOOL_SPECIFIC
+    );
+    assert.equal(
+      route({
+        comparisonOrCorrection: true,
+        explicitHighConfidenceSchoolCount: 1,
+        supportedSchoolFact: true
+      }),
+      CHAT_DISPATCH_ROUTES.RECOMMENDATION_OR_COMPARISON
+    );
+    assert.equal(
+      route({ structuredFinancial: true, comparisonContext: true, persistedSchoolFollowUp: true }),
+      CHAT_DISPATCH_ROUTES.STRUCTURED_ADMISSIONS
+    );
+    assert.equal(
+      route({ structuredOverview: true, persistedSchoolFollowUp: true }),
+      CHAT_DISPATCH_ROUTES.STRUCTURED_ADMISSIONS
+    );
+    assert.equal(
+      route({ structuredSearchContext: true }),
+      CHAT_DISPATCH_ROUTES.STRUCTURED_ADMISSIONS
+    );
+    assert.equal(
+      route({ recommendation: true }),
+      CHAT_DISPATCH_ROUTES.RECOMMENDATION_OR_COMPARISON
+    );
+    assert.equal(route(), CHAT_DISPATCH_ROUTES.GENERAL);
+  });
+
+  it("routes a factual correction as comparison rather than a single-school fact", () => {
+    assert.equal(
+      dispatchGuardedChatRoute({
+        message: "I said Georgia Tech, not UGA. What is the acceptance rate?",
+        conversationHistory: []
+      }),
+      CHAT_DISPATCH_ROUTES.RECOMMENDATION_OR_COMPARISON
+    );
+  });
+});
 
 describe("college alias resolution", () => {
   it("resolves GT and UCLA without confusing UGA", () => {
@@ -226,6 +300,36 @@ describe("UCLA vs GT chat flows", () => {
     assert.match(result.answer, /computer science|Computer Science/i);
     assert.doesNotMatch(result.answer, /Tell me your state, intended major/i);
     assert.doesNotMatch(result.answer, /astronomy|classics|maintenance/i);
+  });
+
+  it("keeps College Scorecard colleges authoritative for a GA CS budget follow-up", async () => {
+    const result = await createRagChatCompletion({
+      message: "ga 10k",
+      conversationHistory: [
+        { role: "user", content: "ga, cs, program strength" },
+        { role: "assistant", content: "Got it. You are looking for Georgia colleges for computer science." }
+      ]
+    });
+
+    const [primaryRecord] = result.retrievedRecords;
+    assert.equal(primaryRecord?.type, "college");
+    assert.match(primaryRecord?.source ?? "", /College Scorecard/i);
+    assert.match(result.sourceLabels[0] ?? "", /College Scorecard/i);
+    assert.match(result.answer, /College Scorecard/i);
+  });
+
+  it("uses College Scorecard data as the primary source for Georgia Tech cost", async () => {
+    const result = await createRagChatCompletion({
+      message: "How much does Georgia Tech cost?",
+      conversationHistory: []
+    });
+
+    assert.match(result.answer, /Georgia Institute of Technology|Georgia Tech/i);
+    const [primaryRecord] = result.retrievedRecords;
+    assert.equal(primaryRecord?.type, "college");
+    assert.match(primaryRecord?.source ?? "", /College Scorecard/i);
+    assert.match(result.sourceLabels[0] ?? "", /College Scorecard/i);
+    assert.match(result.answer, /College Scorecard/i);
   });
 });
 
