@@ -1,15 +1,17 @@
 import { CheckCircle, FileText, Video } from "lucide-react";
+import { getPlanBadgeLabel } from "../lib/planBadges.js";
 import { Button } from "./ui/button.jsx";
 
 export default function PricingCard({
   plan,
+  language = "en",
   onSelect,
   loading,
-  mostPopularLabel,
   startFreeLabel,
   chooseLabel,
   pleaseWaitLabel
 }) {
+  const badgeLabel = getPlanBadgeLabel(plan.id, language);
   const ctaLabel = loading
     ? pleaseWaitLabel
     : plan.paid
@@ -18,12 +20,10 @@ export default function PricingCard({
   const CalloutIcon = plan.calloutKind === "reviews" ? FileText : Video;
 
   return (
-    <article className={`pricing-card ${plan.isRecommended ? "pricing-card--featured" : ""}`}>
+    <article className={`pricing-card ${plan.isFeatured ? "pricing-card--featured" : ""}`}>
       <header className="pricing-card__header">
         <div className="pricing-card__badge-row">
-          {plan.isRecommended ? (
-            <span className="pricing-card__badge">{mostPopularLabel}</span>
-          ) : null}
+          {badgeLabel ? <span className="pricing-card__badge">{badgeLabel}</span> : null}
         </div>
         <h3 className="pricing-card__name shopify-hero__headline">{plan.name}</h3>
       </header>

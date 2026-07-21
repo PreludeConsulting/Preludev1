@@ -253,8 +253,6 @@ export const translations = {
         bodyBefore: "Book a free call with us. Upgrade for flexible sessions across ",
         bodyServices: ["consulting", "SAT/ACT prep", "academic tutoring"],
         bodyAfter: ", and more.",
-        mostPopular: "Most popular",
-        bestValue: "Best Value",
         pleaseWait: "Please wait...",
         priceLabels: {
           free: "Free",
@@ -655,8 +653,6 @@ export const translations = {
         bodyBefore: "무료 상담을 예약하세요. 업그레이드하면 ",
         bodyServices: ["컨설팅", "SAT/ACT 준비", "교과 과외"],
         bodyAfter: " 등 유연한 세션을 이용할 수 있습니다.",
-        mostPopular: "가장 인기",
-        bestValue: "최고의 가치",
         pleaseWait: "잠시만 기다려 주세요...",
         priceLabels: {
           free: "무료",
@@ -1057,8 +1053,6 @@ export const translations = {
         bodyBefore: "预约免费咨询。升级即可获得 ",
         bodyServices: ["咨询", "SAT/ACT 备考", "学科辅导"],
         bodyAfter: " 等灵活课程。",
-        mostPopular: "最受欢迎",
-        bestValue: "超值之选",
         pleaseWait: "请稍候...",
         priceLabels: {
           free: "免费",
@@ -1461,8 +1455,6 @@ export const translations = {
         bodyBefore: "Reserva una llamada gratis con nosotros. Mejora tu plan para sesiones flexibles de ",
         bodyServices: ["consultoría", "preparación SAT/ACT", "tutoría académica"],
         bodyAfter: ", y más.",
-        mostPopular: "Más popular",
-        bestValue: "Mejor valor",
         pleaseWait: "Espera un momento...",
         priceLabels: {
           free: "Gratis",

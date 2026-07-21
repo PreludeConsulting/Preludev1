@@ -2,6 +2,7 @@ import { Check, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import {
   PAYMENT_ONBOARDING_PATH,
   PLAN_SELECTION_PATH,
@@ -12,6 +13,7 @@ import {
 } from "../lib/onboardingRoutes.js";
 import { readCachedPlan } from "../lib/supabaseAuth.js";
 import { getPlan, getPricingPlans } from "../lib/plans.js";
+import { getPlanBadgeLabel } from "../lib/planBadges.js";
 import { readOnboardingDraft, writeOnboardingDraft } from "../lib/onboardingFlow.js";
 import { startBillingCheckout, startBundleCheckout } from "../lib/auth.js";
 import { markPendingCheckoutPlan, startOnboardingBillingCheckout } from "../lib/onboardingPayment.js";
@@ -102,6 +104,7 @@ export function WalletBrandFooter({ email }) {
 
 export function WalletPlanCard({
   plan,
+  language = "en",
   index,
   selected,
   selectable,
@@ -110,6 +113,7 @@ export function WalletPlanCard({
   style,
   displayOnly = false
 }) {
+  const badgeLabel = getPlanBadgeLabel(plan.id, language);
   const className = `pw-card pw-card--${plan.id} ${selected ? "pw-card--selected" : ""}`;
   const cardStyle = { "--pw-i": index, ...style };
 
@@ -119,7 +123,7 @@ export function WalletPlanCard({
       <span className="pw-card__sheen" aria-hidden="true" />
       <span className="pw-card__top">
         <span className="pw-card__name">{plan.name}</span>
-        {plan.isRecommended ? <span className="pw-card__badge">Best value</span> : null}
+        {badgeLabel ? <span className="pw-card__badge">{badgeLabel}</span> : null}
         <span className="pw-card__price">
           {plan.price}
           <small>/mo</small>
@@ -224,7 +228,9 @@ function getTabbable(container) {
   ).filter((el) => el.offsetParent !== null || el === document.activeElement);
 }
 
-export function PlanDetailsPanel({ plan, className = "", supporting }) {
+export function PlanDetailsPanel({ plan, language = "en", className = "", supporting }) {
+  const badgeLabel = getPlanBadgeLabel(plan.id, language);
+
   return (
     <article
       className={`pw-popup pw-popup--${plan.id} pw-popup--inline ${className}`.trim()}
@@ -233,7 +239,7 @@ export function PlanDetailsPanel({ plan, className = "", supporting }) {
       <header className="pw-popup__head">
         <div className="pw-popup__head-row">
           <h2>{plan.name}</h2>
-          {plan.isRecommended ? <span className="pw-popup__badge">Best value</span> : null}
+          {badgeLabel ? <span className="pw-popup__badge">{badgeLabel}</span> : null}
         </div>
         <p className="pw-popup__head-sub">{plan.tagline}</p>
       </header>
@@ -267,6 +273,7 @@ export function PlanDetailsPanel({ plan, className = "", supporting }) {
 
 export function PlanPopup({
   plan,
+  language = "en",
   status,
   busy,
   notice,
@@ -277,6 +284,7 @@ export function PlanPopup({
   onViewOtherPlans,
   onRequestClose
 }) {
+  const badgeLabel = getPlanBadgeLabel(plan.id, language);
   const isPayment = context === "payment";
   const isBilling = context === "billing";
   const isBillingCurrent = context === "billing-current";
@@ -352,7 +360,7 @@ export function PlanPopup({
         <header className="pw-popup__head">
           <div className="pw-popup__head-row">
             <h2 id={`pw-popup-title-${plan.id}`}>{plan.name}</h2>
-            {plan.isRecommended ? <span className="pw-popup__badge">Best value</span> : null}
+            {badgeLabel ? <span className="pw-popup__badge">{badgeLabel}</span> : null}
           </div>
           <p className="pw-popup__head-sub">{plan.tagline}</p>
         </header>
@@ -457,6 +465,7 @@ export function PlanWalletExperience({
   const navigate = useNavigate();
   const location = useLocation();
   const reducedMotion = useReducedMotion();
+  const { language } = useLanguage();
   const plans = plansProp ?? getPricingPlans();
   const { isAuthenticated, openRegister, saveUserPlan, refreshUser } = useAuth();
   const isBillingContext = context === "billing" || context === "billing-current";
@@ -949,6 +958,7 @@ export function PlanWalletExperience({
                 <WalletPlanCard
                   key={plan.id}
                   plan={plan}
+                  language={language}
                   index={index}
                   selected={state.selectedPlanId === plan.id}
                   selectable={selectable}
@@ -1008,6 +1018,7 @@ export function PlanWalletExperience({
       {popupOpen && popupPlan ? (
         <PlanPopup
           plan={popupPlan}
+          language={language}
           status={state.status}
           busy={busyPlan === popupPlan.id}
           notice={notice}

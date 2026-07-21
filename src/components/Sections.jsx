@@ -137,7 +137,7 @@ export function LowerBenefits() {
 
 export function LowerPlans() {
   const { user, isAuthenticated, openRegister } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [billingNotice, setBillingNotice] = useState("");
   const [loadingPlan, setLoadingPlan] = useState(null);
   const allowGuestCheckout = import.meta.env.DEV || import.meta.env.VITE_ALLOW_GUEST_CHECKOUT === "true";
@@ -234,9 +234,9 @@ export function LowerPlans() {
             <ScrollReveal delay={index * 0.08} key={plan.id} className="pricing-section__card-reveal">
               <PricingCard
                 plan={plan}
+                language={language}
                 onSelect={handlePlanClick}
                 loading={loadingPlan === plan.id}
-                mostPopularLabel={t("sections.plans.mostPopular")}
                 startFreeLabel={t("sections.plans.startFree")}
                 chooseLabel={t("sections.plans.choose")}
                 pleaseWaitLabel={t("sections.plans.pleaseWait")}

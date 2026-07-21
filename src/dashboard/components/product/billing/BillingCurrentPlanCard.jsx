@@ -1,7 +1,11 @@
 import { Check, Crown, Sparkles } from "lucide-react";
+import { useLanguage } from "../../../../context/LanguageContext.jsx";
+import { getPlanBadgeLabel } from "../../../../lib/planBadges.js";
 import { PLAN_BILLING_HIGHLIGHTS } from "./billingDisplayData.js";
 
 export default function BillingCurrentPlanCard({ plan }) {
+  const { language } = useLanguage();
+  const badgeLabel = getPlanBadgeLabel(plan.id, language);
   const highlights = PLAN_BILLING_HIGHLIGHTS[plan.id] || plan.features.slice(0, 5);
 
   return (
@@ -17,10 +21,10 @@ export default function BillingCurrentPlanCard({ plan }) {
               <span className="billing-current-plan__badge-dot" aria-hidden="true" />
               Active
             </span>
-            {plan.isRecommended ? (
+            {badgeLabel ? (
               <span className="billing-current-plan__badge billing-current-plan__badge--popular">
                 <Sparkles className="billing-current-plan__badge-icon" aria-hidden="true" />
-                Most Popular
+                {badgeLabel}
               </span>
             ) : null}
           </div>
