@@ -22,6 +22,7 @@ describe("plan helpers", () => {
 
   it("resolves semantic badge types for eligible plan ids", () => {
     expect(PLAN_BADGE_TYPES).toEqual({ plus: "mostPopular", pro: "bestValue" });
+    expect(Object.isFrozen(PLAN_BADGE_TYPES)).toBe(true);
     expect(getPlanBadgeType("basic")).toBeNull();
     expect(getPlanBadgeType("plus")).toBe("mostPopular");
     expect(getPlanBadgeType("pro")).toBe("bestValue");
@@ -43,6 +44,7 @@ describe("plan helpers", () => {
   it("uses isFeatured only for existing visual emphasis", () => {
     expect(PLANS.pro.isFeatured).toBe(true);
     expect(PLANS.plus.isFeatured).toBe(false);
+    expect(PLANS.basic.isFeatured).toBe(false);
     expect(Object.values(PLANS).some((plan) => "isRecommended" in plan)).toBe(false);
   });
 });
