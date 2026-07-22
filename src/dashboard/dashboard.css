@@ -2076,6 +2076,23 @@ img.dash-avatar {
   font-weight: 700;
 }
 
+.dash-modal__close {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 var(--control-height);
+  width: var(--control-height);
+  height: var(--control-height);
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0;
+  line-height: 0;
+}
+
+.dash-modal__close svg {
+  display: block;
+  margin: 0;
+}
+
 .dash-modal__body {
   padding: 1rem 1.15rem;
 }

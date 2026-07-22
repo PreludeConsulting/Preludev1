@@ -194,8 +194,8 @@ export function Modal({ open, onClose, title, children, footer, className, scrol
       >
         <div className="dash-modal__head">
           <h2 id={titleId} className="dash-modal__title">{title}</h2>
-          <IconButton label="Close" onClick={onClose}>
-            <X className="h-4 w-4" />
+          <IconButton className="dash-modal__close" label="Close" onClick={onClose}>
+            <X className="h-4 w-4" aria-hidden="true" />
           </IconButton>
         </div>
         <div className="dash-modal__body">{children}</div>

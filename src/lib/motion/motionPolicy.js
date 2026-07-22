@@ -7,27 +7,21 @@ export const MOTION_TIERS = Object.freeze({
   reduced: "reduced"
 });
 
-const CONSTRAINED_CPU_MAX = 4;
-const CONSTRAINED_MEMORY_GB_MAX = 4;
-
 /**
- * @param {{ reducedMotion?: boolean, hardwareConcurrency?: number, deviceMemory?: number, coarsePointer?: boolean }} [capabilities]
+ * Choose a platform-neutral motion tier.
+ *
+ * Browser hardware hints are intentionally excluded here. `deviceMemory` is
+ * exposed by Chromium but not Safari, while CPU and pointer reporting also
+ * varies by browser and operating system. Using those hints made the same site
+ * render full motion on macOS and lite/static motion on Windows.
+ *
+ * @param {{ reducedMotion?: boolean }} [preferences]
  * @returns {MotionTier}
  */
 export function detectMotionTier({
-  reducedMotion = false,
-  hardwareConcurrency,
-  deviceMemory,
-  coarsePointer = false
+  reducedMotion = false
 } = {}) {
   if (reducedMotion) return MOTION_TIERS.reduced;
-
-  const constrainedCpu =
-    Number.isFinite(hardwareConcurrency) && hardwareConcurrency > 0 && hardwareConcurrency <= CONSTRAINED_CPU_MAX;
-  const constrainedMemory =
-    Number.isFinite(deviceMemory) && deviceMemory > 0 && deviceMemory <= CONSTRAINED_MEMORY_GB_MAX;
-
-  if (constrainedCpu || constrainedMemory || coarsePointer) return MOTION_TIERS.lite;
   return MOTION_TIERS.full;
 }
 

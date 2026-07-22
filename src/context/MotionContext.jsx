@@ -13,22 +13,12 @@ function readDocumentVisible() {
   return typeof document === "undefined" ? true : document.visibilityState !== "hidden";
 }
 
-function readCapabilities() {
-  if (typeof window === "undefined") return {};
-  return {
-    hardwareConcurrency: window.navigator?.hardwareConcurrency,
-    deviceMemory: window.navigator?.deviceMemory,
-    coarsePointer: window.matchMedia?.("(pointer: coarse)").matches ?? false
-  };
-}
-
 export function PreludeMotionProvider({ children }) {
   const osReducedMotion = useReducedMotion();
   const [prefReducedMotion, setPrefReducedMotion] = useState(
     () => loadPreferences().reduceMotion
   );
   const [documentVisible, setDocumentVisible] = useState(readDocumentVisible);
-  const [capabilities, setCapabilities] = useState(readCapabilities);
 
   useEffect(() => {
     function syncFromPreferences() {
@@ -45,22 +35,10 @@ export function PreludeMotionProvider({ children }) {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
-  useEffect(() => {
-    const pointerQuery = window.matchMedia("(pointer: coarse)");
-    const sync = () => setCapabilities(readCapabilities());
-    sync();
-    if (typeof pointerQuery.addEventListener === "function") {
-      pointerQuery.addEventListener("change", sync);
-      return () => pointerQuery.removeEventListener("change", sync);
-    }
-    pointerQuery.addListener?.(sync);
-    return () => pointerQuery.removeListener?.(sync);
-  }, []);
-
   const reducedMotion = Boolean(osReducedMotion || prefReducedMotion);
   const motionTier = useMemo(
-    () => detectMotionTier({ ...capabilities, reducedMotion }),
-    [capabilities, reducedMotion]
+    () => detectMotionTier({ reducedMotion }),
+    [reducedMotion]
   );
   const value = useMemo(
     () => ({ reducedMotion, motionTier, documentVisible }),

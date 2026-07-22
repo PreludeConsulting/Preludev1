@@ -21,7 +21,7 @@ describe("cross-platform animation contracts", () => {
     expect(motion).not.toContain("function addCameraMotion");
   });
 
-  it("uses one card-state transition without perpetual floats or layout measurement", () => {
+  it("uses CSS-only focus blur and corner frames without layout measurement", () => {
     const component = read("src/components/TrueFocus.jsx");
     const styles = read("src/components/TrueFocus.css");
 
@@ -30,6 +30,9 @@ describe("cross-platform animation contracts", () => {
     expect(component).not.toContain("requestAnimationFrame");
     expect(styles).not.toContain("parent-card-float");
     expect(styles).not.toMatch(/\.focus-word__visual[\s\S]*?filter:/);
+    expect(styles).toContain("filter: blur(var(--focus-blur");
+    expect(styles).toContain(".focus-word.active .focus-word__frame");
+    expect(component).toContain('className="focus-word__corner focus-word__corner--top-left"');
     expect(styles).toContain("var(--motion-duration-slow)");
     expect(styles).toContain("var(--motion-ease-standard)");
   });
