@@ -1,11 +1,11 @@
 -- Run in Supabase SQL Editor to allow signed-in users to permanently delete their own auth account.
--- See supabase/migrations/20260701000000_onboarding_oauth_fixes.sql for the latest version.
+-- See supabase/migrations/20260721000000_production_security_hardening.sql for the latest version.
 
 create or replace function public.delete_own_account()
 returns void
 language plpgsql
 security definer
-set search_path = public, auth
+set search_path = ''
 as $$
 declare
   uid uuid := auth.uid();
@@ -31,7 +31,7 @@ begin
   end if;
 
   if to_regclass('public.mentor_matching_profiles') is not null then
-    delete from public.mentor_matching_profiles where user_id = uid;
+    delete from public.mentor_matching_profiles where mentor_user_id = uid;
   end if;
 
   if to_regclass('public.student_profiles') is not null then

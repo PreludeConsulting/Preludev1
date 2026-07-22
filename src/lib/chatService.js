@@ -25,6 +25,7 @@ import {
   updateLocalChatMessage
 } from "./localChatStore.js";
 import { applyParentThreadLabels } from "./parentChatLabels.js";
+import { createPrivateChatAttachmentUrl, normalizeChatAttachmentStoragePath } from "./chatStorage.js";
 
 export { applyParentThreadLabels } from "./parentChatLabels.js";
 
@@ -72,6 +73,14 @@ export function mapChatMessage(row, viewerId) {
     attachmentName: row.attachment_name || row.attachmentName || null,
     isMine: (row.sender_id || row.senderId) === viewerId
   };
+}
+
+async function withResolvedAttachment(row) {
+  const stored = row?.attachment_url || row?.attachmentUrl;
+  const path = normalizeChatAttachmentStoragePath(stored);
+  if (!path) return row;
+  const signedUrl = await createPrivateChatAttachmentUrl(path);
+  return signedUrl ? { ...row, attachment_url: signedUrl, attachmentUrl: signedUrl } : row;
 }
 
 function withStorageKey(thread) {
@@ -376,7 +385,8 @@ export async function loadChatMessages(user, threadMeta) {
       return { messages: localRows, error: localRows.length ? null : error.message };
     }
 
-    const remoteRows = (data || []).map((row) => mapChatMessage(row, user.id));
+    const resolvedRows = await Promise.all((data || []).map(withResolvedAttachment));
+    const remoteRows = resolvedRows.map((row) => mapChatMessage(row, user.id));
     const merged = mergeChatMessages(remoteRows, localRows).map((m) => mapChatMessage(m, user.id));
     saveLocalChatMessages(thread, merged.map((message) => ({
       id: message.id,
@@ -456,7 +466,7 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
         sender_role: (user.role || "student").toLowerCase(),
         body: trimmed || null,
         read: false,
-        attachment_url: attachment?.url || null,
+        attachment_url: attachment?.path || attachment?.url || null,
         attachment_mime: attachment?.mime || null,
         attachment_name: attachment?.name || null
       })
@@ -467,7 +477,7 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
       return { message: mapChatMessage(payload, user.id), error: null };
     }
 
-    const saved = mapChatMessage(data, user.id);
+    const saved = mapChatMessage(await withResolvedAttachment(data), user.id);
     const localRows = loadLocalChatMessages(threadMeta).filter((m) => m.id !== payload.id);
     saveLocalChatMessages(threadMeta, [...localRows, {
       id: data.id,
@@ -569,7 +579,7 @@ export async function editChatMessage(user, messageId, body) {
       if (localOnly) return { message: mapChatMessage({ ...localOnly, body: trimmed }, user.id), error: null };
       return { message: null, error: "Message not found or not editable." };
     }
-    return { message: mapChatMessage(data, user.id), error: null };
+    return { message: mapChatMessage(await withResolvedAttachment(data), user.id), error: null };
   } catch (err) {
     const localOnly = cachedThreads
       .flatMap((thread) => loadLocalChatMessages(thread))

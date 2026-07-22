@@ -10,6 +10,7 @@ import { shouldUseDemoFixtures } from "./devAuthBypass.js";
 const BUCKET = "message-attachments";
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const LEGACY_PUBLIC_PATH = "/storage/v1/object/public/message-attachments/";
 
 const EXTENSION_TO_MIME = {
   jpg: "image/jpeg",
@@ -49,6 +50,29 @@ export function validateChatImageFile(file) {
   if (!resolveChatImageMime(file)) return "Use a JPG, PNG, WebP, or GIF image.";
   if (file.size > MAX_BYTES) return "Image must be 5 MB or smaller.";
   return null;
+}
+
+export function normalizeChatAttachmentStoragePath(value) {
+  const candidate = String(value || "").trim();
+  if (!candidate || candidate.startsWith("data:") || candidate.startsWith("blob:")) return null;
+  if (!/^https?:\/\//i.test(candidate)) return candidate.replace(/^\/+/, "");
+  try {
+    const url = new URL(candidate);
+    const markerIndex = url.pathname.indexOf(LEGACY_PUBLIC_PATH);
+    return markerIndex >= 0
+      ? decodeURIComponent(url.pathname.slice(markerIndex + LEGACY_PUBLIC_PATH.length))
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function createPrivateChatAttachmentUrl(value, supabase = getSupabase()) {
+  if (!value || String(value).startsWith("data:") || String(value).startsWith("blob:")) return value || null;
+  const path = normalizeChatAttachmentStoragePath(value);
+  if (!path || !supabase) return null;
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
+  return error ? null : data?.signedUrl || null;
 }
 
 function fileToDataUrl(file) {
@@ -98,29 +122,25 @@ export async function uploadChatAttachment(user, threadId, file) {
 
   if (uploadError) {
     if (/bucket|not found/i.test(uploadError.message)) {
-      try {
-        const dataUrl = await fileToDataUrl(file);
-        return { url: dataUrl, mime, name: safeName, error: null };
-      } catch {
-        return {
-          url: null,
-          mime: null,
-          name: null,
-          error: "Message attachment storage is not configured. Run supabase/chat-messaging.sql in Supabase."
-        };
-      }
+      return {
+        url: null,
+        path: null,
+        mime: null,
+        name: null,
+        error: "Message attachment storage is not configured. Run supabase/chat-messaging.sql in Supabase."
+      };
     }
-    try {
-      const dataUrl = await fileToDataUrl(file);
-      return { url: dataUrl, mime, name: safeName, error: null };
-    } catch {
-      return { url: null, mime: null, name: null, error: uploadError.message };
-    }
+    return { url: null, path: null, mime: null, name: null, error: uploadError.message };
   }
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  const url = await createPrivateChatAttachmentUrl(path, supabase);
+  if (!url) {
+    await supabase.storage.from(BUCKET).remove([path]);
+    return { url: null, path: null, mime: null, name: null, error: "Could not secure the uploaded image." };
+  }
   return {
-    url: data?.publicUrl || null,
+    url,
+    path,
     mime: mime || file.type,
     name: safeName,
     error: null

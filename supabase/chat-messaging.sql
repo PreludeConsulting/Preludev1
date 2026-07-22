@@ -54,6 +54,108 @@ $$;
 revoke all on function public.is_chat_thread_participant(uuid) from public;
 grant execute on function public.is_chat_thread_participant(uuid) to authenticated;
 
+-- Only approved mentor accounts can open new conversations. These columns are
+-- also created by the production hardening migration; keeping them here makes
+-- this standalone setup script safe to re-run without weakening that migration.
+alter table public.mentor_matching_profiles
+  add column if not exists approved boolean not null default false;
+alter table public.mentor_matching_profiles
+  add column if not exists approved_at timestamptz;
+alter table public.mentor_matching_profiles
+  add column if not exists approved_by uuid references auth.users (id) on delete set null;
+
+alter table public.mentor_matching_profiles
+  drop constraint if exists mentor_matching_profiles_approval_state_check;
+alter table public.mentor_matching_profiles
+  add constraint mentor_matching_profiles_approval_state_check check (
+    (
+      approved = false
+      and approved_at is null
+      and approved_by is null
+    )
+    or (
+      approved = true
+      and approved_at is not null
+      and approved_by is not null
+    )
+  );
+
+create or replace function public.is_mentor_role(candidate_user_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.profiles as profile
+    where profile.id = candidate_user_id
+      and profile.role = 'mentor'
+  );
+$$;
+
+revoke all on function public.is_mentor_role(uuid) from public;
+grant execute on function public.is_mentor_role(uuid) to authenticated;
+
+create or replace function public.is_authorized_chat_relationship(
+  requested_chat_type text,
+  requested_mentor_id uuid,
+  requested_student_id uuid,
+  requested_parent_id uuid
+)
+returns boolean
+language sql
+security definer
+stable
+set search_path = ''
+as $$
+  select
+    requested_mentor_id is not null
+    and requested_student_id is not null
+    and public.is_mentor_role(requested_mentor_id)
+    and exists (
+      select 1 from public.profiles as student_profile
+      where student_profile.id = requested_student_id
+        and student_profile.role = 'student'
+    )
+    and exists (
+      select 1
+      from public.mentor_matches as match
+      where match.mentor_id = requested_mentor_id
+        and match.student_id = requested_student_id
+        and match.status = 'assigned'
+    )
+    and exists (
+      select 1
+      from public.mentor_matching_profiles as approved_mentor
+      where approved_mentor.mentor_user_id = requested_mentor_id
+        and approved_mentor.approved = true
+        and approved_mentor.completed = true
+    )
+    and (
+      (requested_chat_type = 'mentor_student' and requested_parent_id is null)
+      or (
+        requested_chat_type = 'mentor_parent'
+        and requested_parent_id is not null
+        and exists (
+          select 1 from public.profiles as parent_profile
+          where parent_profile.id = requested_parent_id
+            and parent_profile.role = 'parent'
+        )
+        and exists (
+          select 1
+          from public.parent_student_links as household_link
+          where household_link.parent_id = requested_parent_id
+            and household_link.student_id = requested_student_id
+        )
+      )
+    );
+$$;
+
+revoke all on function public.is_authorized_chat_relationship(text, uuid, uuid, uuid) from public;
+grant execute on function public.is_authorized_chat_relationship(text, uuid, uuid, uuid) to authenticated;
+
 drop policy if exists "Chat threads visible to participants" on public.chat_threads;
 create policy "Chat threads visible to participants"
   on public.chat_threads for select to authenticated
@@ -64,12 +166,16 @@ create policy "Chat threads visible to participants"
   );
 
 drop policy if exists "Chat threads insertable by participants" on public.chat_threads;
-create policy "Chat threads insertable by participants"
+drop policy if exists "Chat threads insertable for authorized relationships" on public.chat_threads;
+create policy "Chat threads insertable for authorized relationships"
   on public.chat_threads for insert to authenticated
   with check (
-    auth.uid() = mentor_id
-    or auth.uid() = student_id
-    or auth.uid() = parent_id
+    (
+      auth.uid() = mentor_id
+      or auth.uid() = student_id
+      or auth.uid() = parent_id
+    )
+    and public.is_authorized_chat_relationship(chat_type, mentor_id, student_id, parent_id)
   );
 
 -- -----------------------------------------------------------------------------
@@ -126,32 +232,77 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values (
   'message-attachments',
   'message-attachments',
-  true,
+  false,
   5242880,
   array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 )
 on conflict (id) do update set
-  public = excluded.public,
+  public = false,
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
+create or replace function public.is_message_attachment_participant(object_name text)
+returns boolean
+language sql
+security definer
+stable
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.chat_threads as thread
+    where thread.id::text = (storage.foldername(object_name))[2]
+      and (
+        auth.uid() = thread.mentor_id
+        or auth.uid() = thread.student_id
+        or auth.uid() = thread.parent_id
+      )
+  );
+$$;
+
+revoke all on function public.is_message_attachment_participant(text) from public;
+grant execute on function public.is_message_attachment_participant(text) to authenticated;
+
 drop policy if exists "Message attachments readable" on storage.objects;
-create policy "Message attachments readable"
+drop policy if exists "Message attachments readable by participants" on storage.objects;
+create policy "Message attachments readable by participants"
   on storage.objects for select to authenticated
-  using (bucket_id = 'message-attachments');
+  using (
+    bucket_id = 'message-attachments'
+    and public.is_message_attachment_participant(name)
+  );
 
 drop policy if exists "Message attachments upload" on storage.objects;
-create policy "Message attachments upload"
+drop policy if exists "Message attachments upload by participants" on storage.objects;
+create policy "Message attachments upload by participants"
   on storage.objects for insert to authenticated
   with check (
     bucket_id = 'message-attachments'
     and auth.uid()::text = (storage.foldername(name))[1]
+    and public.is_message_attachment_participant(name)
   );
 
 drop policy if exists "Message attachments update own" on storage.objects;
-create policy "Message attachments update own"
+drop policy if exists "Message attachments update by owner participant" on storage.objects;
+create policy "Message attachments update by owner participant"
   on storage.objects for update to authenticated
   using (
     bucket_id = 'message-attachments'
     and auth.uid()::text = (storage.foldername(name))[1]
+    and public.is_message_attachment_participant(name)
+  )
+  with check (
+    bucket_id = 'message-attachments'
+    and auth.uid()::text = (storage.foldername(name))[1]
+    and public.is_message_attachment_participant(name)
+  );
+
+drop policy if exists "Message attachments delete own" on storage.objects;
+drop policy if exists "Message attachments delete by owner participant" on storage.objects;
+create policy "Message attachments delete by owner participant"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'message-attachments'
+    and auth.uid()::text = (storage.foldername(name))[1]
+    and public.is_message_attachment_participant(name)
   );
