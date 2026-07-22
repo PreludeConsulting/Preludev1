@@ -1,12 +1,14 @@
-import { SectionCard } from "../ui/index.jsx";
+import { FileCheck2 } from "lucide-react";
+import { EmptyState, SectionCard } from "../ui/index.jsx";
 
-/** Temporary placeholder while application component reviews are offline. */
 export default function StudentApplicationReviewsPanel() {
   return (
-    <SectionCard className="dash-panel dash-application-reviews dash-application-reviews--maintenance">
-      <p className="dash-application-reviews__maintenance-message">
-        Maintenance. Additions will be done soon.
-      </p>
+    <SectionCard title="Application reviews" className="dash-panel dash-application-reviews">
+      <EmptyState
+        icon={FileCheck2}
+        title="No application reviews yet"
+        description="Completed mentor reviews will appear here after you submit application materials for feedback."
+      />
     </SectionCard>
   );
 }

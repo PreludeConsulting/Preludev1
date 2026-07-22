@@ -1,32 +1,16 @@
-import { useEffect } from "react";
 import { motion } from "motion/react";
 import { X } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
 import { getLegalDocument, getLegalDocuments } from "../lib/legalContent.js";
+import { useDialogFocusTrap } from "../lib/useDialogFocusTrap.js";
 
 export default function LegalModal() {
   const { documentType, legalOpen, openLegal, closeLegal } = useLegalModal();
   const { language } = useLanguage();
   const legalDocuments = getLegalDocuments(language);
   const activeDocument = documentType ? getLegalDocument(documentType, language) : null;
-
-  useEffect(() => {
-    if (!legalOpen) return undefined;
-
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") closeLegal();
-    };
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [legalOpen, closeLegal]);
+  const dialogRef = useDialogFocusTrap(Boolean(legalOpen && activeDocument), closeLegal);
 
   if (!legalOpen || !activeDocument) return null;
 
@@ -38,10 +22,12 @@ export default function LegalModal() {
   return (
     <div className="prelude-modal-backdrop" role="presentation" onClick={closeLegal}>
       <motion.div
+        ref={dialogRef}
         className="prelude-modal prelude-legal-modal paper-card"
         role="dialog"
         aria-modal="true"
         aria-labelledby="legal-modal-title"
+        tabIndex={-1}
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         onClick={(event) => event.stopPropagation()}

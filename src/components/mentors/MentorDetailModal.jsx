@@ -1,28 +1,12 @@
-import { useEffect } from "react";
 import { X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
+import { useDialogFocusTrap } from "../../lib/useDialogFocusTrap.js";
 
 export default function MentorDetailModal({ mentor, onClose }) {
   const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    if (!mentor) return undefined;
-
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") onClose();
-    };
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [mentor, onClose]);
+  const dialogRef = useDialogFocusTrap(Boolean(mentor), onClose);
 
   return (
     <AnimatePresence>
@@ -37,10 +21,12 @@ export default function MentorDetailModal({ mentor, onClose }) {
           onClick={onClose}
         >
           <motion.div
+            ref={dialogRef}
             className="mentor-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="mentor-modal-title"
+            tabIndex={-1}
             initial={reducedMotion ? false : { opacity: 0, scale: 0.9, y: 28 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 16 }}

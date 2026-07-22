@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { TEST_PREP_OPTIONS, TUTORING_SUBJECT_OPTIONS } from "../../../lib/progressRewards.js";
 import RewardIcon from "./RewardIcon.jsx";
 import RewardTierBadge from "./RewardTierBadge.jsx";
+import { useDialogFocusTrap } from "../../../../lib/useDialogFocusTrap.js";
 
 function fulfillmentLabel(reward) {
   if (reward?.fulfillmentType === "live_call") return "Live 30-minute call";
@@ -13,6 +14,7 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
   const [selection, setSelection] = useState("");
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const dialogRef = useDialogFocusTrap(Boolean(reward), onClose);
 
   useEffect(() => {
     if (!reward) return;
@@ -58,10 +60,12 @@ export default function RewardRedeemModal({ reward, coins, onClose, onConfirm })
   return (
     <div className="dash-rewards-modal" role="presentation" onClick={onClose}>
       <div
+        ref={dialogRef}
         className={`dash-rewards-modal__panel dash-rewards-modal__panel--redeem dash-rewards-modal__panel--tier-${tierId}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="reward-redeem-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={{
           "--tier-accent": tierConfig?.accentColor,

@@ -1,4 +1,8 @@
-import { appPath } from "./appPaths.js";
+import {
+  landingRouteForTarget,
+  parseLandingTarget,
+  scrollToLandingTarget
+} from "./landingNavigation.js";
 
 const TRUSTED_EXTERNAL_HOSTS = [
   "studentaid.gov",
@@ -60,17 +64,27 @@ export function isAllowedChatHref(href) {
   return false;
 }
 
-export function navigateChatHref(href) {
+export function navigateChatHref(
+  href,
+  { navigate, pathname = typeof window === "undefined" ? "/" : window.location.pathname } = {}
+) {
   const value = trimHref(href);
   if (!isAllowedChatHref(value)) return false;
 
   if (value.startsWith("#")) {
-    window.location.hash = value;
+    if (typeof navigate !== "function") return false;
+    const landingTarget = parseLandingTarget(value);
+    if (pathname === "/" && window.location.hash === value) {
+      scrollToLandingTarget(landingTarget.id);
+      return true;
+    }
+    navigate(landingRouteForTarget(value, pathname), { state: { landingScroll: true } });
     return true;
   }
 
   if (value.startsWith("/")) {
-    window.location.href = appPath(value);
+    if (typeof navigate !== "function") return false;
+    navigate(value);
     return true;
   }
 

@@ -1,5 +1,6 @@
 import { ArrowLeft, Compass, ExternalLink, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   createGuidedAssistantSnapshot,
   getGuidedAssistantView,
@@ -8,11 +9,16 @@ import {
 import { navigateChatHref } from "../lib/chatLinkSecurity.js";
 import { cn } from "../lib/utils.js";
 
-export default function GuidedAssistant({ className, onNavigate = navigateChatHref }) {
+export default function GuidedAssistant({ className, onNavigate }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [snapshot, setSnapshot] = useState(createGuidedAssistantSnapshot);
   const [isThinking, setIsThinking] = useState(false);
   const timeoutRef = useRef(null);
   const view = getGuidedAssistantView(snapshot);
+  const navigateAction =
+    onNavigate ||
+    ((href) => navigateChatHref(href, { navigate, pathname: location.pathname }));
 
   useEffect(() => () => window.clearTimeout(timeoutRef.current), []);
 
@@ -26,7 +32,7 @@ export default function GuidedAssistant({ className, onNavigate = navigateChatHr
     const next = transitionGuidedAssistant(snapshot, event);
     timeoutRef.current = window.setTimeout(() => {
       if (next.action?.type === "navigate" || next.action?.type === "external") {
-        onNavigate(next.action.href);
+        navigateAction(next.action.href);
       } else {
         setSnapshot(next);
       }

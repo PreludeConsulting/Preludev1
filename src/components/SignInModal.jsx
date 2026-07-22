@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { signInWithGoogle } from "../lib/googleAuth.js";
 import { postAuthDestination } from "../lib/onboardingRoutes.js";
 import { cn } from "../lib/utils.js";
+import { useDialogFocusTrap } from "../lib/useDialogFocusTrap.js";
 import GoogleSignInButton from "../dashboard/components/GoogleSignInButton.jsx";
 
 export default function SignInModal({ onSuccess }) {
@@ -22,6 +23,7 @@ export default function SignInModal({ onSuccess }) {
     grade: "",
     focus: ""
   });
+  const dialogRef = useDialogFocusTrap(signInOpen, closeModals);
 
   if (!signInOpen) return null;
 
@@ -54,10 +56,12 @@ export default function SignInModal({ onSuccess }) {
   return (
     <div className="prelude-modal-backdrop" role="presentation" onClick={closeModals}>
       <motion.div
+        ref={dialogRef}
         className="prelude-modal paper-card"
         role="dialog"
         aria-labelledby="signin-title"
         aria-modal="true"
+        tabIndex={-1}
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         onClick={(e) => e.stopPropagation()}

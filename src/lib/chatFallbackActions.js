@@ -23,13 +23,13 @@ export function mapFallbackActionsToQuickReplies(fallback) {
   }));
 }
 
-export function navigateFallbackAction(action) {
+export function navigateFallbackAction(action, navigationOptions) {
   const target = CHAT_FALLBACK_LINKS[action];
   if (!target) return false;
-  return navigateChatHref(target);
+  return navigateChatHref(target, navigationOptions);
 }
 
-export function navigateChatAction(action) {
+export function navigateChatAction(action, navigationOptions) {
   if (!action?.href) return false;
-  return navigateChatHref(action.href);
+  return navigateChatHref(action.href, navigationOptions);
 }

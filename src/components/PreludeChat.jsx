@@ -1,24 +1,30 @@
 import { CircleHelp, MoreHorizontal, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
 import { navigateChatHref } from "../lib/chatLinkSecurity.js";
 import GuidedAssistant from "./GuidedAssistant.jsx";
 import BugReportForm from "./BugReportForm.jsx";
+import AppLink from "./AppLink.jsx";
 
 export default function PreludeChat() {
   const { user, isAuthenticated, openSignIn, openAccount } = useAuth();
   const { openLegal } = useLegalModal();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sessionKey, setSessionKey] = useState(0);
   const [view, setView] = useState("guide");
 
   function handleNavigate(href) {
-    const navigated = navigateChatHref(href);
-    if (navigated && href === "/mentors") setOpen(false);
+    const navigated = navigateChatHref(href, { navigate, pathname: location.pathname });
+    if (navigated) {
+      setMenuOpen(false);
+      setOpen(false);
+    }
   }
 
   return (
@@ -86,13 +92,13 @@ export default function PreludeChat() {
                       <button type="button" className="block w-full px-4 py-2 text-left text-sm hover:bg-foreground/[0.04]" onClick={() => { setMenuOpen(false); isAuthenticated ? openAccount() : openSignIn(); }}>
                         {isAuthenticated ? `${user.name.split(" ")[0]} · Account` : "Sign in"}
                       </button>
-                      <a
+                      <AppLink
                         href="#pricing"
                         className="block px-4 py-2 text-sm hover:bg-foreground/[0.04]"
                         onClick={() => setMenuOpen(false)}
                       >
                         View plans
-                      </a>
+                      </AppLink>
                     </div>
                   ) : null}
                 </div>

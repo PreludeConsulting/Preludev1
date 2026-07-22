@@ -1,8 +1,10 @@
 import { X, Video } from "lucide-react";
 
 import { isJoinableMeeting } from "../../lib/zoomMeetingLinks.js";
+import { useDialogFocusTrap } from "../../lib/useDialogFocusTrap.js";
 
 export default function MeetingDetailModal({ meeting, mentorName, studentName, role, onClose }) {
+  const dialogRef = useDialogFocusTrap(Boolean(meeting), onClose);
   if (!meeting) return null;
 
   const start = new Date(meeting.startTime);
@@ -12,7 +14,14 @@ export default function MeetingDetailModal({ meeting, mentorName, studentName, r
 
   return (
     <div className="dash-modal-backdrop" role="presentation" onClick={onClose}>
-      <div className="dash-modal paper-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        className="dash-modal paper-card"
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="dash-modal__head">
           <h2 className="dash-modal__title">{meeting.title}</h2>
           <button type="button" className="dash-icon-btn" onClick={onClose} aria-label="Close">

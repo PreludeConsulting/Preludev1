@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import {
   Bot,
   CheckCircle,
@@ -15,10 +14,13 @@ import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { openBillingPortal } from "../lib/auth.js";
 import { dashboardHomeForRole, roleFromUser } from "../lib/dashboardRoutes.js";
+import { settingsPathForRole } from "../lib/onboardingRoutes.js";
 import { PRELUDE_AI_NAME } from "../lib/preludeAi.js";
+import { useDialogFocusTrap } from "../lib/useDialogFocusTrap.js";
 import { useState } from "react";
 import MembershipPlanCard from "./MembershipPlanCard.jsx";
 import { getPlan } from "../lib/plans.js";
+import AppLink from "./AppLink.jsx";
 
 function userInitial(name) {
   return ((name || "P").trim()[0] || "P").toUpperCase();
@@ -28,19 +30,12 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
   const { accountOpen, closeModals, user, planDetails, signOut } = useAuth();
   const [billingMessage, setBillingMessage] = useState("");
   const [billingLoading, setBillingLoading] = useState(false);
-
-  useEffect(() => {
-    if (!accountOpen) return undefined;
-    const onKey = (e) => {
-      if (e.key === "Escape") closeModals();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [accountOpen, closeModals]);
+  const dialogRef = useDialogFocusTrap(Boolean(accountOpen && user), closeModals);
 
   if (!user) return null;
 
   const dashboardPath = dashboardHomeForRole(user.role);
+  const settingsPath = settingsPathForRole(user.role);
   const roleLabel = roleFromUser(user);
   const isMentor = roleLabel === "mentor";
   const activePlan = isMentor ? null : planDetails || (user.plan ? getPlan(user.plan) : null);
@@ -63,10 +58,12 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
       {accountOpen ? (
         <div className="membership-drawer-backdrop" role="presentation" onClick={closeModals}>
           <motion.aside
+            ref={dialogRef}
             className="membership-drawer"
             role="dialog"
             aria-labelledby="membership-drawer-title"
             aria-modal="true"
+            tabIndex={-1}
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -184,9 +181,9 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
                 <LayoutDashboard className="h-4 w-4" />
                 Go to Dashboard
               </Link>
-              <a href="#pricing" className="prelude-btn-secondary membership-drawer__btn" onClick={closeModals}>
+              <AppLink href="#pricing" className="prelude-btn-secondary membership-drawer__btn" onClick={closeModals}>
                 View or Upgrade Plan
-              </a>
+              </AppLink>
               <button
                 type="button"
                 className="prelude-btn-secondary membership-drawer__btn"
@@ -198,10 +195,10 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
                 <MessageCircle className="h-4 w-4" />
                 Open {PRELUDE_AI_NAME}
               </button>
-              <button type="button" className="membership-drawer__link" onClick={closeModals}>
+              <Link to={settingsPath} className="membership-drawer__link" onClick={closeModals}>
                 <Settings className="h-4 w-4" />
                 Account settings
-              </button>
+              </Link>
               <button type="button" className="membership-drawer__link membership-drawer__link--muted" onClick={signOut}>
                 <LogOut className="h-4 w-4" />
                 Log out
