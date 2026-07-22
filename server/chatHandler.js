@@ -6,8 +6,8 @@ import {
   sanitizeConversationHistory
 } from "./rag/conversationHistory.js";
 import {
-  buildProfileAddon,
   buildRagChatMessages,
+  buildUntrustedProfileContext,
   loadPreludeInstructions,
   uniqueSourceLabels
 } from "./rag/promptBuilder.js";
@@ -77,11 +77,9 @@ function dashboardKnowledgePolicy(message, dispatchRoute) {
   };
 }
 
-function buildLegacySystemPrompt(profile) {
+function buildLegacySystemPrompt() {
   const instructions = loadPreludeInstructions();
-  let prompt = `${instructions.system}\n\n---\n\n## Reference knowledge\n\n${instructions.knowledge}`;
-  prompt += buildProfileAddon(profile);
-  return prompt;
+  return `${instructions.system}\n\n---\n\n## Reference knowledge\n\n${instructions.knowledge}`;
 }
 
 export async function createChatCompletion(messages, config = {}, profile = null) {
@@ -93,8 +91,13 @@ export async function createChatCompletion(messages, config = {}, profile = null
     throw error;
   }
 
-  const systemPrompt = buildLegacySystemPrompt(profile);
-  const chatMessages = [{ role: "system", content: systemPrompt }, ...messages];
+  const systemPrompt = buildLegacySystemPrompt();
+  const profileContext = buildUntrustedProfileContext(profile);
+  const chatMessages = [
+    { role: "system", content: systemPrompt },
+    ...(profileContext ? [{ role: "user", content: profileContext }] : []),
+    ...messages
+  ];
 
   return callChatModel(chatMessages, resolvedConfig);
 }

@@ -3,6 +3,8 @@ import { createRagChatCompletion } from "../server/chatHandler.js";
 import { db, requireAuth } from "../server/authApi.js";
 import { mergeStudentProfileForChat } from "../server/rag/studentProfile.js";
 import { mapChatError, shouldLogChatError } from "../server/chatErrors.js";
+import { validateChatRequestBody } from "../server/chatRequest.js";
+import { sanitizeStudentProfile } from "../server/rag/studentProfile.js";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -38,21 +40,24 @@ export default async function handler(req, res) {
         const clientProfile = req.body?.profile && typeof req.body.profile === "object" ? req.body.profile : {};
         return mergeStudentProfileForChat({ user, studentProfile, clientProfile });
       } catch {
-        return req.body?.profile && typeof req.body.profile === "object" ? req.body.profile : null;
+        return req.body?.profile && typeof req.body.profile === "object"
+          ? sanitizeStudentProfile(req.body.profile)
+          : null;
       }
     }
 
-    if (req.body?.mentorMatch) {
-      const result = await createMentorMatch(req.body.mentorMatch);
+    const request = validateChatRequestBody(req.body);
+    if (request?.kind === "mentor_match") {
+      const result = await createMentorMatch(request.mentorMatch);
       res.status(200).json(result);
       return;
     }
-    if (typeof req.body?.message === "string" && req.body.message.trim()) {
-      const profile = (await loadStudentProfileSummary()) ?? req.body?.profile ?? null;
+    if (request?.kind === "message") {
+      const profile = (await loadStudentProfileSummary()) ?? sanitizeStudentProfile(request.profile || {});
       const result = await createRagChatCompletion(
         {
-          message: req.body.message,
-          conversationHistory: Array.isArray(req.body?.conversationHistory) ? req.body.conversationHistory : []
+          message: request.message,
+          conversationHistory: request.conversationHistory
         },
         undefined,
         profile
@@ -66,6 +71,9 @@ export default async function handler(req, res) {
       message: "Send either mentorMatch payload or a message string."
     });
   } catch (error) {
+    if (error?.code === "CHAT_REQUEST_TOO_LARGE" || error?.code === "INVALID_CHAT_REQUEST") {
+      return res.status(error.statusCode).json({ error: error.code.toLowerCase(), message: error.message });
+    }
     if (shouldLogChatError(error)) {
       console.error("[prelude-chat-api]", error.message ?? error);
     }

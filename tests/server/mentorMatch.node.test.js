@@ -98,4 +98,11 @@ describe("Prelude mentor matching", () => {
       assert.match(responseBody.message, /mentorMatch payload|message string/i);
     }
   });
+
+  it("rejects oversized AI prompts before retrieval or model work", async () => {
+    const { statusCode, responseBody } = await invokeChatApi({ message: "x".repeat(8_001) });
+
+    assert.equal(statusCode, 413);
+    assert.equal(responseBody.error, "chat_request_too_large");
+  });
 });
