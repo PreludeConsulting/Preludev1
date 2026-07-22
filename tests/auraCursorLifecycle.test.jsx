@@ -3,12 +3,16 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../src/context/MotionContext.jsx", () => ({
-  usePreludeMotion: () => ({
+const mocks = vi.hoisted(() => ({
+  motionState: {
     reducedMotion: false,
     motionTier: "full",
     documentVisible: true
-  })
+  }
+}));
+
+vi.mock("../src/context/MotionContext.jsx", () => ({
+  usePreludeMotion: () => mocks.motionState
 }));
 
 import AuraCursor from "../src/components/motion/AuraCursor.jsx";
@@ -26,6 +30,9 @@ function pointerEvent(type, options = {}) {
 describe("AuraCursor lifecycle", () => {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+    mocks.motionState.reducedMotion = false;
+    mocks.motionState.motionTier = "full";
+    mocks.motionState.documentVisible = true;
     nextFrameId = 1;
     frames = new Map();
 
@@ -93,6 +100,23 @@ describe("AuraCursor lifecycle", () => {
 
     expect(removeListener.mock.calls.filter(([type]) => type === "pointermove")).toHaveLength(1);
     expect(frames.size).toBe(0);
+    expect(document.querySelector(".aura-cursor").classList.contains("aura-cursor--visible")).toBe(false);
+  });
+
+  it("does not restore stale visibility after motion eligibility toggles", () => {
+    act(() => root.render(<AuraCursor />));
+    const button = host.querySelector("button");
+    act(() => {
+      button.dispatchEvent(pointerEvent("pointerover", { clientX: 32, clientY: 48 }));
+    });
+    expect(document.querySelector(".aura-cursor").classList.contains("aura-cursor--visible")).toBe(true);
+
+    mocks.motionState.documentVisible = false;
+    act(() => root.render(<AuraCursor />));
+    expect(document.querySelector(".aura-cursor")).toBeNull();
+
+    mocks.motionState.documentVisible = true;
+    act(() => root.render(<AuraCursor />));
     expect(document.querySelector(".aura-cursor").classList.contains("aura-cursor--visible")).toBe(false);
   });
 });

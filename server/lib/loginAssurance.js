@@ -12,10 +12,10 @@ export function getLoginVerificationSecret(env = process.env) {
   const secret = env.LOGIN_CODE_SECRET || env.SUPABASE_SERVICE_ROLE_KEY;
   if (secret) return secret;
   if (env.NODE_ENV === "production") {
-    const error = new Error("Login verification is not configured.");
-    error.statusCode = 503;
-    error.code = "login_verification_not_configured";
-    throw error;
+    throw Object.assign(new Error("Login verification is not configured."), {
+      statusCode: 503,
+      code: "login_verification_not_configured"
+    });
   }
   return "dev-only-login-code-secret";
 }
@@ -29,10 +29,7 @@ export function createSessionReference(authorization = "") {
 }
 
 function verificationError(statusCode, code, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  error.code = code;
-  return error;
+  return Object.assign(new Error(message), { statusCode, code });
 }
 
 async function findActiveToken(admin, table, userId, hashColumn, tokenHash) {

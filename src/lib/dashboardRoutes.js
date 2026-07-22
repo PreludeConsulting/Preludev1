@@ -1,12 +1,13 @@
 import { appPath } from "./appPaths.js";
 import { hasMatchingTeamAccess } from "../../shared/matchingTeamAccess.js";
+import { DASHBOARD_ROUTE_BASES } from "../../shared/appRouteRegistry.js";
 
 /** Role-based dashboard paths and redirects. */
 
-export const STUDENT_DASHBOARD_BASE = "/dashboard/student";
-export const MENTOR_DASHBOARD_BASE = "/dashboard/mentor";
-export const PARENT_DASHBOARD_BASE = "/dashboard/parent";
-export const ADMIN_DASHBOARD_BASE = "/dashboard/admin";
+export const STUDENT_DASHBOARD_BASE = DASHBOARD_ROUTE_BASES.student;
+export const MENTOR_DASHBOARD_BASE = DASHBOARD_ROUTE_BASES.mentor;
+export const PARENT_DASHBOARD_BASE = DASHBOARD_ROUTE_BASES.parent;
+export const ADMIN_DASHBOARD_BASE = DASHBOARD_ROUTE_BASES.admin;
 
 const LEGACY_DASHBOARD_TARGETS = Object.freeze({
   student: Object.freeze({

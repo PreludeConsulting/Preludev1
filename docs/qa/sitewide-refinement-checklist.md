@@ -1,6 +1,7 @@
 # Prelude Sitewide Refinement QA Checklist
 
-Status: completed. Baseline comparison: 51/100; post-refinement score: 91/100.
+Status: superseded by the July 21 production-readiness pass. See
+`docs/qa/2026-07-21-production-readiness-report.md` for current evidence and external-environment limitations.
 
 Viewport matrix for every route family: 1440 × 900, 1024 × 900, 768 × 900, and 390 × 844.
 
@@ -61,7 +62,7 @@ Viewport matrix for every route family: 1440 × 900, 1024 × 900, 768 × 900, an
 - [x] Reduced-motion behavior
 - [x] No application console errors or React warnings in the representative rendered pass
 - [x] Frontend tests, focused server tests, production build, and diff checks
-- [x] Lint and type checks when configured (neither is configured in this repository)
+- [x] ESLint and release-contract TypeScript checks are configured and passing
 - [x] Final score and environment blockers documented
 
 ## Baseline Findings
@@ -76,7 +77,7 @@ Viewport matrix for every route family: 1440 × 900, 1024 × 900, 768 × 900, an
 
 - [x] Landing page captured at 1440px and 390px; mobile overflow was reproduced and corrected at the root/marquee/hero containment boundaries.
 - [x] Student dashboard captured at 390px with mobile product navigation and calendar reflow intact.
-- [x] Public, auth, onboarding, student, mentor, parent, settings, route, focus, and interaction contracts pass in the 327-test frontend suite.
+- [x] Public, auth, onboarding, student, mentor, parent, settings, route, focus, interaction, performance, and security contracts pass in the 518-test frontend suite.
 - [x] Focused authentication, login verification, contact booking, password verification/reset, and Zoom server suites pass (8/8).
 - [x] Production build passes without oversized-chunk warnings.
-- [x] Full `npm test` retains 12 unrelated AI/retrieval expectation failures; no failing test touches the refined UI, routing, auth, booking, billing, persistence, responsive, or accessibility surfaces.
+- [x] Full `npm test` passes: 518 Vitest tests, 228 Node server tests, and API-route import checks. The 12 former AI/retrieval regressions are fixed.

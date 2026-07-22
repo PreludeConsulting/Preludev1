@@ -40,9 +40,14 @@ export default function AuraCursor() {
   const frameRef = useRef(0);
   const hoverTargetRef = useRef(null);
   const [visible, setVisible] = useState(false);
+  const eligible = finePointer && !reducedMotion && motionTier === "full" && documentVisible;
 
   useEffect(() => {
-    if (!finePointer || reducedMotion || motionTier !== "full" || !documentVisible) return undefined;
+    if (!eligible) setVisible(false);
+  }, [eligible]);
+
+  useEffect(() => {
+    if (!eligible) return undefined;
 
     let pointerMoveAttached = false;
 
@@ -142,9 +147,9 @@ export default function AuraCursor() {
       stopLoop();
       hoverTargetRef.current = null;
     };
-  }, [documentVisible, finePointer, motionTier, reducedMotion]);
+  }, [eligible, reducedMotion]);
 
-  if (!finePointer || reducedMotion || motionTier !== "full" || !documentVisible) return null;
+  if (!eligible) return null;
 
   return createPortal(
     <div

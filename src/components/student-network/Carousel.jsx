@@ -33,7 +33,7 @@ const DEFAULT_ITEMS = [
   },
   {
     title: "Common UI",
-    description: "Common UI components are coming soon!",
+    description: "Reusable interface patterns for polished product experiences.",
     id: 5,
     icon: <Code className="carousel-icon" aria-hidden="true" />
   }

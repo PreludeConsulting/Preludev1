@@ -100,7 +100,6 @@ export function mapSupabaseUser(
     createdAt: u.created_at || null,
     ...onboardingFields,
     parentInviteStepComplete,
-    paymentStepComplete,
     mentorOnboardingComplete: role === "mentor" ? Boolean(mentorQuestionnaire?.completed) : true,
     onboardingStatus
   };

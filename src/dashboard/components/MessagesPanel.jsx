@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Calendar, MessageCircle, Paperclip, Send, Smile, Video } from "lucide-react";
+import { ArrowLeft, Calendar, MessageCircle, Send, Video } from "lucide-react";
 import { findNextJoinableMeeting, isValidMeetingJoinUrl } from "../../lib/zoomMeetingLinks.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AnimatedIcon from "../../components/interaction/AnimatedIcon.jsx";
@@ -290,9 +290,6 @@ export default function MessagesPanel({
                 sendMessage();
               }}
             >
-              <IconButton label="Attach file (not available yet)" type="button" disabled title="File attachments are not available yet">
-                <Paperclip className="h-4 w-4" />
-              </IconButton>
               <textarea
                 rows={1}
                 value={draft}
@@ -300,9 +297,6 @@ export default function MessagesPanel({
                 onKeyDown={onComposerKeyDown}
                 placeholder={placeholder}
               />
-              <IconButton label="Emoji picker (not available yet)" type="button" disabled title="Emoji picker is not available yet">
-                <Smile className="h-4 w-4" />
-              </IconButton>
               <PrimaryButton type="submit" className={cn("dash-btn--icon", sendAnimating && "dash-chat-send--active")} aria-label="Send" loading={sending} disabled={sending || !draft.trim()}>
                 <AnimatedIcon variant="send" active={sendAnimating}>
                   <Send className="h-4 w-4" />

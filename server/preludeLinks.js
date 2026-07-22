@@ -2,21 +2,22 @@
  * Verified Prelude website routes — discovered from src/App.jsx, Navbar, and Sections.
  * Hash routes are in-page anchors on the landing page. Path routes are separate auth pages.
  */
+import { APP_ACTION_MAP, LANDING_SECTION_TARGETS, PUBLIC_APP_ROUTES } from "../shared/appRouteRegistry.js";
 
 export const PRELUDE_LINKS = {
-  home: "/",
-  plans: "#pricing",
-  mentorMatch: "/mentors",
-  mentorship: "#mentorship",
-  roadmap: "#roadmap",
-  howItWorks: "#how-it-works",
-  signUp: "/register",
-  signIn: "/login",
-  dashboard: "/dashboard",
-  dashboardApp: "/dashboard",
-  profile: "/profile",
-  settings: "/settings",
-  contact: "#contact",
+  home: PUBLIC_APP_ROUTES.home,
+  plans: LANDING_SECTION_TARGETS.plans,
+  mentorMatch: PUBLIC_APP_ROUTES.mentors,
+  mentorship: LANDING_SECTION_TARGETS.mentorship,
+  roadmap: LANDING_SECTION_TARGETS.roadmap,
+  howItWorks: LANDING_SECTION_TARGETS.howItWorks,
+  signUp: PUBLIC_APP_ROUTES.signUp,
+  signIn: PUBLIC_APP_ROUTES.signIn,
+  dashboard: PUBLIC_APP_ROUTES.dashboard,
+  dashboardApp: PUBLIC_APP_ROUTES.dashboard,
+  profile: PUBLIC_APP_ROUTES.profile,
+  settings: PUBLIC_APP_ROUTES.settings,
+  contact: LANDING_SECTION_TARGETS.contact,
   consultation: null,
   financialAidResources: null
 };
@@ -50,7 +51,7 @@ export function preludeMarkdownLink(label, actionOrKey) {
 export function buildVerifiedAction(actionId) {
   const def = PRELUDE_ACTION_DEFS[actionId];
   if (!def) return null;
-  const href = getPreludeLink(def.linkKey);
+  const href = APP_ACTION_MAP[actionId]?.target ?? getPreludeLink(def.linkKey);
   if (!href) return null;
   return {
     label: def.label,

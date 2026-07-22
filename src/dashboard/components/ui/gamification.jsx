@@ -12,7 +12,8 @@ import {
   Zap
 } from "lucide-react";
 import { isJoinableMeeting, meetingTypeLabel } from "../../../lib/zoomMeetingLinks.js";
-import { Avatar, DashBadge, PrimaryButton, SecondaryButton, ViewAllLink } from "./index.jsx";
+import { cn } from "../../../lib/utils.js";
+import { Avatar, DashBadge, PrimaryButton, ViewAllLink } from "./index.jsx";
 
 export function LevelBadge({ level, name }) {
   return (
@@ -279,7 +280,7 @@ export function AchievementPanel({ badges, nextBadge }) {
           </div>
         </>
       ) : null}
-      <ViewAllLink to="#">View achievements</ViewAllLink>
+      <ViewAllLink to="/dashboard/student/progress-rewards">View achievements</ViewAllLink>
     </div>
   );
 }

@@ -47,7 +47,7 @@ function db() {
   return client;
 }
 
-function useLocalChat(user) {
+function shouldUseLocalChat(user) {
   if (!user) return true;
   if (user.authProvider === "demo" || user.authProvider === "dev") return true;
   if (shouldUseDemoFixtures(user)) return true;
@@ -335,7 +335,7 @@ function otherParticipantId(thread, viewerId) {
 export async function listChatThreadsForUser(user) {
   if (!user?.id) return { threads: [], error: "Sign in to use chat." };
 
-  if (useLocalChat(user)) {
+  if (shouldUseLocalChat(user)) {
     const role = (user.role || "student").toLowerCase();
     const demo = buildDemoThreadsForUser(user);
     if (role === "parent") {
@@ -370,7 +370,7 @@ export async function loadChatMessages(user, threadMeta) {
 
   const localRows = loadLocalChatMessages(thread).map((m) => mapChatMessage(m, user.id));
 
-  if (useLocalChat(user)) {
+  if (shouldUseLocalChat(user)) {
     return { messages: localRows, error: null };
   }
 
@@ -447,7 +447,7 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
     attachmentName: attachment?.name || null
   };
 
-  if (useLocalChat(user)) {
+  if (shouldUseLocalChat(user)) {
     appendLocalChatMessage(threadMeta, payload);
     return { message: mapChatMessage(payload, user.id), error: null };
   }
@@ -515,7 +515,7 @@ export async function editChatMessage(user, messageId, body) {
   const trimmed = (body || "").trim();
   if (!trimmed) return { message: null, error: "Message cannot be empty." };
 
-  if (useLocalChat(user)) {
+  if (shouldUseLocalChat(user)) {
     const threadIds = (loadLocalChatThreads(user.id).length
       ? loadLocalChatThreads(user.id)
       : buildDemoThreadsForUser(user)
@@ -605,7 +605,7 @@ export async function markChatThreadRead(user, threadMeta) {
   const nextRows = rows.map((message) => (unreadIds.has(message.id) ? { ...message, read: true } : message));
   saveLocalChatMessages(threadMeta, nextRows);
 
-  if (useLocalChat(user)) {
+  if (shouldUseLocalChat(user)) {
     return { updated: unread.length, error: null };
   }
 

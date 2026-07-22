@@ -176,8 +176,6 @@ export function PreludeMatchBrowsePage() {
           ))}
         </div>
       )}
-
-      <p className="dash-demo-note">Demo mentor catalog for development. Replace with live mentor records when the network is connected.</p>
     </div>
   );
 }

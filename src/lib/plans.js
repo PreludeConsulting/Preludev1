@@ -31,6 +31,13 @@ export const PLANS = {
       "Personalized student roadmap",
       "Detailed written feedback and edits within 1–2 business days"
     ],
+    billingHighlights: [
+      "2 full personal statement reviews per month",
+      "2 full supplemental essay reviews for one college per month",
+      "Assigned mentor messaging",
+      "Personalized student roadmap",
+      "Detailed written feedback and edits within 1–2 business days"
+    ],
     aiFeatures: AI_FEATURES,
     softwareAccess: [
       "Personalized college roadmap",
@@ -62,6 +69,14 @@ export const PLANS = {
       "Personalized college and academic guidance",
       "Earn Prelude Coins for progress",
       "Redeem coins for bonus sessions, multi-mentor essay feedback, tutoring, and more"
+    ],
+    billingHighlights: [
+      "Everything in Basic, including personal statement and supplemental essay reviews",
+      "2 flexible 1-on-1 session credits per month",
+      "College consulting, SAT/ACT prep, or academic tutoring",
+      "Full mentor and tutor network messaging",
+      "Personalized college and academic guidance",
+      "Earn and redeem Prelude Coins"
     ],
     aiFeatures: AI_FEATURES,
     softwareAccess: [
@@ -101,6 +116,14 @@ export const PLANS = {
       "Final application readiness check",
       "Earn Prelude Coins at a higher rate",
       "Advanced milestone rewards"
+    ],
+    billingHighlights: [
+      "Everything in Plus, including Basic essay-review support",
+      "4 flexible 1-on-1 session credits per month",
+      "Mix all session types or focus on one service",
+      "Priority mentor-network messaging",
+      "Full application review with essay and activity review",
+      "Higher coin earning and advanced milestone rewards"
     ],
     aiFeatures: AI_FEATURES,
     softwareAccess: [

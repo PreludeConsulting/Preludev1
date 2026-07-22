@@ -1,3 +1,3 @@
-import handler from "../../../server/onboardingMentorSelectionApi.js";
+import handler from "../../../../server/onboardingMentorSelectionApi.js";
 
 export default handler;

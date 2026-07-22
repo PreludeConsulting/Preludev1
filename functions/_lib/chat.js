@@ -24,7 +24,14 @@ function json(payload, status = 200, extraHeaders = {}) {
 }
 
 function cleanText(value, max = 240) {
-  const text = String(value ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
+  const text = [...String(value ?? "")]
+    .map((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 31 || code === 127 ? " " : character;
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
   return text.slice(0, max);
 }
 

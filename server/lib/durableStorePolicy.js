@@ -4,8 +4,8 @@ export function canUseLocalJsonStore(env = process.env) {
 
 export function assertDurableStoreAvailable(env = process.env, resource = "data") {
   if (canUseLocalJsonStore(env)) return;
-  const error = new Error(`The durable ${resource} store is temporarily unavailable.`);
-  error.statusCode = 503;
-  error.code = "durable_store_unavailable";
-  throw error;
+  throw Object.assign(new Error(`The durable ${resource} store is temporarily unavailable.`), {
+    statusCode: 503,
+    code: "durable_store_unavailable"
+  });
 }

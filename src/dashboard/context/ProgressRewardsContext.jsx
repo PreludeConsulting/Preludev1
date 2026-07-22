@@ -728,7 +728,6 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       celebration,
       redemptionCelebration,
       completeMilestone,
-      claimMilestone,
       redeemReward,
       handleRedeemReward,
       showToast

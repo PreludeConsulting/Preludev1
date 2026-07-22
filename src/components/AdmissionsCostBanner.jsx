@@ -39,6 +39,7 @@ export default function AdmissionsCostBanner() {
   const { t } = useLanguage();
   const { reducedMotion, motionTier } = usePreludeMotion();
   const staticMotion = shouldUseStaticLandingMotion({ reducedMotion, motionTier });
+  const SavingsAmountElement = staticMotion ? "span" : "button";
   const sectionRef = useRef(null);
   const savingsButtonRef = useRef(null);
   const headlineRef = useRef(null);
@@ -48,6 +49,7 @@ export default function AdmissionsCostBanner() {
   const countStateRef = useRef({ elapsed: 0, startedAt: 0, running: false });
   const fakeTimelineRef = useRef(null);
   const demoCompleteRef = useRef(false);
+  const previousStaticMotionRef = useRef(staticMotion);
 
   const [counting, setCounting] = useState(false);
   const { active } = useViewportActivity(sectionRef, {
@@ -153,7 +155,14 @@ export default function AdmissionsCostBanner() {
   }, [resetSavingsDemo, runSavingsCount, setSavingsDisplay, staticMotion, stopFakeCursor]);
 
   useEffect(() => {
-    if (!staticMotion) return;
+    const wasStatic = previousStaticMotionRef.current;
+    previousStaticMotionRef.current = staticMotion;
+
+    if (!staticMotion) {
+      if (wasStatic) resetSavingsDemo();
+      return;
+    }
+
     stopFakeCursor();
     window.cancelAnimationFrame(frameRef.current);
     frameRef.current = 0;
@@ -165,7 +174,7 @@ export default function AdmissionsCostBanner() {
     demoCompleteRef.current = true;
     setCounting(false);
     setSavingsDisplay(SAVINGS_TARGET_AMOUNT);
-  }, [setSavingsDisplay, staticMotion, stopFakeCursor]);
+  }, [resetSavingsDemo, setSavingsDisplay, staticMotion, stopFakeCursor]);
 
   useEffect(() => {
     if (staticMotion) return undefined;
@@ -229,6 +238,8 @@ export default function AdmissionsCostBanner() {
             <img
               src={PIGGY_IMAGE}
               alt={t("sections.cost.imageAlt")}
+              width={1024}
+              height={768}
               className={`admissions-cost-banner__image admissions-cost-banner__piggy${active ? " admissions-cost-banner__piggy--float" : ""}`}
               loading="lazy"
               decoding="async"
@@ -239,17 +250,21 @@ export default function AdmissionsCostBanner() {
         <div className="admissions-cost-banner__copy">
           <p className="admissions-cost-banner__body max-w-lg text-lg leading-7 text-white md:text-xl md:leading-8">
             {t("sections.cost.bodyBefore")}{" "}
-            <button
+            <SavingsAmountElement
               ref={savingsButtonRef}
-              type="button"
-              className={`admissions-cost-banner__amount${counting ? " admissions-cost-banner__amount--counting" : ""}`}
-              onClick={runSavingsCount}
-              aria-label={staticMotion ? "Savings: $6,500" : "Animate savings from zero to $6,500"}
+              className={`admissions-cost-banner__amount${staticMotion ? " admissions-cost-banner__amount--static" : ""}${counting ? " admissions-cost-banner__amount--counting" : ""}`}
+              {...(!staticMotion
+                ? {
+                    type: "button",
+                    onClick: runSavingsCount,
+                    "aria-label": "Animate savings from zero to $6,500"
+                  }
+                : {})}
             >
               <span ref={amountTextRef} aria-live="polite">
                 {formatSavingsAmount(staticMotion ? SAVINGS_TARGET_AMOUNT : 0)}
               </span>
-            </button>{" "}
+            </SavingsAmountElement>{" "}
             {t("sections.cost.bodyAfter")}
           </p>
           <div className="admissions-cost-banner__headline-wrap">

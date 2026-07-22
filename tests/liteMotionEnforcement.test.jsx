@@ -10,6 +10,11 @@ const mocks = vi.hoisted(() => ({
     documentVisible: true
   },
   viewportActive: true,
+  costTimeline: vi.fn(() => ({
+    play: vi.fn(),
+    pause: vi.fn(),
+    cancel: vi.fn()
+  })),
   enter: vi.fn(() => ({ revert: vi.fn() })),
   stagger: vi.fn(() => ({ revert: vi.fn() })),
   scrub: vi.fn(() => ({ revert: vi.fn() }))
@@ -40,6 +45,14 @@ vi.mock("../src/lib/animeScrollMotion.js", () => ({
   createStaggerReveal: mocks.stagger,
   createScrollScrub: mocks.scrub
 }));
+
+vi.mock("../src/lib/admissionsCostBannerMotion.js", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    createCostBannerFakeCursorTimeline: mocks.costTimeline
+  };
+});
 
 import AdmissionsCostBanner from "../src/components/AdmissionsCostBanner.jsx";
 import {
@@ -87,6 +100,7 @@ describe("lite landing motion enforcement", () => {
     mocks.enter.mockClear();
     mocks.stagger.mockClear();
     mocks.scrub.mockClear();
+    mocks.costTimeline.mockClear();
     nextFrameId = 1;
     frames = new Map();
     vi.stubGlobal("requestAnimationFrame", vi.fn((callback) => {
@@ -138,7 +152,20 @@ describe("lite landing motion enforcement", () => {
 
     expect(host.querySelector(".admissions-cost-banner__amount span").textContent).toBe("$6,500");
     expect(host.querySelector(".admissions-cost-banner__fake-cursor")).toBeNull();
+    expect(host.querySelector("button.admissions-cost-banner__amount")).toBeNull();
     expect(addListener.mock.calls.filter(([type]) => type === "resize")).toHaveLength(0);
     expect(frames.size).toBe(0);
+  });
+
+  it("restores an actionable demo when static motion changes back to full", () => {
+    act(() => root.render(<AdmissionsCostBanner />));
+    expect(host.querySelector("button.admissions-cost-banner__amount")).toBeNull();
+
+    mocks.motionState.motionTier = "full";
+    act(() => root.render(<AdmissionsCostBanner />));
+
+    expect(host.querySelector("button.admissions-cost-banner__amount")).not.toBeNull();
+    expect(host.querySelector(".admissions-cost-banner__amount span").textContent).toBe("$0");
+    expect(mocks.costTimeline).toHaveBeenCalledTimes(1);
   });
 });

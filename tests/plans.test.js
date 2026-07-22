@@ -47,4 +47,11 @@ describe("plan helpers", () => {
     expect(PLANS.basic.isFeatured).toBe(false);
     expect(Object.values(PLANS).some((plan) => "isRecommended" in plan)).toBe(false);
   });
+
+  it("owns billing benefits in the central plan catalog", () => {
+    for (const plan of Object.values(PLANS)) {
+      expect(plan.billingHighlights.length).toBeGreaterThan(0);
+      expect(plan.billingHighlights.every((benefit) => typeof benefit === "string" && benefit.length > 0)).toBe(true);
+    }
+  });
 });

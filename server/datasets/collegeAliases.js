@@ -193,7 +193,7 @@ export function extractCollegeAliasPhrases(text) {
     }
   }
 
-  for (const match of text.matchAll(/\bUniversity of [A-Za-z][A-Za-z\s\-]{2,40}\b/g)) {
+  for (const match of text.matchAll(/\bUniversity of [A-Za-z][A-Za-z\s-]{2,40}\b/g)) {
     phrases.add(match[0].trim());
   }
 

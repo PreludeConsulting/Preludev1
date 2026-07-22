@@ -1,29 +1,9 @@
-/** Curated benefit bullets for the billing current-plan hero card. */
-export const PLAN_BILLING_HIGHLIGHTS = {
-  basic: [
-    "2 full personal statement reviews per month",
-    "2 full supplemental essay reviews for one college per month",
-    "Assigned mentor messaging",
-    "Personalized student roadmap",
-    "Detailed written feedback and edits within 1–2 business days"
-  ],
-  plus: [
-    "Everything in Basic, including personal statement and supplemental essay reviews",
-    "2 flexible 1-on-1 session credits per month",
-    "College consulting, SAT/ACT prep, or academic tutoring",
-    "Full mentor and tutor network messaging",
-    "Personalized college and academic guidance",
-    "Earn and redeem Prelude Coins"
-  ],
-  pro: [
-    "Everything in Plus, including Basic essay-review support",
-    "4 flexible 1-on-1 session credits per month",
-    "Mix all session types or focus on one service",
-    "Priority mentor-network messaging",
-    "Full application review with essay and activity review",
-    "Higher coin earning and advanced milestone rewards"
-  ]
-};
+import { PLANS } from "../../../../lib/plans.js";
+
+/** Compatibility export derived from the central plan catalog. */
+export const PLAN_BILLING_HIGHLIGHTS = Object.freeze(
+  Object.fromEntries(Object.entries(PLANS).map(([id, plan]) => [id, plan.billingHighlights]))
+);
 
 export function buildRecentInvoices({ planName, amount, anchorDate = new Date() }) {
   const rows = [];

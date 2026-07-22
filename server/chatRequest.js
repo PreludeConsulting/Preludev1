@@ -2,10 +2,7 @@ export const MAX_CHAT_MESSAGE_CHARS = 8_000;
 export const MAX_CHAT_BODY_CHARS = 64_000;
 
 function requestError(statusCode, code, message) {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  error.code = code;
-  return error;
+  return Object.assign(new Error(message), { statusCode, code });
 }
 
 export function validateChatRequestBody(body) {

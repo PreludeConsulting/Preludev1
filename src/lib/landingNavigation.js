@@ -15,6 +15,7 @@ export function landingRouteForTarget(target, pathname) {
   return target;
 }
 
+/** @param {string} id @param {{ behavior?: ScrollBehavior }} [options] */
 export function scrollToLandingTarget(id, { behavior = "smooth" } = {}) {
   if (typeof window === "undefined") return false;
   if (id === LANDING_TOP_ID) {
@@ -26,4 +27,3 @@ export function scrollToLandingTarget(id, { behavior = "smooth" } = {}) {
   element.scrollIntoView({ behavior, block: "start" });
   return true;
 }
-

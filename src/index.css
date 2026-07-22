@@ -6078,6 +6078,14 @@ html[data-motion-tier="lite"] .aura-cursor {
   transform: translateY(0) scale(0.99);
 }
 
+.admissions-cost-banner__amount--static,
+.admissions-cost-banner__amount--static:hover {
+  cursor: default;
+  transform: translateZ(0);
+  transition: none;
+  box-shadow: 0 0.4rem 1.2rem rgb(40 28 150 / 0.22);
+}
+
 .admissions-cost-banner__copy {
   color: #ffffff;
 }

@@ -18,10 +18,10 @@ export function parseCorrection(message, conversationState = {}) {
   const notMatch = lower.match(/\b(?:not|instead of)\s+([a-z][a-z\s]{1,30}?)(?:\s*[,.]|$|\b(?:i|you|meant|said)\b)/i);
   if (notMatch) removePatterns.push(notMatch[1].trim());
 
-  const meantMatch = text.match(/\b(?:i said|i meant|meant)\s+([a-z0-9][a-z0-9\s\-]{1,30}?)(?:\s+not\b|\s*[,.]|$)/i);
+  const meantMatch = text.match(/\b(?:i said|i meant|meant)\s+([a-z0-9][a-z0-9\s-]{1,30}?)(?:\s+not\b|\s*[,.]|$)/i);
   if (meantMatch) addPatterns.push(meantMatch[1].trim());
 
-  const saidMatch = text.match(/\bsaid\s+([a-z0-9][a-z0-9\s\-]{1,30}?)\s+not\b/i);
+  const saidMatch = text.match(/\bsaid\s+([a-z0-9][a-z0-9\s-]{1,30}?)\s+not\b/i);
   if (saidMatch) addPatterns.push(saidMatch[1].trim());
 
   const removeSchools = [];

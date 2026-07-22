@@ -58,6 +58,12 @@ describe("frontend media and animation performance contracts", () => {
     }
   });
 
+  it("reserves the admissions illustration's 4:3 intrinsic geometry", () => {
+    const banner = source("src/components/AdmissionsCostBanner.jsx");
+    expect(banner).toContain("width={1024}");
+    expect(banner).toContain("height={768}");
+  });
+
   it("does not keep navbar blur or permanent compositor hints active", () => {
     const indexCss = source("src/index.css");
     const navBackdropRule = indexCss.match(/\.nav-bar__backdrop\s*\{[^}]+\}/)?.[0] || "";
