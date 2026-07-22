@@ -124,7 +124,6 @@
   cursor: pointer;
   text-align: left;
   -webkit-tap-highlight-color: transparent;
-  will-change: transform;
 }
 
 .mentors-stamp-deck:not(.is-expanded) .mentors-stamp {

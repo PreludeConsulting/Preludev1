@@ -121,7 +121,6 @@
   overflow: hidden;
   /* Fixed stacking order: layers never fight while animating. */
   z-index: calc(11 + var(--pw-i));
-  will-change: transform, opacity;
 }
 
 .pw-card:disabled {

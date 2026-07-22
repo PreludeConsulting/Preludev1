@@ -411,15 +411,6 @@ a {
   background: linear-gradient(180deg, rgb(255 255 255 / 0.88) 0%, rgb(246 244 255 / 0.92) 100%);
   box-shadow: var(--shadow-subtle);
   pointer-events: none;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  transform: translateZ(0);
-}
-
-html[data-motion-tier="lite"] .nav-bar__backdrop,
-html[data-motion-tier="reduced"] .nav-bar__backdrop {
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
 }
 
 .nav-bar__content {
@@ -5544,7 +5535,9 @@ html[lang="es"] .shopify-hero__headline-line {
   line-height: 1.1;
   letter-spacing: -0.03em;
   color: hsl(var(--foreground));
-  white-space: nowrap;
+  white-space: normal;
+  text-wrap: balance;
+  overflow-wrap: break-word;
 }
 
 .student-network-section__subheadline {
@@ -5915,6 +5908,11 @@ html[lang="es"] .shopify-hero__headline-line {
 .admissions-cost-banner[data-motion-active="false"] .admissions-cost-banner__stage::after,
 .admissions-cost-banner[data-motion-active="false"] .admissions-cost-banner__piggy--float {
   animation-play-state: paused;
+}
+
+.admissions-cost-banner[data-motion-tier="lite"] .admissions-cost-banner__stage::after,
+.admissions-cost-banner[data-motion-tier="lite"] .admissions-cost-banner__piggy--float {
+  animation: none;
 }
 
 html[data-document-visible="false"] * {

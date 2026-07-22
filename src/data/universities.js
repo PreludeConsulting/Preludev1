@@ -37,6 +37,36 @@ const LOGO_DISPLAY = {
   usc: { "--university-logo-height": "clamp(1.9rem, 3.5vw, 2.8rem)" }
 };
 
+// Match each source asset's intrinsic dimensions so the browser can reserve
+// the correct aspect ratio before lazy-loaded logos decode.
+const LOGO_INTRINSIC_SIZE = {
+  stanford: [162, 248.022],
+  harvard: [510, 600],
+  mit: [321, 166],
+  upenn: [92.015, 112.15125],
+  princeton: [280, 357],
+  yale: [512, 507],
+  columbia: [437, 512],
+  duke: [150, 133.68],
+  northwestern: [152, 234.01],
+  "johns-hopkins": [64.6, 64.6],
+  brown: [185, 228],
+  cornell: [99, 99],
+  dartmouth: [512, 499],
+  ucla: [512, 398],
+  "uc-berkeley": [125.75, 100.56],
+  uchicago: [403, 512],
+  vanderbilt: [512, 356],
+  rice: [134.75, 161.62],
+  "notre-dame": [200, 180.15],
+  georgetown: [252, 252.82],
+  cmu: [512, 512],
+  nyu: [36, 36],
+  usc: [122.28, 182],
+  michigan: [294.33, 212.39],
+  unc: [170, 134]
+};
+
 function logoPath(id) {
   const ext = PNG_LOGOS.has(id) ? "png" : "svg";
   return `${mediaBase}media/universities/${id}.${ext}`;
@@ -72,6 +102,8 @@ export const UNIVERSITIES = [
   ...school,
   logo: logoPath(school.id),
   logoStyle: LOGO_DISPLAY[school.id],
+  logoWidth: LOGO_INTRINSIC_SIZE[school.id][0],
+  logoHeight: LOGO_INTRINSIC_SIZE[school.id][1],
   alt: `${FULL_ALT_NAMES[school.id] || school.name} logo`
 }));
 

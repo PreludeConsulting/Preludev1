@@ -6,8 +6,8 @@ export default function PreludeLogo({ className = "" }) {
       src={logoSrc}
       alt="Prelude"
       className={`prelude-logo ${className}`.trim()}
-      width={160}
-      height={40}
+      width={1024}
+      height={395}
       decoding="async"
       draggable={false}
     />

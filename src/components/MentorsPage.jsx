@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 import AccountPanel from "./AccountPanel.jsx";
@@ -10,6 +10,7 @@ import MentorStampDeck from "./mentors/MentorStampDeck.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { EXAMPLE_MENTORS } from "../data/mentors.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
+import { useViewportActivity } from "../lib/motion/useViewportActivity.js";
 import "../styles/mentors-page.css";
 
 const MENTOR_REVIEWS = [
@@ -61,6 +62,8 @@ function MentorsPageContent() {
   const reducedMotion = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedMentor, setSelectedMentor] = useState(null);
+  const reviewsRef = useRef(null);
+  const { active: reviewsActive } = useViewportActivity(reviewsRef, { rootMargin: "120px 0px" });
   const featuredMentors = EXAMPLE_MENTORS.slice(0, 5);
   const reviewSlides = reducedMotion ? MENTOR_REVIEWS : [...MENTOR_REVIEWS, ...MENTOR_REVIEWS];
 
@@ -136,7 +139,12 @@ function MentorsPageContent() {
               </MotionDiv>
             </section>
 
-            <section className="mentors-page__reviews" aria-label="Student reviews">
+            <section
+              ref={reviewsRef}
+              className="mentors-page__reviews"
+              data-motion-active={reviewsActive ? "true" : "false"}
+              aria-label="Student reviews"
+            >
               <div className="mentors-page__reviews-viewport">
                 <div
                   className={`mentors-page__reviews-track${reducedMotion ? " mentors-page__reviews-track--static" : ""}`}

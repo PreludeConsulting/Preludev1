@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AnimatedIcon from "../../../components/interaction/AnimatedIcon.jsx";
 import InteractiveButton from "../../../components/interaction/InteractiveButton.jsx";
 import {
@@ -20,6 +20,7 @@ import { ProgressBar, RedeemTab } from "./rewards/RedeemTab.jsx";
 import { RewardsSidebarBottom, RewardsSidebarTop } from "./rewards/RewardsSidebar.jsx";
 import PlanLockedFeature from "./PlanLockedFeature.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
+import { useViewportActivity } from "../../../lib/motion/useViewportActivity.js";
 
 const TABS = [
   { id: "redeem", label: "Redeem", icon: Gift },
@@ -29,6 +30,8 @@ const TABS = [
 ];
 
 function RewardsHero() {
+  const heroRef = useRef(null);
+  const { active } = useViewportActivity(heroRef, { rootMargin: "120px 0px" });
   const {
     coins,
     currentTier,
@@ -41,7 +44,11 @@ function RewardsHero() {
   const heroPct = goalCoins > 0 ? Math.min(100, Math.round((coins / goalCoins) * 100)) : 0;
 
   return (
-    <header className="dash-rewards-hero">
+    <header
+      ref={heroRef}
+      className="dash-rewards-hero"
+      data-motion-active={active ? "true" : "false"}
+    >
       <div className="dash-rewards-hero__info">
         <div className="dash-rewards-hero__eyebrow">
           <span className="dash-rewards-hero__eyebrow-icon" aria-hidden="true">
