@@ -2,7 +2,13 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { UserCheck } from "lucide-react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { dashboardHomeForUser, MENTOR_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
+import {
+  dashboardFallbackForRole,
+  dashboardHomeForUser,
+  dashboardLegacyTarget,
+  MENTOR_DASHBOARD_BASE,
+  STUDENT_DASHBOARD_BASE
+} from "../lib/dashboardRoutes.js";
 import DashboardLayout from "./components/DashboardLayout.jsx";
 import RoleGuard from "./components/RoleGuard.jsx";
 import { MENTOR_NAV } from "./config/navConfig.js";
@@ -56,8 +62,8 @@ function DashboardRedirect() {
   return <Navigate to={dashboardHomeForUser(user)} replace />;
 }
 
-function LegacyStudentRedirect({ to }) {
-  return <Navigate to={to} replace />;
+function LegacyDashboardRedirect({ role, alias }) {
+  return <Navigate to={dashboardLegacyTarget(role, alias) || dashboardFallbackForRole(role)} replace />;
 }
 
 function MatchingTeamGuard({ children }) {
@@ -113,16 +119,17 @@ function StudentRoutes() {
             <Route path="prelude-match" element={<PreludeMatchBrowsePage />} />
             <Route path="messages" element={<StudentMessages />} />
             <Route path="notifications" element={<StudentNotifications />} />
-            <Route path="resources" element={<LegacyStudentRedirect to="help" />} />
+            <Route path="resources" element={<LegacyDashboardRedirect role="student" alias="resources" />} />
             <Route path="billing" element={<StudentBilling />} />
             <Route path="help" element={<StudentHelp />} />
             <Route path="settings" element={<StudentSettingsPage />} />
             <Route path="profile-stats" element={<StudentProfileStats />} />
             <Route path="progress-rewards" element={<StudentProgressRewards />} />
             <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
-            <Route path="profile" element={<LegacyStudentRedirect to="settings" />} />
-            <Route path="mentor-matching" element={<LegacyStudentRedirect to="prelude-match" />} />
+            <Route path="profile" element={<LegacyDashboardRedirect role="student" alias="profile" />} />
+            <Route path="mentor-matching" element={<LegacyDashboardRedirect role="student" alias="mentor-matching" />} />
             <Route index element={<Navigate to="overview" replace />} />
+            <Route path="*" element={<Navigate to={dashboardFallbackForRole("student")} replace />} />
           </Route>
         </Routes>
       </StudentGamificationShell>
@@ -144,11 +151,12 @@ function MentorRoutes() {
           <Route path="notifications" element={<MentorNotifications />} />
           <Route path="availability" element={<MentorAvailability />} />
           <Route path="settings" element={<MentorSettingsPage />} />
-          <Route path="profile" element={<Navigate to="settings" replace />} />
-          <Route path="billing" element={<Navigate to="settings" replace />} />
+          <Route path="profile" element={<LegacyDashboardRedirect role="mentor" alias="profile" />} />
+          <Route path="billing" element={<LegacyDashboardRedirect role="mentor" alias="billing" />} />
           <Route path="help" element={<MentorHelp />} />
           <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
           <Route index element={<Navigate to="overview" replace />} />
+          <Route path="*" element={<Navigate to={dashboardFallbackForRole("mentor")} replace />} />
         </Route>
       </Routes>
     </DashboardDataProvider>
@@ -166,11 +174,12 @@ function ParentRoutes() {
           <Route path="children/:childId/*" element={<ParentChildRoutes />} />
           <Route path="notifications" element={<ParentNotifications />} />
           <Route path="settings" element={<ParentSettingsPage />} />
-          <Route path="profile" element={<Navigate to="settings" replace />} />
+          <Route path="profile" element={<LegacyDashboardRedirect role="parent" alias="profile" />} />
           <Route path="billing" element={<ParentBilling />} />
           <Route path="help" element={<ParentHelp />} />
           <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
           <Route index element={<Navigate to="overview" replace />} />
+          <Route path="*" element={<Navigate to={dashboardFallbackForRole("parent")} replace />} />
         </Route>
       </Routes>
     </DashboardDataProvider>
@@ -188,6 +197,7 @@ function AdminRoutes() {
           <Route path="settings" element={<AdminSettingsPage />} />
           <Route path="mentor-review" element={<Navigate to="../matching" replace />} />
           <Route index element={<Navigate to="matching" replace />} />
+          <Route path="*" element={<Navigate to={dashboardFallbackForRole("admin")} replace />} />
         </Route>
       </Routes>
     </DashboardDataProvider>
@@ -235,6 +245,7 @@ export default function DashboardRouter() {
           </RoleGuard>
         }
       />
+      <Route path="*" element={<DashboardRedirect />} />
     </Routes>
     </Suspense>
   );

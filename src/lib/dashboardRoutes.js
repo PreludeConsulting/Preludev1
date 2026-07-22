@@ -8,12 +8,35 @@ export const MENTOR_DASHBOARD_BASE = "/dashboard/mentor";
 export const PARENT_DASHBOARD_BASE = "/dashboard/parent";
 export const ADMIN_DASHBOARD_BASE = "/dashboard/admin";
 
+const LEGACY_DASHBOARD_TARGETS = Object.freeze({
+  student: Object.freeze({
+    resources: `${STUDENT_DASHBOARD_BASE}/help`,
+    profile: `${STUDENT_DASHBOARD_BASE}/settings`,
+    "mentor-matching": `${STUDENT_DASHBOARD_BASE}/prelude-match`
+  }),
+  mentor: Object.freeze({
+    profile: `${MENTOR_DASHBOARD_BASE}/settings`,
+    billing: `${MENTOR_DASHBOARD_BASE}/settings`
+  }),
+  parent: Object.freeze({
+    profile: `${PARENT_DASHBOARD_BASE}/settings`
+  })
+});
+
 export function dashboardHomeForRole(role) {
   const r = (role || "").toLowerCase();
   if (r === "admin") return `${ADMIN_DASHBOARD_BASE}/matching`;
   if (r === "mentor") return `${MENTOR_DASHBOARD_BASE}/overview`;
   if (r === "parent") return `${PARENT_DASHBOARD_BASE}/overview`;
   return `${STUDENT_DASHBOARD_BASE}/overview`;
+}
+
+export function dashboardFallbackForRole(role) {
+  return dashboardHomeForRole(role);
+}
+
+export function dashboardLegacyTarget(role, alias) {
+  return LEGACY_DASHBOARD_TARGETS[String(role || "").toLowerCase()]?.[alias] || null;
 }
 
 export function hasAdminDashboardAccess(user) {
