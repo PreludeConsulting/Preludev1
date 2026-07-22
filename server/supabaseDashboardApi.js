@@ -180,6 +180,20 @@ function pickFields(body, allowed) {
   return Object.fromEntries(Object.entries(body || {}).filter(([key, value]) => allowed.includes(key) && value !== undefined));
 }
 
+async function requireMentorProfile(supabase, userId) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (String(data?.role || "").toLowerCase() !== "mentor") {
+    const forbidden = new Error("Mentor access required.");
+    forbidden.statusCode = 403;
+    throw forbidden;
+  }
+}
+
 export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupabaseUser } = {}) {
   return async function supabaseDashboardApi(req, res, next) {
     const url = new URL(req.url || "/", "http://localhost");
@@ -218,6 +232,7 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
         return sendJson(res, 200, { settings: mapSettings(data) });
       }
 
+      await requireMentorProfile(supabase, user.id);
       const availability = availabilitySchema.parse(body);
       const availabilitySummary = formatAvailabilitySummary(availability);
       const { data, error } = await supabase
@@ -264,10 +279,12 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
       const status = Number(error?.statusCode) || 500;
       if (status >= 500) console.error("[prelude-dashboard-sync]", error);
       return sendJson(res, status, {
-        error: status === 401 ? "unauthenticated" : "dashboard_sync_failed",
+        error: status === 401 ? "unauthenticated" : status === 403 ? "forbidden" : "dashboard_sync_failed",
         message: status === 401
           ? "Sign in again to continue."
-          : "Dashboard data is temporarily unavailable. Retry in a moment."
+          : status === 403
+            ? "This action requires a mentor account."
+            : "Dashboard data is temporarily unavailable. Retry in a moment."
       });
     }
   };

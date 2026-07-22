@@ -162,9 +162,42 @@ describe("Supabase dashboard API", () => {
     assert.doesNotMatch(res.body.message, /write failed/i);
   });
 
+  it("rejects availability writes unless the authenticated profile is a mentor", async () => {
+    let availabilityWriteAttempted = false;
+    const supabase = {
+      from(table) {
+        const builder = {
+          select() { return builder; },
+          eq() { return builder; },
+          upsert() { availabilityWriteAttempted = true; return builder; },
+          maybeSingle() {
+            return Promise.resolve({
+              data: table === "profiles" ? { role: "student" } : null,
+              error: null
+            });
+          }
+        };
+        return builder;
+      }
+    };
+    const middleware = createSupabaseDashboardApiMiddleware({
+      requireUser: async () => ({ user: { id: "user-1" }, supabase })
+    });
+    const res = response();
+
+    await middleware(request("PUT", "/api/dashboard/availability", {
+      timezone: "ET",
+      days: []
+    }), res, () => assert.fail("availability should be handled"));
+
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.error, "forbidden");
+    assert.equal(availabilityWriteAttempted, false);
+  });
+
   it("persists profile, settings, and availability mutations across a subsequent app-data read", async () => {
     const supabase = statefulSupabase({
-      profiles: { id: "user-1", full_name: "Before" },
+      profiles: { id: "user-1", full_name: "Before", role: "mentor" },
       user_settings: { user_id: "user-1", email_updates: true },
       mentor_matching_profiles: { mentor_user_id: "user-1", availability_schedule: { timezone: "ET", days: [] } },
       reward_wallets: { user_id: "user-1", coin_balance: 4 },
@@ -173,7 +206,7 @@ describe("Supabase dashboard API", () => {
       calendar_events: [],
       messages: []
     });
-    const requireUser = async () => ({ user: { id: "user-1", email: "student@example.com" }, supabase });
+    const requireUser = async () => ({ user: { id: "user-1", email: "mentor@example.com" }, supabase });
     const middleware = createSupabaseDashboardApiMiddleware({ requireUser });
     const profileResponse = response();
     await middleware(request("PATCH", "/api/dashboard/profile", { full_name: "After" }), profileResponse, () => {});
