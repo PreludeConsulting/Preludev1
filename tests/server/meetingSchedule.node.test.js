@@ -100,6 +100,40 @@ async function main() {
   const endTime = slot.endTime;
   const zoomJoinUrl = "https://zoom.us/j/5551234567";
 
+  await assert.rejects(
+    () => scheduleMeeting(
+      {
+        title: "Cross-user request",
+        startTime,
+        endTime,
+        status: "pending",
+        meetingType: "zoom",
+        studentUserId: "44444444-4444-4444-a444-444444444444",
+        mentorUserId: mentorUser.id
+      },
+      studentUser,
+      mockReq("/api/meetings", "POST")
+    ),
+    (error) => error?.statusCode === 403 && error?.code === "forbidden"
+  );
+
+  await assert.rejects(
+    () => scheduleMeeting(
+      {
+        title: "Mentor impersonation",
+        startTime,
+        endTime,
+        status: "scheduled",
+        meetingType: "zoom",
+        mentorUserId: "55555555-5555-4555-a555-555555555555",
+        zoomJoinUrl
+      },
+      mentorUser,
+      mockReq("/api/meetings", "POST")
+    ),
+    (error) => error?.statusCode === 403 && error?.code === "forbidden"
+  );
+
   const pending = await scheduleMeeting(
     {
       title: "Essay help",

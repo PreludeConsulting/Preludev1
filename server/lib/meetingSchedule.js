@@ -170,11 +170,20 @@ function canUserAccessMeeting(user, meeting) {
   const role = user.role?.toUpperCase();
   if (role === "ADMIN") return true;
   if (role === "MENTOR") {
-    if (meeting.mentorUserId) return meeting.mentorUserId === user.id;
-    return meeting.status === "pending" || meeting.status === "approved";
+    return Boolean(meeting.mentorUserId) && meeting.mentorUserId === user.id;
   }
   if (role === "STUDENT") return meeting.studentUserId === user.id && !meeting.isPrivate;
   return false;
+}
+
+function assertCreateActorOwnership(body, user) {
+  const role = user.role?.toUpperCase();
+  if (role === "STUDENT" && body.studentUserId && body.studentUserId !== user.id) {
+    throw userFacingError("You cannot schedule a meeting for another student.", 403, "forbidden");
+  }
+  if (role === "MENTOR" && body.mentorUserId && body.mentorUserId !== user.id) {
+    throw userFacingError("You cannot schedule a meeting as another mentor.", 403, "forbidden");
+  }
 }
 
 function normalizeCreatePayload(body, user) {
@@ -207,11 +216,17 @@ function shouldReleasePackageOnStatus(nextStatus) {
 export async function scheduleMeeting(body, user, req) {
   const parsed = createMeetingSchema.parse(body);
   validateTimes(parsed.startTime, parsed.endTime);
+  assertCreateActorOwnership(parsed, user);
 
   const idempotencyKey = resolveIdempotencyKey(parsed, req);
   if (idempotencyKey) {
     const existing = await findMeetingByIdempotencyKey(String(idempotencyKey));
-    if (existing) return existing;
+    if (existing) {
+      if (!canUserAccessMeeting(user, existing)) {
+        throw userFacingError("You do not have permission to access this meeting.", 403, "forbidden");
+      }
+      return existing;
+    }
   }
 
   const payload = normalizeCreatePayload(parsed, user);
