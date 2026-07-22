@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getAvailableMentorSlots } from "../../lib/dashboardApi.js";
 import { listBookableDates } from "../../../shared/mentorBookingSlots.js";
 
@@ -24,6 +24,11 @@ export function useMentorBookingSlots({
         .join("|"),
     [meetings]
   );
+  const meetingsRef = useRef(meetings);
+
+  useEffect(() => {
+    meetingsRef.current = meetings;
+  }, [meetingKey, meetings]);
 
   const refresh = useCallback(async () => {
     if (!enabled) {
@@ -43,7 +48,7 @@ export function useMentorBookingSlots({
       }
 
       if (schedule) {
-        const localDates = listBookableDates({ schedule, meetings });
+        const localDates = listBookableDates({ schedule, meetings: meetingsRef.current });
         setTimezone(schedule.timezone || "ET");
         setDates(localDates);
         return;
@@ -53,7 +58,7 @@ export function useMentorBookingSlots({
       setError("Mentor availability is not available yet.");
     } catch (err) {
       if (schedule) {
-        const localDates = listBookableDates({ schedule, meetings });
+        const localDates = listBookableDates({ schedule, meetings: meetingsRef.current });
         setTimezone(schedule.timezone || "ET");
         setDates(localDates);
         setError("");
@@ -64,7 +69,7 @@ export function useMentorBookingSlots({
     } finally {
       setLoading(false);
     }
-  }, [enabled, mentorUserId, schedule, meetingKey, meetings]);
+  }, [enabled, mentorUserId, schedule, meetingKey]);
 
   useEffect(() => {
     refresh();
