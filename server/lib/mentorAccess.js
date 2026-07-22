@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PrismaClient } from "@prisma/client";
 import { isDatabaseUnavailableError } from "./dbErrors.js";
+import { assertDurableStoreAvailable } from "./durableStorePolicy.js";
 import {
   buildNoMentorAccessError,
   evaluateMentorAccess,
@@ -102,6 +103,7 @@ export async function listSessionPackagesForStudent(studentUserId) {
       if (!isDatabaseUnavailableError(error)) throw error;
     }
   }
+  assertDurableStoreAvailable(process.env, "session package");
   const { packages } = readJsonStore();
   return packages.filter((pkg) => pkg.studentUserId === studentUserId).map(toPackageRecord);
 }
@@ -152,6 +154,7 @@ export async function creditSessionPackagePurchase({
     }
   }
 
+  assertDurableStoreAvailable(process.env, "session package");
   const store = readJsonStore();
   if (stripeCheckoutSessionId) {
     const existing = store.packages.find((pkg) => pkg.stripeCheckoutSessionId === stripeCheckoutSessionId);
@@ -321,7 +324,9 @@ export async function consumePackageSession({ studentUserId, mentorId = null, tx
     }
   }
 
+  assertDurableStoreAvailable(process.env, "session package");
   // JSON fallback with serialized lock (single-process tests / local).
+  assertDurableStoreAvailable(process.env, "session package");
   return withJsonPackageLock(async () => {
     const store = readJsonStore();
     const idx = store.packages.findIndex(

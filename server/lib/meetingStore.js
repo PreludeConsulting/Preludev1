@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PrismaClient } from "@prisma/client";
 import { isDatabaseUnavailableError } from "./dbErrors.js";
+import { assertDurableStoreAvailable } from "./durableStorePolicy.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = join(__dirname, "../data/meetings.json");
@@ -95,6 +96,7 @@ export async function findMeetingByIdempotencyKey(idempotencyKey) {
       if (!isDatabaseUnavailableError(error)) throw error;
     }
   }
+  assertDurableStoreAvailable(process.env, "meeting");
   const { meetings } = readJsonStore();
   return toRecord(meetings.find((m) => m.idempotencyKey === idempotencyKey) || null);
 }
@@ -108,6 +110,7 @@ export async function getMeetingById(id) {
       if (!isDatabaseUnavailableError(error)) throw error;
     }
   }
+  assertDurableStoreAvailable(process.env, "meeting");
   const { meetings } = readJsonStore();
   return toRecord(meetings.find((m) => m.id === id) || null);
 }
@@ -130,6 +133,7 @@ export async function listMeetingsForUser({ userId, role }) {
     }
   }
 
+  assertDurableStoreAvailable(process.env, "meeting");
   const { meetings } = readJsonStore();
   return meetings
     .filter((m) => {
@@ -161,6 +165,7 @@ export async function listMeetingsForMentor(mentorUserId) {
     }
   }
 
+  assertDurableStoreAvailable(process.env, "meeting");
   const { meetings } = readJsonStore();
   return meetings
     .filter((m) => {
@@ -184,6 +189,7 @@ export async function createMeetingRecord(payload, { tx = null } = {}) {
     }
   }
 
+  assertDurableStoreAvailable(process.env, "meeting");
   const store = readJsonStore();
   const id = `meet-${randomBytes(6).toString("hex")}`;
   const record = toRecord({ id, ...data, startTime: data.startTime.toISOString(), endTime: data.endTime.toISOString() });
@@ -221,6 +227,7 @@ export async function updateMeetingRecord(id, patch) {
     }
   }
 
+  assertDurableStoreAvailable(process.env, "meeting");
   const store = readJsonStore();
   const idx = store.meetings.findIndex((m) => m.id === id);
   if (idx < 0) return null;
