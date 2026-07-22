@@ -13,18 +13,15 @@ describe("landing motion policy", () => {
     );
   });
 
-  it("selects lite motion for constrained CPU or memory", () => {
+  it("keeps full motion across browser-specific hardware reports", () => {
     expect(detectMotionTier({ hardwareConcurrency: 4, deviceMemory: 16, coarsePointer: false })).toBe(
-      MOTION_TIERS.lite
+      MOTION_TIERS.full
     );
     expect(detectMotionTier({ hardwareConcurrency: 16, deviceMemory: 4, coarsePointer: false })).toBe(
-      MOTION_TIERS.lite
+      MOTION_TIERS.full
     );
-  });
-
-  it("uses lite motion for coarse pointers and full motion for capable devices", () => {
     expect(detectMotionTier({ hardwareConcurrency: 16, deviceMemory: 16, coarsePointer: true })).toBe(
-      MOTION_TIERS.lite
+      MOTION_TIERS.full
     );
     expect(detectMotionTier({ hardwareConcurrency: 16, deviceMemory: 16, coarsePointer: false })).toBe(
       MOTION_TIERS.full

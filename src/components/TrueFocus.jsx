@@ -39,7 +39,7 @@ const TrueFocus = ({
   sentence = "True Focus",
   separator = " ",
   manualMode = false,
-  blurAmount: _blurAmount = 5,
+  blurAmount = 5,
   borderColor = "green",
   glowColor = "rgba(0, 255, 0, 0.6)",
   animationDuration = 0.5,
@@ -95,12 +95,23 @@ const TrueFocus = ({
             ]
               .filter(Boolean)
               .join(" ")}
-            style={{ "--border-color": borderColor, "--glow-color": glowColor }}
+            style={{
+              "--border-color": borderColor,
+              "--glow-color": glowColor,
+              "--focus-blur": `${blurAmount}px`,
+              "--focus-transition-duration": `${animationDuration}s`
+            }}
             onMouseEnter={() => handleMouseEnter(index)}
             onMouseLeave={handleMouseLeave}
           >
             {item ? (
               <>
+                <span className="focus-word__frame" aria-hidden="true">
+                  <span className="focus-word__corner focus-word__corner--top-left" />
+                  <span className="focus-word__corner focus-word__corner--top-right" />
+                  <span className="focus-word__corner focus-word__corner--bottom-left" />
+                  <span className="focus-word__corner focus-word__corner--bottom-right" />
+                </span>
                 <img
                   src={item.src}
                   alt=""

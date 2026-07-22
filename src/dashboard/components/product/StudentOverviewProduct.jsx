@@ -25,7 +25,6 @@ export default function StudentOverviewProduct() {
     mentor,
     events,
     deadlines,
-    academicProgress,
     studentProfileStats,
     isMentorStudentView,
     mentorViewStudent
@@ -81,16 +80,16 @@ export default function StudentOverviewProduct() {
           className={cn("dash-product-split__cards", isMentorStudentView && "dash-mentor-view-readonly")}
           aria-label="Dashboard summary"
         >
+          {!isMentorStudentView ? (
+            <StudentMentorActivities className="dash-product-split__mentor-activities" />
+          ) : null}
           <PrepDashboardCards
-            academicProgress={academicProgress}
             profile={profile}
             studentProfileStats={studentProfileStats}
             showRewardsPreview={!isMentorStudentView}
           />
         </section>
       </div>
-
-      <StudentMentorActivities />
     </div>
   );
 }

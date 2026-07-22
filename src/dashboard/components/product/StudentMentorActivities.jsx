@@ -391,7 +391,7 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
   );
 }
 
-export default function StudentMentorActivities() {
+export default function StudentMentorActivities({ className }) {
   const { user } = useAuth();
   const { isMentorStudentView } = useDashboardData();
   const [activities, setActivities] = useState([]);
@@ -432,7 +432,7 @@ export default function StudentMentorActivities() {
   if (isMentorStudentView) return null;
 
   return (
-    <section className="dash-mentor-activities dash-mentor-activities--student" aria-labelledby="mentor-activities-heading">
+    <section className={cn("dash-mentor-activities", "dash-mentor-activities--student", className)} aria-labelledby="mentor-activities-heading">
       <div className="dash-mentor-activities__head">
         <div>
           <div className="dash-mentor-activities__title-row">
