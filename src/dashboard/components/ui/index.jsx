@@ -127,7 +127,7 @@ export function DashTabs({ tabs, active, onChange }) {
   );
 }
 
-export function SearchInput({ value, onChange, placeholder = "Search…" }) {
+export function SearchInput({ value, onChange, placeholder = "Search…", ariaLabel }) {
   return (
     <input
       type="search"
@@ -135,6 +135,7 @@ export function SearchInput({ value, onChange, placeholder = "Search…" }) {
       value={value}
       onChange={onChange}
       placeholder={placeholder}
+      aria-label={ariaLabel || placeholder}
     />
   );
 }
