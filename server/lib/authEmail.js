@@ -33,7 +33,25 @@ function hasResendConfig(env) {
 export function resolvePublicAppUrl(req, env) {
   const runtimeEnv = resolveRuntimeEnv(env);
   const fromEnv = runtimeEnv.PUBLIC_APP_URL?.trim() || runtimeEnv.VITE_PUBLIC_APP_URL?.trim();
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
+  if (fromEnv) {
+    let parsed;
+    try {
+      parsed = new URL(fromEnv);
+    } catch {
+      throw new Error("PUBLIC_APP_URL must be a valid absolute URL.");
+    }
+    if (!/^https?:$/.test(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+      throw new Error("PUBLIC_APP_URL must be an HTTP(S) origin without credentials, query, or hash.");
+    }
+    if (isProductionEnv(runtimeEnv) && parsed.protocol !== "https:") {
+      throw new Error("PUBLIC_APP_URL must use HTTPS in production.");
+    }
+    return fromEnv.replace(/\/$/, "");
+  }
+
+  if (isProductionEnv(runtimeEnv)) {
+    throw new Error("PUBLIC_APP_URL is required in production.");
+  }
 
   if (req?.headers) {
     const host = req.headers["x-forwarded-host"] || req.headers.host;

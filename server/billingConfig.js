@@ -2,6 +2,7 @@ import {
   BUNDLE_PRICE_ENV_BY_ID,
   PLAN_PRICE_ENV_BY_ID
 } from "../shared/billingCatalog.js";
+import { resolvePublicAppUrl } from "./lib/authEmail.js";
 
 export const BILLING_PROVIDER_DISABLED = "disabled";
 export const BILLING_PROVIDER_STRIPE = "stripe";
@@ -95,7 +96,7 @@ export function getRequestOrigin(req) {
 }
 
 export function getAppBaseUrl(req) {
-  return (process.env.PUBLIC_APP_URL || getRequestOrigin(req)).replace(/\/$/, "");
+  return resolvePublicAppUrl(req, process.env);
 }
 
 export function isGuestCheckoutAllowed(req, env = process.env) {

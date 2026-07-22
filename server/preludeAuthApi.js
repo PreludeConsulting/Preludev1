@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { randomBytes, createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { resolvePublicAppUrl } from "./lib/authEmail.js";
 
 function db() {
   if (!globalThis.__preludePrisma) globalThis.__preludePrisma = new PrismaClient();
@@ -68,7 +69,10 @@ const profileSchema = z.object({
 });
 
 function getJwtSecret() {
-  return process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || "dev-only-change-me-before-production";
+  const secret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
+  if (secret) return secret;
+  if (isProduction()) throw new Error("JWT_ACCESS_SECRET or JWT_SECRET is required in production.");
+  return "dev-only-change-me-before-production";
 }
 
 function isProduction() {
@@ -95,15 +99,8 @@ function getClientIp(req) {
   return (req.headers["x-forwarded-for"]?.split(",")[0] || req.socket?.remoteAddress || "").trim() || null;
 }
 
-function getRequestOrigin(req) {
-  const forwardedProto = req.headers["x-forwarded-proto"]?.split(",")[0]?.trim();
-  const protocol = forwardedProto || (isProduction() ? "https" : "http");
-  const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5173";
-  return `${protocol}://${host}`;
-}
-
 function getAppBaseUrl(req) {
-  return (process.env.PUBLIC_APP_URL || getRequestOrigin(req)).replace(/\/$/, "");
+  return resolvePublicAppUrl(req, process.env);
 }
 
 function makeAppUrl(req, path) {

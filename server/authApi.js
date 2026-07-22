@@ -110,8 +110,13 @@ const profileSchema = z.object({
     .optional()
 });
 
-function getJwtSecret() {
-  return process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET || "dev-only-change-me-before-production";
+export function getJwtSecret(env = process.env) {
+  const secret = env.JWT_ACCESS_SECRET || env.JWT_SECRET;
+  if (secret) return secret;
+  if (env.NODE_ENV === "production") {
+    throw new Error("JWT_ACCESS_SECRET or JWT_SECRET is required in production.");
+  }
+  return "dev-only-change-me-before-production";
 }
 
 function isProduction() {
