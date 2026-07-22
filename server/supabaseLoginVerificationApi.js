@@ -3,9 +3,14 @@ import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { readJsonBody, sendJson } from "./http.js";
+import {
+  LOGIN_ASSURANCE_COOKIE,
+  TRUSTED_DEVICE_COOKIE,
+  createSessionReference,
+  getLoginVerificationSecret,
+  hashLoginToken
+} from "./lib/loginAssurance.js";
 
-const TRUSTED_DEVICE_COOKIE = "prelude_trusted_device";
-const LOGIN_ASSURANCE_COOKIE = "prelude_login_assurance";
 const CODE_TTL_MINUTES = 10;
 const SEND_COOLDOWN_SECONDS = 30;
 const SEND_LIMIT_PER_HOUR = 5;
@@ -75,16 +80,8 @@ function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function getSecret() {
-  return process.env.LOGIN_CODE_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "dev-only-login-code-secret";
-}
-
 function hashCode(userId, code) {
-  return sha256(`${userId}:${code}:${getSecret()}`);
-}
-
-function hashToken(rawToken) {
-  return sha256(`${rawToken}:${getSecret()}`);
+  return sha256(`${userId}:${code}:${getLoginVerificationSecret()}`);
 }
 
 function getClientIp(req) {
@@ -92,7 +89,7 @@ function getClientIp(req) {
 }
 
 function getIpHash(req) {
-  return sha256(`${getClientIp(req)}:${getSecret()}`);
+  return sha256(`${getClientIp(req)}:${getLoginVerificationSecret()}`);
 }
 
 function summarizeUserAgent(userAgent = "") {
@@ -236,7 +233,7 @@ async function sendCodeEmail({ to, code, req, challengeId, requestId }) {
 async function findTrustedDevice(supabase, userId, req) {
   const raw = cookie.parse(req.headers.cookie || "")[TRUSTED_DEVICE_COOKIE];
   if (!raw) return null;
-  const tokenHash = hashToken(raw);
+  const tokenHash = hashLoginToken(raw);
   const { data } = await supabase
     .from("trusted_devices")
     .select("id, device_name, user_agent_summary, created_at, last_used_at, expires_at, revoked_at")
@@ -254,7 +251,7 @@ async function findTrustedDevice(supabase, userId, req) {
 async function findLoginAssurance(supabase, userId, req) {
   const raw = cookie.parse(req.headers.cookie || "")[LOGIN_ASSURANCE_COOKIE];
   if (!raw) return null;
-  const tokenHash = hashToken(raw);
+  const tokenHash = hashLoginToken(raw);
   const { data } = await supabase
     .from("login_assurances")
     .select("id, user_id, expires_at, revoked_at, trusted_device_id")
@@ -411,7 +408,7 @@ async function handleVerify(req, res) {
       .from("trusted_devices")
       .insert({
         user_id: user.id,
-        token_hash: hashToken(rawTrustedDeviceToken),
+        token_hash: hashLoginToken(rawTrustedDeviceToken),
         device_name: deviceName,
         user_agent_summary: summarizeUserAgent(req.headers["user-agent"] || ""),
         expires_at: expiresAt,
@@ -431,8 +428,8 @@ async function handleVerify(req, res) {
     .from("login_assurances")
     .insert({
       user_id: user.id,
-      assurance_token_hash: hashToken(assuranceToken),
-      session_reference: req.headers.authorization ? sha256(req.headers.authorization.slice(-64)) : null,
+      assurance_token_hash: hashLoginToken(assuranceToken),
+      session_reference: createSessionReference(req.headers.authorization),
       expires_at: assuranceExpiresAt,
       trusted_device_id: trustedDevice?.id || null
     })

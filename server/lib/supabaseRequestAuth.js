@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { requireLoginAssurance } from "./loginAssurance.js";
 
 function getSupabaseConfig() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -45,6 +46,13 @@ export async function requireSupabaseUser(req) {
     authError.statusCode = 401;
     throw authError;
   }
+
+  await requireLoginAssurance({
+    req,
+    userId: data.user.id,
+    admin: getSupabaseAdmin(),
+    env: process.env
+  });
 
   return { supabase, user: data.user };
 }
