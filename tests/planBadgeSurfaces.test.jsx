@@ -163,8 +163,10 @@ describe("localized plan badges across presentation surfaces", () => {
 
     expect(plus).toContain("가장 인기");
     expect(plus).toContain("pw-card pw-card--plus");
+    expect(plus).toContain("Plus plan, $149.99 per month, 가장 인기");
     expect(pro).toContain("超值之选");
     expect(pro).toContain("pw-card__badge");
+    expect(pro).toContain("Pro plan, $249.99 per month, 超值之选");
   });
 
   it("threads the stored language preference through the real public plans wallet", () => {

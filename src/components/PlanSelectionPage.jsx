@@ -144,7 +144,7 @@ export function WalletPlanCard({
       <article
         className={className}
         style={cardStyle}
-        aria-label={`${plan.name} plan, ${plan.price} per month${selected ? ", current plan" : ""}`}
+        aria-label={`${plan.name} plan, ${plan.price} per month${badgeLabel ? `, ${badgeLabel}` : ""}${selected ? ", current plan" : ""}`}
       >
         {content}
       </article>
@@ -161,7 +161,7 @@ export function WalletPlanCard({
       disabled={!selectable}
       aria-haspopup="dialog"
       aria-pressed={selected}
-      aria-label={`${plan.name} plan, ${plan.price} per month${selected ? ", selected" : ""}`}
+      aria-label={`${plan.name} plan, ${plan.price} per month${badgeLabel ? `, ${badgeLabel}` : ""}${selected ? ", selected" : ""}`}
       tabIndex={selectable ? 0 : -1}
     >
       {content}
