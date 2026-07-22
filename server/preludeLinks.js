@@ -12,7 +12,7 @@ export const PRELUDE_LINKS = {
   howItWorks: "#how-it-works",
   signUp: "/register",
   signIn: "/login",
-  dashboard: "#dashboard",
+  dashboard: "/dashboard",
   dashboardApp: "/dashboard",
   profile: "/profile",
   settings: "/settings",

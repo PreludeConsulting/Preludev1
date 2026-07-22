@@ -28,3 +28,13 @@ export function isMotionActive({ documentVisible, inViewport, reducedMotion = fa
   return Boolean(documentVisible && inViewport && !reducedMotion);
 }
 
+export function shouldUseStaticLandingMotion({
+  reducedMotion = false,
+  motionTier = MOTION_TIERS.full
+} = {}) {
+  return Boolean(
+    reducedMotion ||
+    motionTier === MOTION_TIERS.lite ||
+    motionTier === MOTION_TIERS.reduced
+  );
+}

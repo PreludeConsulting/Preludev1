@@ -5,7 +5,8 @@ import {
   createStaggerReveal,
   SCROLL_OBSERVER_DEBUG
 } from "./animeScrollMotion.js";
-import { useReducedMotion } from "./useReducedMotion.js";
+import { usePreludeMotion } from "../context/MotionContext.jsx";
+import { shouldUseStaticLandingMotion } from "./motion/motionPolicy.js";
 
 const MAX_MOUNT_ATTEMPTS = 24;
 const REVERT_NOOP = { revert() {} };
@@ -24,7 +25,8 @@ function setPieceRefsReady(refs) {
 
 /** Trigger-on-enter reveal for a single element ref. */
 export function useScrollEnterReveal(ref, { debug = SCROLL_OBSERVER_DEBUG, delay = 0 } = {}) {
-  const reducedMotion = useReducedMotion();
+  const { reducedMotion, motionTier } = usePreludeMotion();
+  const staticMotion = shouldUseStaticLandingMotion({ reducedMotion, motionTier });
 
   useEffect(() => {
     let handle = REVERT_NOOP;
@@ -39,7 +41,7 @@ export function useScrollEnterReveal(ref, { debug = SCROLL_OBSERVER_DEBUG, delay
         if (attempts < MAX_MOUNT_ATTEMPTS) frame = requestAnimationFrame(tryMount);
         return;
       }
-      handle = createEnterReveal(ref.current, { reducedMotion, debug, delay });
+      handle = createEnterReveal(ref.current, { reducedMotion: staticMotion, debug, delay });
     };
 
     frame = requestAnimationFrame(tryMount);
@@ -49,35 +51,37 @@ export function useScrollEnterReveal(ref, { debug = SCROLL_OBSERVER_DEBUG, delay
       cancelAnimationFrame(frame);
       handle.revert();
     };
-  }, [ref, reducedMotion, debug, delay]);
+  }, [ref, staticMotion, debug, delay]);
 }
 
 /** Staggered trigger-on-enter reveal for a container + its child refs. */
 export function useScrollStaggerReveal(containerRef, childRefs, { debug = SCROLL_OBSERVER_DEBUG } = {}) {
-  const reducedMotion = useReducedMotion();
+  const { reducedMotion, motionTier } = usePreludeMotion();
+  const staticMotion = shouldUseStaticLandingMotion({ reducedMotion, motionTier });
 
   useEffect(() => {
     const children = childRefs.current || [];
     const handle = createStaggerReveal(containerRef.current, children, {
-      reducedMotion,
+      reducedMotion: staticMotion,
       debug
     });
     return () => handle.revert();
-  }, [containerRef, childRefs, reducedMotion, debug]);
+  }, [containerRef, childRefs, staticMotion, debug]);
 }
 
 /** Scroll-scrubbed animation tied to scroll progress through a section. */
 export function useScrollScrubbedAnimation(targetRef, sectionRef, { props, debug = SCROLL_OBSERVER_DEBUG } = {}) {
-  const reducedMotion = useReducedMotion();
+  const { reducedMotion, motionTier } = usePreludeMotion();
+  const staticMotion = shouldUseStaticLandingMotion({ reducedMotion, motionTier });
 
   useEffect(() => {
     const handle = createScrollScrub(targetRef.current, sectionRef.current, {
-      reducedMotion,
+      reducedMotion: staticMotion,
       debug,
       props
     });
     return () => handle.revert();
-  }, [targetRef, sectionRef, reducedMotion, debug, props]);
+  }, [targetRef, sectionRef, staticMotion, debug, props]);
 }
 
 /**
@@ -86,7 +90,8 @@ export function useScrollScrubbedAnimation(targetRef, sectionRef, { props, debug
  * @param {import('react').MutableRefObject<object>} refsRef
  */
 export function useSetPieceAnimation(mountFn, refsRef) {
-  const reducedMotion = useReducedMotion();
+  const { reducedMotion, motionTier } = usePreludeMotion();
+  const staticMotion = shouldUseStaticLandingMotion({ reducedMotion, motionTier });
 
   useEffect(() => {
     let handle = { revert() {} };
@@ -102,7 +107,7 @@ export function useSetPieceAnimation(mountFn, refsRef) {
         frame = requestAnimationFrame(tryMount);
         return;
       }
-      handle = mountFn(refs, { reducedMotion }) || { revert() {} };
+      handle = mountFn(refs, { reducedMotion: staticMotion }) || { revert() {} };
     };
 
     frame = requestAnimationFrame(tryMount);
@@ -112,5 +117,5 @@ export function useSetPieceAnimation(mountFn, refsRef) {
       cancelAnimationFrame(frame);
       handle?.revert?.();
     };
-  }, [mountFn, refsRef, reducedMotion]);
+  }, [mountFn, refsRef, staticMotion]);
 }

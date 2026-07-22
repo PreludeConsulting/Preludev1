@@ -45,7 +45,15 @@ export default function AuraCursor() {
   useEffect(() => {
     if (!finePointer || reducedMotion || motionTier !== "full" || !documentVisible) return undefined;
 
+    let pointerMoveAttached = false;
+
+    const stopLoop = () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
+    };
+
     const paint = () => {
+      frameRef.current = 0;
       const blob = blobRef.current;
       if (!blob) return;
 
@@ -62,10 +70,8 @@ export default function AuraCursor() {
 
       const dx = Math.abs(next.x - targetRef.current.x);
       const dy = Math.abs(next.y - targetRef.current.y);
-      if (activeRef.current || dx > 0.4 || dy > 0.4) {
+      if (dx > 0.4 || dy > 0.4) {
         frameRef.current = requestAnimationFrame(paint);
-      } else {
-        frameRef.current = 0;
       }
     };
 
@@ -73,11 +79,20 @@ export default function AuraCursor() {
       if (!frameRef.current) frameRef.current = requestAnimationFrame(paint);
     };
 
-    const landingButtonForEvent = (event) => {
-      const eventTarget = event.target instanceof Element ? event.target.closest(BUTTON_SELECTOR) : null;
-      if (eventTarget) return eventTarget;
-      const pointTarget = document.elementFromPoint(event.clientX, event.clientY);
-      return pointTarget instanceof Element ? pointTarget.closest(BUTTON_SELECTOR) : null;
+    const landingButtonForTarget = (target) => {
+      return target instanceof Element ? target.closest(BUTTON_SELECTOR) : null;
+    };
+
+    const attachPointerMove = () => {
+      if (pointerMoveAttached) return;
+      document.addEventListener("pointermove", onPointerMove, { passive: true });
+      pointerMoveAttached = true;
+    };
+
+    const detachPointerMove = () => {
+      if (!pointerMoveAttached) return;
+      document.removeEventListener("pointermove", onPointerMove);
+      pointerMoveAttached = false;
     };
 
     const activateButton = (button, event) => {
@@ -87,15 +102,11 @@ export default function AuraCursor() {
       targetRef.current = coords;
       positionRef.current = coords;
       setVisible(true);
+      attachPointerMove();
       ensureLoop();
     };
 
     const onPointerMove = (event) => {
-      const button = landingButtonForEvent(event);
-      if (!hoverTargetRef.current && button) {
-        activateButton(button, event);
-        return;
-      }
       if (!hoverTargetRef.current) return;
       const coords = pointerCoords(event);
       targetRef.current = coords;
@@ -103,7 +114,7 @@ export default function AuraCursor() {
     };
 
     const onPointerOver = (event) => {
-      const button = landingButtonForEvent(event);
+      const button = landingButtonForTarget(event.target);
       if (!button || button === hoverTargetRef.current) return;
       activateButton(button, event);
     };
@@ -112,24 +123,26 @@ export default function AuraCursor() {
       const button = hoverTargetRef.current;
       if (!button) return;
       if (event.relatedTarget instanceof Node && button.contains(event.relatedTarget)) return;
-      const pointTarget = document.elementFromPoint(event.clientX, event.clientY);
-      const nextButton = pointTarget instanceof Element ? pointTarget.closest(BUTTON_SELECTOR) : null;
-      if (nextButton) return;
+      const nextButton = landingButtonForTarget(event.relatedTarget);
+      if (nextButton) {
+        activateButton(nextButton, event);
+        return;
+      }
       hoverTargetRef.current = null;
       activeRef.current = false;
       setVisible(false);
+      detachPointerMove();
+      stopLoop();
     };
 
     document.addEventListener("pointerover", onPointerOver, { passive: true });
     document.addEventListener("pointerout", onPointerOut, { passive: true });
-    document.addEventListener("pointermove", onPointerMove, { passive: true });
 
     return () => {
       document.removeEventListener("pointerover", onPointerOver);
       document.removeEventListener("pointerout", onPointerOut);
-      document.removeEventListener("pointermove", onPointerMove);
-      cancelAnimationFrame(frameRef.current);
-      frameRef.current = 0;
+      detachPointerMove();
+      stopLoop();
       activeRef.current = false;
       hoverTargetRef.current = null;
     };

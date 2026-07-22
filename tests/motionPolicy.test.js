@@ -4,6 +4,7 @@ import {
   detectMotionTier,
   isMotionActive
 } from "../src/lib/motion/motionPolicy.js";
+import * as motionPolicy from "../src/lib/motion/motionPolicy.js";
 
 describe("landing motion policy", () => {
   it("uses reduced motion as the strongest signal", () => {
@@ -41,5 +42,20 @@ describe("landing motion policy", () => {
     expect(isMotionActive({ documentVisible: false, inViewport: true, reducedMotion: false })).toBe(false);
     expect(isMotionActive({ documentVisible: true, inViewport: false, reducedMotion: false })).toBe(false);
     expect(isMotionActive({ documentVisible: true, inViewport: true, reducedMotion: true })).toBe(false);
+  });
+
+  it("uses a static final state for reduced and lite landing motion", () => {
+    expect(motionPolicy.shouldUseStaticLandingMotion?.({
+      reducedMotion: false,
+      motionTier: MOTION_TIERS.lite
+    })).toBe(true);
+    expect(motionPolicy.shouldUseStaticLandingMotion?.({
+      reducedMotion: true,
+      motionTier: MOTION_TIERS.full
+    })).toBe(true);
+    expect(motionPolicy.shouldUseStaticLandingMotion?.({
+      reducedMotion: false,
+      motionTier: MOTION_TIERS.full
+    })).toBe(false);
   });
 });

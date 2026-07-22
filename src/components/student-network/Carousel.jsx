@@ -42,6 +42,24 @@ const DEFAULT_ITEMS = [
 const DRAG_BUFFER = 0;
 const VELOCITY_THRESHOLD = 500;
 const GAP = 16;
+const CONTAINER_PADDING = 16;
+
+function resizeEntryInlineSize(entry) {
+  const contentBox = Array.isArray(entry?.contentBoxSize)
+    ? entry.contentBoxSize[0]
+    : entry?.contentBoxSize;
+  const width = contentBox?.inlineSize ?? entry?.contentRect?.width;
+  return Number.isFinite(width) && width > 0 ? width : null;
+}
+
+function measuredContentWidth(element, fallbackWidth) {
+  if (!element?.clientWidth || typeof getComputedStyle !== "function") return fallbackWidth;
+  const styles = getComputedStyle(element);
+  const horizontalPadding =
+    (Number.parseFloat(styles.paddingLeft) || 0) +
+    (Number.parseFloat(styles.paddingRight) || 0);
+  return Math.max(1, element.clientWidth - horizontalPadding);
+}
 
 function CarouselItem({ item, index, itemWidth, round }) {
   return (
@@ -90,8 +108,8 @@ export default function Carousel({
   loop = false,
   round = false
 }) {
-  const containerPadding = 16;
-  const itemWidth = baseWidth - containerPadding * 2;
+  const fallbackItemWidth = Math.max(1, baseWidth - CONTAINER_PADDING * 2);
+  const [itemWidth, setItemWidth] = useState(fallbackItemWidth);
   const trackItemOffset = itemWidth + GAP;
   const itemsForRender = useMemo(() => {
     if (!loop) return items;
@@ -108,6 +126,33 @@ export default function Carousel({
   const jumpFrameRef = useRef(0);
   const { reducedMotion, motionTier } = usePreludeMotion();
   const { active } = useViewportActivity(containerRef, { rootMargin: "120px 0px" });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    const updateWidth = (nextWidth) => {
+      if (!Number.isFinite(nextWidth) || nextWidth <= 0) return;
+      setItemWidth((currentWidth) =>
+        Math.abs(currentWidth - nextWidth) < 0.5 ? currentWidth : nextWidth
+      );
+    };
+
+    updateWidth(measuredContentWidth(container, fallbackItemWidth));
+
+    if (typeof ResizeObserver === "undefined") {
+      const onResize = () => updateWidth(measuredContentWidth(container, fallbackItemWidth));
+      window.addEventListener("resize", onResize, { passive: true });
+      return () => window.removeEventListener("resize", onResize);
+    }
+
+    const observer = new ResizeObserver(([entry]) => {
+      updateWidth(resizeEntryInlineSize(entry) ?? measuredContentWidth(container, fallbackItemWidth));
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [fallbackItemWidth]);
+
   useEffect(() => {
     if (pauseOnHover && containerRef.current) {
       const container = containerRef.current;
@@ -136,7 +181,7 @@ export default function Carousel({
   useEffect(() => {
     const startingPosition = loop ? 1 : 0;
     setPosition(startingPosition);
-  }, [items.length, loop, trackItemOffset]);
+  }, [items.length, loop]);
 
   useEffect(() => {
     if (!loop && position > itemsForRender.length - 1) {

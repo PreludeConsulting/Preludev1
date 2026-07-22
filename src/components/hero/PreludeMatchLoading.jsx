@@ -1,14 +1,33 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { HERO_MATCHING_STATUSES } from "../../data/preludeMatchMentors.js";
 import PreludePigAvatar from "./PreludePigAvatar.jsx";
 
 export default function PreludeMatchLoading({ onComplete, reducedMotion, progressFrom = 90 }) {
   const [statusIndex, setStatusIndex] = useState(0);
-  const [displayProgress, setDisplayProgress] = useState(progressFrom);
+  const initialProgress = reducedMotion ? 100 : Math.max(0, Math.min(100, progressFrom));
+  const [displayProgress, setDisplayProgress] = useState(initialProgress);
+  const progressFillRef = useRef(null);
+  const progressFrameRef = useRef(0);
+  const lastDisplayProgressRef = useRef(initialProgress);
   const duration = reducedMotion ? 2200 : 3400;
 
+  const renderProgress = useCallback((value) => {
+    const clamped = Math.max(0, Math.min(100, value));
+    if (progressFillRef.current) {
+      progressFillRef.current.style.transform = `scaleX(${clamped / 100})`;
+      if (clamped >= 100) progressFillRef.current.style.willChange = "auto";
+    }
+
+    const rounded = Math.round(clamped);
+    if (rounded !== lastDisplayProgressRef.current) {
+      lastDisplayProgressRef.current = rounded;
+      setDisplayProgress(rounded);
+    }
+  }, []);
+
   useEffect(() => {
+    if (reducedMotion || HERO_MATCHING_STATUSES.length <= 1) return undefined;
     const step = reducedMotion ? 900 : 560;
     const interval = setInterval(() => {
       setStatusIndex((i) => (i + 1) % HERO_MATCHING_STATUSES.length);
@@ -17,19 +36,29 @@ export default function PreludeMatchLoading({ onComplete, reducedMotion, progres
   }, [reducedMotion]);
 
   useEffect(() => {
+    progressFrameRef.current = 0;
     if (reducedMotion) {
-      setDisplayProgress(100);
-      return;
+      renderProgress(100);
+      return undefined;
     }
     const start = performance.now();
-    const from = progressFrom;
+    const from = Math.max(0, Math.min(100, progressFrom));
+    renderProgress(from);
+    if (from >= 100) return undefined;
+
     const tick = (now) => {
+      progressFrameRef.current = 0;
       const t = Math.min(1, (now - start) / duration);
-      setDisplayProgress(Math.round(from + (100 - from) * t));
-      if (t < 1) requestAnimationFrame(tick);
+      renderProgress(from + (100 - from) * t);
+      if (t < 1) progressFrameRef.current = requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
-  }, [progressFrom, duration, reducedMotion]);
+    progressFrameRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (progressFrameRef.current) cancelAnimationFrame(progressFrameRef.current);
+      progressFrameRef.current = 0;
+    };
+  }, [progressFrom, duration, reducedMotion, renderProgress]);
 
   useEffect(() => {
     const timer = setTimeout(() => onComplete?.(), duration);
@@ -61,7 +90,16 @@ export default function PreludeMatchLoading({ onComplete, reducedMotion, progres
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <motion.div className="pm-progress__fill" animate={{ width: `${displayProgress}%` }} />
+        <div
+          ref={progressFillRef}
+          className="pm-progress__fill"
+          style={{
+            width: "100%",
+            transform: `scaleX(${initialProgress / 100})`,
+            transformOrigin: "left center",
+            willChange: reducedMotion ? "auto" : "transform"
+          }}
+        />
       </div>
 
       <motion.p

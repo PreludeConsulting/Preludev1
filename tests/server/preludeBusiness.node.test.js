@@ -91,7 +91,8 @@ describe("Prelude business answers", () => {
       message: "Where is my dashboard?"
     });
     assert.match(answer.text, /dashboard/i);
-    assert.match(answer.text, /#dashboard/);
+    assert.match(answer.text, /\/dashboard/);
+    assert.doesNotMatch(answer.text, /#dashboard/);
     assert.doesNotMatch(answer.text, /\/book/);
   });
 

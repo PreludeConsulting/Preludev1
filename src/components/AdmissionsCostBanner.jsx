@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLanguage } from "../context/LanguageContext.jsx";
+import { usePreludeMotion } from "../context/MotionContext.jsx";
 import {
   createCostBannerFakeCursorTimeline,
   formatSavingsAmount,
@@ -7,8 +8,8 @@ import {
   SAVINGS_COUNT_DURATION_MS,
   SAVINGS_TARGET_AMOUNT
 } from "../lib/admissionsCostBannerMotion.js";
-import { useReducedMotion } from "../lib/useReducedMotion.js";
 import { useViewportActivity } from "../lib/motion/useViewportActivity.js";
+import { shouldUseStaticLandingMotion } from "../lib/motion/motionPolicy.js";
 
 const mediaBase = import.meta.env.BASE_URL;
 const PIGGY_IMAGE = `${mediaBase}media/admissions-savings-piggy.png`;
@@ -36,7 +37,8 @@ function FakeCursorIcon() {
 
 export default function AdmissionsCostBanner() {
   const { t } = useLanguage();
-  const reducedMotion = useReducedMotion();
+  const { reducedMotion, motionTier } = usePreludeMotion();
+  const staticMotion = shouldUseStaticLandingMotion({ reducedMotion, motionTier });
   const sectionRef = useRef(null);
   const savingsButtonRef = useRef(null);
   const headlineRef = useRef(null);
@@ -101,18 +103,19 @@ export default function AdmissionsCostBanner() {
   const runSavingsCount = useCallback(() => {
     window.cancelAnimationFrame(frameRef.current);
     frameRef.current = 0;
-    setSavingsDisplay(0);
 
-    if (reducedMotion) {
+    if (staticMotion) {
       countStateRef.current = { elapsed: SAVINGS_COUNT_DURATION_MS, startedAt: 0, running: false };
       setCounting(false);
       setSavingsDisplay(SAVINGS_TARGET_AMOUNT);
+      demoCompleteRef.current = true;
       return;
     }
 
+    setSavingsDisplay(0);
     countStateRef.current = { elapsed: 0, startedAt: 0, running: true };
     resumeSavingsCount();
-  }, [reducedMotion, resumeSavingsCount, setSavingsDisplay]);
+  }, [resumeSavingsCount, setSavingsDisplay, staticMotion]);
 
   const stopFakeCursor = useCallback(() => {
     fakeTimelineRef.current?.cancel();
@@ -130,7 +133,8 @@ export default function AdmissionsCostBanner() {
 
   const startFakeCursor = useCallback(() => {
     stopFakeCursor();
-    if (reducedMotion || demoCompleteRef.current) {
+    if (staticMotion || demoCompleteRef.current) {
+      demoCompleteRef.current = true;
       setSavingsDisplay(SAVINGS_TARGET_AMOUNT);
       return;
     }
@@ -146,7 +150,22 @@ export default function AdmissionsCostBanner() {
       onActivate: runSavingsCount
     });
     fakeTimelineRef.current?.play();
-  }, [reducedMotion, resetSavingsDemo, runSavingsCount, setSavingsDisplay, stopFakeCursor]);
+  }, [resetSavingsDemo, runSavingsCount, setSavingsDisplay, staticMotion, stopFakeCursor]);
+
+  useEffect(() => {
+    if (!staticMotion) return;
+    stopFakeCursor();
+    window.cancelAnimationFrame(frameRef.current);
+    frameRef.current = 0;
+    countStateRef.current = {
+      elapsed: SAVINGS_COUNT_DURATION_MS,
+      startedAt: 0,
+      running: false
+    };
+    demoCompleteRef.current = true;
+    setCounting(false);
+    setSavingsDisplay(SAVINGS_TARGET_AMOUNT);
+  }, [setSavingsDisplay, staticMotion, stopFakeCursor]);
 
   useEffect(() => {
     if (!active) {
@@ -187,10 +206,11 @@ export default function AdmissionsCostBanner() {
       ref={sectionRef}
       className={`admissions-cost-banner${active ? " admissions-cost-banner--demo-live" : ""}`}
       data-motion-active={active ? "true" : "false"}
+      data-motion-tier={motionTier}
       id="about-cost"
       aria-labelledby="admissions-cost-headline"
     >
-      {!reducedMotion ? (
+      {!staticMotion ? (
         <>
           <span
             ref={fakeCursorRef}
@@ -222,9 +242,11 @@ export default function AdmissionsCostBanner() {
               type="button"
               className={`admissions-cost-banner__amount${counting ? " admissions-cost-banner__amount--counting" : ""}`}
               onClick={runSavingsCount}
-              aria-label="Animate savings from zero to $6,500"
+              aria-label={staticMotion ? "Savings: $6,500" : "Animate savings from zero to $6,500"}
             >
-              <span ref={amountTextRef} aria-live="polite">{formatSavingsAmount(0)}</span>
+              <span ref={amountTextRef} aria-live="polite">
+                {formatSavingsAmount(staticMotion ? SAVINGS_TARGET_AMOUNT : 0)}
+              </span>
             </button>{" "}
             {t("sections.cost.bodyAfter")}
           </p>
