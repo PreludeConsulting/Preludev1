@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 30_000,
   expect: { timeout: 7_500 },
+  grepInvert: /@performance/,
   fullyParallel: true,
   forbidOnly: true,
   retries: 1,

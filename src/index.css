@@ -2365,7 +2365,7 @@ html[lang="es"] .shopify-hero__headline-line {
   position: absolute;
   inset: -8% -4%;
   background: radial-gradient(circle at 50% 40%, hsl(var(--primary) / 0.18), transparent 62%);
-  filter: blur(28px);
+  opacity: 0.72;
   pointer-events: none;
   z-index: 0;
 }
@@ -2515,7 +2515,6 @@ html[lang="es"] .shopify-hero__headline-line {
       hsl(42 96% 60% / 0.16) 0%,
       transparent 70%
     );
-  filter: blur(6px);
   opacity: 0.42;
 }
 
@@ -2537,7 +2536,6 @@ html[lang="es"] .shopify-hero__headline-line {
       transparent 66%
     );
   opacity: 0;
-  filter: blur(12px);
 }
 
 .pm-cinematic__vignette {
@@ -2571,8 +2569,7 @@ html[lang="es"] .shopify-hero__headline-line {
   height: 100%;
   opacity: 1;
   transform-origin: center center;
-  transform-style: preserve-3d;
-  perspective: 1100px;
+  transform: translateZ(0);
 }
 
 .pm-cinematic__beat {
@@ -2613,7 +2610,7 @@ html[lang="es"] .shopify-hero__headline-line {
       hsl(var(--accent) / 0.34) 0%,
       transparent 70%
     );
-  filter: blur(10px);
+  opacity: 0.5;
   pointer-events: none;
 }
 
@@ -3105,7 +3102,7 @@ html[lang="es"] .shopify-hero__headline-line {
     hsl(var(--accent) / 0.32) 88%,
     transparent
   );
-  filter: blur(10px);
+  opacity: 0.42;
   transform-origin: left center;
   transform: scaleX(0);
   pointer-events: none;
@@ -3670,9 +3667,7 @@ html[lang="es"] .shopify-hero__headline-line {
   display: block;
   height: clamp(2.45rem, 7.2vw, 4.2rem);
   width: auto;
-  filter:
-    drop-shadow(0 0.55rem 1rem hsl(var(--foreground) / 0.12))
-    drop-shadow(0 0 1.1rem hsl(var(--primary) / 0.22));
+  transform: translateZ(0);
 }
 
 .pm-cinematic__demo-overlay {

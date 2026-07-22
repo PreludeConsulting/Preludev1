@@ -91,7 +91,7 @@ export default function PreludeMatchCinematicBeats({ mobile = false }) {
           <div className="pm-cinematic__progress-wrap">
             <div className="pm-cinematic__progress-head">
               <p className="pm-cinematic__progress-label">Mentor profile complete</p>
-              <span className="pm-cinematic__progress-value">0%</span>
+              <span className="pm-cinematic__progress-value">100%</span>
             </div>
             <div className="pm-cinematic__progress-stage">
               <div className="pm-cinematic__progress-glow" aria-hidden="true" />

@@ -30,6 +30,7 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc -p tsconfig.json",
     "test:e2e": "playwright test",
+    "test:e2e:performance": "playwright test --config=playwright.performance.config.js",
     "preview": "vite preview",
     "test": "vitest run && node --test tests/server/*.node.test.js && node scripts/test-api-routes.mjs",
     "test:api:live": "node scripts/test-api-live.mjs",

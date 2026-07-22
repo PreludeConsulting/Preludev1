@@ -138,7 +138,7 @@ function applyInitialStates(elements) {
   }
 
   if (elements.wordmark) {
-    utils.set(elements.wordmark, { scale: 1, translateY: 8 });
+    utils.set(elements.wordmark, { scale: 1, translateY: 0 });
   }
 
   if (elements.wordmarkGlow) {

@@ -2,8 +2,7 @@ import {
   createTimeline,
   cubicBezier,
   stagger,
-  spring,
-  utils
+  spring
 } from "animejs";
 
 export const PRELUDE_MATCH_CINEMATIC_DURATION_MS = 24000;
@@ -184,36 +183,6 @@ function addAtmosphere(timeline, runtime, mobile) {
   }
 }
 
-// Fractions of the mentorReveal->loopBridge span given to each beat's camera
-// move. One continuous, single-direction push that settles per beat and returns
-// to rest for a seamless loop, instead of scale reversals that fight crossfades.
-const CAMERA_BEAT_FRACTIONS = [0.25, 0.2084, 0.2916, 0.25];
-
-function addCameraMotion(timeline, runtime, times) {
-  const { camera } = runtime.elements;
-  if (!camera) return;
-
-  const span = times.loopBridge - times.mentorReveal;
-  const [mentorSpan, progressSpan, assemblySpan, restSpan] = CAMERA_BEAT_FRACTIONS.map(
-    (fraction) => Math.round(span * fraction)
-  );
-
-  timeline.add(
-    camera,
-    {
-      keyframes: [
-        { scale: 1, translateY: 0, duration: 0 },
-        { scale: 1.035, translateY: -3, duration: mentorSpan },
-        { scale: 1.02, translateY: -1, duration: progressSpan },
-        { scale: 1.05, translateY: -4, duration: assemblySpan },
-        { scale: 1, translateY: 0, duration: restSpan }
-      ],
-      ease: CINEMATIC_EASE_SOFT
-    },
-    CINEMATIC_LABELS.mentorReveal
-  );
-}
-
 function addMentorReveal(timeline, runtime) {
   const { assembly, planItem, mentorTags } = runtime.elements;
   if (!assembly || !planItem) return;
@@ -292,9 +261,8 @@ function addProgressDetail(timeline, runtime, times) {
       progressValue,
       {
         opacity: [0, 1],
-        innerHTML: [0, 100],
-        modifier: (value) => `${utils.round(0)(value)}%`,
-        duration: fillDuration
+        translateY: [4, 0],
+        duration: 240
       },
       CINEMATIC_LABELS.progressFill
     )
@@ -493,17 +461,15 @@ function addExitAndWordmark(timeline, runtime) {
     .add(
       wordmark,
       {
-        scale: [
-          { to: 1.14, ease: CINEMATIC_EASE, duration: 320 },
-          { to: 1.02, ease: CINEMATIC_WORDMARK_SPRING, duration: 520 }
-        ],
-        translateY: [8, 0]
+        opacity: [0, 1],
+        duration: 520,
+        ease: CINEMATIC_EASE_SOFT
       },
       `${CINEMATIC_LABELS.wordmark}-=120`
     )
     .add(
       wordmarkGlow,
-      { opacity: [0, 0.72], scale: [0.9, 1.08], duration: 520 },
+      { opacity: [0, 0.38], duration: 520 },
       `${CINEMATIC_LABELS.wordmark}-=160`
     );
 
@@ -512,8 +478,7 @@ function addExitAndWordmark(timeline, runtime) {
     wordmarkTech,
     {
       opacity: [0, 1, 0.35],
-      scale: [0.84, 1.12, 1.2],
-      rotate: [0, 10, 18],
+      scale: [0.96, 1],
       duration: 720,
       delay: stagger(60, { from: "center" }),
       ease: CINEMATIC_EASE_SOFT
@@ -591,7 +556,7 @@ function addLoopBridge(timeline, runtime, mobile) {
   timeline
     .add(
       wordmarkBeat,
-      { opacity: [1, 0], scale: [1, 0.96], duration: bridgeMs },
+      { opacity: [1, 0], duration: bridgeMs },
       CINEMATIC_LABELS.loopBridge
     )
     .add(wordmarkGlow, { opacity: [0.8, 0], duration: bridgeMs }, CINEMATIC_LABELS.loopBridge)
@@ -646,7 +611,6 @@ export function buildPreludeMatchCinematicTimeline({
   labelTimeline(timeline, times);
   if (!lite) {
     addAtmosphere(timeline, runtime, mobile);
-    addCameraMotion(timeline, runtime, times);
   }
   addOpener(timeline, runtime);
   addMentorReveal(timeline, runtime);

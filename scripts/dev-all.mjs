@@ -33,11 +33,15 @@ const server = spawn(process.execPath, [standaloneEntry], {
   env: { ...process.env }
 });
 
-const vite = spawn(process.execPath, [path.join(root, "node_modules/vite/bin/vite.js")], {
+const vite = spawn(
+  process.execPath,
+  [path.join(root, "node_modules/vite/bin/vite.js"), "--host", "127.0.0.1"],
+  {
   cwd: root,
   stdio: "inherit",
   env: { ...process.env, PRELUDE_STANDALONE_API: "1" }
-});
+  }
+);
 
 function shutdown(code = 0) {
   server.kill("SIGTERM");
