@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
     motionTier: "lite",
     documentVisible: true
   },
+  viewportActive: true,
   enter: vi.fn(() => ({ revert: vi.fn() })),
   stagger: vi.fn(() => ({ revert: vi.fn() })),
   scrub: vi.fn(() => ({ revert: vi.fn() }))
@@ -23,7 +24,10 @@ vi.mock("../src/lib/useReducedMotion.js", () => ({
 }));
 
 vi.mock("../src/lib/motion/useViewportActivity.js", () => ({
-  useViewportActivity: () => ({ active: false, inViewport: false })
+  useViewportActivity: () => ({
+    active: mocks.viewportActive,
+    inViewport: mocks.viewportActive
+  })
 }));
 
 vi.mock("../src/context/LanguageContext.jsx", () => ({
@@ -79,6 +83,7 @@ describe("lite landing motion enforcement", () => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     mocks.motionState.reducedMotion = false;
     mocks.motionState.motionTier = "lite";
+    mocks.viewportActive = true;
     mocks.enter.mockClear();
     mocks.stagger.mockClear();
     mocks.scrub.mockClear();
@@ -127,10 +132,13 @@ describe("lite landing motion enforcement", () => {
   ])("renders the final savings value immediately for %s motion", (motionTier, reducedMotion) => {
     mocks.motionState.motionTier = motionTier;
     mocks.motionState.reducedMotion = reducedMotion;
+    const addListener = vi.spyOn(window, "addEventListener");
 
     act(() => root.render(<AdmissionsCostBanner />));
 
     expect(host.querySelector(".admissions-cost-banner__amount span").textContent).toBe("$6,500");
     expect(host.querySelector(".admissions-cost-banner__fake-cursor")).toBeNull();
+    expect(addListener.mock.calls.filter(([type]) => type === "resize")).toHaveLength(0);
+    expect(frames.size).toBe(0);
   });
 });

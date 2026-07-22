@@ -35,7 +35,6 @@ export default function AuraCursor() {
   const { reducedMotion, motionTier, documentVisible } = usePreludeMotion();
   const finePointer = useFinePointer();
   const blobRef = useRef(null);
-  const activeRef = useRef(false);
   const targetRef = useRef({ x: 0, y: 0 });
   const positionRef = useRef({ x: 0, y: 0 });
   const frameRef = useRef(0);
@@ -97,7 +96,6 @@ export default function AuraCursor() {
 
     const activateButton = (button, event) => {
       hoverTargetRef.current = button;
-      activeRef.current = true;
       const coords = pointerCoords(event);
       targetRef.current = coords;
       positionRef.current = coords;
@@ -129,7 +127,6 @@ export default function AuraCursor() {
         return;
       }
       hoverTargetRef.current = null;
-      activeRef.current = false;
       setVisible(false);
       detachPointerMove();
       stopLoop();
@@ -143,7 +140,6 @@ export default function AuraCursor() {
       document.removeEventListener("pointerout", onPointerOut);
       detachPointerMove();
       stopLoop();
-      activeRef.current = false;
       hoverTargetRef.current = null;
     };
   }, [documentVisible, finePointer, motionTier, reducedMotion]);

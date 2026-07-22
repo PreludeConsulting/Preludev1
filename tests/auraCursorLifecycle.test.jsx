@@ -14,6 +14,7 @@ vi.mock("../src/context/MotionContext.jsx", () => ({
 import AuraCursor from "../src/components/motion/AuraCursor.jsx";
 
 let host;
+let rendererHost;
 let root;
 let nextFrameId;
 let frames;
@@ -47,8 +48,9 @@ describe("AuraCursor lifecycle", () => {
     host = document.createElement("div");
     host.innerHTML = '<main data-landing-content><button type="button">Start</button></main>';
     document.body.appendChild(host);
-    root = createRoot(document.createElement("div"));
-    document.body.appendChild(root._internalRoot.containerInfo);
+    rendererHost = document.createElement("div");
+    document.body.appendChild(rendererHost);
+    root = createRoot(rendererHost);
   });
 
   afterEach(() => {
@@ -56,6 +58,7 @@ describe("AuraCursor lifecycle", () => {
     document.body.replaceChildren();
     root = null;
     host = null;
+    rendererHost = null;
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     delete globalThis.IS_REACT_ACT_ENVIRONMENT;

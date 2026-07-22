@@ -11,6 +11,40 @@ vi.mock("../src/lib/motion/useViewportActivity.js", () => ({
   useViewportActivity: () => ({ active: true, inViewport: true })
 }));
 
+vi.mock("motion/react", async () => {
+  const ReactModule = await import("react");
+  return {
+    motion: {
+      div: ReactModule.forwardRef(function MotionDiv(
+        {
+          animate,
+          transition: _transition,
+          drag: _drag,
+          dragConstraints,
+          onDragEnd: _onDragEnd,
+          onAnimationStart: _onAnimationStart,
+          onAnimationComplete: _onAnimationComplete,
+          ...props
+        },
+        ref
+      ) {
+        return ReactModule.createElement("div", {
+          ...props,
+          ref,
+          "data-animate-x": animate?.x,
+          "data-drag-left": dragConstraints?.left
+        });
+      }),
+      button: ReactModule.forwardRef(function MotionButton(
+        { animate: _animate, transition: _transition, ...props },
+        ref
+      ) {
+        return ReactModule.createElement("button", { ...props, ref });
+      })
+    }
+  };
+});
+
 import Carousel from "../src/components/student-network/Carousel.jsx";
 
 let host;
@@ -73,6 +107,10 @@ describe("Carousel responsive geometry", () => {
 
     expect(track.style.width).toBe("206px");
     expect([...host.querySelectorAll(".carousel-item")].every((item) => item.style.width === "206px")).toBe(true);
+    expect(track.dataset.dragLeft).toBe("-222");
+
+    act(() => host.querySelectorAll(".carousel-indicator")[1].click());
+    expect(track.dataset.animateX).toBe("-222");
 
     act(() => root.unmount());
     root = null;

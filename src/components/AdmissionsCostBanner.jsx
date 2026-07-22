@@ -168,6 +168,8 @@ export default function AdmissionsCostBanner() {
   }, [setSavingsDisplay, staticMotion, stopFakeCursor]);
 
   useEffect(() => {
+    if (staticMotion) return undefined;
+
     if (!active) {
       fakeTimelineRef.current?.pause();
       pauseSavingsCount();
@@ -193,7 +195,7 @@ export default function AdmissionsCostBanner() {
       window.removeEventListener("resize", onResize);
       window.cancelAnimationFrame(resizeFrame);
     };
-  }, [active, pauseSavingsCount, resumeSavingsCount, startFakeCursor]);
+  }, [active, pauseSavingsCount, resumeSavingsCount, startFakeCursor, staticMotion]);
 
   useEffect(() => () => {
     stopFakeCursor();

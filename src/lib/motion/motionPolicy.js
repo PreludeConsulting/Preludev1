@@ -1,3 +1,6 @@
+/** @typedef {"full" | "lite" | "reduced"} MotionTier */
+
+/** @type {Readonly<Record<MotionTier, MotionTier>>} */
 export const MOTION_TIERS = Object.freeze({
   full: "full",
   lite: "lite",
@@ -7,6 +10,10 @@ export const MOTION_TIERS = Object.freeze({
 const CONSTRAINED_CPU_MAX = 4;
 const CONSTRAINED_MEMORY_GB_MAX = 4;
 
+/**
+ * @param {{ reducedMotion?: boolean, hardwareConcurrency?: number, deviceMemory?: number, coarsePointer?: boolean }} [capabilities]
+ * @returns {MotionTier}
+ */
 export function detectMotionTier({
   reducedMotion = false,
   hardwareConcurrency,
@@ -24,10 +31,12 @@ export function detectMotionTier({
   return MOTION_TIERS.full;
 }
 
+/** @param {{ documentVisible?: boolean, inViewport?: boolean, reducedMotion?: boolean }} [state] */
 export function isMotionActive({ documentVisible, inViewport, reducedMotion = false } = {}) {
   return Boolean(documentVisible && inViewport && !reducedMotion);
 }
 
+/** @param {{ reducedMotion?: boolean, motionTier?: MotionTier }} [policy] */
 export function shouldUseStaticLandingMotion({
   reducedMotion = false,
   motionTier = MOTION_TIERS.full
