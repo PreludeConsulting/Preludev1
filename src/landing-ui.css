@@ -580,26 +580,20 @@ img.account-menu-btn__avatar {
   justify-content: center;
   margin: 0 auto;
   width: 100%;
-  max-width: 68rem;
+  max-width: 52rem;
   padding: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
   overflow: visible;
-}
-
-@media (min-width: 980px) {
-  .rewards-banner__shell {
-    padding: 0;
-  }
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .rewards-banner__cards {
   display: grid;
-  gap: 0.85rem;
+  gap: 1.25rem;
   grid-template-columns: 1fr;
   width: 100%;
-  max-width: 38rem;
+  max-width: 50rem;
   margin-inline: auto;
   min-width: 0;
   align-items: stretch;
@@ -629,8 +623,8 @@ img.account-menu-btn__avatar {
   overflow: hidden;
   min-width: 0;
   height: 100%;
-  min-height: 17.5rem;
-  border-radius: 1.2rem;
+  min-height: 21rem;
+  border-radius: 1.35rem;
   background: #fff;
   border: 1.5px solid hsl(var(--foreground) / 0.14);
   box-shadow: none;
@@ -652,7 +646,7 @@ img.account-menu-btn__avatar {
   display: grid;
   place-items: center;
   flex: 0 0 45%;
-  min-height: 7.75rem;
+  min-height: 9.5rem;
   overflow: hidden;
   background: var(--card-fill);
   border-bottom: 1px solid rgb(255 255 255 / 0.18);
@@ -725,8 +719,8 @@ img.account-menu-btn__avatar {
   z-index: 3;
   display: grid;
   place-items: center;
-  width: 3.85rem;
-  height: 3.85rem;
+  width: 4.6rem;
+  height: 4.6rem;
   border-radius: 999px;
   background: radial-gradient(circle at 50% 38%, #ffffff 0%, #f4f6fb 100%);
   border: 2px solid rgb(255 255 255 / 0.95);
@@ -738,8 +732,8 @@ img.account-menu-btn__avatar {
 }
 
 .rewards-banner__card-icon svg {
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   stroke-width: 2.25;
 }
 
@@ -808,14 +802,14 @@ img.account-menu-btn__avatar {
   flex-direction: column;
   flex: 1 1 auto;
   gap: 0.22rem;
-  padding: 0.9rem 0.9rem 0.95rem;
+  padding: 1.15rem 1.2rem 1.2rem;
   background: linear-gradient(180deg, #fff 0%, #fcfbff 100%);
 }
 
 .rewards-banner__card-title {
   margin: 0;
   font-family: "Barlow", sans-serif;
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   font-weight: 800;
   letter-spacing: -0.015em;
   line-height: 1.25;
@@ -825,7 +819,7 @@ img.account-menu-btn__avatar {
 .rewards-banner__card-category {
   margin: 0;
   font-family: "Barlow", sans-serif;
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 600;
   line-height: 1.2;
   color: var(--card-accent);
@@ -844,7 +838,7 @@ img.account-menu-btn__avatar {
   align-items: center;
   gap: 0.3rem;
   font-family: "Barlow", sans-serif;
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: #1c1f33;
 }
@@ -864,7 +858,7 @@ img.account-menu-btn__avatar {
 
 .rewards-banner__value {
   font-family: "Barlow", sans-serif;
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--card-accent);
 }
@@ -895,18 +889,18 @@ img.account-menu-btn__avatar {
 .rewards-banner__redeem {
   width: 100%;
   margin-top: 0.55rem;
-  min-height: 2.35rem;
+  min-height: 2.75rem;
   border: none;
   border-radius: 0.65rem;
   background: #15803d;
   color: #fff;
   font-family: "Barlow", sans-serif;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
   box-shadow:
-    0 4px 8px rgb(21 128 61 / 0.16),
-    0 10px 18px rgb(21 128 61 / 0.18);
+    0 4px 8px rgb(20 83 45 / 0.16),
+    0 10px 18px rgb(22 163 74 / 0.18);
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
