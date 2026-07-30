@@ -23,6 +23,21 @@ function json(payload, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(payload), { status, headers });
 }
 
+function runtimeFetch(context) {
+  return context.fetch || fetch;
+}
+
+function workerSupabaseConfig(context) {
+  return {
+    url: context.env?.SUPABASE_URL || context.env?.VITE_SUPABASE_URL || "",
+    key: context.env?.SUPABASE_ANON_KEY || context.env?.VITE_SUPABASE_PUBLISHABLE_KEY || context.env?.SUPABASE_SERVICE_ROLE_KEY || ""
+  };
+}
+
+function requestHasAuth(request) {
+  return Boolean((request.headers.get("Authorization") || "").trim());
+}
+
 function cleanText(value, max = 240) {
   const text = [...String(value ?? "")]
     .map((character) => {
@@ -58,6 +73,45 @@ function buildProfileContext(profile) {
   ].join("\n");
 }
 
+async function loadOwnedProfileContext(context) {
+  const token = (context.request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  const { url, key } = workerSupabaseConfig(context);
+  if (!token || !url || !key) return null;
+
+  try {
+    const fetchFn = runtimeFetch(context);
+    const base = url.replace(/\/$/, "");
+    const userResponse = await fetchFn(`${base}/auth/v1/user`, {
+      headers: { apikey: key, Authorization: `Bearer ${token}` }
+    });
+    const user = await userResponse.json().catch(() => null);
+    if (!userResponse.ok || !user?.id) return null;
+    const profileResponse = await fetchFn(
+      `${base}/rest/v1/profiles?select=id,full_name,role,grade_level,graduation_year,gpa,sat,act,target_majors,location_city_state&id=eq.${encodeURIComponent(user.id)}&limit=1`,
+      {
+        headers: { apikey: key, Authorization: `Bearer ${token}` }
+      }
+    );
+    const rows = await profileResponse.json().catch(() => []);
+    if (!profileResponse.ok) return null;
+    const profile = Array.isArray(rows) ? rows[0] : rows;
+    if (profile?.id && profile.id !== user.id) return null;
+    return {
+      name: profile?.full_name || user.user_metadata?.full_name || user.email || "",
+      role: profile?.role || user.user_metadata?.role || "",
+      grade: profile?.grade_level || (profile?.graduation_year ? `Class of ${profile.graduation_year}` : ""),
+      graduationYear: profile?.graduation_year || "",
+      gpa: profile?.gpa || "",
+      sat: profile?.sat || "",
+      act: profile?.act || "",
+      majors: Array.isArray(profile?.target_majors) ? profile.target_majors : [],
+      location: profile?.location_city_state || ""
+    };
+  } catch {
+    return null;
+  }
+}
+
 function sanitizeHistory(history) {
   if (!Array.isArray(history)) return [];
   return history
@@ -70,8 +124,8 @@ function sanitizeHistory(history) {
     .slice(-MAX_HISTORY);
 }
 
-export function buildMessages({ message, history, profile }) {
-  const profileContext = buildProfileContext(profile);
+export function buildMessages({ message, history, profile, authenticated = false }) {
+  const profileContext = authenticated && !profile ? "" : buildProfileContext(profile);
   return [
     { role: "system", content: SYSTEM_PROMPT },
     ...(profileContext ? [{ role: "user", content: profileContext }] : []),
@@ -132,12 +186,17 @@ export async function handlePreludeChat(context) {
     return json({ error: "chat_request_too_large", message: "Chat message is too large." }, 413);
   }
 
-  const profile = body?.profile && typeof body.profile === "object" ? body.profile : null;
-  const messages = buildMessages({ message, history: body?.conversationHistory, profile });
+  const authenticated = requestHasAuth(request);
+  const profile = authenticated
+    ? await loadOwnedProfileContext(context)
+    : body?.profile && typeof body.profile === "object"
+      ? body.profile
+      : null;
+  const messages = buildMessages({ message, history: body?.conversationHistory, profile, authenticated });
   const model = env.OPENAI_MODEL || DEFAULT_MODEL;
 
   try {
-    const res = await fetch(OPENAI_URL, {
+    const res = await runtimeFetch(context)(OPENAI_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

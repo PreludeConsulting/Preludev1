@@ -1,6 +1,7 @@
 import { createMentorMatch } from "../server/mentorMatch.js";
 import { createRagChatCompletion } from "../server/chatHandler.js";
 import { db, requireAuth } from "../server/authApi.js";
+import { hasAuthenticatedRequest } from "../server/lib/dataOwnership.js";
 import { mergeStudentProfileForChat } from "../server/rag/studentProfile.js";
 import { mapChatError, shouldLogChatError } from "../server/chatErrors.js";
 import { validateChatRequestBody } from "../server/chatRequest.js";
@@ -22,6 +23,7 @@ export default async function handler(req, res) {
 
   try {
     async function loadStudentProfileSummary() {
+      const authenticatedRequest = hasAuthenticatedRequest(req);
       try {
         const { user } = await requireAuth(req);
         const studentProfile = await db().studentProfile.findUnique({
@@ -37,9 +39,9 @@ export default async function handler(req, res) {
             progress: true
           }
         });
-        const clientProfile = req.body?.profile && typeof req.body.profile === "object" ? req.body.profile : {};
-        return mergeStudentProfileForChat({ user, studentProfile, clientProfile });
+        return mergeStudentProfileForChat({ user, studentProfile, clientProfile: {} });
       } catch {
+        if (authenticatedRequest) return null;
         return req.body?.profile && typeof req.body.profile === "object"
           ? sanitizeStudentProfile(req.body.profile)
           : null;
@@ -53,7 +55,8 @@ export default async function handler(req, res) {
       return;
     }
     if (request?.kind === "message") {
-      const profile = (await loadStudentProfileSummary()) ?? sanitizeStudentProfile(request.profile || {});
+      const ownedProfile = await loadStudentProfileSummary();
+      const profile = ownedProfile ?? (hasAuthenticatedRequest(req) ? null : sanitizeStudentProfile(request.profile || {}));
       const result = await createRagChatCompletion(
         {
           message: request.message,

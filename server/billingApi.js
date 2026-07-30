@@ -332,13 +332,21 @@ async function handleBundleCheckout(req, res) {
   sendJson(res, 200, { url: session.url, totalCents: quote.totalCents, bundleId: quote.selection.bundleId });
 }
 
-async function handleConfirmSession(req, res) {
-  const config = getBillingConfig();
+async function handleConfirmSession(req, res, deps = {}) {
+  const getBillingConfigFn = deps.getBillingConfigFn || getBillingConfig;
+  const requireSupabaseUserFn = deps.requireSupabaseUserFn || requireSupabaseUser;
+  const getStripeClientFn = deps.getStripeClientFn || getStripeClient;
+  const syncSupabaseCheckoutSessionFn = deps.syncSupabaseCheckoutSessionFn || syncSupabaseCheckoutSession;
+  const fulfillFlexibleSessionCheckoutFn = deps.fulfillFlexibleSessionCheckoutFn || fulfillFlexibleSessionCheckout;
+  const fulfillEssaySupportCheckoutFn = deps.fulfillEssaySupportCheckoutFn || fulfillEssaySupportCheckout;
+  const recordPurchaseFromCheckoutSessionFn = deps.recordPurchaseFromCheckoutSessionFn || recordPurchaseFromCheckoutSession;
+
+  const config = getBillingConfigFn();
   if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
 
   const payload = confirmSessionSchema.parse(await readJsonBody(req));
-  const { user } = await requireSupabaseUser(req);
-  const stripe = getStripeClient(config);
+  const { user } = await requireSupabaseUserFn(req);
+  const stripe = getStripeClientFn(config);
   const session = await stripe.checkout.sessions.retrieve(payload.sessionId);
 
   const sessionUserId = session.metadata?.userId || session.client_reference_id;
@@ -354,11 +362,11 @@ async function handleConfirmSession(req, res) {
     });
   }
 
-  await syncSupabaseCheckoutSession(session);
-  await fulfillFlexibleSessionCheckout(session, creditSessionPackagePurchase);
-  await fulfillEssaySupportCheckout(session, creditSessionPackagePurchase);
+  await syncSupabaseCheckoutSessionFn(session);
+  await fulfillFlexibleSessionCheckoutFn(session, creditSessionPackagePurchase);
+  await fulfillEssaySupportCheckoutFn(session, creditSessionPackagePurchase);
   try {
-    await recordPurchaseFromCheckoutSession(session);
+    await recordPurchaseFromCheckoutSessionFn(session);
   } catch (error) {
     console.error("[prelude-billing] confirm-session purchase history failed", error.message);
   }
@@ -680,7 +688,7 @@ async function handleWebhook(req, res) {
   sendJson(res, 200, { received: true, duplicate: !shouldProcess });
 }
 
-export function createBillingApiMiddleware() {
+export function createBillingApiMiddleware(deps = {}) {
   return async function billingApiMiddleware(req, res, next) {
     const url = new URL(req.url || "/", "http://localhost");
     if (!isBillingPath(url.pathname)) return next();
@@ -697,7 +705,7 @@ export function createBillingApiMiddleware() {
       if (url.pathname === "/api/billing/config" && req.method === "GET") return await handleConfig(req, res);
       if (url.pathname === "/api/billing/checkout" && req.method === "POST") return await handleCheckout(req, res);
       if (url.pathname === "/api/billing/bundle-checkout" && req.method === "POST") return await handleBundleCheckout(req, res);
-      if (url.pathname === "/api/billing/confirm-session" && req.method === "POST") return await handleConfirmSession(req, res);
+      if (url.pathname === "/api/billing/confirm-session" && req.method === "POST") return await handleConfirmSession(req, res, deps);
       if (url.pathname === "/api/billing/portal" && req.method === "POST") return await handlePortal(req, res);
       if (url.pathname === "/api/billing/summary" && req.method === "GET") return await handleSummary(req, res);
       if (url.pathname === "/api/billing/consume-essay-review" && req.method === "POST") {

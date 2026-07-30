@@ -41,12 +41,16 @@ function bearerToken(context) {
   return (context.request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
 }
 
+function runtimeFetch(context) {
+  return context.fetch || fetch;
+}
+
 async function requireUser(context) {
   const { url, key } = config(context);
   const token = bearerToken(context);
   if (!token) throw Object.assign(new Error("Authentication required."), { status: 401 });
   if (!url || !key) throw Object.assign(new Error("Supabase is not configured."), { status: 503 });
-  const response = await fetch(`${url.replace(/\/$/, "")}/auth/v1/user`, {
+  const response = await runtimeFetch(context)(`${url.replace(/\/$/, "")}/auth/v1/user`, {
     headers: { apikey: key, Authorization: `Bearer ${token}` }
   });
   const user = await response.json().catch(() => null);
@@ -56,7 +60,7 @@ async function requireUser(context) {
 
 async function rest(context, token, path, options = {}) {
   const { url, key } = config(context);
-  const response = await fetch(`${url.replace(/\/$/, "")}/rest/v1/${path}`, {
+  const response = await runtimeFetch(context)(`${url.replace(/\/$/, "")}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: key,
@@ -124,6 +128,27 @@ function mapRewards(wallet, tasks) {
   };
 }
 
+function ensureOwnedRow(row, userId, fields, label) {
+  if (!row) return;
+  if (!fields.some((field) => row[field] === userId)) {
+    throw Object.assign(new Error(`${label} does not belong to this account.`), {
+      status: 403,
+      code: "forbidden"
+    });
+  }
+}
+
+function ensureDashboardOwnership(user, { profile, settings, availability, wallet, tasks, notifications, events, messages }) {
+  ensureOwnedRow(profile, user.id, ["id"], "Profile data");
+  ensureOwnedRow(settings, user.id, ["user_id"], "Settings data");
+  ensureOwnedRow(availability, user.id, ["mentor_user_id"], "Availability data");
+  ensureOwnedRow(wallet, user.id, ["user_id"], "Reward wallet data");
+  for (const row of tasks || []) ensureOwnedRow(row, user.id, ["user_id"], "Reward task data");
+  for (const row of notifications || []) ensureOwnedRow(row, user.id, ["user_id"], "Notification data");
+  for (const row of events || []) ensureOwnedRow(row, user.id, ["user_id"], "Calendar data");
+  for (const row of messages || []) ensureOwnedRow(row, user.id, ["user_id", "sender_id", "receiver_id"], "Message data");
+}
+
 async function loadAppData(context, user, token) {
   const uid = encodeURIComponent(user.id);
   const query = (table, suffix) => rest(context, token, `${table}?${suffix}`);
@@ -144,6 +169,16 @@ async function loadAppData(context, user, token) {
   const featureErrors = [];
   if (availability.status === "rejected") featureErrors.push("availability");
   if (wallet.status === "rejected" || tasks.status === "rejected") featureErrors.push("rewards");
+  ensureDashboardOwnership(user, {
+    profile: first(profile.value),
+    settings: first(settings.value),
+    availability: availability.status === "fulfilled" ? first(availability.value) : null,
+    wallet: wallet.status === "fulfilled" ? first(wallet.value) : null,
+    tasks: tasks.status === "fulfilled" ? tasks.value : [],
+    notifications: notifications.value || [],
+    events: events.value || [],
+    messages: messages.value || []
+  });
   return {
     version: 1,
     user: { id: user.id, email: user.email || null, role: (user.user_metadata?.role || first(profile.value)?.role || "student").toLowerCase() },
@@ -172,6 +207,21 @@ function validateAvailability(value) {
     typeof day.dayOfWeek === "string" && typeof day.enabled === "boolean" &&
     /^\d{2}:\d{2}$/.test(day.startTime) && /^\d{2}:\d{2}$/.test(day.endTime)
   );
+}
+
+async function requireMentorProfile(context, user, token) {
+  const rows = await rest(
+    context,
+    token,
+    `profiles?select=id,role&id=eq.${encodeURIComponent(user.id)}&limit=1`
+  );
+  const profile = first(rows);
+  if (!profile || profile.id !== user.id || String(profile.role || "").toLowerCase() !== "mentor") {
+    throw Object.assign(new Error("Mentor access required."), {
+      status: 403,
+      code: "forbidden"
+    });
+  }
 }
 
 export async function handleDashboard(context, action) {
@@ -203,6 +253,7 @@ export async function handleDashboard(context, action) {
     }
     if (action === "availability" && context.request.method === "PUT") {
       if (!validateAvailability(body)) return json({ error: "validation_error", message: "Check the availability times and retry." }, 400);
+      await requireMentorProfile(context, user, token);
       const rows = await rest(context, token, "mentor_matching_profiles?on_conflict=mentor_user_id", {
         method: "POST",
         headers: { Prefer: "resolution=merge-duplicates,return=representation" },
@@ -217,8 +268,12 @@ export async function handleDashboard(context, action) {
     const status = Number(error?.status) || 500;
     if (status >= 500) console.error("[prelude-dashboard-worker]", { action, message: error?.message, details: error?.details });
     return json({
-      error: status === 401 ? "unauthenticated" : "dashboard_sync_failed",
-      message: status === 401 ? "Sign in again to continue." : "Dashboard data is temporarily unavailable. Retry in a moment."
+      error: status === 401 ? "unauthenticated" : status === 403 ? "forbidden" : "dashboard_sync_failed",
+      message: status === 401
+        ? "Sign in again to continue."
+        : status === 403
+          ? error.message || "You do not have access to this dashboard data."
+          : "Dashboard data is temporarily unavailable. Retry in a moment."
     }, status);
   }
 }
