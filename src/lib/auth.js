@@ -1,4 +1,5 @@
 import { getPlan } from "./plans.js";
+import { getSupabase } from "./supabase.js";
 
 const DB_UNAVAILABLE_UI =
   "The local development database is unavailable. Start the database and try again.";
@@ -213,19 +214,32 @@ export async function getBillingConfig() {
   return api("/api/billing/config");
 }
 
+async function billingApi(path, options = {}) {
+  const sessionResult = await getSupabase()?.auth.getSession();
+  const accessToken = sessionResult?.data?.session?.access_token;
+  const headers = accessToken
+    ? { ...(options.headers || {}), Authorization: `Bearer ${accessToken}` }
+    : options.headers;
+
+  return api(path, { ...options, headers });
+}
+
 export async function startBillingCheckout(planId, options = {}) {
-  return api("/api/billing/checkout", { method: "POST", body: JSON.stringify({ planId, ...options }) });
+  return billingApi("/api/billing/checkout", {
+    method: "POST",
+    body: JSON.stringify({ planId, ...options })
+  });
 }
 
 export async function startBundleCheckout(selection, options = {}) {
-  return api("/api/billing/bundle-checkout", {
+  return billingApi("/api/billing/bundle-checkout", {
     method: "POST",
     body: JSON.stringify({ ...selection, ...options })
   });
 }
 
 export async function openBillingPortal() {
-  return api("/api/billing/portal", { method: "POST" });
+  return billingApi("/api/billing/portal", { method: "POST" });
 }
 
 export function getUserBaseRecord(email) {
