@@ -242,8 +242,9 @@ begin
 end;
 $$;
 
--- Drop prior 2-arg signature so a single 3-arg function owns ensure logic
+-- Drop prior signature(s) so a single 3-arg function owns ensure logic
 drop function if exists public.ensure_referral_code_for_household(uuid, text);
+drop function if exists public.ensure_referral_code_for_household(uuid, text, date);
 
 -- ---------------------------------------------------------------------------
 -- Ensure current-month active code for a household (lazy + rotation-safe)

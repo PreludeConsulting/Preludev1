@@ -32,6 +32,11 @@ update public.onboarding_progress
   where onboarding_status is null;
 alter table public.onboarding_progress alter column onboarding_status set not null;
 
+-- Update any rows with newer statuses (from later migrations) to a valid value
+-- before adding the constraint, so this migration is safe to re-run out of order.
+update public.onboarding_progress
+  set onboarding_status = 'needs_plan'
+  where onboarding_status not in ('needs_plan', 'needs_match', 'match_completed', 'onboarding_completed');
 alter table public.onboarding_progress drop constraint if exists onboarding_progress_onboarding_status_check;
 alter table public.onboarding_progress add constraint onboarding_progress_onboarding_status_check
   check (onboarding_status in ('needs_plan', 'needs_match', 'match_completed', 'onboarding_completed'));
