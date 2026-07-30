@@ -8,6 +8,7 @@ import {
 } from "../shared/mentorSelectionLogic.js";
 import { hasMatchingTeamAccess } from "../shared/matchingTeamAccess.js";
 import { readJsonBody, sendJson } from "./http.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 function initialsFor(name) {
   return (
@@ -477,10 +478,14 @@ export function createOnboardingMentorSelectionMiddleware() {
 
 const middleware = createOnboardingMentorSelectionMiddleware();
 
-export default function handler(req, res) {
+function handler(req, res) {
   return middleware(req, res, () => sendJson(res, 404, { error: "not_found" }));
 }
 
+const rateLimitedHandler = withApiRateLimit(handler);
+
+export default rateLimitedHandler;
+
 export function createOnboardingMentorSelectionHandler() {
-  return handler;
+  return rateLimitedHandler;
 }

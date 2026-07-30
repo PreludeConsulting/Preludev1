@@ -6,6 +6,7 @@ import { deliverPromoWelcomeEmail } from "./lib/promoEmail.js";
 import { requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 import { db, requireAuth } from "./authApi.js";
 import { getSupabaseAdmin } from "./lib/supabaseRequestAuth.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 const VALIDATE_LIMIT = 20;
 const VALIDATE_WINDOW_SECONDS = 15 * 60;
@@ -211,6 +212,8 @@ export function createPromoApiMiddleware(env = process.env) {
 }
 
 const middleware = createPromoApiMiddleware();
-export default function handler(req, res) {
+function promoHandler(req, res) {
   return middleware(req, res, () => sendJson(res, 404, { error: "not_found" }));
 }
+
+export default withApiRateLimit(promoHandler);
