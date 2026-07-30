@@ -486,6 +486,20 @@ img.account-menu-btn__avatar {
   width: 100%;
 }
 
+.pricing-card__cta.prelude-btn-hover-ready::after,
+.pricing-card__cta.prelude-btn-hover-ready:hover::after,
+.pricing-card__cta.prelude-btn-hover-ready:focus-visible::after {
+  content: none;
+  opacity: 0;
+  transform: none;
+}
+
+.pricing-card__cta:hover,
+.pricing-card__cta:focus-visible {
+  background-color: hsl(var(--primary));
+  filter: none;
+}
+
 .pricing-card__session-callout-block {
   display: grid;
   gap: 0;

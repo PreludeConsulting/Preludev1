@@ -496,6 +496,7 @@ export async function recordPurchaseFromCheckoutSession(session) {
 
   const planId = session.metadata?.planId || null;
   const amountCents = session.amount_total ?? 0;
+  const bundleId = String(session.metadata?.bundleId || "").trim();
   let sessionsPurchased = session.metadata?.sessionsPurchased
     ? Number(session.metadata.sessionsPurchased)
     : null;
@@ -503,16 +504,34 @@ export async function recordPurchaseFromCheckoutSession(session) {
   if (session.metadata?.bundleConfig && !Number.isFinite(sessionsPurchased)) {
     try {
       const config = JSON.parse(session.metadata.bundleConfig);
-      sessionsPurchased = Number(config?.q?.sessions ?? config?.quantities?.sessions);
+      const quantities = config?.q || config?.quantities || {};
+      if (bundleId === "essay_support") {
+        sessionsPurchased = Number(quantities.essayReviews);
+      } else {
+        sessionsPurchased = Number(quantities.sessions);
+      }
     } catch {
       sessionsPurchased = null;
     }
   }
 
-  const displayName =
-    session.metadata?.bundleId === "flexible_sessions"
-      ? `Flexible sessions${sessionsPurchased ? ` (${sessionsPurchased})` : ""}`
-      : session.metadata?.bundleId || "Prelude purchase";
+  if (
+    bundleId === "essay_support" &&
+    !Number.isFinite(sessionsPurchased) &&
+    session.metadata?.essayReviews
+  ) {
+    sessionsPurchased = Number(session.metadata.essayReviews);
+  }
+
+  const qty =
+    Number.isFinite(sessionsPurchased) && sessionsPurchased > 0 ? sessionsPurchased : null;
+
+  let displayName = session.metadata?.bundleId || "Prelude purchase";
+  if (bundleId === "flexible_sessions") {
+    displayName = `Flexible sessions${qty ? ` (${qty})` : ""}`;
+  } else if (bundleId === "essay_support") {
+    displayName = `Essay support${qty ? ` (${qty} reviews)` : ""}`;
+  }
 
   return recordBillingPurchase({
     billingOwnerId: ctx.householdId,
@@ -523,7 +542,7 @@ export async function recordPurchaseFromCheckoutSession(session) {
     productId: session.metadata?.bundleId || planId || null,
     displayName,
     quantity: 1,
-    sessionsPurchased: Number.isFinite(sessionsPurchased) && sessionsPurchased > 0 ? sessionsPurchased : null,
+    sessionsPurchased: qty,
     amountCents,
     currency: session.currency || "usd",
     paymentStatus: session.payment_status === "paid" ? "paid" : "pending",

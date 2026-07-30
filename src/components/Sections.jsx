@@ -230,20 +230,20 @@ export function LowerPlans() {
               {billingNotice}
             </p>
           ) : null}
-          <div className="pricing-section__cards grid items-start gap-6 lg:grid-cols-3 lg:gap-8">
-          {plans.map((plan, index) => (
-            <ScrollReveal delay={index * 0.08} key={plan.id} className="pricing-section__card-reveal">
-              <PricingCard
-                plan={plan}
-                language={language}
-                onSelect={handlePlanClick}
-                loading={loadingPlan === plan.id}
-                startFreeLabel={t("sections.plans.startFree")}
-                chooseLabel={t("sections.plans.choose")}
-                pleaseWaitLabel={t("sections.plans.pleaseWait")}
-              />
-            </ScrollReveal>
-          ))}
+          <div className="pricing-section__cards pricing-section__cards--two grid items-start gap-6">
+            {plans.map((plan, index) => (
+              <ScrollReveal delay={index * 0.08} key={plan.id} className="pricing-section__card-reveal">
+                <PricingCard
+                  plan={plan}
+                  language={language}
+                  onSelect={handlePlanClick}
+                  loading={loadingPlan === plan.id}
+                  startFreeLabel={t("sections.plans.startFree")}
+                  chooseLabel={t("sections.plans.choose")}
+                  pleaseWaitLabel={t("sections.plans.pleaseWait")}
+                />
+              </ScrollReveal>
+            ))}
           </div>
         </div>
       </section>

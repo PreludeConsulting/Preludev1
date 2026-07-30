@@ -1,27 +1,28 @@
 /**
- * Fulfill purchased flexible-session inventory from a Stripe Checkout Session.
+ * Fulfill purchased session / essay-review inventory from a Stripe Checkout Session.
  * Idempotent on stripe checkout session id.
  */
 
-function parseBundleQuantity(metadata = {}) {
-  const bundleId = String(metadata.bundleId || "").trim();
-  if (bundleId !== "flexible_sessions") return null;
-
-  let qty = null;
-  if (metadata.bundleConfig) {
-    try {
-      const config = JSON.parse(metadata.bundleConfig);
-      qty = config?.q?.sessions ?? config?.quantities?.sessions ?? null;
-    } catch {
-      qty = null;
+function parseBundleConfigQuantity(metadata = {}, quantityKeys = []) {
+  if (!metadata.bundleConfig) return null;
+  try {
+    const config = JSON.parse(metadata.bundleConfig);
+    const quantities = config?.q || config?.quantities || {};
+    for (const key of quantityKeys) {
+      if (quantities?.[key] != null) return quantities[key];
     }
+  } catch {
+    return null;
   }
-  if (qty == null && metadata.sessionsPurchased) qty = metadata.sessionsPurchased;
-  const n = Math.floor(Number(qty));
+  return null;
+}
+
+function parsePositiveInt(value) {
+  const n = Math.floor(Number(value));
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-export function extractFlexibleSessionCredit(session) {
+function extractPaidCheckoutCredit(session, { bundleId, quantityKeys, metadataFallbackKeys = [] }) {
   if (!session) return null;
   if (session.payment_status && session.payment_status !== "paid" && session.status !== "complete") {
     // Allow complete sessions without explicit payment_status in some test fixtures.
@@ -29,10 +30,21 @@ export function extractFlexibleSessionCredit(session) {
   }
 
   const metadata = session.metadata || {};
+  if (String(metadata.bundleId || "").trim() !== bundleId) return null;
+
   const studentUserId = metadata.userId || session.client_reference_id || null;
   if (!studentUserId) return null;
 
-  const sessionsPurchased = parseBundleQuantity(metadata);
+  let qty = parseBundleConfigQuantity(metadata, quantityKeys);
+  if (qty == null) {
+    for (const key of metadataFallbackKeys) {
+      if (metadata[key] != null) {
+        qty = metadata[key];
+        break;
+      }
+    }
+  }
+  const sessionsPurchased = parsePositiveInt(qty);
   if (!sessionsPurchased) return null;
 
   return {
@@ -40,12 +52,34 @@ export function extractFlexibleSessionCredit(session) {
     mentorUserId: metadata.mentorUserId || null,
     sessionsPurchased,
     stripeCheckoutSessionId: session.id || null,
-    bundleId: "flexible_sessions"
+    bundleId
   };
+}
+
+export function extractFlexibleSessionCredit(session) {
+  return extractPaidCheckoutCredit(session, {
+    bundleId: "flexible_sessions",
+    quantityKeys: ["sessions"],
+    metadataFallbackKeys: ["sessionsPurchased"]
+  });
+}
+
+export function extractEssaySupportCredit(session) {
+  return extractPaidCheckoutCredit(session, {
+    bundleId: "essay_support",
+    quantityKeys: ["essayReviews"],
+    metadataFallbackKeys: ["essayReviews", "sessionsPurchased"]
+  });
 }
 
 export async function fulfillFlexibleSessionCheckout(session, creditFn) {
   const credit = extractFlexibleSessionCredit(session);
+  if (!credit || typeof creditFn !== "function") return null;
+  return creditFn(credit);
+}
+
+export async function fulfillEssaySupportCheckout(session, creditFn) {
+  const credit = extractEssaySupportCredit(session);
   if (!credit || typeof creditFn !== "function") return null;
   return creditFn(credit);
 }

@@ -40,17 +40,21 @@ describe("billing configuration", () => {
       STRIPE_WEBHOOK_SECRET: "whsec_123",
       STRIPE_PUBLISHABLE_KEY: "pk_test_123",
       ...completePriceEnv(),
+      // Legacy Basic price remains readable for existing subscribers even when not required for enablement.
+      STRIPE_PRICE_ID_BASIC: "price_basicLegacy",
       STRIPE_PRICE_PLUS_MONTHLY: "price_legacyPlus"
     });
 
     assert.equal(config.enabled, true);
     assert.equal(config.webhookEnabled, true);
     assert.equal(config.stripePublishableKey, "pk_test_123");
-    assert.equal(getPlanPriceId("basic", config), "price_0Valid");
-    assert.equal(getPlanPriceId("plus", config), "price_1Valid");
-    assert.equal(getPlanPriceId("pro", config), "price_2Valid");
-    assert.equal(getBundlePriceId("essay_support", 3, config), "price_3Valid");
-    assert.equal(getPlanIdForPriceId("price_2Valid", config), "pro");
+    assert.equal(getPlanPriceId("basic", config), "price_basicLegacy");
+    assert.equal(getPlanPriceId("plus", config), "price_0Valid");
+    assert.equal(getPlanPriceId("pro", config), "price_1Valid");
+    assert.equal(getBundlePriceId("essay_support", 3, config), "price_2Valid");
+    assert.equal(getBundlePriceId("essay_support", 6, config), "price_3Valid");
+    assert.equal(getBundlePriceId("essay_support", 10, config), "price_4Valid");
+    assert.equal(getPlanIdForPriceId("price_1Valid", config), "pro");
     assert.equal(getPlanPriceId("unknown", config), null);
   });
 

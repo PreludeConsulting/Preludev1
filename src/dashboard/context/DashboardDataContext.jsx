@@ -32,8 +32,13 @@ import {
 import {
   canBookWithSessionCredits,
   canSubmitApplicationReview,
+  getRemainingApplicationReviews,
   getUserPlan
 } from "../../lib/planFeatures.js";
+import {
+  consumeEssayReviewCredit as consumeEssayReviewCreditApi,
+  fetchBillingSummary
+} from "../../lib/billingMembership.js";
 import {
   evaluateMentorAccess,
   isNoMentorAccessError,
@@ -924,10 +929,38 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     async (payload) => {
       if (!user) throw new Error("You must be signed in.");
       const planId = getUserPlan(user);
-      if (!canSubmitApplicationReview(planId, applicationReviews)) {
-        throw new Error(
-          "No application review credits remaining this month. Wait for your next billing cycle."
+
+      let essayPackages = [];
+      if (useSupabase) {
+        try {
+          const summary = await fetchBillingSummary();
+          essayPackages = (summary?.sessions?.packages || []).filter(
+            (pkg) => String(pkg.bundleId || "").toLowerCase() === "essay_support"
+          );
+        } catch {
+          // Monthly Basic allowance can still apply without billing summary.
+        }
+      } else if (localDemo?.sessionPackages) {
+        essayPackages = (localDemo.sessionPackages || []).filter(
+          (pkg) => String(pkg.bundleId || "").toLowerCase() === "essay_support"
         );
+      }
+
+      if (!canSubmitApplicationReview(planId, applicationReviews, { essayPackages })) {
+        throw new Error(
+          "No application review credits remaining. Purchase Essay Support or wait for your next billing cycle."
+        );
+      }
+
+      const usingPurchasedCredit = getRemainingApplicationReviews(planId, applicationReviews) <= 0;
+      if (usingPurchasedCredit && useSupabase) {
+        try {
+          await consumeEssayReviewCreditApi();
+        } catch (error) {
+          throw new Error(
+            error?.message || "Could not use a purchased essay review credit. Try again or contact support."
+          );
+        }
       }
 
       const mentorUserId =
@@ -991,7 +1024,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       });
       return localReview;
     },
-    [addNotification, applicationReviews, mentor, useSupabase, user]
+    [addNotification, applicationReviews, localDemo, mentor, useSupabase, user]
   );
 
   const updateApplicationReview = useCallback(

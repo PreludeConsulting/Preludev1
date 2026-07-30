@@ -7369,6 +7369,24 @@ html[data-motion-tier="lite"] .aura-cursor {
   align-items: start;
 }
 
+.pricing-section__cards--two {
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-content: center;
+  justify-items: stretch;
+  gap: 1.5rem;
+  max-width: min(100%, 44rem);
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .pricing-section__cards--two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2rem;
+    max-width: min(100%, 52rem);
+  }
+}
+
 .pricing-section__service-highlight {
   color: hsl(var(--primary));
   font-weight: 600;
@@ -7570,6 +7588,12 @@ html[data-motion-tier="lite"] .aura-cursor {
   .support-bundles__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.25rem;
+  }
+
+  .support-bundles__grid--single {
+    grid-template-columns: minmax(0, 26rem);
+    justify-content: center;
+    max-width: 26rem;
   }
 }
 
@@ -7809,6 +7833,29 @@ html[data-motion-tier="lite"] .aura-cursor {
 
 .support-bundle-card__info-list li::marker {
   color: #8b7cf0;
+}
+
+.support-bundle-card__summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0.8rem 0 0;
+  padding: 0 0.15rem;
+  text-align: left;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+
+.support-bundle-card__summary svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+  color: #8b7cf0;
+  stroke-width: 2.4;
 }
 
 .support-bundle-card__footer {

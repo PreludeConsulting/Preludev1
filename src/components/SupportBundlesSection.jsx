@@ -118,6 +118,13 @@ export function SupportBundleCard({ card, labels, onCustomize }) {
         })}
       </ul>
 
+      {card.summary ? (
+        <p className="support-bundle-card__summary">
+          <Check aria-hidden="true" />
+          <span>{card.summary}</span>
+        </p>
+      ) : null}
+
       {card.infoTitle && Array.isArray(card.infoPoints) && card.infoPoints.length ? (
         <aside className="support-bundle-card__info" aria-label={card.infoTitle}>
           <p className="support-bundle-card__info-title">{card.infoTitle}</p>
@@ -152,7 +159,9 @@ export default function SupportBundlesSection() {
   const { user, isAuthenticated, openRegister } = useAuth();
   const { t } = useLanguage();
   const copy = t("sections.bundles") || {};
-  const cards = Array.isArray(copy.cards) ? copy.cards : [];
+  const cards = (Array.isArray(copy.cards) ? copy.cards : []).filter(
+    (card) => card?.id === "essay_support"
+  );
 
   function handleCustomize(bundleId) {
     savePendingBundleIntent(bundleId);
@@ -202,7 +211,7 @@ export default function SupportBundlesSection() {
         </p>
       </ScrollReveal>
 
-      <div className="support-bundles__grid">
+      <div className={`support-bundles__grid${cards.length === 1 ? " support-bundles__grid--single" : ""}`}>
         {cards.map((card, index) => (
           <ScrollReveal key={card.id} delay={index * 0.08} className="support-bundles__card-reveal">
             <SupportBundleCard

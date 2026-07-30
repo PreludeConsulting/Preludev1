@@ -1,7 +1,11 @@
 import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
 import { formatUsd } from "../../shared/supportBundles.js";
 
+/** All plan ids that may appear on an account (including legacy Basic). */
 export const PLAN_IDS = ["basic", "plus", "pro"];
+
+/** Plans offered for new purchases. */
+export const PURCHASABLE_PLAN_IDS = ["plus", "pro"];
 
 const AI_FEATURES = [
   "Central application dashboard",
@@ -18,12 +22,13 @@ export const PLANS = {
   basic: {
     id: "basic",
     name: "Basic",
-    tagline: "Async admissions support with written application feedback.",
+    tagline: "Legacy plan — no longer available for new purchases.",
     priceLabel: "Paid",
     price: formatUsd(PLAN_PRICE_CENTS.basic),
     paid: true,
+    purchasable: false,
     isFeatured: false,
-    description: "Foundational support from real college mentors.",
+    description: "Legacy async admissions support for existing subscribers.",
     features: [
       "2 full personal statement reviews per month",
       "2 full supplemental essay reviews for one college per month",
@@ -45,7 +50,7 @@ export const PLANS = {
       "Financial aid & scholarship resource library",
       "Prelude AI assistant (full access)"
     ],
-    mentorSessions: "2 full personal statement reviews / month",
+    mentorSessions: "No live flexible sessions",
     messaging: "Assigned mentor messaging",
     mentorExtras: [
       "2 full supplemental essay reviews for one college per month",
@@ -62,6 +67,7 @@ export const PLANS = {
     priceLabel: "Paid",
     price: formatUsd(PLAN_PRICE_CENTS.plus),
     paid: true,
+    purchasable: true,
     isFeatured: false,
     description: "More mentor access, 1-on-1 support, and rewards.",
     features: [
@@ -93,7 +99,7 @@ export const PLANS = {
     ],
     roadmapFeatures: ["Customized college and application roadmap", "Personalized college and academic guidance"],
     sessionCredits: 2,
-    applicationReviewCredits: 2,
+    applicationReviewCredits: 0,
     flexibleSessionCallout: "2 Flexible 1-on-1 Sessions / Month",
     flexibleSessionDetail: FLEXIBLE_SESSION_CALLOUT_DETAIL,
     calloutKind: "sessions"
@@ -105,6 +111,7 @@ export const PLANS = {
     priceLabel: "Paid",
     price: formatUsd(PLAN_PRICE_CENTS.pro),
     paid: true,
+    purchasable: true,
     isFeatured: true,
     description: "End-to-end support with more flexible sessions, priority messaging, and full application review.",
     features: [
@@ -141,14 +148,14 @@ export const PLANS = {
     ],
     roadmapFeatures: ["Advanced roadmap & gamified progress tracking", "Deeper personalized strategy"],
     sessionCredits: 4,
-    applicationReviewCredits: 2,
+    applicationReviewCredits: 0,
     flexibleSessionCallout: "4 Flexible 1-on-1 Sessions / Month",
     flexibleSessionDetail: FLEXIBLE_SESSION_CALLOUT_DETAIL,
     calloutKind: "sessions"
   }
 };
 
-export const PRICING_PLAN_ORDER = ["basic", "plus", "pro"];
+export const PRICING_PLAN_ORDER = ["plus", "pro"];
 
 export const SESSION_USE_CARDS = [
   {
@@ -179,10 +186,15 @@ export function normalizePlanId(planId) {
   return match || null;
 }
 
+export function isPurchasablePlanId(planId) {
+  return PURCHASABLE_PLAN_IDS.includes(normalizePlanId(planId));
+}
+
 export function getPlan(planId) {
   return PLANS[normalizePlanId(planId)] ?? PLANS.basic;
 }
 
+/** Plans shown for new sales (Plus + Pro). */
 export function getPricingPlans() {
   return PRICING_PLAN_ORDER.map((id) => PLANS[id]);
 }

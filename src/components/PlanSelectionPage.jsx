@@ -12,7 +12,7 @@ import {
   userNeedsPlanSelection
 } from "../lib/onboardingRoutes.js";
 import { readCachedPlan } from "../lib/supabaseAuth.js";
-import { getPlan, getPricingPlans } from "../lib/plans.js";
+import { getPlan, getPricingPlans, isPurchasablePlanId } from "../lib/plans.js";
 import { getPlanBadgeLabel } from "../lib/planBadges.js";
 import { readOnboardingDraft, writeOnboardingDraft } from "../lib/onboardingFlow.js";
 import { startBillingCheckout, startBundleCheckout } from "../lib/auth.js";
@@ -71,22 +71,20 @@ function restoreFromLocation(location) {
   const bundleParam = resolveBundleId(
     location.state?.bundleId || search.get("bundle") || pending?.bundleId || null
   );
-  const modeParam = location.state?.purchaseMode || search.get("mode") || pending?.mode || null;
-  const purchaseMode =
-    modeParam === "bundles" || (!modeParam && isValidBundleId(bundleParam)) ? "bundles" : "monthly";
   const bundleId = isValidBundleId(bundleParam) ? resolveBundleId(bundleParam) : null;
+  // New selection never offers Basic; ignore legacy basic in restore.
+  const selectedPlanId = isPurchasablePlanId(selected) ? selected : null;
 
   return {
     walletOpen:
       Boolean(location.state?.walletOpen) ||
       search.get("wallet") === "open" ||
-      Boolean(bundleId && purchaseMode === "bundles"),
+      Boolean(bundleId),
     detailsOpen:
       search.get("details") === "open" ||
       Boolean(location.state?.detailsOpen) ||
-      Boolean(bundleId && purchaseMode === "bundles"),
-    selectedPlanId: isValidPlanId(selected) ? selected : null,
-    purchaseMode,
+      Boolean(bundleId),
+    selectedPlanId,
     bundleId
   };
 }
@@ -129,12 +127,16 @@ export function WalletPlanCard({
       <span className="pw-card__top">
         <span className="pw-card__name">{plan.name}</span>
         {badgeLabel ? <span className="pw-card__badge">{badgeLabel}</span> : null}
+        <span className="pw-card__payment-type">Monthly subscription</span>
         <span className="pw-card__price">
           {plan.price}
-          <small>/mo</small>
+          <small> / month</small>
         </span>
       </span>
       <span className="pw-card__tagline">{plan.tagline}</span>
+      {plan.flexibleSessionCallout ? (
+        <span className="pw-card__session-note">{plan.flexibleSessionCallout}</span>
+      ) : null}
       {selected ? (
         <span className="pw-card__selected-mark">
           <Check aria-hidden="true" />
@@ -149,7 +151,7 @@ export function WalletPlanCard({
       <article
         className={className}
         style={cardStyle}
-        aria-label={`${plan.name} plan, ${plan.price} per month${badgeLabel ? `, ${badgeLabel}` : ""}${selected ? ", current plan" : ""}`}
+        aria-label={`${plan.name} plan, ${plan.price} / month${badgeLabel ? `, ${badgeLabel}` : ""}${selected ? ", current plan" : ""}`}
       >
         {content}
       </article>
@@ -166,7 +168,7 @@ export function WalletPlanCard({
       disabled={!selectable}
       aria-haspopup="dialog"
       aria-pressed={selected}
-      aria-label={`${plan.name} plan, ${plan.price} per month${badgeLabel ? `, ${badgeLabel}` : ""}${selected ? ", selected" : ""}`}
+      aria-label={`${plan.name} plan, ${plan.price} / month${badgeLabel ? `, ${badgeLabel}` : ""}${selected ? ", selected" : ""}`}
       tabIndex={selectable ? 0 : -1}
     >
       {content}
@@ -194,7 +196,7 @@ export function WalletBundleCard({
       disabled={!selectable}
       aria-haspopup="dialog"
       aria-pressed={selected}
-      aria-label={`${catalog.shortTitle || catalog.title}, starting at ${formatUsd(catalog.startingCents)}${selected ? ", selected" : ""}`}
+      aria-label={`${catalog.shortTitle || catalog.title}, From ${formatUsd(catalog.startingCents)} · One-time${selected ? ", selected" : ""}`}
       tabIndex={selectable ? 0 : -1}
     >
       <span className="pw-card__surface" aria-hidden="true" />
@@ -202,9 +204,10 @@ export function WalletBundleCard({
       <span className="pw-card__top">
         <span className="pw-card__name">{catalog.shortTitle || catalog.title}</span>
         {catalog.badge ? <span className="pw-card__badge">{catalog.badge}</span> : null}
+        <span className="pw-card__payment-type">One-time payment</span>
         <span className="pw-card__price">
-          {formatUsd(catalog.startingCents)}
-          <small>starting</small>
+          From {formatUsd(catalog.startingCents)}
+          <small>· One-time</small>
         </span>
       </span>
       <span className="pw-card__tagline">{catalog.shortDescription || catalog.description}</span>
@@ -474,6 +477,8 @@ export function PlanWalletExperience({
   const plans = plansProp ?? getPricingPlans();
   const { isAuthenticated, openRegister, saveUserPlan, refreshUser } = useAuth();
   const isBillingContext = context === "billing" || context === "billing-current";
+  // billing / billing-current: monthly plans only (plus/pro). Otherwise: essay_support + plus + pro.
+  const includeEssayBundle = !isBillingContext;
 
   const restored = useMemo(() => restoreFromLocation(location), [location]);
   const draft = useMemo(
@@ -486,52 +491,37 @@ export function PlanWalletExperience({
   );
 
   const supportBundles = useMemo(() => listSupportBundles(), []);
-  const [purchaseMode, setPurchaseMode] = useState(() => {
-    if (isBillingContext) return "monthly";
-    if (restored.purchaseMode === "bundles") return "bundles";
-    if (draft.purchaseMode === "bundles") return "bundles";
-    return "monthly";
-  });
+  const essayBundle = supportBundles[0] || SUPPORT_BUNDLES.essay_support;
 
-  const initialMonthlyPlanId = isBillingContext
-    ? isValidPlanId(initialSelectedPlanId)
-      ? initialSelectedPlanId
-      : null
-    : restored.selectedPlanId ||
-      (isValidPlanId(draft.selectedPlanId)
-        ? draft.selectedPlanId
-        : isValidPlanId(cachedPlan)
-          ? cachedPlan
-          : null);
-
-  const initialBundleId =
-    restored.bundleId ||
-    (isValidBundleId(draft.selectedBundleId)
-      ? resolveBundleId(draft.selectedBundleId)
-      : supportBundles[0]?.id) ||
-    null;
-
-  const initialPlanId = purchaseMode === "bundles" ? initialBundleId : initialMonthlyPlanId;
+  const initialPlanId = (() => {
+    if (isBillingContext) {
+      return isValidPlanId(initialSelectedPlanId) ? initialSelectedPlanId : null;
+    }
+    if (isPurchasablePlanId(restored.selectedPlanId)) return restored.selectedPlanId;
+    if (restored.bundleId) return restored.bundleId;
+    if (isPurchasablePlanId(draft.selectedPlanId)) return draft.selectedPlanId;
+    if (isValidBundleId(draft.selectedBundleId)) return resolveBundleId(draft.selectedBundleId);
+    if (isPurchasablePlanId(cachedPlan)) return cachedPlan;
+    return null;
+  })();
 
   const initialOpen = isBillingContext
     ? initialWalletOpen
-    : restored.walletOpen || Boolean(draft.walletOpen) || purchaseMode === "bundles";
+    : restored.walletOpen || Boolean(draft.walletOpen) || Boolean(restored.bundleId);
   const initialStatus = isBillingContext
     ? initialOpen
       ? WALLET_STATES.OPEN
       : WALLET_STATES.CLOSED
-    : restored.detailsOpen && initialPlanId && purchaseMode === "bundles"
+    : restored.detailsOpen && initialPlanId
       ? WALLET_STATES.POPUP_OPEN
-      : restored.detailsOpen && initialPlanId && purchaseMode === "monthly"
-        ? WALLET_STATES.POPUP_OPEN
-        : initialOpen
-          ? WALLET_STATES.OPEN
-          : WALLET_STATES.CLOSED;
+      : initialOpen
+        ? WALLET_STATES.OPEN
+        : WALLET_STATES.CLOSED;
 
-  const planIds = useMemo(
-    () => (purchaseMode === "bundles" ? supportBundles.map((bundle) => bundle.id) : plans.map((plan) => plan.id)),
-    [plans, purchaseMode, supportBundles]
-  );
+  const planIds = useMemo(() => {
+    const monthlyIds = plans.map((plan) => plan.id);
+    return includeEssayBundle ? [essayBundle.id, ...monthlyIds] : monthlyIds;
+  }, [essayBundle.id, includeEssayBundle, plans]);
 
   const [bundleSelections, setBundleSelections] = useState(() => {
     const fromDraft = draft.bundleSelections && typeof draft.bundleSelections === "object" ? draft.bundleSelections : {};
@@ -563,8 +553,6 @@ export function PlanWalletExperience({
   const popupRef = useRef(null);
   const backdropRef = useRef(null);
   const cardRefs = useRef({});
-  const lastMonthlySelectedRef = useRef(initialMonthlyPlanId);
-  const lastBundleSelectedRef = useRef(initialBundleId);
 
   const motionRefs = useMemo(
     () => ({
@@ -610,20 +598,11 @@ export function PlanWalletExperience({
   const showDeck = walletShowsDeck(state.status);
   const selectable = cardsSelectable(state.status);
   const popupOpen = popupVisible(state.status);
-  const popupPlan = purchaseMode === "monthly" && state.popupPlanId ? getPlan(state.popupPlanId) : null;
-  const popupBundleId =
-    purchaseMode === "bundles" && isValidBundleId(state.popupPlanId)
-      ? resolveBundleId(state.popupPlanId)
-      : null;
-
-  useEffect(() => {
-    if (purchaseMode === "monthly" && isValidPlanId(state.selectedPlanId)) {
-      lastMonthlySelectedRef.current = state.selectedPlanId;
-    }
-    if (purchaseMode === "bundles" && isValidBundleId(state.selectedPlanId)) {
-      lastBundleSelectedRef.current = state.selectedPlanId;
-    }
-  }, [purchaseMode, state.selectedPlanId]);
+  const popupBundleId = isValidBundleId(state.popupPlanId)
+    ? resolveBundleId(state.popupPlanId)
+    : null;
+  const popupPlan =
+    !popupBundleId && isValidPlanId(state.popupPlanId) ? getPlan(state.popupPlanId) : null;
 
   const persistDraft = useCallback(
     (patch) => {
@@ -632,26 +611,6 @@ export function PlanWalletExperience({
     },
     [persistState, user?.id]
   );
-
-  function handlePurchaseModeChange(nextMode) {
-    if (nextMode === purchaseMode || context === "billing-current") return;
-    if (popupOpen) {
-      dispatch({ type: "CLOSE_POPUP" });
-    }
-    setPurchaseMode(nextMode);
-    const nextSelected =
-      nextMode === "bundles"
-        ? lastBundleSelectedRef.current || supportBundles[0]?.id || null
-        : lastMonthlySelectedRef.current || plans[0]?.id || null;
-    persistDraft({
-      purchaseMode: nextMode,
-      walletOpen: true,
-      selectedBundleId: nextMode === "bundles" ? nextSelected : lastBundleSelectedRef.current,
-      selectedPlanId: nextMode === "monthly" ? nextSelected : lastMonthlySelectedRef.current
-    });
-    cardRefs.current = {};
-    dispatch({ type: "SWAP_DECK", planId: nextSelected });
-  }
 
   // Restore focus to the selected card when the popup fully closes.
   useEffect(() => {
@@ -733,10 +692,10 @@ export function PlanWalletExperience({
     if (!selectable) return;
     setNotice("");
     dispatch({ type: "SELECT_CARD", planId });
-    if (purchaseMode === "bundles") {
-      persistDraft({ walletOpen: true, selectedBundleId: planId, purchaseMode: "bundles" });
+    if (isValidBundleId(planId)) {
+      persistDraft({ walletOpen: true, selectedBundleId: planId });
     } else {
-      persistDraft({ walletOpen: true, selectedPlanId: planId, purchaseMode: "monthly" });
+      persistDraft({ walletOpen: true, selectedPlanId: planId });
     }
   }
 
@@ -923,37 +882,13 @@ export function PlanWalletExperience({
     state.status !== WALLET_STATES.CLOSED &&
     state.status !== WALLET_STATES.OPEN;
   const walletControlLabel = state.status === WALLET_STATES.CLOSED ? "Open wallet" : "Close wallet";
-  const deckCount = purchaseMode === "bundles" ? supportBundles.length : plans.length;
-  const showModeSwitch = context !== "billing-current";
+  const deckCount = planIds.length;
 
   return (
     <div className={`plan-wallet-experience ${experienceClassName}`.trim()}>
-      {showModeSwitch ? (
-        <div className="pw-mode-switch" role="tablist" aria-label="Purchase type">
-          <button
-            type="button"
-            role="tab"
-            className={`pw-mode-switch__tab${purchaseMode === "monthly" ? " pw-mode-switch__tab--active" : ""}`}
-            aria-selected={purchaseMode === "monthly"}
-            onClick={() => handlePurchaseModeChange("monthly")}
-          >
-            Monthly Plans
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={`pw-mode-switch__tab${purchaseMode === "bundles" ? " pw-mode-switch__tab--active" : ""}`}
-            aria-selected={purchaseMode === "bundles"}
-            onClick={() => handlePurchaseModeChange("bundles")}
-          >
-            One-Time Bundles
-          </button>
-        </div>
-      ) : null}
-
       <div
         ref={walletRef}
-        className={`pw-wallet pw-wallet--${state.status} pw-wallet--count-${deckCount}${purchaseMode === "bundles" ? " pw-wallet--bundles" : ""}`}
+        className={`pw-wallet pw-wallet--${state.status} pw-wallet--count-${deckCount}`}
         data-deck-visible={showDeck ? "true" : "false"}
         data-popup-plan={popupBundleId || popupPlan?.id || state.selectedPlanId || ""}
         aria-hidden={popupOpen ? "true" : undefined}
@@ -965,37 +900,35 @@ export function PlanWalletExperience({
         <div
           className="pw-deck"
           role="group"
-          aria-label={purchaseMode === "bundles" ? "Prelude one-time bundles" : "Prelude plans"}
-          key={purchaseMode}
+          aria-label={includeEssayBundle ? "Prelude plans and essay support" : "Prelude plans"}
         >
-          {purchaseMode === "bundles"
-            ? supportBundles.map((bundle, index) => (
-                <WalletBundleCard
-                  key={bundle.id}
-                  catalog={SUPPORT_BUNDLES[bundle.id]}
-                  index={index}
-                  selected={state.selectedPlanId === bundle.id}
-                  selectable={selectable}
-                  onSelect={handleSelectCard}
-                  buttonRef={(node) => {
-                    cardRefs.current[bundle.id] = node;
-                  }}
-                />
-              ))
-            : plans.map((plan, index) => (
-                <WalletPlanCard
-                  key={plan.id}
-                  plan={plan}
-                  language={preferredLanguage}
-                  index={index}
-                  selected={state.selectedPlanId === plan.id}
-                  selectable={selectable}
-                  onSelect={handleSelectCard}
-                  buttonRef={(node) => {
-                    cardRefs.current[plan.id] = node;
-                  }}
-                />
-              ))}
+          {includeEssayBundle ? (
+            <WalletBundleCard
+              key={essayBundle.id}
+              catalog={SUPPORT_BUNDLES[essayBundle.id]}
+              index={0}
+              selected={state.selectedPlanId === essayBundle.id}
+              selectable={selectable}
+              onSelect={handleSelectCard}
+              buttonRef={(node) => {
+                cardRefs.current[essayBundle.id] = node;
+              }}
+            />
+          ) : null}
+          {plans.map((plan, index) => (
+            <WalletPlanCard
+              key={plan.id}
+              plan={plan}
+              language={preferredLanguage}
+              index={includeEssayBundle ? index + 1 : index}
+              selected={state.selectedPlanId === plan.id}
+              selectable={selectable}
+              onSelect={handleSelectCard}
+              buttonRef={(node) => {
+                cardRefs.current[plan.id] = node;
+              }}
+            />
+          ))}
         </div>
 
         <div ref={pocketRef} className="pw-wallet__pocket" aria-hidden="true">

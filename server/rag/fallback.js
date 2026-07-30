@@ -7,10 +7,10 @@ export const FALLBACK_LINKS = {
   mentorship: "#mentorship"
 };
 
-export const PLAN_NAMES = ["Basic", "Plus", "Pro"];
+export const PLAN_NAMES = ["Plus", "Pro", "Essay Support"];
 
 const PLAN_SUMMARY =
-  "Prelude offers Basic, Plus, and Pro plans. Each plan includes the same Prelude AI assistant, while the amount of mentor access, messaging support, and roadmap guidance varies by plan.";
+  "Prelude offers Plus and Pro monthly mentorship plans with live flexible sessions, plus one-time Application & Essay Support for written review credits. Every plan includes the same Prelude AI assistant; mentor access and live session allowances vary by plan.";
 
 const PATTERNS = {
   exactChances:

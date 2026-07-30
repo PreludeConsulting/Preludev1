@@ -9,6 +9,8 @@ export const BILLING_PROVIDER_STRIPE = "stripe";
 export const STRIPE_API_VERSION = "2026-05-27.dahlia";
 
 export const PAID_PLAN_IDS = ["basic", "plus", "pro"];
+/** Plans that can be newly purchased via Stripe Checkout. */
+export const PURCHASABLE_PLAN_IDS = ["plus", "pro"];
 
 const PLACEHOLDER_PRICE_ID = /placeholder|replace|change[-_]?me|example|todo|your[-_]?price|x{3,}/i;
 
@@ -49,7 +51,7 @@ export function getBillingConfig(env = process.env) {
   const missing = [];
   if (provider === BILLING_PROVIDER_STRIPE) {
     if (!stripeSecretKey) missing.push("STRIPE_SECRET_KEY");
-    for (const planId of PAID_PLAN_IDS) {
+    for (const planId of PURCHASABLE_PLAN_IDS) {
       if (!isConfiguredStripePriceId(prices[planId])) missing.push(PLAN_PRICE_ENV_BY_ID[planId]);
     }
     for (const [bundleId, quantityMap] of Object.entries(BUNDLE_PRICE_ENV_BY_ID)) {

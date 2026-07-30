@@ -121,7 +121,7 @@ describe("complete bundle checkout redirect flow", () => {
     mocks.api.mockResolvedValue({ url: "https://checkout.stripe.test/existing" });
 
     await startAuthenticatedBundleCheckout(
-      { bundleId: "flexible_sessions", quantities: { sessions: 4 } },
+      { bundleId: "essay_support", quantities: { essayReviews: 6 } },
       { context: "public" }
     );
 

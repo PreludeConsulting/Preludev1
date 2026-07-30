@@ -1,6 +1,9 @@
 /** Configurable one-time support bundles (client + server). */
 
-export const BUNDLE_IDS = ["essay_support", "flexible_sessions"];
+export const BUNDLE_IDS = ["essay_support"];
+
+/** Legacy one-time session packages — not sold; kept for fulfillment of past purchases. */
+export const LEGACY_BUNDLE_IDS = ["flexible_sessions"];
 
 /** Older public / draft intents map onto the current catalog. */
 const BUNDLE_ID_ALIASES = {
@@ -8,8 +11,11 @@ const BUNDLE_ID_ALIASES = {
   college_application: "essay_support"
 };
 
-/** Allowed package sizes for both bundle types (1–2 removed; 9 not offered). */
-export const BUNDLE_QUANTITY_OPTIONS = [3, 4, 5, 6, 7, 8, 10];
+/** Purchasable essay-support package sizes (only these are sold). */
+export const BUNDLE_QUANTITY_OPTIONS = [3, 6, 10];
+
+/** Legacy flexible-session package sizes kept for historical fulfillment only. */
+export const LEGACY_SESSION_QUANTITY_OPTIONS = [3, 4, 5, 6, 7, 8, 10];
 
 /** Fixed package prices in USD cents — source of truth for FE + BE checkout. */
 export const ESSAY_SUPPORT_PRICE_CENTS = Object.freeze({
@@ -56,8 +62,10 @@ export const SUPPORT_BUNDLES = {
       "Detailed feedback on personal statements, revisions, final edits, and college-specific supplemental essays.",
     shortDescription:
       "Detailed feedback on personal statements, revisions, final edits, and college-specific supplemental essays.",
-    ctaLabel: "Customize Essay Support",
-    badge: "Best Value",
+    ctaLabel: "Choose Essay Support",
+    paymentType: "one_time",
+    paymentTypeLabel: "One-time payment",
+    badge: null,
     currency: "usd",
     startingCents: ESSAY_SUPPORT_PRICE_CENTS[3],
     note: "Choose your review credits before checkout",
@@ -79,28 +87,31 @@ export const SUPPORT_BUNDLES = {
       { id: "revisions", label: "Revisions" },
       { id: "final_edits", label: "Final edits" }
     ]
-  },
+  }
+};
+
+/** Kept for historical purchase display / fulfillment only — not sold. */
+export const LEGACY_SUPPORT_BUNDLES = {
   flexible_sessions: {
     id: "flexible_sessions",
     title: "Flexible Sessions",
     shortTitle: "Flexible Sessions",
-    description: "Purchase one-on-one sessions for targeted support wherever your student needs help.",
-    shortDescription:
-      "Purchase one-on-one sessions for targeted support wherever your student needs help.",
-    ctaLabel: "Choose Session Bundle",
-    badge: null,
+    description: "Legacy one-time session package (no longer available for purchase).",
+    shortDescription: "Legacy one-time session package (no longer available for purchase).",
+    ctaLabel: "Unavailable",
+    purchasable: false,
     currency: "usd",
     startingCents: FLEXIBLE_SESSIONS_PRICE_CENTS[3],
-    note: "Choose your number of sessions before checkout",
+    note: "Flexible sessions are included with Plus and Pro subscriptions.",
     quantities: {
       sessions: {
         id: "sessions",
         label: "Sessions",
-        hint: "Mix consulting, essays, test prep, tutoring, and aid",
-        min: BUNDLE_QUANTITY_OPTIONS[0],
-        max: BUNDLE_QUANTITY_OPTIONS[BUNDLE_QUANTITY_OPTIONS.length - 1],
+        hint: "Legacy package",
+        min: LEGACY_SESSION_QUANTITY_OPTIONS[0],
+        max: LEGACY_SESSION_QUANTITY_OPTIONS[LEGACY_SESSION_QUANTITY_OPTIONS.length - 1],
         default: 3,
-        allowed: BUNDLE_QUANTITY_OPTIONS,
+        allowed: LEGACY_SESSION_QUANTITY_OPTIONS,
         priceCentsByQty: FLEXIBLE_SESSIONS_PRICE_CENTS
       }
     },
@@ -114,13 +125,24 @@ export const SUPPORT_BUNDLES = {
   }
 };
 
+export function getBundleCatalog(bundleId, { allowLegacy = false } = {}) {
+  const resolvedId = resolveBundleId(bundleId);
+  if (SUPPORT_BUNDLES[resolvedId]) return SUPPORT_BUNDLES[resolvedId];
+  if (allowLegacy && LEGACY_SUPPORT_BUNDLES[resolvedId]) return LEGACY_SUPPORT_BUNDLES[resolvedId];
+  return null;
+}
+
 export function isValidBundleId(bundleId) {
   return BUNDLE_IDS.includes(resolveBundleId(bundleId));
 }
 
+export function isLegacyBundleId(bundleId) {
+  return LEGACY_BUNDLE_IDS.includes(resolveBundleId(bundleId));
+}
+
 export function getDefaultBundleSelection(bundleId) {
   const resolvedId = resolveBundleId(bundleId);
-  const catalog = SUPPORT_BUNDLES[resolvedId];
+  const catalog = getBundleCatalog(resolvedId);
   if (!catalog) return null;
 
   const quantities = {};
@@ -144,7 +166,7 @@ export function getDefaultBundleSelection(bundleId) {
 export function normalizeBundleSelection(input = {}, options = {}) {
   const snapInvalidQuantities = options.snapInvalidQuantities === true;
   const bundleId = resolveBundleId(input.bundleId);
-  const catalog = SUPPORT_BUNDLES[bundleId];
+  const catalog = getBundleCatalog(bundleId);
   if (!catalog) {
     return { ok: false, error: "invalid_bundle", message: "That support bundle is not available." };
   }
@@ -236,7 +258,7 @@ function essayQuote(selection) {
 }
 
 function flexibleQuote(selection) {
-  const catalog = SUPPORT_BUNDLES.flexible_sessions;
+  const catalog = LEGACY_SUPPORT_BUNDLES.flexible_sessions;
   const quote = packageQuote(catalog, selection, "sessions");
   if (!quote) return null;
 
@@ -266,9 +288,16 @@ export function quoteBundleSelection(rawSelection, options = {}) {
   if (!normalized.ok) return normalized;
 
   const { selection } = normalized;
-  const catalog = SUPPORT_BUNDLES[selection.bundleId];
-  const quote =
-    selection.bundleId === "essay_support" ? essayQuote(selection) : flexibleQuote(selection);
+  if (selection.bundleId !== "essay_support") {
+    return {
+      ok: false,
+      error: "invalid_bundle",
+      message: "That support bundle is not available for purchase."
+    };
+  }
+
+  const catalog = SUPPORT_BUNDLES.essay_support;
+  const quote = essayQuote(selection);
 
   if (!quote) {
     return {

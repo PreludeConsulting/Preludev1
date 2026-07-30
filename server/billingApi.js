@@ -10,6 +10,7 @@ import {
   getPlanPriceId,
   isGuestCheckoutAllowed,
   PAID_PLAN_IDS,
+  PURCHASABLE_PLAN_IDS,
   STRIPE_API_VERSION
 } from "./billingConfig.js";
 import { PLAN_PRICE_CENTS } from "../shared/billingCatalog.js";
@@ -31,8 +32,11 @@ import {
   invoiceHasReferralDiscount,
   invoiceIsQualifyingFirstPayment
 } from "./lib/referralStripe.js";
-import { creditSessionPackagePurchase } from "./lib/mentorAccess.js";
-import { fulfillFlexibleSessionCheckout } from "./lib/sessionPackageFulfillment.js";
+import { creditSessionPackagePurchase, consumeEssayReviewCredit } from "./lib/mentorAccess.js";
+import {
+  fulfillEssaySupportCheckout,
+  fulfillFlexibleSessionCheckout
+} from "./lib/sessionPackageFulfillment.js";
 import {
   cancelMembershipAtPeriodEnd,
   claimBillingWebhookEvent,
@@ -46,7 +50,7 @@ import {
 import { logBillingEvent } from "../shared/billingMembership.js";
 
 const checkoutSchema = z.object({
-  planId: z.enum(["basic", "plus", "pro"]),
+  planId: z.enum(["plus", "pro"]),
   guestCheckout: z.boolean().optional(),
   context: z.enum(["onboarding", "public"]).optional()
 });
@@ -54,7 +58,6 @@ const checkoutSchema = z.object({
 export const bundleCheckoutSchema = z.object({
   bundleId: z.enum([
     "essay_support",
-    "flexible_sessions",
     // Legacy IDs still accepted and remapped by quoteBundleSelection.
     "application_support",
     "college_application"
@@ -138,7 +141,8 @@ function isBillingPath(pathname) {
     pathname === "/api/billing/summary" ||
     pathname === "/api/billing/history" ||
     pathname === "/api/billing/cancel" ||
-    pathname === "/api/billing/reactivate"
+    pathname === "/api/billing/reactivate" ||
+    pathname === "/api/billing/consume-essay-review"
   );
 }
 
@@ -210,7 +214,7 @@ async function handleConfig(_req, res) {
     enabled: config.enabled,
     webhookEnabled: config.webhookEnabled,
     publishableKey: config.stripePublishableKey,
-    paidPlans: PAID_PLAN_IDS
+    paidPlans: PURCHASABLE_PLAN_IDS
   });
 }
 
@@ -352,6 +356,7 @@ async function handleConfirmSession(req, res) {
 
   await syncSupabaseCheckoutSession(session);
   await fulfillFlexibleSessionCheckout(session, creditSessionPackagePurchase);
+  await fulfillEssaySupportCheckout(session, creditSessionPackagePurchase);
   try {
     await recordPurchaseFromCheckoutSession(session);
   } catch (error) {
@@ -414,6 +419,18 @@ async function handleSummary(req, res) {
   const { user } = await requireSupabaseUser(req);
   const summary = await getBillingSummary(user.id);
   return sendJson(res, 200, summary);
+}
+
+async function handleConsumeEssayReview(req, res) {
+  const { user } = await requireSupabaseUser(req);
+  const packageId = await consumeEssayReviewCredit(user.id);
+  if (!packageId) {
+    return sendJson(res, 409, {
+      error: "no_essay_credits",
+      message: "No purchased essay review credits remaining."
+    });
+  }
+  return sendJson(res, 200, { consumed: true, packageId });
 }
 
 async function handleHistory(req, res) {
@@ -550,6 +567,7 @@ async function processWebhookEvent(event) {
   if (event.type === "checkout.session.completed") {
     await syncSupabaseCheckoutSession(object);
     await fulfillFlexibleSessionCheckout(object, creditSessionPackagePurchase);
+    await fulfillEssaySupportCheckout(object, creditSessionPackagePurchase);
     try {
       await recordPurchaseFromCheckoutSession(object);
     } catch (error) {
@@ -682,6 +700,9 @@ export function createBillingApiMiddleware() {
       if (url.pathname === "/api/billing/confirm-session" && req.method === "POST") return await handleConfirmSession(req, res);
       if (url.pathname === "/api/billing/portal" && req.method === "POST") return await handlePortal(req, res);
       if (url.pathname === "/api/billing/summary" && req.method === "GET") return await handleSummary(req, res);
+      if (url.pathname === "/api/billing/consume-essay-review" && req.method === "POST") {
+        return await handleConsumeEssayReview(req, res);
+      }
       if (url.pathname === "/api/billing/history" && req.method === "GET") return await handleHistory(req, res);
       if (url.pathname === "/api/billing/cancel" && req.method === "POST") return await handleCancel(req, res);
       if (url.pathname === "/api/billing/reactivate" && req.method === "POST") return await handleReactivate(req, res);

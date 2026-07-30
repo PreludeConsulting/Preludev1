@@ -6,13 +6,12 @@ import { quoteBundleSelection } from "../../shared/supportBundles.js";
 
 const config = {
   bundlePrices: {
-    essay_support: { 3: "price_serverEssay3" },
-    flexible_sessions: { 4: "price_serverFlexible4" }
+    essay_support: { 3: "price_serverEssay3", 6: "price_serverEssay6", 10: "price_serverEssay10" }
   }
 };
 
 describe("bundle checkout server controls", () => {
-  it("accepts a recognized bundle and resolves price exclusively from server config", () => {
+  it("accepts Essay Support and resolves price exclusively from server config", () => {
     const payload = bundleCheckoutSchema.parse({
       bundleId: "essay_support",
       quantities: { essayReviews: 3 },
@@ -22,19 +21,28 @@ describe("bundle checkout server controls", () => {
 
     assert.equal(quote.ok, true);
     assert.equal(quote.totalCents, 14900);
+    assert.equal(quote.purchaseType, "one_time_bundle");
     assert.equal(
       getBundlePriceId(quote.selection.bundleId, quote.selection.quantities.essayReviews, config),
       "price_serverEssay3"
     );
   });
 
-  it("rejects unknown or retired bundle identifiers", () => {
+  it("rejects unknown, retired, or flexible-session bundle identifiers", () => {
     assert.equal(
       bundleCheckoutSchema.safeParse({ bundleId: "retired_bundle" }).success,
       false
     );
     assert.equal(
       bundleCheckoutSchema.safeParse({ bundleId: "pro" }).success,
+      false
+    );
+    assert.equal(
+      bundleCheckoutSchema.safeParse({ bundleId: "flexible_sessions" }).success,
+      false
+    );
+    assert.equal(
+      quoteBundleSelection({ bundleId: "flexible_sessions", quantities: { sessions: 3 } }).ok,
       false
     );
   });
@@ -53,10 +61,10 @@ describe("bundle checkout server controls", () => {
     );
   });
 
-  it("rejects unsupported quantities instead of silently changing their price", () => {
+  it("rejects unsupported essay quantities instead of silently changing their price", () => {
     const payload = bundleCheckoutSchema.parse({
-      bundleId: "flexible_sessions",
-      quantities: { sessions: 1 }
+      bundleId: "essay_support",
+      quantities: { essayReviews: 4 }
     });
     const quote = quoteBundleSelection(payload);
 

@@ -81,10 +81,25 @@ export function getRemainingSubscriptionSessions(user = {}, meetings = [], now =
   return Math.max(0, limit - used);
 }
 
+/** Live 1:1 session packages only — essay_support is review credits, not mentor sessions. */
+export function isLiveSessionBundleId(bundleId) {
+  const id = String(bundleId ?? "flexible_sessions")
+    .trim()
+    .toLowerCase();
+  return id === "flexible_sessions" || id === "flexible" || id === "";
+}
+
+export function isEssaySupportBundleId(bundleId) {
+  return String(bundleId || "")
+    .trim()
+    .toLowerCase() === "essay_support";
+}
+
 export function sumPackageRemaining(packages = [], { mentorId = null } = {}) {
   const now = Date.now();
   return packages.reduce((total, pkg) => {
     if (!pkg) return total;
+    if (!isLiveSessionBundleId(pkg.bundleId)) return total;
     const status = String(pkg.status || "active").toLowerCase();
     if (status !== "active") return total;
     if (pkg.expiresAt) {
@@ -183,9 +198,8 @@ export function isNoMentorAccessError(payloadOrError) {
 /** Checkout / plans deep links with mentor context. */
 export function buildPurchaseSessionsPath({ mentorId, mentorUserId } = {}) {
   const params = new URLSearchParams({
-    mode: "bundles",
     wallet: "open",
-    bundle: "flexible_sessions",
+    plan: "plus",
     details: "open"
   });
   if (mentorId) params.set("mentor", String(mentorId));

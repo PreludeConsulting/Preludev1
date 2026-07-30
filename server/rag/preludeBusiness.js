@@ -74,20 +74,22 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
 
     case "plans_comparison": {
       const comparesPro =
-        /\bpro\b/i.test(message) && /\b(basic|plus)\b/i.test(message);
-      const comparesPlusBasic = /\bplus\b/i.test(message) && /\bbasic\b/i.test(message);
+        /\bpro\b/i.test(message) && /\b(basic|plus|essay)\b/i.test(message);
+      const mentionsEssay =
+        /\bessay\b|\bapplication\s*&?\s*essay\b|\bwritten\s+feedback\b|\breview\s+credit/i.test(message);
+      const mentionsBasic = /\bbasic\b/i.test(message);
 
       if (comparesPro && /\bplus\b/i.test(message)) {
         return {
           text: [
             "## Plus vs. Pro",
             "",
-            "**Plus** is a strong fit when you want recurring one-on-one help, essay feedback, and more consistent mentor messaging.",
+            "**Plus** is a strong fit when you want **ongoing monthly mentorship** with **2 live flexible 1-on-1 sessions** per month and full mentor-network messaging.",
             "",
-            "**Pro** adds higher-touch support: more frequent 1-on-1 sessions, priority matching and messaging, deeper essay and application review, interview prep, and school-specific strategy.",
+            "**Pro** adds higher-touch live support: **4 live flexible sessions** per month, priority messaging, comprehensive application strategy, live essay and activities guidance, and final readiness planning.",
             "",
             "### Main difference",
-            "Pro is designed for students who want **frequent, personalized mentor guidance** across the full application cycle.",
+            "Both are **live monthly mentorship** plans — neither includes monthly async written essay-review credits. Pro is for students who want **more frequent, personalized live mentor guidance**.",
             "",
             linkLine(["compare_plans"]),
             "",
@@ -97,20 +99,59 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
         };
       }
 
+      if (mentionsEssay || (!mentionsBasic && !/\bplus\b/i.test(message) && !/\bpro\b/i.test(message))) {
+        return {
+          text: [
+            "## Essay Support vs. monthly live plans",
+            "",
+            "**Application & Essay Support** is a **one-time** purchase of review credits (3, 6, or 10) for **async written feedback** on personal statements and college supplemental essays.",
+            "",
+            "**Plus** and **Pro** are **monthly subscriptions** focused on **live flexible sessions** — Plus includes 2 per month; Pro includes 4 — plus mentor messaging and strategy. They do **not** include monthly async written essay-review credits.",
+            "",
+            "### Main difference",
+            "Choose Essay Support for **written-only feedback**. Choose Plus or Pro for **ongoing live mentorship**.",
+            "",
+            linkLine(["compare_plans"]),
+            "",
+            "Do you want async written reviews, live sessions, or both?"
+          ].join("\n"),
+          actions: buildVerifiedActions(["compare_plans"])
+        };
+      }
+
+      if (mentionsBasic) {
+        return {
+          text: [
+            "## Plans overview",
+            "",
+            "**Basic** is a **legacy plan** for existing subscribers only — it is **not available for new purchases**.",
+            "",
+            "New students can choose:",
+            "- **Application & Essay Support** — one-time async written review credits",
+            "- **Plus** — monthly live mentorship with 2 flexible sessions",
+            "- **Pro** — monthly live mentorship with 4 flexible sessions and higher-touch strategy",
+            "",
+            linkLine(["compare_plans"]),
+            "",
+            "Are you looking for written essay feedback or ongoing live sessions?"
+          ].join("\n"),
+          actions: buildVerifiedActions(["compare_plans"])
+        };
+      }
+
       return {
         text: [
-          "## Basic vs. Plus",
+          "## Plus vs. Pro",
           "",
-          "**Basic** is a good fit when you want a roadmap, assigned mentor messaging, **2 full personal statement reviews per month**, and **2 full supplemental essay reviews for one college per month**.",
+          "**Plus** is a strong fit when you want **ongoing monthly mentorship** with **2 live flexible 1-on-1 sessions** per month and full mentor-network messaging.",
           "",
-          "**Plus** is better when you want **everything in Basic** plus **recurring one-on-one support** and more consistent network messaging.",
+          "**Pro** adds higher-touch live support: **4 live flexible sessions** per month, priority messaging, comprehensive application strategy, live essay guidance, and final readiness planning.",
           "",
-          "### Main difference",
-          "Plus gives you more **personalized human guidance** throughout the process.",
+          "Neither Plus nor Pro includes monthly async written essay-review credits — those come from **Application & Essay Support** (one-time).",
           "",
           linkLine(["compare_plans"]),
           "",
-          "Are you looking for occasional guidance or ongoing one-on-one support?"
+          "How often would you want to meet with a mentor?"
         ].join("\n"),
         actions: buildVerifiedActions(["compare_plans"])
       };
@@ -123,9 +164,9 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
       if (wantsEssay && !wantsFrequent) {
         return {
           text: [
-            "For **written application feedback**, **Basic** includes **2 full personal statement reviews per month** and **2 full supplemental essay reviews for one college per month**, with detailed written feedback and edits within 1–2 business days.",
+            "For **async written application feedback**, choose **Application & Essay Support** — a **one-time** purchase of review credits (3, 6, or 10) for detailed written feedback on personal statements and college supplemental essays.",
             "",
-            "**Plus** keeps that essay-review support and adds live 1-on-1 sessions. **Pro** adds higher-touch support, including fuller application review.",
+            "**Plus** and **Pro** are monthly **live flexible session** plans (2 and 4 sessions per month). They do **not** include monthly written essay-review credits; use sessions for live essay guidance instead, or add Essay Support separately.",
             "",
             linkLine(["compare_plans"]),
             "",
@@ -137,13 +178,15 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
 
       return {
         text: [
-          "**Basic** is probably enough if you mainly want structure, mentor messaging, **2 full personal statement reviews per month**, and **2 full supplemental essay reviews for one college per month**.",
+          "**Application & Essay Support** fits if you mainly want **one-time async written essay reviews** (no monthly subscription).",
           "",
-          "**Plus** is a stronger fit if you want everything in Basic plus **recurring one-on-one live sessions**.",
+          "**Plus** is a stronger fit if you want **ongoing live mentorship** with **2 flexible 1-on-1 sessions** per month.",
           "",
-          "**Pro** makes more sense when you want a **high-touch experience** with more live sessions and deeper application support.",
+          "**Pro** makes more sense when you want a **high-touch live experience** with **4 sessions** per month, priority messaging, and deeper live application strategy.",
           "",
-          "Prelude AI is the **same assistant on every plan** — plans differ in mentor access and roadmap depth, not AI quality.",
+          "**Basic** is legacy-only and not sold to new customers.",
+          "",
+          "Prelude AI is the **same assistant on every plan** — products differ in live sessions and human support, not AI quality.",
           "",
           linkLine(["compare_plans"]),
           "",
@@ -156,11 +199,12 @@ export function buildPreludeBusinessAnswer({ intent, message = "", profile = nul
     case "mentor_support":
       return {
         text: [
-          "Yes. Depending on your plan, you can access **mentor messaging** and live sessions.",
+          "Yes. Depending on what you purchase, you can access **mentor messaging** and live sessions.",
           "",
-          "- **Basic** includes assigned mentor messaging, **2 full personal statement reviews per month**, and **2 full supplemental essay reviews for one college per month** (no live session credits).",
-          "- **Plus** includes everything in Basic and adds recurring flexible 1-on-1 sessions.",
-          "- **Pro** includes everything in Plus with more session credits and higher-touch application support.",
+          "- **Application & Essay Support** is one-time **async written** feedback only (no live session credits).",
+          "- **Plus** includes full mentor-network messaging and **2 live flexible 1-on-1 sessions** per month (no monthly async essay-review credits).",
+          "- **Pro** includes everything in Plus with **4 live flexible sessions**, priority messaging, and higher-touch live application strategy.",
+          "- **Basic** is legacy-only for existing subscribers and is not available for new purchases.",
           "",
           linkLine(["find_mentor", "explore_plans"]),
           "",

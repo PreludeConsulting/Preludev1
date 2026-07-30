@@ -8,6 +8,8 @@ import { assertDurableStoreAvailable } from "./durableStorePolicy.js";
 import {
   buildNoMentorAccessError,
   evaluateMentorAccess,
+  isEssaySupportBundleId,
+  isLiveSessionBundleId,
   NO_MENTOR_ACCESS_CODE
 } from "../../shared/mentorAccess.js";
 
@@ -80,6 +82,7 @@ function userFacingAccessError(message) {
 
 function isUsablePackage(pkg, mentorId = null, now = Date.now()) {
   if (!pkg || String(pkg.status || "").toLowerCase() !== "active") return false;
+  if (!isLiveSessionBundleId(pkg.bundleId)) return false;
   if (Number(pkg.sessionsRemaining) <= 0) return false;
   if (pkg.expiresAt) {
     const expires = new Date(pkg.expiresAt).getTime();
@@ -87,6 +90,17 @@ function isUsablePackage(pkg, mentorId = null, now = Date.now()) {
   }
   if (pkg.mentorUserId && mentorId && pkg.mentorUserId !== mentorId) return false;
   if (pkg.mentorUserId && !mentorId) return false;
+  return true;
+}
+
+function isUsableEssayPackage(pkg, now = Date.now()) {
+  if (!pkg || String(pkg.status || "").toLowerCase() !== "active") return false;
+  if (!isEssaySupportBundleId(pkg.bundleId)) return false;
+  if (Number(pkg.sessionsRemaining) <= 0) return false;
+  if (pkg.expiresAt) {
+    const expires = new Date(pkg.expiresAt).getTime();
+    if (!Number.isNaN(expires) && expires <= now) return false;
+  }
   return true;
 }
 
@@ -231,8 +245,36 @@ async function pickPackageForConsume(packages, mentorId) {
   return packages.find((pkg) => isUsablePackage(pkg, mentorId)) || null;
 }
 
+const LIVE_SESSION_BUNDLE_FILTER = {
+  OR: [{ bundleId: "flexible_sessions" }, { bundleId: "flexible" }]
+};
+
+async function decrementPackageCredit({ client, candidate }) {
+  const updated = await client.sessionPackagePurchase.updateMany({
+    where: {
+      id: candidate.id,
+      status: "active",
+      sessionsRemaining: { gt: 0 }
+    },
+    data: {
+      sessionsRemaining: { decrement: 1 },
+      updatedAt: new Date()
+    }
+  });
+  if (updated.count !== 1) return null;
+  const remaining = candidate.sessionsRemaining - 1;
+  if (remaining <= 0) {
+    await client.sessionPackagePurchase.update({
+      where: { id: candidate.id },
+      data: { status: "depleted" }
+    });
+  }
+  return candidate.id;
+}
+
 /**
- * Atomically reserve one package session. Returns the package id or null if none available.
+ * Atomically reserve one live session package credit. Returns the package id or null.
+ * Never consumes essay_support review packages.
  */
 export async function consumePackageSession({ studentUserId, mentorId = null, tx = null }) {
   if (tx) {
@@ -241,8 +283,11 @@ export async function consumePackageSession({ studentUserId, mentorId = null, tx
         studentUserId,
         status: "active",
         sessionsRemaining: { gt: 0 },
-        OR: [{ mentorUserId: null }, ...(mentorId ? [{ mentorUserId: mentorId }] : [])],
         AND: [
+          LIVE_SESSION_BUNDLE_FILTER,
+          {
+            OR: [{ mentorUserId: null }, ...(mentorId ? [{ mentorUserId: mentorId }] : [])]
+          },
           {
             OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
           }
@@ -252,27 +297,9 @@ export async function consumePackageSession({ studentUserId, mentorId = null, tx
     });
 
     for (const candidate of candidates) {
-      const updated = await tx.sessionPackagePurchase.updateMany({
-        where: {
-          id: candidate.id,
-          status: "active",
-          sessionsRemaining: { gt: 0 }
-        },
-        data: {
-          sessionsRemaining: { decrement: 1 },
-          updatedAt: new Date()
-        }
-      });
-      if (updated.count === 1) {
-        const remaining = candidate.sessionsRemaining - 1;
-        if (remaining <= 0) {
-          await tx.sessionPackagePurchase.update({
-            where: { id: candidate.id },
-            data: { status: "depleted" }
-          });
-        }
-        return candidate.id;
-      }
+      if (!isLiveSessionBundleId(candidate.bundleId)) continue;
+      const id = await decrementPackageCredit({ client: tx, candidate });
+      if (id) return id;
     }
     return null;
   }
@@ -285,8 +312,11 @@ export async function consumePackageSession({ studentUserId, mentorId = null, tx
           studentUserId,
           status: "active",
           sessionsRemaining: { gt: 0 },
-          OR: [{ mentorUserId: null }, ...(mentorId ? [{ mentorUserId: mentorId }] : [])],
           AND: [
+            LIVE_SESSION_BUNDLE_FILTER,
+            {
+              OR: [{ mentorUserId: null }, ...(mentorId ? [{ mentorUserId: mentorId }] : [])]
+            },
             {
               OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
             }
@@ -296,27 +326,9 @@ export async function consumePackageSession({ studentUserId, mentorId = null, tx
       });
 
       for (const candidate of candidates) {
-        const updated = await client.sessionPackagePurchase.updateMany({
-          where: {
-            id: candidate.id,
-            status: "active",
-            sessionsRemaining: { gt: 0 }
-          },
-          data: {
-            sessionsRemaining: { decrement: 1 },
-            updatedAt: new Date()
-          }
-        });
-        if (updated.count === 1) {
-          const remaining = candidate.sessionsRemaining - 1;
-          if (remaining <= 0) {
-            await client.sessionPackagePurchase.update({
-              where: { id: candidate.id },
-              data: { status: "depleted" }
-            });
-          }
-          return candidate.id;
-        }
+        if (!isLiveSessionBundleId(candidate.bundleId)) continue;
+        const id = await decrementPackageCredit({ client, candidate });
+        if (id) return id;
       }
       return null;
     } catch (error) {
@@ -326,11 +338,57 @@ export async function consumePackageSession({ studentUserId, mentorId = null, tx
 
   assertDurableStoreAvailable(process.env, "session package");
   // JSON fallback with serialized lock (single-process tests / local).
-  assertDurableStoreAvailable(process.env, "session package");
   return withJsonPackageLock(async () => {
     const store = readJsonStore();
     const idx = store.packages.findIndex(
       (pkg) => pkg.studentUserId === studentUserId && isUsablePackage(pkg, mentorId)
+    );
+    if (idx < 0) return null;
+    const pkg = store.packages[idx];
+    pkg.sessionsRemaining = Number(pkg.sessionsRemaining) - 1;
+    if (pkg.sessionsRemaining <= 0) pkg.status = "depleted";
+    pkg.updatedAt = new Date().toISOString();
+    store.packages[idx] = pkg;
+    writeJsonStore(store);
+    return pkg.id;
+  });
+}
+
+/**
+ * Atomically consume one essay_support review credit (FIFO). Returns package id or null.
+ */
+export async function consumeEssayReviewCredit(studentUserId) {
+  if (!studentUserId) return null;
+
+  if (canUsePrisma()) {
+    try {
+      const client = prismaClient();
+      const candidates = await client.sessionPackagePurchase.findMany({
+        where: {
+          studentUserId,
+          bundleId: "essay_support",
+          status: "active",
+          sessionsRemaining: { gt: 0 },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
+        },
+        orderBy: { createdAt: "asc" }
+      });
+
+      for (const candidate of candidates) {
+        const id = await decrementPackageCredit({ client, candidate });
+        if (id) return id;
+      }
+      return null;
+    } catch (error) {
+      if (!isDatabaseUnavailableError(error)) throw error;
+    }
+  }
+
+  assertDurableStoreAvailable(process.env, "session package");
+  return withJsonPackageLock(async () => {
+    const store = readJsonStore();
+    const idx = store.packages.findIndex(
+      (pkg) => pkg.studentUserId === studentUserId && isUsableEssayPackage(pkg)
     );
     if (idx < 0) return null;
     const pkg = store.packages[idx];

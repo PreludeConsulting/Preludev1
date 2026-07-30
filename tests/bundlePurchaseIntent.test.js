@@ -35,7 +35,7 @@ describe("bundle purchase intent", () => {
   });
 
   it("clears both durable and legacy session-scoped intent", () => {
-    savePendingBundleIntent("flexible_sessions");
+    savePendingBundleIntent("essay_support");
     window.sessionStorage.setItem(
       "prelude_pending_bundle_intent",
       JSON.stringify({ bundleId: "essay_support", mode: "bundles" })

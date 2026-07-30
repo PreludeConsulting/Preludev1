@@ -17,6 +17,13 @@ export async function fetchBillingSummary() {
   return billingRequest("/api/billing/summary");
 }
 
+export async function consumeEssayReviewCredit() {
+  return billingRequest("/api/billing/consume-essay-review", {
+    method: "POST",
+    body: "{}"
+  });
+}
+
 export async function fetchBillingHistory({ limit = 20, offset = 0 } = {}) {
   const params = new URLSearchParams({
     limit: String(limit),

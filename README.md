@@ -378,12 +378,13 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_PRICE_ID_BASIC=price_...
 STRIPE_PRICE_ID_PLUS=price_...
 STRIPE_PRICE_ID_PRO=price_...
-# See .env.example for the 14 one-time Essay Support and Flexible Sessions Price IDs.
+# See .env.example for Essay Support one-time Price IDs (3 / 6 / 10 review credits).
+# STRIPE_PRICE_ID_BASIC remains for existing Basic subscribers; it is not required to enable new checkout.
 ```
 
 When billing is disabled, the billing config endpoint reports disabled state and checkout/portal routes return a configuration response instead of attempting Stripe calls.
 
-Run `npm run stripe:catalog -- --write-env` to create or reuse the Basic ($49.99), Plus ($149.99), and Pro ($249.99) monthly Prices plus every displayed Essay Support and Flexible Sessions one-time Price in test mode. The script defaults to test mode, is idempotent, and leaves outdated Prices active. For production, provide a Products/Prices-scoped restricted key as `STRIPE_LIVE_SECRET_KEY` and explicitly run `node scripts/setup-stripe-catalog.mjs --live`; copy the printed Price IDs into Cloudflare only after reviewing them. The script never writes either key.
+Run `npm run stripe:catalog -- --write-env` to create or reuse Plus ($149.99) and Pro ($249.99) monthly Prices, optional legacy Basic ($49.99), and Essay Support one-time Prices (3 / 6 / 10 review credits) in test mode. Flexible session one-time bundles are no longer sold. The script defaults to test mode, is idempotent, and leaves outdated Prices active. For production, provide a Products/Prices-scoped restricted key as `STRIPE_LIVE_SECRET_KEY` and explicitly run `node scripts/setup-stripe-catalog.mjs --live`; copy the printed Price IDs into Cloudflare only after reviewing them. The script never writes either key.
 
 For the production domain, run `npm run stripe:domain -- --write-env` to register `https://preludeconsultingllc.com/api/billing/webhook` in Stripe, enable the `preludeconsultingllc.com` payment method domain, and set local `PUBLIC_APP_URL` / `VITE_PUBLIC_APP_URL`. Mirror those values in the Cloudflare Pages environment variables for production.
 
@@ -395,7 +396,8 @@ Cloudflare Pages uses the `functions/api/billing/*` routes for the custom domain
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `STRIPE_PUBLISHABLE_KEY` or `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-- All 17 `STRIPE_PRICE_ID_*` variables listed in `.env.example`
+- Required for new checkout: `STRIPE_PRICE_ID_PLUS`, `STRIPE_PRICE_ID_PRO`, and Essay Support `3` / `6` / `10` Price IDs (see `.env.example`)
+- Optional for existing Basic subscribers: `STRIPE_PRICE_ID_BASIC`
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` if webhook events should update Supabase profiles
 
 Guest checkout on Cloudflare is disabled unless both `STRIPE_ALLOW_GUEST_CHECKOUT=true` and `VITE_ALLOW_GUEST_CHECKOUT=true` are set.

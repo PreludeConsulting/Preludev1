@@ -43,7 +43,8 @@ export default function PricingCard({
         as="button"
         type="button"
         variant="primary"
-        className="pricing-card__cta"
+        className="pricing-card__cta hover:bg-primary"
+        data-anime-hover={undefined}
         onClick={() => onSelect(plan)}
         disabled={loading}
       >

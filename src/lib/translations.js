@@ -259,27 +259,15 @@ export const translations = {
           paid: "Paid",
           perMonth: " / month"
         },
-        startFree: "Choose Basic",
+        startFree: "Choose Plus",
         choose: "Choose {{plan}}",
         notices: {
-          basicFree: "Create an account to choose the Basic plan, then complete checkout to get started.",
+          basicFree: "Basic is no longer available for new purchases. Choose Plus or Pro to continue.",
           signInFirst: "Create or sign into an account first. Your subscription will attach to that account when Stripe is connected.",
-          comingSoon: "Paid checkout requires Stripe configuration. Choose Basic now or contact Prelude for plan support.",
+          comingSoon: "Paid checkout requires Stripe configuration. Contact Prelude for plan support.",
           unavailable: "Billing is not available right now."
         },
         cards: [
-          {
-            id: "basic",
-            name: "Basic",
-            description: "Foundational support from real college mentors.",
-            features: [
-              "2 full personal statement reviews per month",
-              "2 full supplemental essay reviews for one college per month",
-              "Assigned mentor messaging",
-              "Personalized student roadmap",
-              "Detailed written feedback and edits within 1–2 business days"
-            ]
-          },
           {
             id: "plus",
             name: "Plus",
@@ -321,32 +309,12 @@ export const translations = {
         cards: [
           {
             id: "essay_support",
-            title: "Application & Essay Support",
-            description:
-              "Detailed feedback on personal statements, revisions, final edits, and college-specific supplemental essays.",
-            options: ["3 review credits", "6 review credits", "10 review credits"],
-            infoTitle: "What counts as 1 review credit?",
-            infoPoints: [
-              "One personal statement",
-              "Or the full set of supplemental essays for one college"
-            ],
+            title: "Essay Support",
+            description: "Guided feedback for personal statements and supplemental essays.",
+            options: ["3 essay reviews", "6 essay reviews", "10 essay reviews"],
+            summary: "Personal statements, supplemental essays, revisions, and final edits.",
             ctaLabel: "Customize Essay Support",
-            note: "Choose your review credits before checkout"
-          },
-          {
-            id: "flexible_sessions",
-            title: "Flexible Sessions",
-            description:
-              "Purchase one-on-one sessions for targeted support wherever your student needs help.",
-            options: ["3 sessions", "6 sessions", "10 sessions"],
-            infoTitle: "What counts as 1 session?",
-            infoPoints: [
-              "A private meeting with a Prelude mentor",
-              "Use for admissions, essays, or SAT/ACT prep",
-              "Also covers tutoring and financial aid support"
-            ],
-            ctaLabel: "Choose Session Bundle",
-            note: "Choose your number of sessions before checkout"
+            note: "Choose your essay reviews before checkout"
           }
         ]
       },
@@ -680,18 +648,6 @@ export const translations = {
         },
         cards: [
           {
-            id: "basic",
-            name: "Basic",
-            description: "실제 대학 멘토의 기본 지원.",
-            features: [
-              "월 2회 자기소개서(개인 성명서) 전체 리뷰",
-              "월 1개 대학의 보충 에세이 전체 리뷰 2회",
-              "배정된 멘토 메시징",
-              "맞춤형 학생 로드맵",
-              "상세 서면 피드백 및 수정 (영업일 기준 1–2일 내)"
-            ]
-          },
-          {
             id: "plus",
             name: "Plus",
             description: "더 많은 멘토 접근, 1:1 지원, 리워드.",
@@ -743,20 +699,6 @@ export const translations = {
             ],
             ctaLabel: "에세이 지원 맞춤 설정",
             note: "결제 전에 리뷰 크레딧을 선택하세요"
-          },
-          {
-            id: "flexible_sessions",
-            title: "유연 세션",
-            description: "학생이 도움 받는 곳에 쓸 수 있는 1:1 세션을 구매하세요.",
-            options: ["세션 3회", "세션 6회", "세션 10회"],
-            infoTitle: "세션 1회는 무엇인가요?",
-            infoPoints: [
-              "Prelude 멘토와의 비공개 미팅",
-              "입시, 에세이, SAT/ACT 준비에 사용",
-              "학업 튜터링과 재정보조 지원도 가능"
-            ],
-            ctaLabel: "세션 번들 선택",
-            note: "결제 전에 세션 횟수를 선택하세요"
           }
         ]
       },
@@ -1090,18 +1032,6 @@ export const translations = {
         },
         cards: [
           {
-            id: "basic",
-            name: "Basic",
-            description: "来自真实大学导师的基础支持。",
-            features: [
-              "每月 2 次完整个人陈述审阅",
-              "每月 1 所院校的完整补充文书审阅 2 次",
-              "指定导师消息",
-              "个性化学生路线图",
-              "详细书面反馈与修改（1–2 个工作日内）"
-            ]
-          },
-          {
             id: "plus",
             name: "Plus",
             description: "更多导师接触、1 对 1 支持和奖励。",
@@ -1152,20 +1082,6 @@ export const translations = {
             ],
             ctaLabel: "定制文书支持",
             note: "结账前选择审阅额度"
-          },
-          {
-            id: "flexible_sessions",
-            title: "灵活课程",
-            description: "购买一对一课程，用在学生最需要帮助的地方。",
-            options: ["3 次课程", "6 次课程", "10 次课程"],
-            infoTitle: "1 次课程包含什么？",
-            infoPoints: [
-              "与 Prelude 导师的私密会面",
-              "可用于升学、文书或 SAT/ACT 备考",
-              "也可用于学业辅导与助学金支持"
-            ],
-            ctaLabel: "选择课程套餐",
-            note: "结账前选择课程次数"
           }
         ]
       },
@@ -1501,18 +1417,6 @@ export const translations = {
         },
         cards: [
           {
-            id: "basic",
-            name: "Basic",
-            description: "Apoyo fundamental de mentores universitarios reales.",
-            features: [
-              "2 revisiones completas de personal statement al mes",
-              "2 revisiones completas de ensayos suplementarios para una universidad al mes",
-              "Mensajería con mentor asignado",
-              "Hoja de ruta personalizada del estudiante",
-              "Comentarios escritos detallados y ediciones en 1–2 días hábiles"
-            ]
-          },
-          {
             id: "plus",
             name: "Plus",
             description: "Más acceso a mentores, apoyo 1 a 1 y recompensas.",
@@ -1564,21 +1468,6 @@ export const translations = {
             ],
             ctaLabel: "Personalizar apoyo con ensayos",
             note: "Elige tus créditos de revisión antes del pago"
-          },
-          {
-            id: "flexible_sessions",
-            title: "Sesiones flexibles",
-            description:
-              "Compra sesiones individuales para apoyo puntual donde tu estudiante más lo necesite.",
-            options: ["3 sesiones", "6 sesiones", "10 sesiones"],
-            infoTitle: "¿Qué cuenta como 1 sesión?",
-            infoPoints: [
-              "Una reunión privada con un mentor de Prelude",
-              "Úsala para admisiones, ensayos o SAT/ACT",
-              "También cubre tutoría y ayuda financiera"
-            ],
-            ctaLabel: "Elegir paquete de sesiones",
-            note: "Elige el número de sesiones antes del pago"
           }
         ]
       },

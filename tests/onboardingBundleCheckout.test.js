@@ -64,7 +64,7 @@ describe("onboarding bundle checkout", () => {
     mocks.api.mockResolvedValue({ url: "https://checkout.example/session" });
 
     await startAuthenticatedBundleCheckout(
-      { bundleId: "flexible_sessions" },
+      { bundleId: "essay_support", quantities: { essayReviews: 3 } },
       { context: "public" }
     );
 

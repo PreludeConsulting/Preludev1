@@ -39,8 +39,10 @@ export function usePlanAccess() {
       monthlyApplicationReviewLimit: getMonthlyApplicationReviewLimit(plan),
       applicationReviewAllowanceLabel: getApplicationReviewAllowanceLabel(plan),
       remainingApplicationReviews: (reviews) => getRemainingApplicationReviews(plan, reviews),
-      applicationReviewBalanceLabel: (reviews) => getApplicationReviewBalanceLabel(plan, reviews),
-      canSubmitReview: (reviews) => canSubmitApplicationReview(plan, reviews)
+      applicationReviewBalanceLabel: (reviews, essayPackages) =>
+        getApplicationReviewBalanceLabel(plan, reviews, { essayPackages }),
+      canSubmitReview: (reviews, essayPackages) =>
+        canSubmitApplicationReview(plan, reviews, { essayPackages })
     }),
     [plan, planDetails.name, user]
   );

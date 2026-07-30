@@ -33,8 +33,10 @@ export const BUNDLE_PRICE_ENV_BY_ID = Object.freeze(
   )
 );
 
+/** Env keys required to enable new paid checkout (excludes legacy Basic). */
 export const REQUIRED_STRIPE_PRICE_ENV_KEYS = Object.freeze([
-  ...Object.values(PLAN_PRICE_ENV_BY_ID),
+  PLAN_PRICE_ENV_BY_ID.plus,
+  PLAN_PRICE_ENV_BY_ID.pro,
   ...BUNDLE_IDS.flatMap((bundleId) => Object.values(BUNDLE_PRICE_ENV_BY_ID[bundleId]))
 ]);
 

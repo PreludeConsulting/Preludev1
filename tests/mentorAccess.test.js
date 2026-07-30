@@ -71,12 +71,14 @@ describe("mentor access gating", () => {
     ).toBe(true);
   });
 
-  it("builds payment links with mentor and product context", () => {
+  it("builds payment links toward Plus subscription checkout with mentor context", () => {
     const path = buildPurchaseSessionsPath({
       mentorId: "alex",
       mentorUserId: "22222222-2222-2222-2222-222222222222"
     });
-    expect(path).toContain("bundle=flexible_sessions");
+    expect(path).toContain("plan=plus");
+    expect(path).toContain("wallet=open");
+    expect(path).not.toContain("bundle=flexible_sessions");
     expect(path).toContain("mentor=alex");
     expect(path).toContain("mentorUserId=22222222");
     expect(buildSubscriptionPath()).toBe("/dashboard/student/billing");
@@ -91,5 +93,28 @@ describe("mentor access gating", () => {
       ]
     });
     expect(result.allowed).toBe(false);
+  });
+
+  it("does not count essay_support packages as live mentor sessions", () => {
+    const result = evaluateMentorAccess({
+      user: { plan: "basic", subscriptionStatus: "canceled" },
+      packages: [
+        { status: "active", sessionsRemaining: 5, bundleId: "essay_support", mentorUserId: null }
+      ]
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.packageRemaining).toBe(0);
+  });
+
+  it("still counts flexible_sessions packages for mentor access", () => {
+    const result = evaluateMentorAccess({
+      user: { plan: "basic", subscriptionStatus: "canceled" },
+      packages: [
+        { status: "active", sessionsRemaining: 5, bundleId: "essay_support", mentorUserId: null },
+        { status: "active", sessionsRemaining: 2, bundleId: "flexible_sessions", mentorUserId: null }
+      ]
+    });
+    expect(result.allowed).toBe(true);
+    expect(result.packageRemaining).toBe(2);
   });
 });

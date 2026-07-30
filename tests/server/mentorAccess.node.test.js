@@ -10,9 +10,10 @@ import {
   evaluateMentorAccess,
   NO_MENTOR_ACCESS_CODE
 } from "../../shared/mentorAccess.js";
-import { extractFlexibleSessionCredit } from "../../server/lib/sessionPackageFulfillment.js";
+import { extractEssaySupportCredit, extractFlexibleSessionCredit } from "../../server/lib/sessionPackageFulfillment.js";
 import {
   canRequestMentor,
+  consumeEssayReviewCredit,
   creditSessionPackagePurchase,
   listSessionPackagesForStudent
 } from "../../server/lib/mentorAccess.js";
@@ -279,11 +280,14 @@ async function main() {
     mentorId: "mentor-slug",
     mentorUserId: mentorId
   });
-  assert.match(purchasePath, /bundle=flexible_sessions/);
+  assert.match(purchasePath, /plan=plus/);
+  assert.match(purchasePath, /wallet=open/);
+  assert.doesNotMatch(purchasePath, /bundle=flexible_sessions/);
   assert.match(purchasePath, /mentor=mentor-slug/);
   assert.match(purchasePath, /mentorUserId=22222222-2222-4222-a222-222222222222/);
   assert.equal(buildSubscriptionPath(), "/dashboard/student/billing");
 
+  // Legacy flexible-session checkouts can still fulfill packages.
   const credit = extractFlexibleSessionCredit({
     id: "cs_test_meta",
     payment_status: "paid",
@@ -297,6 +301,53 @@ async function main() {
   assert.equal(credit.sessionsPurchased, 5);
   assert.equal(credit.mentorUserId, mentorId);
   assert.equal(credit.studentUserId, studentId);
+
+  // Essay support checkouts credit review packages without granting live mentor access.
+  const essayCredit = extractEssaySupportCredit({
+    id: "cs_test_essay",
+    payment_status: "paid",
+    metadata: {
+      userId: studentId,
+      bundleId: "essay_support",
+      bundleConfig: JSON.stringify({ id: "essay_support", q: { essayReviews: 6 } })
+    }
+  });
+  assert.equal(essayCredit.sessionsPurchased, 6);
+  assert.equal(essayCredit.bundleId, "essay_support");
+  assert.equal(essayCredit.studentUserId, studentId);
+  assert.equal(
+    extractFlexibleSessionCredit({
+      id: "cs_test_essay",
+      payment_status: "paid",
+      metadata: {
+        userId: studentId,
+        bundleId: "essay_support",
+        bundleConfig: JSON.stringify({ id: "essay_support", q: { essayReviews: 6 } })
+      }
+    }),
+    null
+  );
+
+  resetStores();
+  await creditSessionPackagePurchase({
+    studentUserId: studentId,
+    sessionsPurchased: 3,
+    stripeCheckoutSessionId: "cs_essay_pkg",
+    bundleId: "essay_support"
+  });
+  const essayOnlyAccess = await canRequestMentor({
+    studentId,
+    mentorId,
+    user: { id: studentId, plan: "basic", subscriptionStatus: "canceled" }
+  });
+  assert.equal(essayOnlyAccess.allowed, false);
+  assert.equal(essayOnlyAccess.packageRemaining, 0);
+
+  const essayPkgId = await consumeEssayReviewCredit(studentId);
+  assert.ok(essayPkgId);
+  const afterEssayConsume = await listSessionPackagesForStudent(studentId);
+  assert.equal(afterEssayConsume[0].sessionsRemaining, 2);
+  assert.equal(afterEssayConsume[0].bundleId, "essay_support");
 
   // Subscription preferred over package (no deduct)
   resetStores();

@@ -309,6 +309,40 @@
   color: rgb(80 68 200);
 }
 
+.pw-card__payment-type {
+  display: inline-flex;
+  align-items: center;
+  margin: 0.15rem 0 0;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgb(17 24 64 / 0.12);
+  background: rgb(17 24 64 / 0.04);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: rgb(17 24 64 / 0.62);
+  white-space: nowrap;
+}
+
+.pw-card--bundle .pw-card__payment-type {
+  border-color: rgb(109 94 252 / 0.22);
+  background: rgb(109 94 252 / 0.08);
+  color: rgb(91 79 214);
+}
+
+.pw-card__session-note {
+  display: block;
+  margin-top: 0.15rem;
+  overflow: hidden;
+  color: rgb(91 79 214);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .pw-card__price {
   margin-left: auto;
   font-family: "Barlow", sans-serif;
@@ -922,16 +956,9 @@
    Monthly / One-time mode switch + bundle deck
    ------------------------------------------------------------------ */
 
+/* Mode switch removed — unified deck shows Essay Support + Plus + Pro. */
 .pw-mode-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  margin: 0 0 1.1rem;
-  padding: 0.22rem;
-  border-radius: 999px;
-  border: 1px solid rgb(120 106 255 / 0.16);
-  background: rgb(255 255 255 / 0.82);
-  box-shadow: 0 0.4rem 1.1rem rgb(17 24 64 / 0.06);
+  display: none;
 }
 
 .pw-mode-switch__tab {

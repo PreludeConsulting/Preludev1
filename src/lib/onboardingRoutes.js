@@ -1,4 +1,4 @@
-import { PLAN_IDS } from "./plans.js";
+import { PLAN_IDS, PURCHASABLE_PLAN_IDS } from "./plans.js";
 import { dashboardHomeForRole, dashboardHomeForUser, hasAdminDashboardAccess, roleFromUser, STUDENT_DASHBOARD_BASE, MENTOR_DASHBOARD_BASE, PARENT_DASHBOARD_BASE } from "./dashboardRoutes.js";
 
 export const PLAN_SELECTION_PATH = "/onboarding/plan";
@@ -18,6 +18,10 @@ export const ONBOARDING_STATUS = {
 
 export function isValidPlanId(planId) {
   return PLAN_IDS.includes(planId);
+}
+
+export function isPurchasablePlanId(planId) {
+  return PURCHASABLE_PLAN_IDS.includes(planId);
 }
 
 export function studentRoute(segment = "") {

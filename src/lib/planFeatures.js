@@ -119,7 +119,7 @@ export const FEATURE_LOCK_COPY = {
   fullApplicationReview: {
     title: "Upgrade to unlock",
     description:
-      "Pro full application review (final package readiness) is included with Pro. Basic and higher already include personal statement and supplemental essay review support."
+      "Pro includes comprehensive application strategy and live readiness planning during your flexible sessions. Upgrade to Pro for priority mentorship."
   },
   advancedRewards: {
     title: "Upgrade to unlock",
@@ -175,8 +175,8 @@ export function getMonthlyApplicationReviewLimit(planId) {
 
 export function getApplicationReviewAllowanceLabel(planId) {
   const plan = normalizePlanId(planId) || "basic";
-  // Basic keeps review credits without marketing the allowance on the session banner.
-  if (plan === "basic") return null;
+  // Only legacy Basic markets monthly async review credits on subscriptions.
+  if (plan !== "basic") return null;
   const limit = getMonthlyApplicationReviewLimit(planId);
   if (!limit) return null;
   return `${limit} full personal statement reviews included each month`;
@@ -204,15 +204,41 @@ export function getRemainingApplicationReviews(planId, reviews = []) {
   return Math.max(0, limit - used);
 }
 
-export function canSubmitApplicationReview(planId, reviews = []) {
-  return getRemainingApplicationReviews(planId, reviews) > 0;
+/** Remaining purchased essay_support review credits (not live mentor sessions). */
+export function sumEssayPackageRemaining(packages = []) {
+  const now = Date.now();
+  return packages.reduce((total, pkg) => {
+    if (!pkg) return total;
+    if (String(pkg.bundleId || "").trim().toLowerCase() !== "essay_support") return total;
+    const status = String(pkg.status || "active").toLowerCase();
+    if (status !== "active") return total;
+    if (pkg.expiresAt) {
+      const expires = new Date(pkg.expiresAt).getTime();
+      if (!Number.isNaN(expires) && expires <= now) return total;
+    }
+    const remaining = Number(pkg.sessionsRemaining);
+    if (!Number.isFinite(remaining) || remaining <= 0) return total;
+    return total + remaining;
+  }, 0);
 }
 
-export function getApplicationReviewBalanceLabel(planId, reviews = []) {
+export function canSubmitApplicationReview(planId, reviews = [], { essayPackages } = {}) {
+  if (getRemainingApplicationReviews(planId, reviews) > 0) return true;
+  return sumEssayPackageRemaining(essayPackages || []) > 0;
+}
+
+export function getApplicationReviewBalanceLabel(planId, reviews = [], { essayPackages } = {}) {
+  const monthlyRemaining = getRemainingApplicationReviews(planId, reviews);
+  const purchasedRemaining = sumEssayPackageRemaining(essayPackages || []);
   const limit = getMonthlyApplicationReviewLimit(planId);
-  if (!limit) return null;
-  const remaining = getRemainingApplicationReviews(planId, reviews);
-  return `${remaining} of ${limit} application reviews remaining`;
+  if (limit) {
+    const purchasedNote = purchasedRemaining > 0 ? ` · ${purchasedRemaining} purchased` : "";
+    return `${monthlyRemaining} of ${limit} application reviews remaining${purchasedNote}`;
+  }
+  if (purchasedRemaining > 0) {
+    return `${purchasedRemaining} purchased essay review credit${purchasedRemaining === 1 ? "" : "s"} remaining`;
+  }
+  return null;
 }
 
 export function countOneOnOneMeetingsThisMonth(meetings = [], now = new Date()) {

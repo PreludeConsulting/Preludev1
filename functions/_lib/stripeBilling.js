@@ -7,6 +7,7 @@ import {
 } from "../../shared/billingCatalog.js";
 
 const PAID_PLAN_IDS = ["basic", "plus", "pro"];
+const PURCHASABLE_PLAN_IDS = ["plus", "pro"];
 const STRIPE_API_VERSION = "2026-05-27.dahlia";
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 
@@ -49,7 +50,7 @@ function getBillingConfig(context) {
   const missing = [];
   if (provider === "stripe") {
     if (!stripeSecretKey) missing.push("STRIPE_SECRET_KEY");
-    for (const planId of PAID_PLAN_IDS) {
+    for (const planId of PURCHASABLE_PLAN_IDS) {
       if (!isConfiguredStripePriceId(prices[planId])) missing.push(PLAN_PRICE_ENV_BY_ID[planId]);
     }
     for (const [bundleId, quantityMap] of Object.entries(BUNDLE_PRICE_ENV_BY_ID)) {
@@ -543,8 +544,10 @@ async function processWebhookEvent(context, event) {
 
   if (event.type === "checkout.session.completed") {
     await syncCheckoutSession(context, object);
-    const { fulfillFlexibleSessionCheckout } = await import("../../server/lib/sessionPackageFulfillment.js");
-    const credit = await fulfillFlexibleSessionCheckout(object, async (payload) => {
+    const { fulfillEssaySupportCheckout, fulfillFlexibleSessionCheckout } = await import(
+      "../../server/lib/sessionPackageFulfillment.js"
+    );
+    const creditFn = async (payload) => {
       // Prefer Supabase REST so Workers can write without Prisma.
       const existing = payload.stripeCheckoutSessionId
         ? await supabaseRest(
@@ -568,8 +571,9 @@ async function processWebhookEvent(context, event) {
         }
       });
       return Array.isArray(inserted) ? inserted[0] : inserted;
-    });
-    void credit;
+    };
+    await fulfillFlexibleSessionCheckout(object, creditFn);
+    await fulfillEssaySupportCheckout(object, creditFn);
   }
 
   const invoiceSubscriptionId = stripeObjectId(object.subscription) ||
@@ -635,7 +639,7 @@ export async function handleBillingConfig(context) {
     enabled: config.enabled,
     webhookEnabled: config.webhookEnabled,
     publishableKey: config.stripePublishableKey,
-    paidPlans: PAID_PLAN_IDS
+    paidPlans: PURCHASABLE_PLAN_IDS
   });
 }
 
@@ -646,7 +650,7 @@ export async function handleBillingCheckout(context) {
   const payload = await readJson(context.request);
   const planId = String(payload.planId || "").toLowerCase();
   const checkoutContext = payload.context === "onboarding" ? "onboarding" : "public";
-  if (!PAID_PLAN_IDS.includes(planId)) {
+  if (!PURCHASABLE_PLAN_IDS.includes(planId)) {
     return json({ error: "invalid_plan", message: "That paid plan is not available." }, 400);
   }
   let authUser = null;
