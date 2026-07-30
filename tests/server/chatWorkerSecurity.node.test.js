@@ -34,4 +34,37 @@ describe("Cloudflare chat request security", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it("does not send client profile context to OpenAI for authenticated requests without verified owned profile data", async () => {
+    const injection = "Other Student Private GPA";
+    let outboundMessages = null;
+    const response = await handlePreludeChat({
+      request: new Request("https://example.com/api/chat", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: "Bearer user-token"
+        },
+        body: JSON.stringify({
+          message: "What should I do next?",
+          profile: { name: injection, gpa: "1.0" }
+        })
+      }),
+      env: { OPENAI_API_KEY: "test-key" },
+      fetch: async (_url, options = {}) => {
+        const payload = JSON.parse(options.body);
+        outboundMessages = payload.messages;
+        return new Response(JSON.stringify({
+          choices: [{ message: { content: "Use your dashboard checklist." } }]
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    });
+
+    assert.equal(response.status, 200);
+    assert.ok(outboundMessages);
+    assert.doesNotMatch(JSON.stringify(outboundMessages), new RegExp(injection));
+  });
 });

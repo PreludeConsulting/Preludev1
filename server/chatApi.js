@@ -4,17 +4,23 @@ import { mapChatError, shouldLogChatError } from "./chatErrors.js";
 import { createRagChatCompletion } from "./chatHandler.js";
 import { db, requireAuth } from "./authApi.js";
 import { readJsonBody, sendJson } from "./http.js";
+import { hasAuthenticatedRequest } from "./lib/dataOwnership.js";
 import { mergeStudentProfileForChat } from "./rag/studentProfile.js";
 import { sanitizeStudentProfile } from "./rag/studentProfile.js";
 import { validateChatRequestBody } from "./chatRequest.js";
 
-export function createChatApiMiddleware(env = process.env) {
+export function createChatApiMiddleware(env = process.env, deps = {}) {
   const config = buildChatModelConfig(env);
+  const requireAuthFn = deps.requireAuthFn || requireAuth;
+  const dbFactory = deps.dbFactory || db;
+  const createRagChatCompletionFn = deps.createRagChatCompletionFn || createRagChatCompletion;
+  const createMentorMatchFn = deps.createMentorMatchFn || createMentorMatch;
 
   async function loadStudentProfileSummary(req, body = {}) {
+    const authenticatedRequest = hasAuthenticatedRequest(req);
     try {
-      const { user } = await requireAuth(req);
-      const studentProfile = await db().studentProfile.findUnique({
+      const { user } = await requireAuthFn(req);
+      const studentProfile = await dbFactory().studentProfile.findUnique({
         where: { userId: user.id },
         select: {
           graduationYear: true,
@@ -27,9 +33,9 @@ export function createChatApiMiddleware(env = process.env) {
           progress: true
         }
       });
-      const clientProfile = body.profile && typeof body.profile === "object" ? body.profile : {};
-      return mergeStudentProfileForChat({ user, studentProfile, clientProfile });
+      return mergeStudentProfileForChat({ user, studentProfile, clientProfile: {} });
     } catch {
+      if (authenticatedRequest) return null;
       return body.profile && typeof body.profile === "object" ? sanitizeStudentProfile(body.profile) : null;
     }
   }
@@ -59,13 +65,14 @@ export function createChatApiMiddleware(env = process.env) {
       const request = validateChatRequestBody(body);
 
       if (request?.kind === "mentor_match") {
-        const result = await createMentorMatch(request.mentorMatch, config);
+        const result = await createMentorMatchFn(request.mentorMatch, config);
         sendJson(res, 200, result);
         return;
       }
       if (request?.kind === "message") {
-        const profile = (await loadStudentProfileSummary(req, body)) ?? sanitizeStudentProfile(request.profile || {});
-        const result = await createRagChatCompletion(
+        const ownedProfile = await loadStudentProfileSummary(req, body);
+        const profile = ownedProfile ?? (hasAuthenticatedRequest(req) ? null : sanitizeStudentProfile(request.profile || {}));
+        const result = await createRagChatCompletionFn(
           {
             message: request.message,
             conversationHistory: request.conversationHistory

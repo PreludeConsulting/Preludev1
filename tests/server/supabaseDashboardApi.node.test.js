@@ -73,6 +73,30 @@ function fakeSupabase(rows) {
 }
 
 describe("Supabase dashboard API", () => {
+  it("rejects app-data responses when Supabase returns rows owned by another user", async () => {
+    const middleware = createSupabaseDashboardApiMiddleware({
+      requireUser: async () => ({
+        user: { id: "user-1", email: "student@example.com", user_metadata: { role: "student" } },
+        supabase: fakeSupabase({
+          profiles: { id: "user-1", full_name: "Jordan Student", role: "student" },
+          user_settings: { user_id: "user-1", email_updates: false },
+          mentor_matching_profiles: { mentor_user_id: "user-1", availability_schedule: { days: [] } },
+          reward_wallets: { user_id: "user-1", coin_balance: 18 },
+          reward_task_instances: [{ id: "task-foreign", user_id: "user-2", status: "claimed", coin_value: 6 }],
+          notifications: [{ id: "notification-foreign", user_id: "user-2", title: "Private", body: "Nope" }],
+          calendar_events: [],
+          messages: []
+        })
+      })
+    });
+    const res = response();
+
+    await middleware(request(), res, () => assert.fail("app-data should be handled"));
+
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.error, "forbidden");
+  });
+
   it("isolates rewards and availability schema failures from core dashboard data", async () => {
     const rows = {
       profiles: { id: "user-1", full_name: "Jordan Student", role: "student" },
@@ -121,7 +145,7 @@ describe("Supabase dashboard API", () => {
           user_settings: { user_id: "user-1", email_updates: false },
           mentor_matching_profiles: { mentor_user_id: "user-1", availability_schedule: { days: [] } },
           reward_wallets: { user_id: "user-1", coin_balance: 18, lifetime_earned: 24 },
-          reward_task_instances: [{ id: "task-1", status: "claimed", coin_value: 6 }],
+          reward_task_instances: [{ id: "task-1", user_id: "user-1", status: "claimed", coin_value: 6 }],
           notifications: []
         })
       })

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { readJsonBody, sendJson } from "./http.js";
+import { assertDashboardAppDataOwnership } from "./lib/dataOwnership.js";
 import { requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 
 const profileFields = [
@@ -162,6 +163,17 @@ async function loadAppData(supabase, user) {
       rewards: walletRes.error || tasksRes.error || null
     });
   }
+  assertDashboardAppDataOwnership({
+    userId: user.id,
+    profile: profileRes.data,
+    settings: settingsRes.data,
+    availability: availabilityRes.error ? null : availabilityRes.data,
+    wallet: walletRes.error ? null : walletRes.data,
+    tasks: tasksRes.error ? [] : tasksRes.data,
+    notifications: notificationsRes.data,
+    events: eventsRes.data,
+    messages: messagesRes.data
+  });
   return normalizeDashboardAppData({
     user,
     profile: profileRes.data,
@@ -283,7 +295,7 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
         message: status === 401
           ? "Sign in again to continue."
           : status === 403
-            ? "This action requires a mentor account."
+            ? error.message || "You do not have access to this dashboard data."
             : "Dashboard data is temporarily unavailable. Retry in a moment."
       });
     }
