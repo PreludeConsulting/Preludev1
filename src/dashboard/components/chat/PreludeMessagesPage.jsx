@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Check, ImagePlus, MessageCircle, Pencil, Send, Video, X } from "lucide-react";
+import { ArrowLeft, Calendar, Check, CheckCheck, ChevronRight, ImagePlus, MessageCircle, Pencil, Send, Users, Video, X } from "lucide-react";
 import { findNextJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import { loadLocalChatMessages } from "../../../lib/localChatStore.js";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
@@ -10,6 +10,7 @@ import { useAuth } from "../../../context/AuthContext.jsx";
 import MessagesMentorNetworkPanel from "./MessagesMentorNetworkPanel.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 import { roleFromUser } from "../../../lib/dashboardRoutes.js";
+
 function formatDateLabel(iso) {
   const d = new Date(iso);
   const today = new Date();
@@ -17,7 +18,7 @@ function formatDateLabel(iso) {
   yesterday.setDate(today.getDate() - 1);
   if (d.toDateString() === today.toDateString()) return "Today";
   if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return d.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  return d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: d.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
 }
 
 function formatTime(iso) {
@@ -88,61 +89,52 @@ function EditComposer({ message, onCancel, onSave }) {
   }, []);
 
   return (
-    <div className="dash-chat-edit">
-      <button
-        type="button"
-        className="dash-chat-edit__btn dash-chat-edit__btn--cancel"
-        onClick={onCancel}
-        aria-label="Cancel edit"
-      >
-        <X className="h-4 w-4" />
+    <div className="msg-edit">
+      <button type="button" className="msg-edit__cancel" onClick={onCancel} aria-label="Cancel edit">
+        <X size={14} />
       </button>
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") onSave(value);
-          if (e.key === "Escape") onCancel();
-        }}
-        className="dash-chat-edit__input"
-        aria-label="Edit message"
-      />
-      <button
-        type="button"
-        className="dash-chat-edit__btn dash-chat-edit__btn--save"
-        onClick={() => onSave(value)}
-        aria-label="Save edit"
-        disabled={!value.trim()}
-      >
-        <Check className="h-4 w-4" />
+      <input ref={inputRef} type="text" value={value} onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") onSave(value); if (e.key === "Escape") onCancel(); }}
+        className="msg-edit__input" aria-label="Edit message" />
+      <button type="button" className="msg-edit__save" onClick={() => onSave(value)} aria-label="Save edit" disabled={!value.trim()}>
+        <Check size={14} />
       </button>
     </div>
   );
+}
+
+function MessageStatus({ status }) {
+  if (!status || status === "sending") return <span className="msg-status msg-status--sending">Sending…</span>;
+  if (status === "sent") return <span className="msg-status"><Check size={12} /></span>;
+  if (status === "delivered") return <span className="msg-status"><CheckCheck size={12} /></span>;
+  if (status === "read") return <span className="msg-status msg-status--read"><CheckCheck size={12} /></span>;
+  return null;
 }
 
 function ConvoRow({ thread, active, unreadCount, preview, lastAt, onSelect }) {
   return (
     <button
       type="button"
-      className={active ? "dash-convo-row dash-convo-row--active" : unreadCount > 0 ? "dash-convo-row dash-convo-row--unread" : "dash-convo-row"}
-      onClick={() => {
-        onSelect(thread.id);
-      }}
+      className={
+        "msg-convo" +
+        (active ? " msg-convo--active" : "") +
+        (unreadCount > 0 ? " msg-convo--unread" : "")
+      }
+      onClick={() => onSelect(thread.id)}
     >
-      <Avatar name={thread.tabLabel || thread.label} avatarUrl={thread.avatarUrl} size="sm" />
-      <div className="dash-convo-row__body">
-        <div className="dash-convo-row__head">
-          <strong>{thread.tabLabel || thread.label}</strong>
-          <time>{formatRelative(lastAt)}</time>
-        </div>
-        <span className="dash-convo-row__role">
-          {thread.tabSublabel || thread.sublabel || thread.participantRole}
-        </span>
-        {preview ? <p className="dash-convo-row__preview">{preview}</p> : null}
+      <div className="msg-convo__avatar">
+        <Avatar name={thread.tabLabel || thread.label} avatarUrl={thread.avatarUrl} size="sm" />
+        {thread.online ? <span className="msg-convo__online" /> : null}
       </div>
-      {unreadCount > 0 ? <span className="dash-chat-unread-dot dash-chat-unread-dot--thread" aria-hidden="true" /> : null}
+      <div className="msg-convo__body">
+        <div className="msg-convo__head">
+          <span className="msg-convo__name">{thread.tabLabel || thread.label}</span>
+          {lastAt ? <time className="msg-convo__time">{formatRelative(lastAt)}</time> : null}
+        </div>
+        <span className="msg-convo__role">{thread.tabSublabel || thread.sublabel || thread.participantRole}</span>
+        {preview ? <p className="msg-convo__preview">{preview}</p> : null}
+      </div>
+      {unreadCount > 0 ? <span className="msg-convo__badge">{unreadCount > 99 ? "99+" : unreadCount}</span> : null}
     </button>
   );
 }
@@ -183,6 +175,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef(null);
   const fileRef = useRef(null);
+  const composerRef = useRef(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 15000);
@@ -211,8 +204,12 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   const nextMeeting = findNextJoinableMeeting(meetings);
 
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!activeThreadId) return;
+    const timer = setTimeout(() => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 50);
+    return () => clearTimeout(timer);
   }, [activeThreadId, messages.length]);
 
   useEffect(() => {
@@ -231,6 +228,10 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
     setMobileShowChat(true);
   }
 
+  function handleBack() {
+    setMobileShowChat(false);
+  }
+
   async function handleSend(e) {
     e?.preventDefault?.();
     if (sending) return;
@@ -241,6 +242,21 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
       setDraft("");
       setPendingFile(null);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  function handleComposerKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend(e);
+    }
+  }
+
+  function handleComposerChange(e) {
+    setDraft(e.target.value);
+    if (composerRef.current) {
+      composerRef.current.style.height = "auto";
+      composerRef.current.style.height = Math.min(composerRef.current.scrollHeight, 120) + "px";
     }
   }
 
@@ -261,14 +277,43 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   }
 
   return (
-    <div className={`dash-chat-app ${mobileShowChat || (!isMentor && panel === "network") ? "dash-chat-app--mobile-chat" : ""}`}>
-      <aside className={`dash-chat-app__list ${mobileShowChat || (!isMentor && panel === "network") ? "dash-chat-app__list--hidden-mobile" : ""}`}>
+    <div className="msg-page">
+      {/* Sidebar */}
+      <aside className={"msg-sidebar" + (mobileShowChat ? " msg-sidebar--hidden" : "")}>
+        <div className="msg-sidebar__header">
+          <h2 className="msg-sidebar__title">Messages</h2>
+        </div>
+
         <SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search conversations…" />
-        <div className="dash-chat-app__threads">
+
+        <div className="msg-sidebar__threads">
           {loadingThreads ? (
-            <p className="dash-muted dash-chat-app__status">Loading conversations…</p>
+            <div className="msg-sidebar__status">
+              <span className="msg-loading-dot" />
+              <span className="msg-loading-dot" />
+              <span className="msg-loading-dot" />
+            </div>
           ) : sortedThreads.length === 0 ? (
-            <EmptyState icon={MessageCircle} title="No conversations" description={isMentor ? "Student conversations will appear here." : "Messages with your assigned mentor will appear here."} />
+            <div className="msg-empty-threads">
+              <div className="msg-empty-threads__icon">
+                <MessageCircle size={24} />
+              </div>
+              <p className="msg-empty-threads__title">No conversations yet</p>
+              <p className="msg-empty-threads__desc">
+                {isMentor
+                  ? "Messages with your assigned students will appear here."
+                  : "Messages will appear after you connect with a mentor."}
+              </p>
+              {!isMentor ? (
+                <button
+                  type="button"
+                  className="msg-empty-threads__action"
+                  onClick={() => { setPanel("network"); setMobileShowChat(true); }}
+                >
+                  <Users size={14} /> Browse mentor network
+                </button>
+              ) : null}
+            </div>
           ) : (
             sortedThreads.map((thread) => (
               <ConvoRow
@@ -283,73 +328,80 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
             ))
           )}
         </div>
+
         {!isMentor ? (
           <button
             type="button"
-            className={`dash-chat-app__network-link${panel === "network" ? " dash-chat-app__network-link--active" : ""}`}
-            onClick={() => {
-              setPanel("network");
-              setMobileShowChat(true);
-            }}
+            className={"msg-sidebar__network" + (panel === "network" ? " msg-sidebar__network--active" : "")}
+            onClick={() => { setPanel("network"); setMobileShowChat(true); }}
           >
-            View full mentor network
+            <Users size={15} />
+            <span>View full mentor network</span>
+            <ChevronRight size={14} />
           </button>
         ) : null}
       </aside>
 
-      <div className={`dash-chat-app__panel ${!mobileShowChat && sortedThreads.length && (isMentor || panel !== "network") ? "" : "dash-chat-app__panel--mobile"}`}>
+      {/* Main panel */}
+      <div className={"msg-main" + (mobileShowChat ? " msg-main--visible" : "")}>
         {!isMentor && panel === "network" ? (
           <MessagesMentorNetworkPanel
             canMessage={canMessageNetwork}
-            onBack={() => {
-              setPanel("inbox");
-              setMobileShowChat(false);
-            }}
+            onBack={() => { setPanel("inbox"); setMobileShowChat(false); }}
           />
         ) : activeThread ? (
           <>
-            <header className="dash-chat-app__header">
-              <button type="button" className="dash-chat-app__back lg:hidden" onClick={() => setMobileShowChat(false)} aria-label="Back">
-                <ArrowLeft className="h-5 w-5" />
+            {/* Chat header */}
+            <header className="msg-header">
+              <button type="button" className="msg-header__back" onClick={handleBack} aria-label="Back">
+                <ArrowLeft size={20} />
               </button>
               <Avatar name={activeThread.tabLabel || activeThread.label} avatarUrl={activeThread.avatarUrl} />
-              <div className="dash-chat-app__header-text">
-                <strong>{activeThread.tabLabel || activeThread.label}</strong>
-                <span>{activeThread.tabSublabel || activeThread.sublabel || activeThread.participantRole}</span>
+              <div className="msg-header__info">
+                <strong className="msg-header__name">{activeThread.tabLabel || activeThread.label}</strong>
+                <span className="msg-header__meta">
+                  {activeThread.tabSublabel || activeThread.sublabel || activeThread.participantRole || "Mentor"}
+                </span>
               </div>
               {schedulePath ? (
-                <div className="dash-chat-app__header-actions">
-                  <Link to={schedulePath} className="dash-btn dash-btn--secondary dash-btn--sm">
-                    <Calendar className="h-4 w-4" /> Schedule Zoom
-                  </Link>
+                <div className="msg-header__actions">
                   {nextMeeting?.zoomJoinUrl ? (
-                    <a href={nextMeeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="dash-btn dash-btn--primary dash-btn--sm">
-                      <Video className="h-4 w-4" /> Join Meeting
+                    <a href={nextMeeting.zoomJoinUrl} target="_blank" rel="noopener noreferrer" className="msg-btn msg-btn--primary msg-btn--sm" title="Join Meeting">
+                      <Video size={15} />
                     </a>
                   ) : null}
+                  <Link to={schedulePath} className="msg-btn msg-btn--outline msg-btn--sm" title="Schedule meeting">
+                    <Calendar size={15} />
+                  </Link>
                 </div>
               ) : null}
             </header>
 
-            <div className="dash-chat-app__messages" ref={scrollRef}>
+            {/* Messages area */}
+            <div className="msg-messages" ref={scrollRef}>
               {loadingMessages ? (
-                <p className="dash-muted dash-chat-app__status">Loading messages…</p>
+                <div className="msg-messages__loading">
+                  <div className="msg-loading-dots">
+                    <span className="msg-loading-dot" />
+                    <span className="msg-loading-dot" />
+                    <span className="msg-loading-dot" />
+                  </div>
+                </div>
               ) : groups.length === 0 ? (
-                <EmptyState icon={MessageCircle} title="No messages yet" description="Start the conversation." />
+                <div className="msg-empty-chat">
+                  <div className="msg-empty-chat__icon">
+                    <MessageCircle size={28} />
+                  </div>
+                  <p className="msg-empty-chat__title">No messages yet</p>
+                  <p className="msg-empty-chat__desc">Send your first message to start the conversation.</p>
+                </div>
               ) : (
                 groups.map((g, idx) =>
                   g.type === "date" ? (
-                    <div key={`d-${idx}`} className="dash-chat-date">{g.label}</div>
+                    <div key={`d-${idx}`} className="msg-date">{g.label}</div>
                   ) : (
-                    <div key={`m-${idx}`} className={`dash-chat-group dash-chat-group--${g.side}`}>
-                      {g.side === "them" ? (
-                        <Avatar
-                          name={activeThread.tabLabel || activeThread.label}
-                          avatarUrl={activeThread.avatarUrl}
-                          size="sm"
-                        />
-                      ) : null}
-                      <div className="dash-chat-group__bubbles">
+                    <div key={`m-${idx}`} className={"msg-group msg-group--" + g.side}>
+                      <div className="msg-group__bubbles">
                         {g.items.map((msg) =>
                           editingId === msg.id ? (
                             <EditComposer
@@ -359,32 +411,28 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                               onSave={(body) => saveEdit(msg.id, body)}
                             />
                           ) : (
-                            <div key={msg.id} className="dash-chat-bubble-wrap">
-                              <div className={`dash-chat-bubble dash-chat-bubble--${g.side}`}>
+                            <div key={msg.id} className="msg-bubble-wrap">
+                              <div className={"msg-bubble msg-bubble--" + g.side}>
                                 {msg.attachmentUrl ? (
-                                  <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                    <img src={msg.attachmentUrl} alt={msg.attachmentName || "Shared image"} className="dash-chat-bubble__image" />
+                                  <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="msg-bubble__image-link">
+                                    <img src={msg.attachmentUrl} alt={msg.attachmentName || "Shared image"} className="msg-bubble__image" />
                                   </a>
                                 ) : null}
-                                {msg.body ? <span>{msg.body}</span> : null}
+                                {msg.body ? <span className="msg-bubble__text">{msg.body}</span> : null}
                                 {canEditMessage(msg, now) ? (
-                                  <button
-                                    type="button"
-                                    className="dash-chat-bubble__edit"
-                                    onClick={() => setEditingId(msg.id)}
-                                    aria-label="Edit message"
-                                  >
-                                    <Pencil className="h-3 w-3" />
+                                  <button type="button" className="msg-bubble__edit" onClick={() => setEditingId(msg.id)} aria-label="Edit message">
+                                    <Pencil size={12} />
                                   </button>
                                 ) : null}
                               </div>
-                              {msg.editedAt ? <span className="dash-chat-edited">edited</span> : null}
+                              <div className={"msg-bubble__meta msg-bubble__meta--" + g.side}>
+                                {msg.editedAt ? <span className="msg-edited">edited</span> : null}
+                                {g.side === "me" ? <MessageStatus status={msg.status} /> : null}
+                                <time className="msg-time">{formatTime(msg.createdAt)}</time>
+                              </div>
                             </div>
                           )
                         )}
-                        <div className="dash-chat-group__meta">
-                          <time>{formatTime(g.items[g.items.length - 1].createdAt)}</time>
-                        </div>
                       </div>
                     </div>
                   )
@@ -392,71 +440,64 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
               )}
             </div>
 
+            {/* Error banner */}
             {error ? (
-              <p className="dash-chat-app__error" role="alert">
-                {error}
-              </p>
+              <div className="msg-error" role="alert">
+                <span>{error}</span>
+                {error.includes("offline") || error.includes("connection") ? (
+                  <button type="button" className="msg-error__retry" onClick={() => setError(null)}>Dismiss</button>
+                ) : null}
+              </div>
             ) : null}
 
+            {/* Attachment preview */}
             {previewUrl ? (
-              <div className="dash-chat-app__preview">
+              <div className="msg-preview">
                 <img src={previewUrl} alt="Attachment preview" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPendingFile(null);
-                    if (fileRef.current) fileRef.current.value = "";
-                  }}
-                  aria-label="Remove image"
-                >
-                  <X size={14} />
+                <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = ""; }} aria-label="Remove image">
+                  <X size={16} />
                 </button>
               </div>
             ) : null}
 
-            <form className="dash-chat-app__composer" onSubmit={handleSend}>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
-                className="dash-chat-app__file-input"
+            {/* Composer */}
+            <form className="msg-composer" onSubmit={handleSend}>
+              <input ref={fileRef} type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif" className="msg-composer__file"
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
                   if (!file) return;
                   setPendingFile(file);
                   setError(null);
                   e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                className="dash-btn dash-btn--secondary dash-btn--icon"
-                onClick={() => fileRef.current?.click()}
-                aria-label="Attach photo"
-                disabled={sending}
-              >
-                <ImagePlus className="h-4 w-4" />
+                }} />
+              <button type="button" className="msg-composer__attach" onClick={() => fileRef.current?.click()} aria-label="Attach photo" disabled={sending}>
+                <ImagePlus size={20} />
               </button>
               <textarea
+                ref={composerRef}
                 rows={1}
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend(e);
-                  }
-                }}
+                onChange={handleComposerChange}
+                onKeyDown={handleComposerKeyDown}
                 placeholder={placeholder}
                 disabled={sending}
+                className="msg-composer__input"
               />
-              <button type="submit" className="dash-btn dash-btn--primary dash-btn--icon" aria-label="Send" disabled={sending || (!draft.trim() && !pendingFile)}>
-                <Send className="h-4 w-4" />
+              <button type="submit" className="msg-composer__send" aria-label="Send" disabled={sending || (!draft.trim() && !pendingFile)}>
+                <Send size={16} />
               </button>
             </form>
           </>
         ) : (
-          <EmptyState icon={MessageCircle} title="Select a conversation" description={isMentor ? "Choose a student conversation." : "Choose a thread with your mentor, or browse the full mentor network."} />
+          <div className="msg-empty-select">
+            <div className="msg-empty-select__icon">
+              <MessageCircle size={36} />
+            </div>
+            <p className="msg-empty-select__title">Select a conversation</p>
+            <p className="msg-empty-select__desc">
+              {isMentor ? "Choose a conversation to start messaging." : "Choose a conversation with your mentor."}
+            </p>
+          </div>
         )}
       </div>
     </div>
