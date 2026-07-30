@@ -2,7 +2,7 @@
 import { useAuth } from "../context/AuthContext.jsx";
 import { getPreludeMatchQuestionnaire, savePreludeMatchQuestionnaire } from "../lib/auth.js";
 import { Button } from "./ui/button.jsx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 const QUESTIONS = [
   "What is your current grade level in high school?",

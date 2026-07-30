@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useEffect, useState } from "react";
 import { isJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import {

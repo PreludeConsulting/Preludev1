@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { motion } from "motion/react";
 import AccountPanel from "./AccountPanel.jsx";
 import Navbar from "./Navbar.jsx";

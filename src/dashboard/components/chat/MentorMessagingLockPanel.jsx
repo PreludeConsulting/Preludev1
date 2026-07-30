@@ -1,5 +1,5 @@
 import { Lock, MessageCircle, Send, Sparkles, Users, Zap } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 
 const BENEFITS = [

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { getPhaseHeaderLabel } from "../../config/studentDashboardByGrade.js";
 import { getStudentDemoBundleBySlug } from "../../lib/studentDemoBundle.js";

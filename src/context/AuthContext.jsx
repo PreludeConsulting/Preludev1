@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { getStoredSession, signIn as authSignIn, signOut as authSignOut, signUp as authSignUp, deleteAccount as authDeleteAccount, verifyAccountPassword as authVerifyAccountPassword } from "../lib/auth.js";
 import {
   acceptPendingParentInvite,

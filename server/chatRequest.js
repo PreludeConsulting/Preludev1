@@ -7,7 +7,7 @@ function requestError(statusCode, code, message) {
 
 export function validateChatRequestBody(body) {
   const input = body && typeof body === "object" && !Array.isArray(body) ? body : {};
-  let serialized = "";
+  let serialized;
   try {
     serialized = JSON.stringify(input);
   } catch {

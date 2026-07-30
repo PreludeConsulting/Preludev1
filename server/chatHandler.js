@@ -201,7 +201,7 @@ export async function createRagChatCompletion({ message, conversationHistory = [
     }
   }
 
-  let retrieval = { intent: classifiedIntent, blocks: [], sources: [], conversationState: {} };
+  let retrieval;
   if (knowledgePolicy.retrievalIntent) {
     retrieval = {
       intent: knowledgePolicy.retrievalIntent,
@@ -289,7 +289,7 @@ export async function createRagChatCompletion({ message, conversationHistory = [
     profile
   });
 
-  let result = null;
+  let result;
   try {
     result = await callChatModel(chatMessages, resolvedConfig);
   } catch (error) {

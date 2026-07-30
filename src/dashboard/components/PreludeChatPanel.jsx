@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 import { Bot, Sparkles } from "lucide-react";
 import DashboardAIChat from "./DashboardAIChat.jsx";
 

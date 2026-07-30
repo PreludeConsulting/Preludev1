@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { Calendar, ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
 import { useAuth } from "../../../context/AuthContext.jsx";

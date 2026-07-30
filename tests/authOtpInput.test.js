@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import AuthLayout from "../src/components/auth/AuthLayout.jsx";
 import { AuthSubmitButton, normalizeOtpDigits, OtpInput } from "../src/components/auth/AuthForm.jsx";

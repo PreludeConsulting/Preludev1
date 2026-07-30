@@ -391,8 +391,8 @@ async function handlePortal(req, res) {
   const config = getBillingConfig();
   if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
 
-  let userId = null;
-  let customerId = null;
+  let userId;
+  let customerId;
   try {
     const { user } = await requireSupabaseUser(req);
     userId = user.id;

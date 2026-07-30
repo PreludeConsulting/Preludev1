@@ -77,7 +77,7 @@ export default defineConfig(({ mode, command }) => {
         output: {
           manualChunks(id) {
             if (!id.includes("node_modules")) return undefined;
-            if (/[\\/]node_modules[\\/](react|react-dom|react-router-dom)[\\/]/.test(id)) return "react";
+            if (/[\\/]node_modules[\\/](react|react-dom|react-router)[\\/]/.test(id)) return "react";
             if (/[\\/]node_modules[\\/]motion[\\/]/.test(id)) return "motion";
             if (/[\\/]node_modules[\\/]hls\.js[\\/]/.test(id)) return "media";
             if (/[\\/]node_modules[\\/]lucide-react[\\/]/.test(id)) return "icons";

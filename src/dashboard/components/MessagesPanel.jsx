@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ArrowLeft, Calendar, MessageCircle, Send, Video } from "lucide-react";
 import { findNextJoinableMeeting, isValidMeetingJoinUrl } from "../../lib/zoomMeetingLinks.js";
 import { useAuth } from "../../context/AuthContext.jsx";

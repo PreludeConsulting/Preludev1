@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { DashboardDataProvider } from "../../context/DashboardDataContext.jsx";
 import StudentGamificationShell from "../StudentGamificationShell.jsx";

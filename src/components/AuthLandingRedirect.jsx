@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import { resolveAuthLandingRedirect } from "../../shared/authRecoveryLink.js";
 
 /** Routes Supabase auth hash/query params that land on `/` to the correct auth page. */

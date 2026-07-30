@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { CheckCircle2, Search, X } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { getMentorCatalog, requestMentorMatch, saveMatchDecision } from "../../../lib/preludeMatchService.js";

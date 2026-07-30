@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { Users, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { shouldUseDemoFixtures } from "../../lib/devAuthBypass.js";

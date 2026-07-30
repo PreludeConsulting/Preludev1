@@ -3,7 +3,7 @@ import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { MotionDialog } from "../../../components/motion/MotionPrimitives.jsx";
 import InteractiveButton from "../../../components/interaction/InteractiveButton.jsx";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import UserAvatar from "../../../components/UserAvatar.jsx";
 import { cn } from "../../../lib/utils.js";
 import { bindFocusTrap } from "../../../lib/focusTrap.js";

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { PRELUDE_MATCH_QUESTIONS } from "../../data/preludeMatchQuestions.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { roleFromUser } from "../../lib/dashboardRoutes.js";

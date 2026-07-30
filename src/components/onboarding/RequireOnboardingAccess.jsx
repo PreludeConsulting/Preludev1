@@ -1,4 +1,4 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router";
 import { useAuth } from "../../context/AuthContext.jsx";
 import AuthLoadingState from "../AuthLoadingState.jsx";
 import { canAccessOnboardingPath, isOnboardingComplete } from "../../lib/onboardingFlow.js";

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { CalendarPlus, CreditCard, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useBelowHeaderModalOffset } from "../../hooks/useBelowHeaderModalOffset.js";
 import {
   buildPurchaseSessionsPath,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router";
 import { ChevronRight, Users } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { useLanguage } from "../../../context/LanguageContext.jsx";

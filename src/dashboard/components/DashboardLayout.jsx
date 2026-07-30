@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { UserCheck } from "lucide-react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router";
 import { useAuth } from "../../context/AuthContext.jsx";
 import EmailVerificationBanner from "../../components/EmailVerificationBanner.jsx";
 import LanguageSwitcher from "../../components/LanguageSwitcher.jsx";

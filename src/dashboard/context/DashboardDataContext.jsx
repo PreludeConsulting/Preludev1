@@ -958,7 +958,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           await consumeEssayReviewCreditApi();
         } catch (error) {
           throw new Error(
-            error?.message || "Could not use a purchased essay review credit. Try again or contact support."
+            error?.message || "Could not use a purchased essay review credit. Try again or contact support.",
+            { cause: error }
           );
         }
       }

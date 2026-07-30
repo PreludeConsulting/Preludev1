@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CheckCircle, CreditCard, Loader2, XCircle } from "lucide-react";
-import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getPlan } from "../lib/plans.js";
 import { PAYMENT_ONBOARDING_PATH, dashboardPathForRole } from "../lib/onboardingRoutes.js";

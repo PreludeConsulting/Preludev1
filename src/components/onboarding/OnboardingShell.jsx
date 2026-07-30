@@ -1,6 +1,6 @@
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 import AppLink from "../AppLink.jsx";
 import { getOnboardingProgress, getOnboardingStepNavigation } from "../../lib/onboardingFlow.js";
 import { ROLE_SELECTION_PATH } from "../../lib/onboardingRoutes.js";

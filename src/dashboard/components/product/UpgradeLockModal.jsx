@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Coins, Gift, Lock, Sparkles, Users, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { getFeatureLockCopy } from "../../../lib/planFeatures.js";
 import { useBelowHeaderModalOffset } from "../../hooks/useBelowHeaderModalOffset.js";

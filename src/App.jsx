@@ -5,7 +5,7 @@ import SignInModal from "./components/SignInModal.jsx";
 import LanguageSwitcher from "./components/LanguageSwitcher.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import Hero from "./components/Hero.jsx";
 import NetworkSection from "./components/NetworkSection.jsx";
 import StudentNetworkSection from "./components/StudentNetworkSection.jsx";

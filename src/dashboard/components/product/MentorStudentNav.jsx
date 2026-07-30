@@ -1,4 +1,4 @@
-import { NavLink, useParams } from "react-router-dom";
+import { NavLink, useParams } from "react-router";
 import { cn } from "../../../lib/utils.js";
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import { MENTOR_STUDENT_NAV } from "../../config/mentorStudentNav.js";

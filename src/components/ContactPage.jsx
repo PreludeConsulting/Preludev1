@@ -15,7 +15,7 @@ import {
   Video
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 import AppLink from "./AppLink.jsx";
 import Navbar from "./Navbar.jsx";
 import PreludeLogo from "./PreludeLogo.jsx";

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 import { ImagePlus, MessageCircle, Pencil, Send, X } from "lucide-react";
 import { Avatar } from "../ui/index.jsx";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";

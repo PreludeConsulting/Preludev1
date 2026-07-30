@@ -1,5 +1,5 @@
 import { BookOpen, Coins, Gift, GraduationCap, Lock, Sparkles, User } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { getFeatureLockCopy, PRICING_UPGRADE_TO } from "../../../lib/planFeatures.js";
 import { PrimaryButton } from "../ui/index.jsx";
 

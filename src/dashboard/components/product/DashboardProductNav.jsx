@@ -1,6 +1,6 @@
 import { Bell, ChevronDown, CircleHelp, CreditCard, LayoutDashboard, Lock, LogOut, Settings } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router";
 import PreludeLogo from "../../../components/PreludeLogo.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { useLanguage } from "../../../context/LanguageContext.jsx";

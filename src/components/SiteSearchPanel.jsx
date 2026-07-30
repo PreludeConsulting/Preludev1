@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { bindFocusTrap } from "../lib/focusTrap.js";
 import { filterSiteSearch, navigateToSiteResult, SITE_SEARCH_ITEMS } from "../lib/siteSearch.js";
