@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { ArrowUpRight } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import PreludeMatch from "./hero/PreludeMatch.jsx";

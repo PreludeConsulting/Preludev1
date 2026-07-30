@@ -1,6 +1,6 @@
 import { ArrowLeft, Compass, ExternalLink, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import {
   createGuidedAssistantSnapshot,
   getGuidedAssistantView,

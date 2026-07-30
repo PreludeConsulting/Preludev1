@@ -347,7 +347,7 @@ async function handleVerify(req, res) {
   const payload = verifyCodeSchema.parse(await readJsonBody(req));
   const code = payload.code;
 
-  let selectedChallenge = null;
+  let selectedChallenge;
   if (payload.challengeId) {
     const result = await supabase
       .from("login_verification_challenges")

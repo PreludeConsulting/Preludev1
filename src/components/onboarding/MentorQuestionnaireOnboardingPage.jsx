@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Calendar } from "lucide-react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {
   EMPTY_MENTOR_PROFILE_FORM,

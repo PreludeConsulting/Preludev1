@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { Calendar, ChevronRight, Flame, MoreVertical, Plus } from "lucide-react";
 import { Avatar, IconButton } from "../ui/index.jsx";
 import { ProgressRing } from "../ui/gamification.jsx";

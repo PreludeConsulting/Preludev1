@@ -1,6 +1,6 @@
 import { Bell, ChevronDown, CircleHelp, CreditCard, LayoutDashboard, LogOut, Menu, Search, Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { cn } from "../../lib/utils.js";
 import { useDashboardData } from "../context/DashboardDataContext.jsx";

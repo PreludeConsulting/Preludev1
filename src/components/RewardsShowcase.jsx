@@ -1,5 +1,5 @@
 import { Crosshair, FileText, Mic, Ticket } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { STUDENT_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";

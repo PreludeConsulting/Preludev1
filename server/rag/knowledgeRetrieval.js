@@ -285,7 +285,7 @@ function queryLocalKnowledge(message, { limit = 8, profile = null, sourceTypes =
 export async function retrieveKnowledgeChunks(message, { limit = 8, profile = null, sourceTypes = null } = {}) {
   const sourceTypeHints = resolveSourceTypeHints(message, sourceTypes);
   const hasExplicitSourceTypes = Array.isArray(sourceTypes) && sourceTypes.length > 0;
-  let dbRows = [];
+  let dbRows;
   try {
     dbRows = await queryDatabaseKnowledge(message, { limit, profile, sourceTypes });
   } catch {

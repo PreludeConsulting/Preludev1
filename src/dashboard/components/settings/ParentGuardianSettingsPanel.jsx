@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { Check, Mail, Plus, Users } from "lucide-react";
 import { inviteParent, listParentInvites } from "../../../lib/parentLinks.js";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";

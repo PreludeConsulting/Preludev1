@@ -3,7 +3,7 @@ import React, { act } from "react";
 import { createRoot } from "react-dom/client";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BrowserRouter, useLocation } from "react-router-dom";
+import { BrowserRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MembershipDrawer from "../src/components/MembershipDrawer.jsx";
 import { AuthContext } from "../src/context/AuthContext.jsx";
@@ -28,7 +28,7 @@ function render(element) {
 
 function renderMembershipDrawer(closeModals = vi.fn()) {
   render(
-    <BrowserRouter future={{ v7_relativeSplatPath: true }}>
+    <BrowserRouter>
       <AuthContext.Provider
         value={{
           accountOpen: true,

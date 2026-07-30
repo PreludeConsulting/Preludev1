@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
 import { useDialogFocusTrap } from "../../lib/useDialogFocusTrap.js";

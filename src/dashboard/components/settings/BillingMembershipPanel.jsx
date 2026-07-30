@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { CreditCard, Loader2, Package, RefreshCw, Sparkles } from "lucide-react";
 import { useLanguage } from "../../../context/LanguageContext.jsx";
 import { getPlanBadgeLabel } from "../../../lib/planBadges.js";

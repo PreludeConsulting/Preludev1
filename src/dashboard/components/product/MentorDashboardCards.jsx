@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { Flame } from "lucide-react";
 import { MENTOR_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
 import MentorPendingRequestsPanel from "./MentorPendingRequestsPanel.jsx";

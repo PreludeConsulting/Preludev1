@@ -9,7 +9,7 @@ import {
   Sparkles,
   X
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { openBillingPortal } from "../lib/auth.js";

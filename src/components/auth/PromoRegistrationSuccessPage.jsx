@@ -1,6 +1,6 @@
 import { CheckCircle2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router";
 import AuthLayout from "./AuthLayout.jsx";
 import { AuthSubmitButton } from "./AuthForm.jsx";
 import { postAuthDestination } from "../../lib/onboardingRoutes.js";

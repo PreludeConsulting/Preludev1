@@ -107,7 +107,7 @@ async function sendInviteEmail({ parentEmail, studentName, inviteToken }) {
       body: JSON.stringify({ parentEmail, studentName, inviteToken })
     });
   } catch (error) {
-    throw new Error(friendlyParentInviteError(error));
+    throw new Error(friendlyParentInviteError(error), { cause: error });
   }
 }
 

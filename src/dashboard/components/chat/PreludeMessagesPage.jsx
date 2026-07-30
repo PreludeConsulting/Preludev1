@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { ArrowLeft, Calendar, Check, CheckCheck, ChevronRight, ImagePlus, MessageCircle, Pencil, Send, Users, Video, X } from "lucide-react";
 import { findNextJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import { loadLocalChatMessages } from "../../../lib/localChatStore.js";

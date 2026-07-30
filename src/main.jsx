@@ -1,6 +1,6 @@
 import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import App from "./App.jsx";
 
 const lazyNamed = (loader, name) => lazy(() => loader().then((module) => ({ default: module[name] })));
@@ -68,10 +68,7 @@ function RouteLoadingFallback() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter
-      basename={ROUTER_BASENAME || undefined}
-      future={{ v7_relativeSplatPath: true }}
-    >
+    <BrowserRouter basename={ROUTER_BASENAME || undefined}>
       <ScrollToTop />
       <AuthLandingRedirect />
       <LanguageProvider>

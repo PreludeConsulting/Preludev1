@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 import { isLanguageFeatureEnabled } from "../lib/languageFeature.js";
 import { DEFAULT_LANGUAGE, LANGUAGES, translations } from "../lib/translations.js";
 

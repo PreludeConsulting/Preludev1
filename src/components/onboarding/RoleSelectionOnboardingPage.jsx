@@ -1,5 +1,5 @@
 import { GraduationCap, HeartHandshake, Users } from "lucide-react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {

@@ -90,7 +90,7 @@ function admissionPredictionAdvice(meta) {
 export function buildSchoolFactAnswer({ school, topic, questionIntent, profile = null }) {
   const meta = school.metadata;
   const record = buildUniversityRecord(school);
-  let body = "";
+  let body;
 
   switch (topic) {
     case "sat_average":

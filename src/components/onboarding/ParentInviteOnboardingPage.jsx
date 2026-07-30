@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router";
 import { Mail, Users } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {

@@ -1,6 +1,6 @@
 import { CheckCircle2, KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import { resetPassword } from "../../lib/auth.js";
 import { isSupabaseConfigured } from "../../lib/supabaseConfig.js";
 import {

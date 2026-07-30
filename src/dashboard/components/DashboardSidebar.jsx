@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router";
 import PreludeLogo from "../../components/PreludeLogo.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { cn } from "../../lib/utils.js";

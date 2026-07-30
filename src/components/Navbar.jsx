@@ -2,7 +2,7 @@ import { ArrowUpRight, Menu, Search, X } from "lucide-react";
 import AccountMenuButton from "./AccountMenuButton.jsx";
 import UserMenuDropdown from "./UserMenuDropdown.jsx";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { NAV_LINKS } from "../data/navLinks.js";
 import AppLink from "./AppLink.jsx";
 import { useAuth } from "../context/AuthContext.jsx";

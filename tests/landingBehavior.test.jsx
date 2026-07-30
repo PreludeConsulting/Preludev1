@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import React, { StrictMode, act, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AppLink from "../src/components/AppLink.jsx";
 import SiteSearchPanel from "../src/components/SiteSearchPanel.jsx";
@@ -79,7 +79,7 @@ describe("landing behavior", () => {
   it("cleans a landing hash and scrolls exactly once for top navigation", () => {
     window.history.replaceState({}, "", "/#pricing");
     render(
-      <BrowserRouter future={{ v7_relativeSplatPath: true }}>
+      <BrowserRouter>
         <AppLink href="/">About</AppLink>
       </BrowserRouter>
     );
@@ -93,7 +93,7 @@ describe("landing behavior", () => {
 
   it("does not intercept modified landing clicks", () => {
     render(
-      <BrowserRouter future={{ v7_relativeSplatPath: true }}>
+      <BrowserRouter>
         <AppLink href="#pricing">Pricing</AppLink>
       </BrowserRouter>
     );
@@ -105,7 +105,7 @@ describe("landing behavior", () => {
   it("renders translated search results, navigates once, and dismisses the panel", () => {
     const onClose = vi.fn();
     render(
-      <BrowserRouter future={{ v7_relativeSplatPath: true }}>
+      <BrowserRouter>
         <LanguageProvider>
           <SiteSearchPanel open onClose={onClose} triggerRef={{ current: null }} />
         </LanguageProvider>
