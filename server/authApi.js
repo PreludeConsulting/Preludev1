@@ -368,6 +368,15 @@ export async function requireAuth(req) {
     error.statusCode = 401;
     throw error;
   }
+  try {
+    await db().$queryRawUnsafe(
+      `SELECT set_config('app.current_user_id', $1::text, true)`,
+      auth.user.id
+    );
+  } catch {
+    // best-effort; RLS context not required when the connection user
+    // bypasses row-level security (superuser / BYPASSRLS)
+  }
   return auth;
 }
 
