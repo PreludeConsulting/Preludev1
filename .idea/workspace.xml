@@ -10,9 +10,9 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 4
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4
+}</component>
   <component name="ProjectId" id="3FPXv8lBpdmzevH5fhmXHdjzt5z" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -23,7 +23,7 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main",
+    "git-widget-placeholder": "list-supabase-sql-files-and-naming",
     "kotlin-language-version-configured": "true",
     "nodejs_package_manager_path": "npm",
     "settings.editor.selected.configurable": "org.infernus.idea.checkstyle.CheckStyleConfigurable",
@@ -46,6 +46,7 @@
       <option name="presentableId" value="Default" />
       <updated>1781977906348</updated>
       <workItem from="1781977907598" duration="44000" />
+      <workItem from="1785450941494" duration="9000" />
     </task>
     <servers />
   </component>
