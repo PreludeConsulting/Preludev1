@@ -618,6 +618,7 @@ model Meeting {
   idempotencyKey    String?  @unique @map("idempotency_key") @db.VarChar(128)
   accessType        String?  @map("access_type") @db.VarChar(32)
   sessionPackageId  String?  @map("session_package_id") @db.Uuid
+  subscriptionSessionPeriodId String? @map("subscription_session_period_id") @db.Uuid
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

@@ -11,19 +11,24 @@ const JORDAN_STUDENT_BASE = {
   role: "STUDENT"
 };
 
-/** Jordan Lee — Basic plan (locked Plus/Pro dashboard features). */
+/** Jordan Lee — Essay Support (one-time review credits; legacy plan id remains `basic`). */
 export const DEMO_STUDENT_BASIC = {
   key: "student-basic",
   email: "jordan-basic@prelude-demo.com",
   plan: "basic",
+  displayPlanLabel: "Essay Support",
   ...JORDAN_STUDENT_BASE
 };
+
+/** Alias for Essay Support demo account. */
+export const DEMO_STUDENT_ESSAY_SUPPORT = DEMO_STUDENT_BASIC;
 
 /** Jordan Lee — Plus plan (rewards + mentor network unlocked). */
 export const DEMO_STUDENT_PLUS = {
   key: "student-plus",
   email: "jordan-plus@prelude-demo.com",
   plan: "plus",
+  displayPlanLabel: "Plus",
   ...JORDAN_STUDENT_BASE
 };
 
@@ -32,6 +37,7 @@ export const DEMO_STUDENT_PRO = {
   key: "student-pro",
   email: "jordan-pro@prelude-demo.com",
   plan: "pro",
+  displayPlanLabel: "Pro",
   ...JORDAN_STUDENT_BASE
 };
 
@@ -40,9 +46,11 @@ export const DEMO_STUDENT = {
   key: "student",
   email: "student@prelude-demo.com",
   plan: "plus",
+  displayPlanLabel: "Plus",
   ...JORDAN_STUDENT_BASE
 };
 
+/** Legacy Alex account — kept for seed/compat; not on Mentor Maya's demo roster. */
 export const DEMO_STUDENT_2 = {
   key: "student2",
   email: "student2@prelude-demo.com",
@@ -50,7 +58,8 @@ export const DEMO_STUDENT_2 = {
   firstName: "Alex",
   lastName: "Kim",
   role: "STUDENT",
-  plan: "basic"
+  plan: "plus",
+  displayPlanLabel: "Plus"
 };
 
 export const DEMO_MENTOR = {
@@ -100,4 +109,17 @@ export function getDemoAccountByKey(key) {
 export function getDemoAccountByEmail(email) {
   const normalized = (email || "").trim().toLowerCase();
   return ALL_DEMO_ACCOUNTS.find((account) => account.email === normalized) || null;
+}
+
+/** Login-button / mentor-facing plan label (Essay Support instead of Basic). */
+export function getDemoLoginPlanLabel(accountOrPlan) {
+  if (accountOrPlan && typeof accountOrPlan === "object") {
+    if (accountOrPlan.displayPlanLabel) return accountOrPlan.displayPlanLabel;
+    return getDemoLoginPlanLabel(accountOrPlan.plan);
+  }
+  const plan = String(accountOrPlan || "").trim().toLowerCase();
+  if (plan === "basic" || plan === "essay_support") return "Essay Support";
+  if (plan === "plus") return "Plus";
+  if (plan === "pro") return "Pro";
+  return plan ? plan.charAt(0).toUpperCase() + plan.slice(1) : "Prelude";
 }

@@ -9,6 +9,7 @@ import {
   sanitizeActivityFileName,
   validateDocumentUrl
 } from "../../server/mentorActivitiesApi.js";
+import { isEssaySupportOnlyStudent } from "../../server/lib/reviewCredits.js";
 
 const studentA = "11111111-1111-4111-a111-111111111111";
 const studentB = "22222222-2222-4222-a222-222222222222";
@@ -30,6 +31,10 @@ assert.equal(resolveActivityFileType("draft.pdf.exe", "application/pdf"), null);
 assert.equal(sanitizeActivityFileName("../../My Essay (final).pdf"), "My_Essay_final_.pdf");
 assert.equal(displayActivityStatus({ status: "not_started", due_date: "2020-01-01T00:00:00.000Z" }, new Date("2021-01-01T00:00:00.000Z")), "overdue");
 assert.equal(displayActivityStatus({ status: "submitted", due_date: "2020-01-01T00:00:00.000Z" }, new Date("2021-01-01T00:00:00.000Z")), "submitted");
+assert.equal(isEssaySupportOnlyStudent({ plan: "plus", subscriptionStatus: "active" }), false);
+assert.equal(isEssaySupportOnlyStudent({ plan: "pro", subscriptionStatus: "" }), false);
+assert.equal(isEssaySupportOnlyStudent({ plan: "plus", subscriptionStatus: "canceled" }), true);
+assert.equal(isEssaySupportOnlyStudent({ plan: "essay_support", subscriptionStatus: "active" }), true);
 
 function mockResponse() {
   return {

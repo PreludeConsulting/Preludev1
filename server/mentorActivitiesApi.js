@@ -3,6 +3,13 @@ import { z } from "zod";
 import { readJsonBody, sendJson } from "./http.js";
 import { getSupabaseAdmin, requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
+import {
+  ESSAY_SUPPORT_ACTIVITY_TYPES,
+  getReviewCreditBalance,
+  isEssaySupportOnlyStudent,
+  reserveEssayReviewCredit,
+  restoreEssayReviewCreditOnCancel
+} from "./lib/reviewCredits.js";
 
 export const ACTIVITY_TYPES = [
   "personal_statement",
@@ -28,18 +35,23 @@ const MIME_BY_EXTENSION = {
 const ALLOWED_MIME_TYPES = new Set(Object.values(MIME_BY_EXTENSION));
 
 const optionalText = (max) => z.string().trim().max(max).optional().nullable().transform((value) => value || null);
+const essayPromptSchema = z.object({
+  promptText: z.string().trim().min(1).max(20000),
+  optionalWordLimit: z.coerce.number().int().positive().max(100000).optional().nullable()
+}).strict();
 const activityCreateSchema = z.object({
   studentId: UUID_SCHEMA,
   activityType: z.enum(ACTIVITY_TYPES),
   title: z.string().trim().min(1).max(180),
   collegeName: optionalText(180),
   essayPrompt: optionalText(20000),
+  prompts: z.array(essayPromptSchema).max(50).optional(),
   wordLimit: z.coerce.number().int().positive().max(100000).optional().nullable(),
   instructions: optionalText(20000),
   dueDate: z.string().datetime({ offset: true }).optional().nullable(),
   allowedSubmissionMethod: z.enum(ALLOWED_SUBMISSION_METHODS).default("either")
 }).strict();
-const activityUpdateSchema = activityCreateSchema.omit({ studentId: true }).partial().strict();
+const activityUpdateSchema = activityCreateSchema.omit({ studentId: true, prompts: true }).partial().strict();
 const submissionSchema = z.object({
   submissionMethod: z.enum(SUBMISSION_METHODS),
   documentUrl: optionalText(2048),
@@ -69,6 +81,13 @@ const fileSchema = z.object({
 }).strict();
 const filePathSchema = z.object({ storagePath: z.string().trim().min(1).max(1024) }).strict();
 const fileUrlSchema = z.object({ submissionId: UUID_SCHEMA }).strict();
+const promptResponsesSchema = z.object({
+  responses: z.array(z.object({
+    promptId: UUID_SCHEMA,
+    responseText: z.string().max(50000),
+    submissionStatus: z.enum(["draft", "submitted"]).default("draft")
+  }).strict()).min(1).max(50)
+}).strict();
 
 function httpError(statusCode, message, code) {
   const error = new Error(message);
@@ -153,7 +172,7 @@ function mapFeedback(row, profileById) {
   };
 }
 
-function mapActivity(row, { submissions = [], feedback = [], profileById = {} } = {}) {
+function mapActivity(row, { submissions = [], feedback = [], prompts = [], promptResponses = [], profileById = {} } = {}) {
   return {
     id: row.id,
     mentorId: row.mentor_id,
@@ -174,7 +193,9 @@ function mapActivity(row, { submissions = [], feedback = [], profileById = {} } 
     updatedAt: row.updated_at,
     completedAt: row.completed_at,
     submissions,
-    feedback
+    feedback,
+    prompts,
+    promptResponses
   };
 }
 
@@ -223,14 +244,21 @@ async function hydrateActivities(admin, rows) {
   if (!rows.length) return [];
   const activityIds = rows.map((row) => row.id);
   const userIds = [...new Set(rows.flatMap((row) => [row.mentor_id, row.student_id]).filter(Boolean))];
-  const [submissionResult, feedbackResult, profileResult] = await Promise.all([
+  const [submissionResult, feedbackResult, profileResult, promptResult, promptResponseResult] = await Promise.all([
     admin.from("activity_submissions").select("*").in("activity_id", activityIds).order("created_at", { ascending: false }),
     admin.from("activity_feedback").select("*").in("activity_id", activityIds).order("created_at", { ascending: false }),
-    admin.from("profiles").select("id, full_name, role").in("id", userIds)
+    admin.from("profiles").select("id, full_name, role").in("id", userIds),
+    admin.from("activity_essay_prompts").select("*").in("activity_id", activityIds).order("display_order", { ascending: true }),
+    admin.from("activity_prompt_responses").select("*").in("activity_id", activityIds).order("created_at", { ascending: true })
   ]);
   throwForQuery(submissionResult.error, "Could not load activity submissions.");
   throwForQuery(feedbackResult.error, "Could not load activity feedback.");
   throwForQuery(profileResult.error, "Could not load activity participants.");
+  const missingOptionalTable = (error) => ["42P01", "PGRST205"].includes(error?.code);
+  if (promptResult.error && !missingOptionalTable(promptResult.error)) throwForQuery(promptResult.error, "Could not load essay prompts.");
+  if (promptResponseResult.error && !missingOptionalTable(promptResponseResult.error)) {
+    throwForQuery(promptResponseResult.error, "Could not load prompt responses.");
+  }
   const profileById = Object.fromEntries((profileResult.data || []).map((profile) => [profile.id, profile]));
   const feedbackByActivity = {};
   const feedbackBySubmission = {};
@@ -243,9 +271,34 @@ async function hydrateActivities(admin, rows) {
   for (const row of submissionResult.data || []) {
     (submissionsByActivity[row.activity_id] ||= []).push(mapSubmission(row, feedbackBySubmission[row.id] || []));
   }
+  const promptsByActivity = {};
+  for (const row of promptResult.data || []) {
+    (promptsByActivity[row.activity_id] ||= []).push({
+      id: row.id,
+      activityId: row.activity_id,
+      promptText: row.prompt_text,
+      optionalWordLimit: row.optional_word_limit,
+      displayOrder: row.display_order
+    });
+  }
+  const responsesByActivity = {};
+  for (const row of promptResponseResult.data || []) {
+    (responsesByActivity[row.activity_id] ||= []).push({
+      id: row.id,
+      promptId: row.prompt_id,
+      activityId: row.activity_id,
+      studentUserId: row.student_user_id,
+      responseText: row.response_text,
+      submissionStatus: row.submission_status,
+      savedAt: row.saved_at,
+      submittedAt: row.submitted_at
+    });
+  }
   return rows.map((row) => mapActivity(row, {
     submissions: submissionsByActivity[row.id] || [],
     feedback: feedbackByActivity[row.id] || [],
+    prompts: promptsByActivity[row.id] || [],
+    promptResponses: responsesByActivity[row.id] || [],
     profileById
   })).sort(activitySort);
 }
@@ -260,15 +313,29 @@ async function listAssignedStudents(admin, caller) {
   if (!studentIds.length) return [];
   const { data: profiles, error: profilesError } = await admin
     .from("profiles")
-    .select("id, full_name, preferred_name, grade_level, college_interests")
+    .select("id, full_name, preferred_name, grade_level, college_interests, plan_id, subscription_status")
     .in("id", studentIds);
   throwForQuery(profilesError, "Could not load assigned student profiles.");
-  return (profiles || []).map((profile) => ({
-    id: profile.id,
-    name: profile.preferred_name || profile.full_name || "Student",
-    grade: profile.grade_level || "",
-    colleges: Array.isArray(profile.college_interests) ? profile.college_interests : []
-  })).sort((a, b) => a.name.localeCompare(b.name));
+  const students = await Promise.all((profiles || []).map(async (profile) => {
+    const balance = await getReviewCreditBalance(profile.id);
+    return {
+      id: profile.id,
+      name: profile.preferred_name || profile.full_name || "Student",
+      grade: profile.grade_level || "",
+      colleges: Array.isArray(profile.college_interests) ? profile.college_interests : [],
+      plan: profile.plan_id || "basic",
+      essaySupportOnly: isEssaySupportOnlyStudent({
+        plan: profile.plan_id,
+        subscriptionStatus: profile.subscription_status
+      }),
+      reviewCredits: {
+        purchased: balance.purchased,
+        assigned: balance.assigned,
+        remaining: balance.remaining
+      }
+    };
+  }));
+  return students.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 async function notify(admin, userId, title, body, link) {
@@ -297,20 +364,82 @@ async function createActivity(admin, caller, body) {
   if (!['mentor', 'admin'].includes(caller.role)) throw httpError(403, "Only mentors can assign activities.", "forbidden");
   const input = activityCreateSchema.parse(body);
   await assertAssignedStudent(admin, caller, input.studentId);
+
+  const { data: student, error: studentError } = await admin
+    .from("profiles")
+    .select("id, plan_id, subscription_status")
+    .eq("id", input.studentId)
+    .maybeSingle();
+  throwForQuery(studentError, "Could not load the student's plan.");
+  if (!student) throw httpError(404, "Student not found.", "not_found");
+
+  const balance = await getReviewCreditBalance(input.studentId);
+  const essaySupportOnly = isEssaySupportOnlyStudent({
+    plan: student.plan_id,
+    subscriptionStatus: student.subscription_status
+  });
+  if (essaySupportOnly && !ESSAY_SUPPORT_ACTIVITY_TYPES.includes(input.activityType)) {
+    throw httpError(403, "This activity type is not available for this student’s plan.", "activity_type_not_available");
+  }
+
+  const isEssayReview = ESSAY_SUPPORT_ACTIVITY_TYPES.includes(input.activityType);
+  if (essaySupportOnly && isEssayReview && balance.remaining < 1) {
+    throw httpError(409, "This student has no Essay Support review credits remaining.", "no_review_credits");
+  }
+  // Consume a package credit when inventory remains. Essay Support-only students
+  // cannot assign reviews without credits; Plus/Pro may still assign without packages.
+  const usesEssayCredits = isEssayReview && balance.remaining > 0;
+
+  const prompts = input.activityType === "supplemental_essay"
+    ? (input.prompts?.length
+        ? input.prompts
+        : (input.essayPrompt ? [{ promptText: input.essayPrompt, optionalWordLimit: input.wordLimit }] : []))
+    : [];
+  if (input.activityType === "supplemental_essay") {
+    if (!input.collegeName) throw httpError(400, "College is required for supplemental essay reviews.", "college_required");
+    if (!prompts.length) throw httpError(400, "Add at least one supplemental essay prompt.", "prompt_required");
+  }
+
   const { data, error } = await admin.from("mentor_assigned_activities").insert({
     mentor_id: caller.id,
     student_id: input.studentId,
     title: input.title,
     activity_type: input.activityType,
     college_name: input.collegeName,
-    essay_prompt: input.essayPrompt,
-    word_limit: input.wordLimit,
+    essay_prompt: prompts[0]?.promptText || input.essayPrompt,
+    word_limit: prompts[0]?.optionalWordLimit || input.wordLimit,
     instructions: input.instructions,
     due_date: input.dueDate,
     allowed_submission_method: input.allowedSubmissionMethod,
     status: "not_started"
   }).select("*").single();
   throwForQuery(error, "Could not assign this activity.");
+
+  try {
+    if (prompts.length) {
+      const { error: promptError } = await admin.from("activity_essay_prompts").insert(
+        prompts.map((prompt, displayOrder) => ({
+          activity_id: data.id,
+          prompt_text: prompt.promptText,
+          optional_word_limit: prompt.optionalWordLimit || null,
+          display_order: displayOrder
+        }))
+      );
+      throwForQuery(promptError, "Could not save the supplemental essay prompts.");
+    }
+    if (usesEssayCredits) {
+      await reserveEssayReviewCredit({
+        studentUserId: input.studentId,
+        activityId: data.id,
+        createdByUserId: caller.id
+      });
+    }
+  } catch (createError) {
+    await admin.from("activity_essay_prompts").delete().eq("activity_id", data.id);
+    await admin.from("mentor_assigned_activities").delete().eq("id", data.id);
+    throw createError;
+  }
+
   await notify(
     admin,
     input.studentId,
@@ -593,6 +722,82 @@ async function reviewActivity(admin, caller, activityId, body) {
   return (await hydrateActivities(admin, [data]))[0];
 }
 
+async function savePromptResponses(admin, caller, activityId, body) {
+  if (caller.role !== "student") throw httpError(403, "Only students can save prompt responses.", "forbidden");
+  const activity = await getActivityRow(admin, activityId);
+  assertActivityAccess(caller, activity);
+  if (activity.status === "completed") throw httpError(409, "This activity is already completed.", "activity_completed");
+  const input = promptResponsesSchema.parse(body);
+  const promptIds = input.responses.map((response) => response.promptId);
+  if (new Set(promptIds).size !== promptIds.length) {
+    throw httpError(400, "Each essay prompt can only have one response.", "duplicate_prompt");
+  }
+  const { data: prompts, error: promptError } = await admin
+    .from("activity_essay_prompts")
+    .select("id")
+    .eq("activity_id", activity.id);
+  throwForQuery(promptError, "Could not verify the essay prompts.");
+  const activityPromptIds = new Set((prompts || []).map((prompt) => prompt.id));
+  if (promptIds.some((promptId) => !activityPromptIds.has(promptId))) {
+    throw httpError(400, "One or more prompt responses do not belong to this activity.", "invalid_prompt");
+  }
+
+  const now = new Date().toISOString();
+  const rows = input.responses.map((response) => ({
+    prompt_id: response.promptId,
+    activity_id: activity.id,
+    student_user_id: caller.id,
+    response_text: response.responseText,
+    submission_status: response.submissionStatus,
+    saved_at: now,
+    submitted_at: response.submissionStatus === "submitted" ? now : null,
+    updated_at: now
+  }));
+  const { error } = await admin
+    .from("activity_prompt_responses")
+    .upsert(rows, { onConflict: "prompt_id,student_user_id" });
+  throwForQuery(error, "Could not save prompt responses.");
+  const allSubmitted =
+    input.responses.length === activityPromptIds.size &&
+    input.responses.every((response) => response.submissionStatus === "submitted");
+  const { data: updated, error: updateError } = await admin
+    .from("mentor_assigned_activities")
+    .update({ status: allSubmitted ? "submitted" : "in_progress", updated_at: now })
+    .eq("id", activity.id)
+    .select("*")
+    .single();
+  throwForQuery(updateError, "Prompt responses were saved, but activity status could not be updated.");
+  return (await hydrateActivities(admin, [updated]))[0];
+}
+
+async function deleteActivity(admin, caller, activityId) {
+  const activity = await getActivityRow(admin, activityId);
+  assertActivityAccess(caller, activity, { writeAsMentor: true });
+  const [submissionResult, feedbackResult] = await Promise.all([
+    admin.from("activity_submissions").select("id").eq("activity_id", activity.id).eq("is_draft", false).limit(1),
+    admin.from("activity_feedback").select("id").eq("activity_id", activity.id).limit(1)
+  ]);
+  throwForQuery(submissionResult.error, "Could not verify activity submissions.");
+  throwForQuery(feedbackResult.error, "Could not verify activity feedback.");
+  const eligibleForRestore =
+    ["not_started", "in_progress"].includes(activity.status) &&
+    !(submissionResult.data || []).length &&
+    !(feedbackResult.data || []).length;
+
+  const { error } = await admin.from("mentor_assigned_activities").delete().eq("id", activity.id);
+  throwForQuery(error, "Could not delete this activity.");
+  let restored = null;
+  if (ESSAY_SUPPORT_ACTIVITY_TYPES.includes(activity.activity_type)) {
+    restored = await restoreEssayReviewCreditOnCancel({
+      studentUserId: activity.student_id,
+      activityId: activity.id,
+      createdByUserId: caller.id,
+      eligible: eligibleForRestore
+    });
+  }
+  return { deleted: true, creditRestored: Boolean(restored) };
+}
+
 function activityConfig(env) {
   const configuredMax = Number(env.MENTOR_ACTIVITY_MAX_FILE_BYTES);
   return {
@@ -637,6 +842,12 @@ export function createMentorActivitiesApiMiddleware({
       }
       if (activityId && !action && req.method === "PATCH") {
         return sendJson(res, 200, { activity: await updateActivity(admin, caller, activityId, await readJsonBody(req)) });
+      }
+      if (activityId && !action && req.method === "DELETE") {
+        return sendJson(res, 200, await deleteActivity(admin, caller, activityId));
+      }
+      if (action === "prompt-responses" && req.method === "POST") {
+        return sendJson(res, 200, { activity: await savePromptResponses(admin, caller, activityId, await readJsonBody(req)) });
       }
       if (action === "submissions" && req.method === "POST") {
         const result = await saveSubmission(admin, caller, activityId, await readJsonBody(req), req.headers["idempotency-key"], config);

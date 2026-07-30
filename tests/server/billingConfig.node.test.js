@@ -52,8 +52,12 @@ describe("billing configuration", () => {
     assert.equal(getPlanPriceId("plus", config), "price_0Valid");
     assert.equal(getPlanPriceId("pro", config), "price_1Valid");
     assert.equal(getBundlePriceId("essay_support", 3, config), "price_2Valid");
-    assert.equal(getBundlePriceId("essay_support", 6, config), "price_3Valid");
-    assert.equal(getBundlePriceId("essay_support", 10, config), "price_4Valid");
+    assert.equal(getBundlePriceId("essay_support", 4, config), "price_3Valid");
+    assert.equal(getBundlePriceId("essay_support", 5, config), "price_4Valid");
+    assert.equal(getBundlePriceId("essay_support", 6, config), "price_5Valid");
+    assert.equal(getBundlePriceId("essay_support", 7, config), "price_6Valid");
+    assert.equal(getBundlePriceId("essay_support", 8, config), "price_7Valid");
+    assert.equal(getBundlePriceId("essay_support", 10, config), "price_8Valid");
     assert.equal(getPlanIdForPriceId("price_1Valid", config), "pro");
     assert.equal(getPlanPriceId("unknown", config), null);
   });

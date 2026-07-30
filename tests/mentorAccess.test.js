@@ -117,4 +117,64 @@ describe("mentor access gating", () => {
     expect(result.allowed).toBe(true);
     expect(result.packageRemaining).toBe(2);
   });
+
+  it("blocks a second Plus/Pro Book a Session submission on the same day", () => {
+    const now = new Date("2026-07-30T18:00:00.000Z");
+    const result = evaluateMentorAccess({
+      user: { plan: "pro", subscriptionStatus: "active" },
+      meetings: [
+        {
+          status: "pending",
+          accessType: "subscription",
+          createdAt: "2026-07-30T14:00:00.000Z",
+          startTime: "2026-08-02T16:00:00.000Z"
+        }
+      ],
+      packages: [],
+      now,
+      sessionCredits: { active: true, remaining: 3, allowance: 4, periodEnd: "2026-08-20T00:00:00.000Z" }
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe("daily_booking_limit");
+    expect(result.subscriptionRemaining).toBe(3);
+  });
+
+  it("allows another Plus/Pro booking the next day", () => {
+    const now = new Date("2026-07-31T18:00:00.000Z");
+    const result = evaluateMentorAccess({
+      user: { plan: "plus", subscriptionStatus: "active" },
+      meetings: [
+        {
+          status: "pending",
+          accessType: "subscription",
+          createdAt: "2026-07-30T14:00:00.000Z",
+          startTime: "2026-08-02T16:00:00.000Z"
+        }
+      ],
+      packages: [],
+      now,
+      sessionCredits: { active: true, remaining: 1, allowance: 2, periodEnd: "2026-08-20T00:00:00.000Z" }
+    });
+    expect(result.allowed).toBe(true);
+    expect(result.accessType).toBe("subscription");
+  });
+
+  it("does not apply the daily limit to package-backed requests", () => {
+    const now = new Date("2026-07-30T18:00:00.000Z");
+    const result = evaluateMentorAccess({
+      user: { plan: "basic", subscriptionStatus: "canceled" },
+      meetings: [
+        {
+          status: "pending",
+          accessType: "session_package",
+          createdAt: "2026-07-30T14:00:00.000Z",
+          startTime: "2026-08-02T16:00:00.000Z"
+        }
+      ],
+      packages: [{ status: "active", sessionsRemaining: 2, mentorUserId: null }],
+      now
+    });
+    expect(result.allowed).toBe(true);
+    expect(result.accessType).toBe("session_package");
+  });
 });

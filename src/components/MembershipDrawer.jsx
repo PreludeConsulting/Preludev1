@@ -17,9 +17,11 @@ import { dashboardHomeForRole, roleFromUser } from "../lib/dashboardRoutes.js";
 import { settingsPathForRole } from "../lib/onboardingRoutes.js";
 import { PRELUDE_AI_NAME } from "../lib/preludeAi.js";
 import { useDialogFocusTrap } from "../lib/useDialogFocusTrap.js";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MembershipPlanCard from "./MembershipPlanCard.jsx";
 import { getPlan } from "../lib/plans.js";
+import { isEssaySupportProduct } from "../lib/currentProduct.js";
+import { fetchBillingSummary } from "../lib/billingMembership.js";
 import AppLink from "./AppLink.jsx";
 
 function userInitial(name) {
@@ -30,15 +32,32 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
   const { accountOpen, closeModals, user, planDetails, signOut } = useAuth();
   const [billingMessage, setBillingMessage] = useState("");
   const [billingLoading, setBillingLoading] = useState(false);
+  const [billingSummary, setBillingSummary] = useState(null);
   const dialogRef = useDialogFocusTrap(Boolean(accountOpen && user), closeModals);
+  const roleLabel = roleFromUser(user);
+  const isMentor = roleLabel === "mentor";
+  const activePlan = isMentor ? null : planDetails || (user?.plan ? getPlan(user.plan) : null);
+  const isEssaySupport = isEssaySupportProduct(user?.plan || activePlan?.id);
+
+  useEffect(() => {
+    if (!accountOpen || !user?.id || isMentor) return undefined;
+    let cancelled = false;
+    fetchBillingSummary()
+      .then((summary) => {
+        if (!cancelled) setBillingSummary(summary);
+      })
+      .catch(() => {
+        if (!cancelled) setBillingSummary(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accountOpen, isMentor, user?.id]);
 
   if (!user) return null;
 
   const dashboardPath = dashboardHomeForRole(user.role);
   const settingsPath = settingsPathForRole(user.role);
-  const roleLabel = roleFromUser(user);
-  const isMentor = roleLabel === "mentor";
-  const activePlan = isMentor ? null : planDetails || (user.plan ? getPlan(user.plan) : null);
 
   async function handleManageBilling() {
     setBillingLoading(true);
@@ -87,7 +106,12 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
 
             <div className="membership-drawer__body">
               {activePlan ? (
-                <MembershipPlanCard plan={activePlan} planId={user.plan || activePlan.id} />
+                <MembershipPlanCard
+                  plan={activePlan}
+                  planId={user.plan || activePlan.id}
+                  reviewCredits={billingSummary?.reviewCredits}
+                  packages={billingSummary?.sessions?.packages}
+                />
               ) : isMentor ? (
                 <section className="membership-plan-card">
                   <p className="membership-plan-card__eyebrow">Account role</p>
@@ -102,11 +126,11 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
                 </section>
               )}
 
-              {!isMentor && user.subscriptionStatus ? (
+              {!isMentor && !isEssaySupport && user.subscriptionStatus ? (
                 <p className="membership-drawer__meta">Billing status: {user.subscriptionStatus}</p>
               ) : null}
 
-              {!isMentor ? (
+              {!isMentor && !isEssaySupport ? (
                 <>
                   <section className="membership-drawer__section">
                     <h3 className="membership-drawer__section-title">
@@ -162,7 +186,7 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
                 </p>
               ) : null}
 
-              {!isMentor && user.hasBillingCustomer ? (
+              {!isMentor && !isEssaySupport && user.hasBillingCustomer ? (
                 <button
                   type="button"
                   className="prelude-btn-secondary membership-drawer__btn"
@@ -182,7 +206,7 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
                 Go to Dashboard
               </Link>
               <AppLink href="#pricing" className="prelude-btn-secondary membership-drawer__btn" onClick={closeModals}>
-                View or Upgrade Plan
+                View or Upgrade Plan &amp; Essay Support
               </AppLink>
               <button
                 type="button"

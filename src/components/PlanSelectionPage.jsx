@@ -16,6 +16,7 @@ import { getPlan, getPricingPlans, isPurchasablePlanId } from "../lib/plans.js";
 import { getPlanBadgeLabel } from "../lib/planBadges.js";
 import { readOnboardingDraft, writeOnboardingDraft } from "../lib/onboardingFlow.js";
 import { startBillingCheckout, startBundleCheckout } from "../lib/auth.js";
+import { essayPackageKey } from "../../shared/supportBundles.js";
 import {
   markPendingCheckoutPlan,
   startAuthenticatedBundleCheckout,
@@ -731,7 +732,10 @@ export function PlanWalletExperience({
       const mentorUserId = search.get("mentorUserId") || undefined;
       const checkoutOptions = {
         ...(mentorId ? { mentorId } : {}),
-        ...(mentorUserId ? { mentorUserId } : {})
+        ...(mentorUserId ? { mentorUserId } : {}),
+        ...(selection.bundleId === "essay_support"
+          ? { packageKey: essayPackageKey(selection.quantities?.essayReviews) }
+          : {})
       };
       const result =
         context === "payment"

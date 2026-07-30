@@ -15,6 +15,7 @@ import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
 import { evaluateMentorAccess, sumPackageRemaining } from "../../shared/mentorAccess.js";
 import { ensureHouseholdForUser } from "./referralCodes.js";
 import { listSessionPackagesForStudent } from "./mentorAccess.js";
+import { getSessionCreditSummary } from "./sessionCredits.js";
 import { getSupabaseAdmin } from "./supabaseRequestAuth.js";
 
 function admin() {
@@ -145,12 +146,15 @@ export async function getBillingSummary(userId) {
 
   const packages = await collectSessionPackages(ctx.members);
   const sessionBalance = sumPackageRemaining(packages);
+  const creditSummary = await getSessionCreditSummary(sub.id);
   const access = evaluateMentorAccess({
     user: {
       plan: planId,
-      subscriptionStatus: sub.subscription_status
+      subscriptionStatus: sub.subscription_status,
+      subscriptionCurrentPeriodEnd: sub.subscription_current_period_end
     },
-    packages
+    packages,
+    sessionCredits: creditSummary
   });
 
   const priceCents = PLAN_PRICE_CENTS[planId] ?? null;
@@ -162,6 +166,8 @@ export async function getBillingSummary(userId) {
     interval: "month",
     currency: "usd"
   };
+
+  const subscriptionCreditsRemaining = creditSummary.active ? creditSummary.remaining : 0;
 
   return {
     eligible: true,
@@ -179,7 +185,10 @@ export async function getBillingSummary(userId) {
       canceledAt: sub.subscription_canceled_at || null,
       stripeSubscriptionId: sub.stripe_subscription_id || null,
       hasCustomer: Boolean(sub.stripe_customer_id || ctx.viewer.stripe_customer_id),
-      explanation: membershipAccessExplanation(statusInfo, { sessionBalance }),
+      explanation: membershipAccessExplanation(statusInfo, {
+        sessionBalance,
+        subscriptionCreditsRemaining
+      }),
       actions: {
         cancel: canCancelMembership(statusInfo) && ctx.canManage,
         reactivate: canReactivateMembership(statusInfo) && ctx.canManage,
@@ -190,6 +199,7 @@ export async function getBillingSummary(userId) {
     },
     sessions: {
       available: sessionBalance,
+      subscriptionCredits: creditSummary,
       packages: packages.map((pkg) => ({
         id: pkg.id,
         bundleId: pkg.bundleId,
@@ -204,6 +214,11 @@ export async function getBillingSummary(userId) {
       allowed: access.allowed,
       accessType: access.accessType,
       remainingSessions: access.remainingSessions,
+      subscriptionRemaining: access.subscriptionRemaining,
+      packageRemaining: access.packageRemaining,
+      allowance: access.allowance,
+      periodEnd: access.periodEnd,
+      sessionCreditBalanceLabel: access.sessionCreditBalanceLabel,
       reason: access.reason
     }
   };
@@ -530,7 +545,7 @@ export async function recordPurchaseFromCheckoutSession(session) {
   if (bundleId === "flexible_sessions") {
     displayName = `Flexible sessions${qty ? ` (${qty})` : ""}`;
   } else if (bundleId === "essay_support") {
-    displayName = `Essay support${qty ? ` (${qty} reviews)` : ""}`;
+    displayName = `Essay Support${qty ? ` (${qty} credits)` : ""}`;
   }
 
   return recordBillingPurchase({

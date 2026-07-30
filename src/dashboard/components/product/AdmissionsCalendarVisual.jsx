@@ -16,6 +16,7 @@ import { EVENT_CATEGORY_LABELS } from "../../data/placeholders.js";
 import { EmptyState, Modal, SecondaryButton } from "../ui/index.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 import { useMentorBookingSlots } from "../../hooks/useMentorBookingSlots.js";
+import { hasPlusProBookingSubmissionToday } from "../../../../shared/mentorAccess.js";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -697,6 +698,13 @@ export default function AdmissionsCalendarVisual({
   } = useDashboardData();
   const canRequestMentorSessions =
     canBookSession([], mentorAccess) || plan === "plus" || plan === "pro" || Boolean(mentorAccess?.packageRemaining > 0);
+  const creditMeetings = [...(dashboardMeetings || []), ...(pendingMeetingRequests || [])];
+  const dailyBookingUsed =
+    mentorAccess?.reason === "daily_booking_limit" ||
+    mentorAccess?.dailyBookingUsed === true ||
+    ((plan === "plus" || plan === "pro") &&
+      hasPlusProBookingSubmissionToday(creditMeetings));
+  const canSubmitMentorBooking = canRequestMentorSessions && !dailyBookingUsed;
   const mentorUserId = mentor?.userId || mentor?.mentorUserId || null;
   const {
     dates: bookingSlotDates,
@@ -706,8 +714,8 @@ export default function AdmissionsCalendarVisual({
   } = useMentorBookingSlots({
     mentorUserId,
     schedule: mentor?.availabilitySchedule || null,
-    meetings: [...(dashboardMeetings || []), ...(pendingMeetingRequests || [])],
-    enabled: Boolean(!isMentorCalendar && canRequestMentorSessions && mentorUserId)
+    meetings: creditMeetings,
+    enabled: Boolean(!isMentorCalendar && canSubmitMentorBooking && mentorUserId)
   });
   const createOptions = useMemo(() => {
     if (isMentorCalendar || isMentorStudentView) return CREATE_OPTIONS;
@@ -1235,7 +1243,7 @@ export default function AdmissionsCalendarVisual({
           !isGuardianStudentView &&
           calendarRole === "student" &&
           Boolean(createDraft?.formVariant === "event" && !editDraft) &&
-          canRequestMentorSessions
+          canSubmitMentorBooking
         }
         bookingSlotDates={bookingSlotDates}
         bookingSlotsLoading={bookingSlotsLoading}

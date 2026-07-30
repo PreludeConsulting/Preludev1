@@ -134,6 +134,7 @@ function mapMentorMatch(row) {
     major: row.mentor_major,
     expertise: Array.isArray(row.expertise) ? row.expertise : [],
     availability: row.availability || "",
+    availabilitySchedule: row.availability_schedule || row.availabilitySchedule || null,
     status: row.status,
     notes: row.notes,
     studentId: row.student_id || row.user_id,
@@ -374,7 +375,42 @@ export async function getMyMentorMatches(userId) {
     .select("*")
     .or(`student_id.eq.${id},user_id.eq.${id},mentor_id.eq.${id}`)
     .order("created_at", { ascending: false });
-  return { matches: (data || []).map(mapMentorMatch), error: error?.message || null };
+
+  const matches = (data || []).map(mapMentorMatch);
+  if (error || !matches.length) {
+    return { matches, error: error?.message || null };
+  }
+
+  const mentorIds = [
+    ...new Set(matches.map((match) => match.mentorUserId || match.userId).filter(Boolean))
+  ];
+  if (!mentorIds.length) return { matches, error: null };
+
+  const { data: profiles, error: profileError } = await db()
+    .from("mentor_matching_profiles")
+    .select("mentor_user_id, availability, availability_schedule")
+    .in("mentor_user_id", mentorIds);
+
+  if (profileError || !profiles?.length) {
+    return { matches, error: error?.message || null };
+  }
+
+  const byMentorId = Object.fromEntries(
+    profiles.map((profile) => [profile.mentor_user_id, profile])
+  );
+
+  return {
+    matches: matches.map((match) => {
+      const profile = byMentorId[match.mentorUserId || match.userId];
+      if (!profile) return match;
+      return {
+        ...match,
+        availability: profile.availability || match.availability,
+        availabilitySchedule: profile.availability_schedule || match.availabilitySchedule || null
+      };
+    }),
+    error: null
+  };
 }
 
 export async function saveMatchAnswer(userId, questionId, answer) {

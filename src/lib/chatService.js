@@ -8,7 +8,6 @@ import {
   DEMO_MENTOR,
   DEMO_PARENT,
   DEMO_STUDENT,
-  DEMO_STUDENT_2,
   isDemoEmail
 } from "../data/demoAccounts.js";
 import { shouldUseDemoFixtures } from "./devAuthBypass.js";
@@ -35,8 +34,10 @@ export const CHAT_TYPE = {
 };
 
 const DEMO_IDS = {
-  student: "demo-student",
-  student2: "demo-student2",
+  studentEssay: "demo-student-basic",
+  studentPlus: "demo-student-plus",
+  studentPro: "demo-student-pro",
+  student: "demo-student-plus",
   mentor: "demo-mentor",
   parent: "demo-parent"
 };
@@ -97,23 +98,33 @@ function demoDisplayName(account) {
 function buildDemoParentThreads() {
   const raw = [
     {
-      id: "demo-thread-mp-jordan",
+      id: "demo-thread-mp-jordan-essay",
       chatType: CHAT_TYPE.MENTOR_PARENT,
       mentorId: DEMO_IDS.mentor,
-      studentId: DEMO_IDS.student,
+      studentId: DEMO_IDS.studentEssay,
       parentId: DEMO_IDS.parent,
       mentorName: demoDisplayName(DEMO_MENTOR),
-      studentName: demoDisplayName(DEMO_STUDENT),
+      studentName: "Jordan — Essay Support",
       participantRole: "Mentor"
     },
     {
-      id: "demo-thread-mp-alex",
+      id: "demo-thread-mp-jordan-plus",
       chatType: CHAT_TYPE.MENTOR_PARENT,
       mentorId: DEMO_IDS.mentor,
-      studentId: DEMO_IDS.student2,
+      studentId: DEMO_IDS.studentPlus,
       parentId: DEMO_IDS.parent,
       mentorName: demoDisplayName(DEMO_MENTOR),
-      studentName: demoDisplayName(DEMO_STUDENT_2),
+      studentName: "Jordan — Plus",
+      participantRole: "Mentor"
+    },
+    {
+      id: "demo-thread-mp-jordan-pro",
+      chatType: CHAT_TYPE.MENTOR_PARENT,
+      mentorId: DEMO_IDS.mentor,
+      studentId: DEMO_IDS.studentPro,
+      parentId: DEMO_IDS.parent,
+      mentorName: demoDisplayName(DEMO_MENTOR),
+      studentName: "Jordan — Pro",
       participantRole: "Mentor"
     }
   ];
@@ -145,23 +156,33 @@ function buildDemoThreadsForUser(user) {
 
   if (role === "mentor") {
     threads.push(withStorageKey({
-      id: "demo-thread-ms-jordan",
+      id: "demo-thread-ms-jordan-essay",
       chatType: CHAT_TYPE.MENTOR_STUDENT,
       mentorId: DEMO_IDS.mentor,
-      studentId: DEMO_IDS.student,
+      studentId: DEMO_IDS.studentEssay,
       parentId: null,
-      label: demoDisplayName(DEMO_STUDENT),
-      sublabel: "Student",
+      label: "Jordan — Essay Support",
+      sublabel: "Essay Support",
       participantRole: "Student"
     }));
     threads.push(withStorageKey({
-      id: "demo-thread-ms-alex",
+      id: "demo-thread-ms-jordan-plus",
       chatType: CHAT_TYPE.MENTOR_STUDENT,
       mentorId: DEMO_IDS.mentor,
-      studentId: DEMO_IDS.student2,
+      studentId: DEMO_IDS.studentPlus,
       parentId: null,
-      label: demoDisplayName(DEMO_STUDENT_2),
-      sublabel: "Student",
+      label: "Jordan — Plus",
+      sublabel: "Plus",
+      participantRole: "Student"
+    }));
+    threads.push(withStorageKey({
+      id: "demo-thread-ms-jordan-pro",
+      chatType: CHAT_TYPE.MENTOR_STUDENT,
+      mentorId: DEMO_IDS.mentor,
+      studentId: DEMO_IDS.studentPro,
+      parentId: null,
+      label: "Jordan — Pro",
+      sublabel: "Pro",
       participantRole: "Student"
     }));
     return threads;

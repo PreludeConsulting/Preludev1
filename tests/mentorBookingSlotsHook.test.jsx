@@ -47,13 +47,18 @@ describe("useMentorBookingSlots", () => {
     document.body.append(host);
     root = createRoot(host);
 
+    function HarnessNoPoll({ meetings }) {
+      useMentorBookingSlots({ schedule, meetings, enabled: true, pollIntervalMs: 0 });
+      return null;
+    }
+
     await act(async () => {
-      root.render(<Harness meetings={[meeting]} />);
+      root.render(<HarnessNoPoll meetings={[meeting]} />);
     });
     expect(listBookableDates).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      root.render(<Harness meetings={[meeting]} />);
+      root.render(<HarnessNoPoll meetings={[meeting]} />);
     });
 
     expect(listBookableDates).toHaveBeenCalledTimes(1);

@@ -28,7 +28,7 @@ export default function SettingsPageShell({
             </p>
             <div className="dash-settings-id__badges">
               <DashBadge variant="soft">{roleLabel}</DashBadge>
-              {planName ? <DashBadge variant="lavender">{planName} plan</DashBadge> : null}
+              {planName ? <DashBadge variant="lavender">{planName}</DashBadge> : null}
             </div>
           </div>
           {onOpenAccount ? (

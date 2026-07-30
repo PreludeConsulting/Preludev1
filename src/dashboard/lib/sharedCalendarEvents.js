@@ -2,7 +2,10 @@ import { DEMO_SLUGS } from "../../data/demoDashboardData.js";
 import { loadLocalDashboardStore, saveLocalDashboardStore } from "./localDashboardStore.js";
 
 const SLUG_TO_DEMO_USER_ID = {
-  [DEMO_SLUGS.jordan]: "demo-student",
+  [DEMO_SLUGS.jordanEssay]: "demo-student-basic",
+  [DEMO_SLUGS.jordanPlus]: "demo-student-plus",
+  [DEMO_SLUGS.jordanPro]: "demo-student-pro",
+  [DEMO_SLUGS.jordan]: "demo-student-basic",
   [DEMO_SLUGS.alex]: "demo-student2"
 };
 

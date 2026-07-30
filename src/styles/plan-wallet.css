@@ -1116,6 +1116,49 @@
   font-weight: 700;
 }
 
+.pw-bundle-packages {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.pw-bundle-packages__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid rgb(120 106 255 / 0.16);
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 0.92);
+  font-family: "Barlow", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: #111840;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.pw-bundle-packages__option:hover,
+.pw-bundle-packages__option:focus-visible {
+  border-color: rgb(109 94 252 / 0.42);
+  outline: none;
+}
+
+.pw-bundle-packages__option--selected {
+  border-color: rgb(109 94 252 / 0.55);
+  background: rgb(109 94 252 / 0.08);
+  color: #5b4cdb;
+}
+
+.pw-bundle-packages__option svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
 .pw-bundle-group {
   display: grid;
   gap: 0.5rem;

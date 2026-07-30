@@ -5,6 +5,7 @@ import { searchColleges } from "../../../lib/collegeSearch.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import {
   ACTIVITY_TYPE_OPTIONS,
+  activityReviewCreditLabel,
   activityTypeLabel,
   addActivityFeedback,
   createMentorActivity,
@@ -94,11 +95,12 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
   const [studentQuery, setStudentQuery] = useState("");
   const [studentId, setStudentId] = useState(presetStudentId || "");
   const [activityType, setActivityType] = useState("personal_statement");
-  const [title, setTitle] = useState("Personal Statement Draft");
+  const [title, setTitle] = useState("Personal Statement Review");
   const [titleEdited, setTitleEdited] = useState(false);
   const [collegeName, setCollegeName] = useState("");
   const [essayPrompt, setEssayPrompt] = useState("");
   const [wordLimit, setWordLimit] = useState("");
+  const [prompts, setPrompts] = useState([{ promptText: "", optionalWordLimit: "" }]);
   const [instructions, setInstructions] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [allowedSubmissionMethod, setAllowedSubmissionMethod] = useState("either");
@@ -111,11 +113,12 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
     setStudentId(presetStudentId || "");
     setStudentQuery("");
     setActivityType("personal_statement");
-    setTitle("Personal Statement Draft");
+    setTitle("Personal Statement Review");
     setTitleEdited(false);
     setCollegeName("");
     setEssayPrompt("");
     setWordLimit("");
+    setPrompts([{ promptText: "", optionalWordLimit: "" }]);
     setInstructions("");
     setDueDate("");
     setAllowedSubmissionMethod("either");
@@ -124,7 +127,17 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
   }, [open, presetStudentId]);
 
   const filteredStudents = students.filter((student) => student.name.toLowerCase().includes(studentQuery.trim().toLowerCase()));
+  const selectedStudent = students.find((student) => student.id === studentId) || null;
+  const availableTypes = selectedStudent?.essaySupportOnly
+    ? ACTIVITY_TYPE_OPTIONS.filter((option) => ["personal_statement", "supplemental_essay"].includes(option.value))
+    : ACTIVITY_TYPE_OPTIONS;
+  const noReviewCredits = Boolean(selectedStudent?.essaySupportOnly && selectedStudent.reviewCredits?.remaining === 0);
   const collegeSpecific = ["supplemental_essay", "additional_essay"].includes(activityType);
+
+  useEffect(() => {
+    if (!selectedStudent?.essaySupportOnly || ["personal_statement", "supplemental_essay"].includes(activityType)) return;
+    changeType("personal_statement");
+  }, [selectedStudent?.essaySupportOnly, activityType]);
 
   function changeType(value) {
     const option = ACTIVITY_TYPE_OPTIONS.find((item) => item.value === value);
@@ -136,7 +149,7 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
   function changeCollege(value) {
     setCollegeName(value);
     if (!titleEdited && activityType === "supplemental_essay" && value.trim()) {
-      setTitle(`${value.trim()} Supplemental Essay`);
+      setTitle(`${value.trim()} Supplemental Essay Review`);
     }
   }
 
@@ -147,6 +160,18 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
       setError("Choose an assigned student.");
       return;
     }
+    if (noReviewCredits) {
+      setError("This student has used all purchased Essay Support credits.");
+      return;
+    }
+    if (activityType === "supplemental_essay" && !collegeName.trim()) {
+      setError("Choose a college.");
+      return;
+    }
+    if (activityType === "supplemental_essay" && prompts.some((prompt) => !prompt.promptText.trim())) {
+      setError("Enter text for every supplemental essay prompt.");
+      return;
+    }
     setBusy(true);
     try {
       await createMentorActivity({
@@ -154,8 +179,14 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
         activityType,
         title: title.trim(),
         collegeName: collegeSpecific ? collegeName.trim() || null : null,
-        essayPrompt: essayPrompt.trim() || null,
-        wordLimit: wordLimit ? Number(wordLimit) : null,
+        essayPrompt: activityType === "supplemental_essay" ? prompts[0]?.promptText.trim() || null : essayPrompt.trim() || null,
+        wordLimit: activityType === "supplemental_essay" ? (prompts[0]?.optionalWordLimit ? Number(prompts[0].optionalWordLimit) : null) : (wordLimit ? Number(wordLimit) : null),
+        prompts: activityType === "supplemental_essay"
+          ? prompts.map((prompt) => ({
+              promptText: prompt.promptText.trim(),
+              optionalWordLimit: prompt.optionalWordLimit ? Number(prompt.optionalWordLimit) : null
+            }))
+          : undefined,
         instructions: instructions.trim() || null,
         dueDate: dueDate ? `${dueDate}T23:59:59.999Z` : null,
         allowedSubmissionMethod
@@ -192,11 +223,49 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
             </select>
           </label>
 
+          {selectedStudent ? (
+            <div className="dash-activity-credit-balance" role="status">
+              <p className="dash-activity-credit-balance__remaining">
+                <strong>{selectedStudent.displayName || selectedStudent.name}</strong>
+                {selectedStudent.planLabel ? ` · ${selectedStudent.planLabel}` : ""}
+              </p>
+              {selectedStudent.essaySupportOnly ? (
+                noReviewCredits ? (
+                  <>
+                    <p><strong>No review credits remaining</strong></p>
+                    <p>This student has used all purchased Essay Support credits.</p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      <strong>
+                        {selectedStudent.reviewCredits?.remaining || 0} review credit
+                        {(selectedStudent.reviewCredits?.remaining || 0) === 1 ? "" : "s"} remaining
+                      </strong>
+                    </p>
+                    <p>1 credit will be used when this review activity is assigned.</p>
+                    <p>1 credit is used for a personal statement review or one college’s complete supplemental essay set.</p>
+                  </>
+                )
+              ) : selectedStudent.sessionAllowance ? (
+                <p>
+                  <strong>
+                    {selectedStudent.sessionAllowance.remaining} of {selectedStudent.sessionAllowance.included} flexible sessions remaining this month
+                  </strong>
+                </p>
+              ) : selectedStudent.usageSummary ? (
+                <p><strong>{selectedStudent.usageSummary}</strong></p>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="dash-form-grid">
             <label className="dash-field">
               <span>Activity type</span>
-              <select value={activityType} onChange={(event) => changeType(event.target.value)} disabled={busy}>
-                {ACTIVITY_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              <select value={activityType} onChange={(event) => changeType(event.target.value)} disabled={busy || noReviewCredits}>
+                {availableTypes.map((option) => (
+                  <option key={option.value} value={option.value} disabled={noReviewCredits}>{option.label}</option>
+                ))}
               </select>
             </label>
             <label className="dash-field">
@@ -210,16 +279,62 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
 
           {collegeSpecific ? <CollegeSearchField value={collegeName} onChange={changeCollege} disabled={busy} /> : null}
 
-          <label className="dash-field">
-            <span>Essay prompt</span>
-            <textarea value={essayPrompt} onChange={(event) => setEssayPrompt(event.target.value)} placeholder="Add the prompt the student should respond to" disabled={busy} />
-          </label>
+          {activityType === "supplemental_essay" ? (
+            <section className="dash-activity-detail__section">
+              <h3>Supplemental essay prompts</h3>
+              {prompts.map((prompt, index) => (
+                <div className="dash-form-grid" key={index}>
+                  <label className="dash-field">
+                    <span>Prompt {index + 1}</span>
+                    <textarea
+                      value={prompt.promptText}
+                      onChange={(event) => setPrompts((current) => current.map((item, itemIndex) => (
+                        itemIndex === index ? { ...item, promptText: event.target.value } : item
+                      )))}
+                      placeholder="Add the prompt the student should respond to"
+                      required
+                      disabled={busy}
+                    />
+                  </label>
+                  <label className="dash-field">
+                    <span>Word limit</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100000"
+                      value={prompt.optionalWordLimit}
+                      onChange={(event) => setPrompts((current) => current.map((item, itemIndex) => (
+                        itemIndex === index ? { ...item, optionalWordLimit: event.target.value } : item
+                      )))}
+                      placeholder="Optional"
+                      disabled={busy}
+                    />
+                    {prompts.length > 1 ? (
+                      <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" onClick={() => setPrompts((current) => current.filter((_, itemIndex) => itemIndex !== index))} disabled={busy}>
+                        Remove
+                      </button>
+                    ) : null}
+                  </label>
+                </div>
+              ))}
+              <SecondaryButton type="button" className="dash-btn--sm" onClick={() => setPrompts((current) => [...current, { promptText: "", optionalWordLimit: "" }])} disabled={busy}>
+                Add another prompt
+              </SecondaryButton>
+            </section>
+          ) : (
+            <label className="dash-field">
+              <span>Essay prompt</span>
+              <textarea value={essayPrompt} onChange={(event) => setEssayPrompt(event.target.value)} placeholder="Add the prompt the student should respond to" disabled={busy} />
+            </label>
+          )}
 
           <div className="dash-form-grid">
-            <label className="dash-field">
-              <span>Word limit</span>
-              <input type="number" min="1" max="100000" value={wordLimit} onChange={(event) => setWordLimit(event.target.value)} placeholder="Optional" disabled={busy} />
-            </label>
+            {activityType !== "supplemental_essay" ? (
+              <label className="dash-field">
+                <span>Word limit</span>
+                <input type="number" min="1" max="100000" value={wordLimit} onChange={(event) => setWordLimit(event.target.value)} placeholder="Optional" disabled={busy} />
+              </label>
+            ) : null}
             <label className="dash-field">
               <span>Due date</span>
               <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} disabled={busy} />
@@ -243,7 +358,7 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
           {error ? <p className="dash-field-error" role="alert">{error}</p> : null}
           <div className="dash-activity-form__actions">
             <SecondaryButton type="button" onClick={onClose} disabled={busy}>Cancel</SecondaryButton>
-            <PrimaryButton type="submit" loading={busy} disabled={busy || !studentId || !title.trim()}>Assign Activity</PrimaryButton>
+            <PrimaryButton type="submit" loading={busy} disabled={busy || noReviewCredits || !studentId || !title.trim()}>Assign Activity</PrimaryButton>
           </div>
         </form>
       )}
@@ -335,7 +450,23 @@ function MentorReviewModal({ activity, open, onClose, onChanged, user }) {
           <div><strong>Status</strong><ActivityStatus status={activity.status} /></div>
         </div>
 
-        {activity.essayPrompt ? <section className="dash-activity-detail__section"><h3>Essay prompt</h3><p>{activity.essayPrompt}</p>{activity.wordLimit ? <span>{activity.wordLimit} word limit</span> : null}</section> : null}
+        {activity.prompts?.length ? (
+          <section className="dash-activity-detail__section">
+            <h3>Essay prompts</h3>
+            <ol className="dash-activity-history">
+              {activity.prompts.map((prompt) => {
+                const response = activity.promptResponses?.find((item) => item.promptId === prompt.id);
+                return (
+                  <li key={prompt.id} className="dash-activity-history__item">
+                    <p>{prompt.promptText}</p>
+                    {prompt.optionalWordLimit ? <span>{prompt.optionalWordLimit} word limit</span> : null}
+                    {response?.responseText ? <blockquote className="dash-activity-feedback"><strong>Student response</strong><p>{response.responseText}</p></blockquote> : null}
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        ) : activity.essayPrompt ? <section className="dash-activity-detail__section"><h3>Essay prompt</h3><p>{activity.essayPrompt}</p>{activity.wordLimit ? <span>{activity.wordLimit} word limit</span> : null}</section> : null}
         {activity.instructions ? <section className="dash-activity-detail__section"><h3>Instructions</h3><p>{activity.instructions}</p></section> : null}
 
         <section className="dash-activity-detail__section">
@@ -438,11 +569,15 @@ export default function MentorActivitiesPanel({ compact = false, onStudentsLoade
         <div className="dash-mentor-activities__list">
           {filtered.map((activity) => {
             const latest = activity.submissions?.find((item) => !item.isDraft);
+            const creditLabel = activityReviewCreditLabel(activity);
             return (
               <article key={activity.id} className="dash-activity-row dash-activity-row--mentor">
                 <div className="dash-activity-row__icon"><FileText className="h-5 w-5" /></div>
                 <div className="dash-activity-row__body">
-                  <div className="dash-activity-row__title-line"><h3>{activity.title}</h3><ActivityStatus status={activity.status} /></div>
+                  <div className="dash-activity-row__title-line">
+                    <h3>{creditLabel ? `${activity.title} — ${creditLabel}` : activity.title}</h3>
+                    <ActivityStatus status={activity.status} />
+                  </div>
                   <div className="dash-activity-meta">
                     <strong>{activity.studentName}</strong>
                     <span>{activityTypeLabel(activity.activityType)}</span>

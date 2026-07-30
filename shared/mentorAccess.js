@@ -35,6 +35,72 @@ export function getMonthlyOneOnOneLimit(planId) {
   return PLAN_MONTHLY_LIMITS[normalizePlanId(planId)] ?? 0;
 }
 
+/** Calendar day key in a stable IANA zone (default ET) for daily booking limits. */
+export function getBookingDayKey(date = new Date(), timeZone = "America/New_York") {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(date instanceof Date ? date : new Date(date));
+  } catch {
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * True when this meeting counts toward the Plus/Pro once-per-day Book a Session limit.
+ * Package-backed requests are excluded; canceled/declined do not block a later retry.
+ */
+export function isCountedDailySubscriptionBooking(meeting) {
+  if (!meeting) return false;
+  if (String(meeting.accessType || "").toLowerCase() === "session_package") return false;
+  const status = String(meeting.status || "").toLowerCase();
+  if (status === "canceled" || status === "cancelled" || status === "declined") return false;
+  return true;
+}
+
+/**
+ * Plus/Pro students may submit Book a Session at most once per calendar day (ET)
+ * so accidental double submits do not burn monthly session credits.
+ */
+export function hasPlusProBookingSubmissionToday(
+  meetings = [],
+  { now = new Date(), timeZone = "America/New_York" } = {}
+) {
+  const today = getBookingDayKey(now, timeZone);
+  if (!today) return false;
+  return meetings.some((meeting) => {
+    if (!isCountedDailySubscriptionBooking(meeting)) return false;
+    const stamp = meeting.createdAt || meeting.created_at || meeting.submittedAt || null;
+    if (!stamp) return false;
+    const day = getBookingDayKey(new Date(stamp), timeZone);
+    return day === today;
+  });
+}
+
+export function buildDailyBookingLimitError() {
+  return {
+    code: "DAILY_BOOKING_LIMIT",
+    error: "DAILY_BOOKING_LIMIT",
+    message:
+      "You can submit only one Book a Session request per day on Plus and Pro. Try again tomorrow."
+  };
+}
+
+export function isDailyBookingLimitError(payloadOrError) {
+  if (!payloadOrError) return false;
+  const code =
+    payloadOrError.code ||
+    payloadOrError.error ||
+    payloadOrError.payload?.code ||
+    payloadOrError.payload?.error;
+  return code === "DAILY_BOOKING_LIMIT";
+}
+
 export function isActiveSubscriptionStatus(status) {
   const normalized = String(status || "")
     .trim()
@@ -73,8 +139,17 @@ export function countOneOnOneMeetingsThisMonth(meetings = [], now = new Date()) 
   }).length;
 }
 
-export function getRemainingSubscriptionSessions(user = {}, meetings = [], now = new Date()) {
+/**
+ * Remaining Plus/Pro session credits for the current paid billing period.
+ * Prefer authoritative `sessionCredits` from the period ledger when provided.
+ * Calendar-month counting is legacy fallback only when sessionCredits is omitted.
+ */
+export function getRemainingSubscriptionSessions(user = {}, meetings = [], now = new Date(), sessionCredits = undefined) {
   if (!hasActiveMentorSubscription(user)) return 0;
+  if (sessionCredits !== undefined) {
+    if (!sessionCredits?.active) return 0;
+    return Math.max(0, Number(sessionCredits.remaining) || 0);
+  }
   const limit = getMonthlyOneOnOneLimit(user.plan || user.subscriptionPlan || user.planName);
   if (!limit) return 0;
   const used = countOneOnOneMeetingsThisMonth(meetings, now);
@@ -118,17 +193,46 @@ export function sumPackageRemaining(packages = [], { mentorId = null } = {}) {
 /**
  * Pure evaluation of mentor-request entitlement (no side effects).
  * Prefer subscription credits over package sessions so packages are not deducted when unnecessary.
+ *
+ * Pass `sessionCredits` from the paid-period ledger for authoritative Plus/Pro balances.
+ * When omitted, falls back to legacy calendar-month counting (tests / offline only).
  */
 export function evaluateMentorAccess({
   user = {},
   mentorId = null,
   meetings = [],
   packages = [],
-  now = new Date()
+  now = new Date(),
+  sessionCredits = undefined
 } = {}) {
-  const subscriptionRemaining = getRemainingSubscriptionSessions(user, meetings, now);
+  const subscriptionRemaining = getRemainingSubscriptionSessions(user, meetings, now, sessionCredits);
   const packageRemaining = sumPackageRemaining(packages, { mentorId });
   const remainingSessions = subscriptionRemaining + packageRemaining;
+  const allowance =
+    sessionCredits?.active && Number(sessionCredits.allowance) > 0
+      ? Number(sessionCredits.allowance)
+      : getMonthlyOneOnOneLimit(user.plan || user.subscriptionPlan || user.planName);
+  const periodEnd = sessionCredits?.periodEnd || user.subscriptionCurrentPeriodEnd || user.subscription_current_period_end || null;
+
+  const dailyBookingUsed =
+    hasActiveMentorSubscription(user) &&
+    hasPlusProBookingSubmissionToday(meetings, { now });
+
+  if (dailyBookingUsed && subscriptionRemaining > 0) {
+    return {
+      allowed: false,
+      accessType: null,
+      remainingSessions: subscriptionRemaining + packageRemaining,
+      subscriptionRemaining,
+      packageRemaining,
+      allowance,
+      periodEnd,
+      sessionCreditBalanceLabel:
+        allowance > 0 ? `${subscriptionRemaining} of ${allowance} session credits remaining` : null,
+      reason: "daily_booking_limit",
+      dailyBookingUsed: true
+    };
+  }
 
   if (subscriptionRemaining > 0) {
     return {
@@ -137,7 +241,12 @@ export function evaluateMentorAccess({
       remainingSessions,
       subscriptionRemaining,
       packageRemaining,
-      reason: null
+      allowance,
+      periodEnd,
+      sessionCreditBalanceLabel:
+        allowance > 0 ? `${subscriptionRemaining} of ${allowance} session credits remaining` : null,
+      reason: null,
+      dailyBookingUsed: false
     };
   }
 
@@ -148,7 +257,12 @@ export function evaluateMentorAccess({
       remainingSessions,
       subscriptionRemaining,
       packageRemaining,
-      reason: null
+      allowance,
+      periodEnd,
+      sessionCreditBalanceLabel:
+        allowance > 0 ? `${subscriptionRemaining} of ${allowance} session credits remaining` : null,
+      reason: null,
+      dailyBookingUsed: false
     };
   }
 
@@ -161,17 +275,23 @@ export function evaluateMentorAccess({
         .toLowerCase()
     );
 
+  const noCredits =
+    hasActiveMentorSubscription(user) &&
+    sessionCredits !== undefined &&
+    (!sessionCredits?.active || subscriptionRemaining <= 0);
+
   return {
     allowed: false,
     accessType: null,
     remainingSessions: 0,
     subscriptionRemaining: 0,
     packageRemaining: 0,
-    reason: hadExpiredSub
-      ? "subscription_inactive"
-      : packageRemaining === 0 && subscriptionRemaining === 0
-        ? "no_sessions"
-        : "no_sessions"
+    allowance,
+    periodEnd,
+    sessionCreditBalanceLabel:
+      allowance > 0 ? `0 of ${allowance} session credits remaining` : null,
+    reason: hadExpiredSub ? "subscription_inactive" : noCredits ? "no_session_credits" : "no_sessions",
+    dailyBookingUsed: false
   };
 }
 
@@ -204,6 +324,15 @@ export function buildPurchaseSessionsPath({ mentorId, mentorUserId } = {}) {
   });
   if (mentorId) params.set("mentor", String(mentorId));
   if (mentorUserId) params.set("mentorUserId", String(mentorUserId));
+  return `/plans?${params.toString()}`;
+}
+
+export function buildEssaySupportPath() {
+  const params = new URLSearchParams({
+    wallet: "open",
+    bundle: "essay_support",
+    details: "open"
+  });
   return `/plans?${params.toString()}`;
 }
 

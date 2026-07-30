@@ -1,10 +1,12 @@
 import { Check, Minus, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  canStepApprovedQuantity,
   formatUsd,
   getDefaultBundleSelection,
   normalizeBundleSelection,
   quoteBundleSelection,
+  stepApprovedQuantity,
   SUPPORT_BUNDLES
 } from "../../shared/supportBundles.js";
 import { WALLET_STATES } from "../lib/planWalletMachine.js";
@@ -16,11 +18,18 @@ function getTabbable(container) {
   ).filter((el) => el.offsetParent !== null || el === document.activeElement);
 }
 
-function QuantityControl({ label, hint, value, allowed, onChange }) {
+export function QuantityControl({ label, hint, value, allowed, onChange }) {
   const steps = Array.isArray(allowed) && allowed.length ? allowed : [value];
   const index = steps.indexOf(value);
-  const safeIndex = index >= 0 ? index : 0;
-  const displayValue = index >= 0 ? value : steps[0];
+  const safeValue = index >= 0 ? value : steps[0];
+  const canDecrease = canStepApprovedQuantity(safeValue, -1, steps);
+  const canIncrease = canStepApprovedQuantity(safeValue, 1, steps);
+
+  useEffect(() => {
+    if (index < 0 && steps[0] != null && value !== steps[0]) {
+      onChange(steps[0]);
+    }
+  }, [index, onChange, steps, value]);
 
   return (
     <div className="pw-bundle-qty">
@@ -33,20 +42,20 @@ function QuantityControl({ label, hint, value, allowed, onChange }) {
           type="button"
           className="pw-bundle-qty__step"
           aria-label={`Decrease ${label}`}
-          disabled={safeIndex <= 0}
-          onClick={() => onChange(steps[safeIndex - 1])}
+          disabled={!canDecrease}
+          onClick={() => onChange(stepApprovedQuantity(safeValue, -1, steps))}
         >
           <Minus aria-hidden="true" />
         </button>
         <span className="pw-bundle-qty__value" aria-live="polite">
-          {displayValue}
+          {safeValue}
         </span>
         <button
           type="button"
           className="pw-bundle-qty__step"
           aria-label={`Increase ${label}`}
-          disabled={safeIndex >= steps.length - 1}
-          onClick={() => onChange(steps[safeIndex + 1])}
+          disabled={!canIncrease}
+          onClick={() => onChange(stepApprovedQuantity(safeValue, 1, steps))}
         >
           <Plus aria-hidden="true" />
         </button>
@@ -83,6 +92,33 @@ function IncludedFeature({ label }) {
   );
 }
 
+function PackageOptionsList({ field, selectedQty, onSelect }) {
+  const options = field.allowed || [];
+  return (
+    <div className="pw-bundle-packages" role="listbox" aria-label="Review credit packages">
+      {options.map((qty) => {
+        const priceCents = field.priceCentsByQty?.[qty];
+        const selected = qty === selectedQty;
+        return (
+          <button
+            key={qty}
+            type="button"
+            role="option"
+            aria-selected={selected}
+            className={`pw-bundle-packages__option${selected ? " pw-bundle-packages__option--selected" : ""}`}
+            onClick={() => onSelect(qty)}
+          >
+            <span>
+              {qty} credit{qty === 1 ? "" : "s"} — {formatUsd(priceCents)}
+            </span>
+            {selected ? <Check aria-hidden="true" /> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function BundleCustomizePopup({
   bundleId,
   selection,
@@ -106,7 +142,12 @@ export default function BundleCustomizePopup({
     [localSelection]
   );
   const [priceFlash, setPriceFlash] = useState(false);
+  const [showPackageOptions, setShowPackageOptions] = useState(false);
   const priceRef = useRef(null);
+  const primaryQuantityField = Object.values(catalog?.quantities || {})[0] || null;
+  const selectedQty = primaryQuantityField
+    ? localSelection.quantities?.[primaryQuantityField.id]
+    : null;
 
   useEffect(() => {
     if (!bundleId || !onSelectionChange) return;
@@ -247,6 +288,20 @@ export default function BundleCustomizePopup({
               />
             ))}
 
+            {showPackageOptions && primaryQuantityField ? (
+              <div className="pw-bundle-group">
+                <p className="pw-bundle-group__label">All packages</p>
+                <PackageOptionsList
+                  field={primaryQuantityField}
+                  selectedQty={selectedQty}
+                  onSelect={(qty) => {
+                    updateQuantity(primaryQuantityField.id, qty);
+                    setShowPackageOptions(false);
+                  }}
+                />
+              </div>
+            ) : null}
+
             {catalog.addOns?.length ? (
               <div className="pw-bundle-group">
                 <p className="pw-bundle-group__label">Optional add-ons</p>
@@ -348,7 +403,18 @@ export default function BundleCustomizePopup({
             >
               View total
             </button>
-            <button type="button" className="pw-popup__action" onClick={onViewOtherBundles} disabled={busy}>
+            <button
+              type="button"
+              className="pw-popup__action"
+              onClick={() => {
+                if (primaryQuantityField) {
+                  setShowPackageOptions((open) => !open);
+                  return;
+                }
+                onViewOtherBundles?.();
+              }}
+              disabled={busy}
+            >
               View other options
             </button>
           </div>

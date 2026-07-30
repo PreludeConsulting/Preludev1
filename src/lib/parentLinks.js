@@ -2,7 +2,7 @@
  * Parent invites and parent–student links (Supabase + local fallback).
  */
 
-import { DEMO_PARENT, DEMO_STUDENT, DEMO_STUDENT_2 } from "../data/demoAccounts.js";
+import { DEMO_PARENT } from "../data/demoAccounts.js";
 import { DEMO_SLUGS } from "../data/demoDashboardData.js";
 import { PARENT_INVITE_SENT_MESSAGE } from "../../shared/parentInviteConstants.js";
 import { friendlyParentInviteError } from "../../shared/parentInviteErrors.js";
@@ -23,15 +23,21 @@ function normalizeEmail(email) {
 export function getDemoLinkedChildren() {
   return [
     {
-      id: DEMO_SLUGS.jordan,
-      name: `${DEMO_STUDENT.firstName} ${DEMO_STUDENT.lastName}`,
+      id: DEMO_SLUGS.jordanEssay,
+      name: "Jordan — Essay Support",
       grade: "11th grade",
       linkedAt: new Date().toISOString()
     },
     {
-      id: DEMO_SLUGS.alex,
-      name: `${DEMO_STUDENT_2.firstName} ${DEMO_STUDENT_2.lastName}`,
-      grade: "10th grade",
+      id: DEMO_SLUGS.jordanPlus,
+      name: "Jordan — Plus",
+      grade: "11th grade",
+      linkedAt: new Date().toISOString()
+    },
+    {
+      id: DEMO_SLUGS.jordanPro,
+      name: "Jordan — Pro",
+      grade: "11th grade",
       linkedAt: new Date().toISOString()
     }
   ];

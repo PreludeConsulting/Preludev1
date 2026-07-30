@@ -83,9 +83,9 @@ describe("membershipAccessExplanation", () => {
       cancelAtPeriodEnd: true,
       currentPeriodEnd: periodEnd
     });
-    const text = membershipAccessExplanation(status);
-    assert.match(text, /remains active until/i);
-    assert.match(text, /not be charged again/i);
+    const text = membershipAccessExplanation(status, { subscriptionCreditsRemaining: 2 });
+    assert.match(text, /scheduled to end on/i);
+    assert.match(text, /remaining session credits/i);
   });
 
   it("mentions remaining session credits when membership is inactive", () => {

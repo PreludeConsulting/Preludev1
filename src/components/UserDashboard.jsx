@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { consumeSearchScrollTarget } from "../lib/siteSearch.js";
 import { getPlan } from "../lib/plans.js";
+import { getCurrentProductName, isEssaySupportProduct } from "../lib/currentProduct.js";
 import { PRELUDE_AI_NAME } from "../lib/preludeAi.js";
 import { getNodeById } from "../lib/roadmapData.js";
 import { Button } from "./ui/button.jsx";
@@ -35,6 +36,7 @@ export default function UserDashboard() {
   }
 
   const plan = planDetails ?? getPlan(user.plan);
+  const essaySupport = isEssaySupportProduct(plan.id);
   const currentNode = getNodeById(user.roadmap?.currentNodeId);
   const completed = user.roadmap?.completedNodes?.length ?? 0;
 
@@ -70,9 +72,15 @@ export default function UserDashboard() {
 
         <aside className="grid gap-4 self-start">
           <div className="paper-card rounded-2xl p-5">
-            <p className="font-body text-xs font-medium uppercase tracking-wide text-muted-foreground">Plan</p>
-            <p className="subheading mt-1 text-3xl">{plan.name}</p>
-            <p className="mt-2 font-body text-sm text-muted-foreground">{plan.mentorSessions}</p>
+            <p className="font-body text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {essaySupport ? "Support" : "Plan"}
+            </p>
+            <p className="subheading mt-1 text-3xl">{getCurrentProductName(plan.id, plan.name)}</p>
+            <p className="mt-2 font-body text-sm text-muted-foreground">
+              {essaySupport
+                ? "One-time essay review credits. No recurring subscription."
+                : plan.mentorSessions}
+            </p>
           </div>
 
           <div className="paper-card rounded-2xl p-5">

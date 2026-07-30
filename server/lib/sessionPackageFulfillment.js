@@ -65,11 +65,23 @@ export function extractFlexibleSessionCredit(session) {
 }
 
 export function extractEssaySupportCredit(session) {
-  return extractPaidCheckoutCredit(session, {
+  const credit = extractPaidCheckoutCredit(session, {
     bundleId: "essay_support",
     quantityKeys: ["essayReviews"],
-    metadataFallbackKeys: ["essayReviews", "sessionsPurchased"]
+    metadataFallbackKeys: ["essayReviews", "creditQuantity", "sessionsPurchased"]
   });
+  if (!credit) return null;
+  const metadata = session.metadata || {};
+  const purchaseType = String(metadata.purchaseType || "").trim();
+  if (purchaseType && purchaseType !== "ESSAY_SUPPORT" && purchaseType !== "one_time_bundle") {
+    return null;
+  }
+  const fromCreditQuantity = parsePositiveInt(metadata.creditQuantity);
+  if (fromCreditQuantity) credit.sessionsPurchased = fromCreditQuantity;
+  credit.packageKey = String(metadata.packageKey || "").trim() || `essay_support_${credit.sessionsPurchased}`;
+  credit.studentUserId = String(metadata.studentId || credit.studentUserId);
+  credit.purchaserUserId = metadata.purchaserUserId || metadata.userId || null;
+  return credit;
 }
 
 export async function fulfillFlexibleSessionCheckout(session, creditFn) {

@@ -12,6 +12,7 @@ import {
   assertMentorRequestAccess,
   canRequestMentor,
   releasePackageSession,
+  releaseSubscriptionSessionCredit,
   reserveAccessForMeeting
 } from "./mentorAccess.js";
 import { assertMentorSlotBookable } from "./mentorBookingSlots.js";
@@ -245,6 +246,7 @@ export async function scheduleMeeting(body, user, req) {
   const role = user.role?.toUpperCase();
   let accessType = null;
   let sessionPackageId = null;
+  let subscriptionSessionPeriodId = null;
 
   if (isStudentMentorRequest(role, payload)) {
     const studentMeetings = await listMeetingsForUser({
@@ -273,6 +275,7 @@ export async function scheduleMeeting(body, user, req) {
             access,
             studentUserId: payload.studentUserId || user.id,
             mentorUserId: payload.mentorUserId || null,
+            idempotencyKey: idempotencyKey ? String(idempotencyKey) : null,
             tx
           });
           return createMeetingRecord(
@@ -280,13 +283,16 @@ export async function scheduleMeeting(body, user, req) {
               ...payload,
               idempotencyKey: idempotencyKey ? String(idempotencyKey) : null,
               accessType: reserved.accessType,
-              sessionPackageId: reserved.sessionPackageId
+              sessionPackageId: reserved.sessionPackageId,
+              subscriptionSessionPeriodId: reserved.subscriptionSessionPeriodId || null
             },
             { tx }
           );
         });
       } catch (error) {
-        if (error.statusCode || error.code === "NO_MENTOR_ACCESS") throw error;
+        if (error.statusCode || error.code === "NO_MENTOR_ACCESS" || error.code === "NO_SESSION_CREDITS" || error.code === "DAILY_BOOKING_LIMIT") {
+          throw error;
+        }
         if (!isDatabaseUnavailableError(error)) throw error;
       }
     }
@@ -294,10 +300,12 @@ export async function scheduleMeeting(body, user, req) {
     const reserved = await reserveAccessForMeeting({
       access,
       studentUserId: payload.studentUserId || user.id,
-      mentorUserId: payload.mentorUserId || null
+      mentorUserId: payload.mentorUserId || null,
+      idempotencyKey: idempotencyKey ? String(idempotencyKey) : null
     });
     accessType = reserved.accessType;
     sessionPackageId = reserved.sessionPackageId;
+    subscriptionSessionPeriodId = reserved.subscriptionSessionPeriodId || null;
   }
 
   try {
@@ -305,11 +313,15 @@ export async function scheduleMeeting(body, user, req) {
       ...payload,
       idempotencyKey: idempotencyKey ? String(idempotencyKey) : null,
       accessType,
-      sessionPackageId
+      sessionPackageId,
+      subscriptionSessionPeriodId
     });
   } catch (error) {
     if (sessionPackageId) {
       await releasePackageSession({ packageId: sessionPackageId }).catch(() => {});
+    }
+    if (accessType === "subscription" && idempotencyKey) {
+      await releaseSubscriptionSessionCredit({ idempotencyKey: String(idempotencyKey) }).catch(() => {});
     }
     throw error;
   }
@@ -357,6 +369,11 @@ export async function updateScheduledMeeting(id, body, user) {
     shouldReleasePackageOnStatus(nextStatus) &&
     !shouldReleasePackageOnStatus(existing.status);
 
+  const releasingSubscriptionCredit =
+    existing.accessType === "subscription" &&
+    shouldReleasePackageOnStatus(nextStatus) &&
+    !shouldReleasePackageOnStatus(existing.status);
+
   let meeting = await updateMeetingRecord(id, {
     ...parsed,
     status: nextStatus,
@@ -365,6 +382,13 @@ export async function updateScheduledMeeting(id, body, user) {
 
   if (releasingPackage) {
     await releasePackageSession({ packageId: existing.sessionPackageId });
+  }
+
+  if (releasingSubscriptionCredit) {
+    await releaseSubscriptionSessionCredit({
+      meetingId: existing.id,
+      idempotencyKey: existing.idempotencyKey || null
+    }).catch(() => {});
   }
 
   if (!isVideoMeetingType(nextMeetingType)) {

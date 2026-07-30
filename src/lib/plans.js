@@ -57,8 +57,7 @@ export const PLANS = {
       "Detailed written feedback and edits within 1–2 business days"
     ],
     roadmapFeatures: ["Personalized college roadmap", "Progress tracking dashboard"],
-    sessionCredits: 0,
-    applicationReviewCredits: 2
+    sessionCredits: 0
   },
   plus: {
     id: "plus",
@@ -77,7 +76,7 @@ export const PLANS = {
       "Redeem coins for bonus sessions, multi-mentor essay feedback, tutoring, and more"
     ],
     billingHighlights: [
-      "Everything in Basic, including personal statement and supplemental essay reviews",
+      "Prelude software access, mentor-network messaging, and progress rewards",
       "2 flexible 1-on-1 session credits per month",
       "College consulting, SAT/ACT prep, or academic tutoring",
       "Full mentor and tutor network messaging",
@@ -86,7 +85,7 @@ export const PLANS = {
     ],
     aiFeatures: AI_FEATURES,
     softwareAccess: [
-      "Everything in Basic software",
+      "Prelude planning and progress software",
       "Customized college and application roadmap",
       "Identity-building tools & peer benchmarking insights",
       "Prelude AI assistant (full access)"
@@ -99,7 +98,6 @@ export const PLANS = {
     ],
     roadmapFeatures: ["Customized college and application roadmap", "Personalized college and academic guidance"],
     sessionCredits: 2,
-    applicationReviewCredits: 0,
     flexibleSessionCallout: "2 Flexible 1-on-1 Sessions / Month",
     flexibleSessionDetail: FLEXIBLE_SESSION_CALLOUT_DETAIL,
     calloutKind: "sessions"
@@ -125,7 +123,7 @@ export const PLANS = {
       "Advanced milestone rewards"
     ],
     billingHighlights: [
-      "Everything in Plus, including Basic essay-review support",
+      "Everything in Plus, with full application review support",
       "4 flexible 1-on-1 session credits per month",
       "Mix all session types or focus on one service",
       "Priority mentor-network messaging",
@@ -148,7 +146,6 @@ export const PLANS = {
     ],
     roadmapFeatures: ["Advanced roadmap & gamified progress tracking", "Deeper personalized strategy"],
     sessionCredits: 4,
-    applicationReviewCredits: 0,
     flexibleSessionCallout: "4 Flexible 1-on-1 Sessions / Month",
     flexibleSessionDetail: FLEXIBLE_SESSION_CALLOUT_DETAIL,
     calloutKind: "sessions"

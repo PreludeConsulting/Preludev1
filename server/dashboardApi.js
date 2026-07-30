@@ -130,7 +130,7 @@ export function createDashboardApiMiddleware(getSession) {
               taken: slot.taken
             }))
           }))
-        });
+        }, { "Cache-Control": "no-store" });
       }
 
       if (url.pathname === "/api/meetings" && req.method === "GET") {

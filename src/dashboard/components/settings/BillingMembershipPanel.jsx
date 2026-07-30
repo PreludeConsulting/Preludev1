@@ -10,7 +10,8 @@ import {
   reactivateMembership
 } from "../../../lib/billingMembership.js";
 import { openBillingPortal, startBillingCheckout } from "../../../lib/auth.js";
-import { buildPurchaseSessionsPath } from "../../../../shared/mentorAccess.js";
+import { buildEssaySupportPath } from "../../../../shared/mentorAccess.js";
+import EssaySupportCreditsSummary from "../../../components/EssaySupportCreditsSummary.jsx";
 import {
   formatBillingDate,
   formatBillingDateTime,
@@ -137,59 +138,69 @@ export default function BillingMembershipPanel({
   const membership = summary.membership || {};
   const planBadgeLabel = getPlanBadgeLabel(summary.plan?.id, preferredLanguage);
   const actions = membership.actions || {};
-  const sessionsHref = buildPurchaseSessionsPath();
+  const essaySupportHref = buildEssaySupportPath();
   const plansHref = "/plans";
+  const isEssaySupport = summary.plan?.id === "basic";
 
   return (
     <>
-      <SectionCard title="Membership" className="dash-panel" id="billing-membership">
+      <SectionCard title={isEssaySupport ? "Essay Support" : "Membership"} className="dash-panel" id="billing-membership">
         <div className="dash-billing-membership">
-          <div className="dash-billing-membership__head">
-            <div>
-              <p className="dash-billing-membership__plan">
-                {summary.plan?.name || "Basic"} plan
-                {planBadgeLabel ? (
-                  <>
-                    {" "}
-                    <DashBadge variant="lavender" className="dash-billing-membership__plan-badge">
-                      <Sparkles className="h-3 w-3 dash-billing-membership__plan-badge-icon" aria-hidden="true" />
-                      {planBadgeLabel}
-                    </DashBadge>
-                  </>
+          {isEssaySupport ? (
+            <EssaySupportCreditsSummary
+              reviewCredits={summary.reviewCredits}
+              packages={summary.sessions?.packages}
+            />
+          ) : (
+            <>
+              <div className="dash-billing-membership__head">
+                <div>
+                  <p className="dash-billing-membership__plan">
+                    {summary.plan?.name} plan
+                    {planBadgeLabel ? (
+                      <>
+                        {" "}
+                        <DashBadge variant="lavender" className="dash-billing-membership__plan-badge">
+                          <Sparkles className="h-3 w-3 dash-billing-membership__plan-badge-icon" aria-hidden="true" />
+                          {planBadgeLabel}
+                        </DashBadge>
+                      </>
+                    ) : null}
+                  </p>
+                  <p className="dash-billing-membership__price">
+                    {summary.plan?.priceLabel || "—"}
+                    <span className="dash-muted"> / month</span>
+                  </p>
+                </div>
+                <DashBadge variant={statusBadgeVariant(membership.key)}>{membership.label}</DashBadge>
+              </div>
+
+              <dl className="dash-billing-membership__meta">
+                <div>
+                  <dt>Automatic renewal</dt>
+                  <dd>{membership.autoRenew ? "On" : "Off"}</dd>
+                </div>
+                {membership.renewsAt && membership.key === "active" ? (
+                  <div>
+                    <dt>Next renewal</dt>
+                    <dd>{formatBillingDate(membership.renewsAt)}</dd>
+                  </div>
                 ) : null}
-              </p>
-              <p className="dash-billing-membership__price">
-                {summary.plan?.priceLabel || "—"}
-                <span className="dash-muted"> / month</span>
-              </p>
-            </div>
-            <DashBadge variant={statusBadgeVariant(membership.key)}>{membership.label}</DashBadge>
-          </div>
+                {membership.endsAt && (membership.key === "cancels_at_period_end" || membership.key === "expired") ? (
+                  <div>
+                    <dt>Membership access ends</dt>
+                    <dd>{formatBillingDateTime(membership.endsAt)}</dd>
+                  </div>
+                ) : null}
+                <div>
+                  <dt>Available sessions</dt>
+                  <dd>{summary.sessions?.available ?? 0}</dd>
+                </div>
+              </dl>
 
-          <dl className="dash-billing-membership__meta">
-            <div>
-              <dt>Automatic renewal</dt>
-              <dd>{membership.autoRenew ? "On" : "Off"}</dd>
-            </div>
-            {membership.renewsAt && membership.key === "active" ? (
-              <div>
-                <dt>Next renewal</dt>
-                <dd>{formatBillingDate(membership.renewsAt)}</dd>
-              </div>
-            ) : null}
-            {membership.endsAt && (membership.key === "cancels_at_period_end" || membership.key === "expired") ? (
-              <div>
-                <dt>Membership access ends</dt>
-                <dd>{formatBillingDateTime(membership.endsAt)}</dd>
-              </div>
-            ) : null}
-            <div>
-              <dt>Available sessions</dt>
-              <dd>{summary.sessions?.available ?? 0}</dd>
-            </div>
-          </dl>
-
-          <p className="dash-muted">{membership.explanation}</p>
+              <p className="dash-muted">{membership.explanation}</p>
+            </>
+          )}
 
           {actionMessage ? (
             <p className="dash-save-state dash-save-state--ok" role="status">
@@ -198,7 +209,7 @@ export default function BillingMembershipPanel({
           ) : null}
 
           <div className="dash-billing-membership__actions">
-            {actions.cancel ? (
+            {!isEssaySupport && actions.cancel ? (
               <SecondaryButton
                 type="button"
                 className="dash-btn--sm"
@@ -208,7 +219,7 @@ export default function BillingMembershipPanel({
                 Cancel membership
               </SecondaryButton>
             ) : null}
-            {actions.reactivate ? (
+            {!isEssaySupport && actions.reactivate ? (
               <PrimaryButton
                 type="button"
                 className="dash-btn--sm"
@@ -218,7 +229,7 @@ export default function BillingMembershipPanel({
                 Keep membership
               </PrimaryButton>
             ) : null}
-            {actions.purchaseMembership ? (
+            {!isEssaySupport && actions.purchaseMembership ? (
               <PrimaryButton
                 type="button"
                 className="dash-btn--sm"
@@ -236,9 +247,9 @@ export default function BillingMembershipPanel({
               </PrimaryButton>
             ) : null}
             {actions.purchaseSessions ? (
-              <SecondaryButton as={Link} to={sessionsHref} className="dash-btn--sm">
+              <SecondaryButton as={Link} to={essaySupportHref} className="dash-btn--sm">
                 <Package className="h-4 w-4" aria-hidden="true" />
-                Purchase sessions
+                Purchase Essay Support
               </SecondaryButton>
             ) : null}
             {actions.managePaymentMethod ? (
@@ -275,7 +286,7 @@ export default function BillingMembershipPanel({
           <EmptyState
             icon={CreditCard}
             title="No purchases yet"
-            description="Purchase a monthly membership or individual sessions to start contacting mentors."
+            description="Purchase Essay Support credits or choose a Plus or Pro membership."
             action={
               <SecondaryButton as={Link} to={plansHref} className="dash-btn--sm">
                 View plans
@@ -291,7 +302,9 @@ export default function BillingMembershipPanel({
                   <p className="dash-muted">
                     {formatBillingDate(purchase.purchasedAt)}
                     {purchase.sessionsPurchased
-                      ? ` · ${purchase.sessionsPurchased} session${purchase.sessionsPurchased === 1 ? "" : "s"}`
+                      ? purchase.productId === "essay_support"
+                        ? ` · ${purchase.sessionsPurchased} credit${purchase.sessionsPurchased === 1 ? "" : "s"}`
+                        : ` · ${purchase.sessionsPurchased} session${purchase.sessionsPurchased === 1 ? "" : "s"}`
                       : ""}
                     {purchase.periodStart && purchase.periodEnd
                       ? ` · ${formatBillingDate(purchase.periodStart)} – ${formatBillingDate(purchase.periodEnd)}`
@@ -353,12 +366,12 @@ export default function BillingMembershipPanel({
         }
       >
         <p>
-          Your membership will remain active until{" "}
+          Your subscription is scheduled to end on{" "}
           <strong>{formatBillingDateTime(membership.currentPeriodEnd || membership.endsAt) || "the end of the current billing period"}</strong>.
-          You will not be charged again unless you renew or reactivate your membership.
+          You may continue using your remaining session credits until then. You will not be charged again unless you renew or reactivate.
         </p>
         <p className="dash-muted">
-          Purchased session credits remain available according to their existing rules. Mentor-contact access from the monthly plan ends at that timestamp.
+          Purchased one-time session packages remain available according to their existing rules. Subscription session credits expire when this paid period ends.
         </p>
       </Modal>
     </>

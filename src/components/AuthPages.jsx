@@ -691,7 +691,7 @@ export function RegisterPage() {
               ? "Creating free account…"
               : "Creating account…"
             : promoSummary
-              ? "Create Free Basic Account"
+              ? "Create Free Account"
               : "Create account"}
         </AuthSubmitButton>
       </form>

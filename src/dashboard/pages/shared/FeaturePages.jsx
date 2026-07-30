@@ -305,7 +305,7 @@ export function ParentBilling() {
     <div className="dash-page dash-page--premium">
       <DashboardPageHeader
         title="Plans and Billing"
-        subtitle="Shared household membership, session balance, and purchase history."
+        subtitle="Shared Essay Support credits, memberships, and purchase history."
       />
       <BillingMembershipPanel settingsBasePath={`${PARENT_DASHBOARD_BASE}/settings`} />
     </div>

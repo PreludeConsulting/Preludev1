@@ -573,7 +573,31 @@ async function processWebhookEvent(context, event) {
       return Array.isArray(inserted) ? inserted[0] : inserted;
     };
     await fulfillFlexibleSessionCheckout(object, creditFn);
-    await fulfillEssaySupportCheckout(object, creditFn);
+    await fulfillEssaySupportCheckout(object, async (payload) => {
+      const result = await creditFn(payload);
+      const packageKey =
+        String(object.metadata?.packageKey || "").trim() ||
+        `essay_support_${payload.sessionsPurchased}`;
+      try {
+        await supabaseRest(context, "review_credit_ledger", {
+          method: "POST",
+          prefer: "return=minimal,resolution=ignore-duplicates",
+          body: {
+            student_user_id: payload.studentUserId,
+            amount: payload.sessionsPurchased,
+            transaction_type: "PURCHASE",
+            package_key: packageKey,
+            stripe_checkout_session_id: payload.stripeCheckoutSessionId,
+            idempotency_key: `purchase:${payload.stripeCheckoutSessionId}`,
+            reason: "Essay Support purchase",
+            created_by_user_id: object.metadata?.purchaserUserId || object.metadata?.userId || null
+          }
+        });
+      } catch (ledgerError) {
+        console.error("[stripe-billing] review credit ledger write failed", ledgerError?.message || ledgerError);
+      }
+      return result;
+    });
   }
 
   const invoiceSubscriptionId = stripeObjectId(object.subscription) ||
@@ -584,6 +608,62 @@ async function processWebhookEvent(context, event) {
       const subscription = await stripeRequest(context, "GET", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
       await syncSubscription(context, subscription);
       const userId = subscription.metadata?.userId;
+      const planId =
+        (PAID_PLAN_IDS.includes(subscription.metadata?.planId) && subscription.metadata.planId) ||
+        (subscription.items?.data || [])
+          .map((item) => planIdForPriceId(stripeObjectId(item.price), getBillingConfig(context)))
+          .find(Boolean);
+      if (userId && planId && ["plus", "pro"].includes(String(planId).toLowerCase())) {
+        try {
+          const billingReason = String(object.billing_reason || "").toLowerCase();
+          const shouldGrant =
+            !billingReason ||
+            billingReason === "subscription_create" ||
+            billingReason === "subscription_cycle";
+          const zeroCycle = Number(object.amount_paid) === 0 && billingReason === "subscription_cycle";
+          if (shouldGrant && !zeroCycle) {
+            const periodStart =
+              object.lines?.data?.[0]?.period?.start || subscription.current_period_start;
+            const periodEnd =
+              object.lines?.data?.[0]?.period?.end || subscription.current_period_end;
+            if (periodStart && periodEnd && object.id) {
+              const startIso = new Date(periodStart * 1000).toISOString();
+              const endIso = new Date(periodEnd * 1000).toISOString();
+              const allowance = String(planId).toLowerCase() === "pro" ? 4 : 2;
+              const idempotencyKey = `session-period:invoice:${object.id}`;
+              // Supersede prior active periods for this student.
+              await supabaseRest(
+                context,
+                `subscription_session_periods?student_user_id=eq.${encodeURIComponent(userId)}&status=eq.active`,
+                {
+                  method: "PATCH",
+                  prefer: "return=minimal",
+                  body: { status: "superseded", updated_at: new Date().toISOString() }
+                }
+              );
+              await supabaseRest(context, "subscription_session_periods", {
+                method: "POST",
+                prefer: "return=minimal,resolution=ignore-duplicates",
+                body: {
+                  student_user_id: userId,
+                  plan_id: String(planId).toLowerCase(),
+                  allowance,
+                  remaining: allowance,
+                  status: "active",
+                  period_start: startIso,
+                  period_end: endIso,
+                  stripe_subscription_id: subscription.id,
+                  stripe_invoice_id: object.id,
+                  stripe_event_id: event.id,
+                  idempotency_key: idempotencyKey
+                }
+              });
+            }
+          }
+        } catch (creditError) {
+          console.error("[stripe-billing] session credit grant failed", creditError?.message || creditError);
+        }
+      }
       const paymentId = stripeObjectId(object.payment_intent) || object.id;
       if (userId && paymentId) {
         const helpers = await confirmReferralPayment(context, {

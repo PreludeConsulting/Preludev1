@@ -166,20 +166,16 @@ export function getSessionAllowanceLabel(planId) {
   return null;
 }
 
-/** Monthly application-component review credits (separate from live session credits). */
+/** Legacy compatibility: application reviews now require purchased Essay Support credits. */
 export function getMonthlyApplicationReviewLimit(planId) {
-  const plan = getPlan(normalizePlanId(planId) || "basic");
-  const credits = Number(plan?.applicationReviewCredits);
-  return Number.isFinite(credits) && credits > 0 ? credits : 0;
+  void planId;
+  return 0;
 }
 
 export function getApplicationReviewAllowanceLabel(planId) {
-  const plan = normalizePlanId(planId) || "basic";
-  // Only legacy Basic markets monthly async review credits on subscriptions.
-  if (plan !== "basic") return null;
   const limit = getMonthlyApplicationReviewLimit(planId);
   if (!limit) return null;
-  return `${limit} full personal statement reviews included each month`;
+  return `${limit} application review credits included`;
 }
 
 export function countApplicationReviewsThisPeriod(reviews = [], now = new Date()) {
@@ -233,7 +229,7 @@ export function getApplicationReviewBalanceLabel(planId, reviews = [], { essayPa
   const limit = getMonthlyApplicationReviewLimit(planId);
   if (limit) {
     const purchasedNote = purchasedRemaining > 0 ? ` · ${purchasedRemaining} purchased` : "";
-    return `${monthlyRemaining} of ${limit} application reviews remaining${purchasedNote}`;
+    return `${monthlyRemaining} of ${limit} application review credits remaining${purchasedNote}`;
   }
   if (purchasedRemaining > 0) {
     return `${purchasedRemaining} purchased essay review credit${purchasedRemaining === 1 ? "" : "s"} remaining`;

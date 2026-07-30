@@ -12,7 +12,10 @@ const BUNDLE_ID_ALIASES = {
 };
 
 /** Purchasable essay-support package sizes (only these are sold). */
-export const BUNDLE_QUANTITY_OPTIONS = [3, 6, 10];
+export const BUNDLE_QUANTITY_OPTIONS = [3, 4, 5, 6, 7, 8, 10];
+
+/** Alias used by Essay Support UI/tests. */
+export const APPROVED_CREDIT_OPTIONS = BUNDLE_QUANTITY_OPTIONS;
 
 /** Legacy flexible-session package sizes kept for historical fulfillment only. */
 export const LEGACY_SESSION_QUANTITY_OPTIONS = [3, 4, 5, 6, 7, 8, 10];
@@ -38,14 +41,27 @@ export const FLEXIBLE_SESSIONS_PRICE_CENTS = Object.freeze({
   10: 62900
 });
 
-function clampToAllowedQuantity(value, allowed, fallback) {
-  const n = Math.floor(Number(value));
-  if (!Number.isFinite(n)) return fallback;
-  if (allowed.includes(n)) return n;
-  // Snap drafts/legacy values onto the nearest allowed package size.
-  return allowed.reduce((best, option) =>
-    Math.abs(option - n) < Math.abs(best - n) ? option : best
-  );
+export function stepApprovedQuantity(current, direction, allowed = BUNDLE_QUANTITY_OPTIONS) {
+  const steps = Array.isArray(allowed) && allowed.length ? allowed : BUNDLE_QUANTITY_OPTIONS;
+  let index = steps.indexOf(Math.floor(Number(current)));
+  if (index < 0) index = 0;
+  const nextIndex = index + Number(direction);
+  if (nextIndex < 0 || nextIndex >= steps.length) return steps[index];
+  return steps[nextIndex];
+}
+
+export function canStepApprovedQuantity(current, direction, allowed = BUNDLE_QUANTITY_OPTIONS) {
+  const steps = Array.isArray(allowed) && allowed.length ? allowed : BUNDLE_QUANTITY_OPTIONS;
+  let index = steps.indexOf(Math.floor(Number(current)));
+  if (index < 0) index = 0;
+  const nextIndex = index + Number(direction);
+  return nextIndex >= 0 && nextIndex < steps.length;
+}
+
+export function essayPackageKey(quantity) {
+  const qty = Math.floor(Number(quantity));
+  if (!BUNDLE_QUANTITY_OPTIONS.includes(qty)) return null;
+  return `essay_support_${qty}`;
 }
 
 export function resolveBundleId(bundleId) {
@@ -196,7 +212,8 @@ export function normalizeBundleSelection(input = {}, options = {}) {
           message: `Choose ${allowed.join(", ")} ${field.label.toLowerCase()}.`
         };
       }
-      quantities[key] = clampToAllowedQuantity(exact, allowed, field.default);
+      // Invalid drafts reset to catalog default (3), not nearest neighbor.
+      quantities[key] = field.default;
       continue;
     }
 
@@ -335,7 +352,7 @@ export function formatUsd(cents) {
   }).format(amount);
 }
 
-export function serializeBundleMetadata(quote) {
+export function serializeBundleMetadata(quote, extras = {}) {
   const compact = {
     id: quote.selection.bundleId,
     q: quote.selection.quantities,
@@ -345,13 +362,25 @@ export function serializeBundleMetadata(quote) {
     total: quote.totalCents
   };
   const configJson = JSON.stringify(compact);
+  const essayQty = Math.floor(Number(quote.selection.quantities?.essayReviews));
+  const isEssay = quote.selection.bundleId === "essay_support" && Number.isFinite(essayQty);
+  const packageKey = isEssay ? `essay_support_${essayQty}` : null;
   return {
-    purchaseType: "one_time_bundle",
+    purchaseType: isEssay ? "ESSAY_SUPPORT" : "one_time_bundle",
     bundleId: quote.selection.bundleId,
     bundleTitle: quote.catalog.title,
     bundleTotalCents: String(quote.totalCents),
     bundleSummary: quote.summaryLines.slice(0, 4).join(" · ").slice(0, 450),
-    bundleConfig: configJson.slice(0, 490)
+    bundleConfig: configJson.slice(0, 490),
+    ...(packageKey
+      ? {
+          packageKey,
+          creditQuantity: String(essayQty),
+          essayReviews: String(essayQty)
+        }
+      : {}),
+    ...(extras.studentId ? { studentId: String(extras.studentId) } : {}),
+    ...(extras.purchaserUserId ? { purchaserUserId: String(extras.purchaserUserId) } : {})
   };
 }
 

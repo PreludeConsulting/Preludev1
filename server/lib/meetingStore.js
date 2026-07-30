@@ -58,7 +58,9 @@ function toRecord(row) {
     isPrivate: Boolean(row.isPrivate),
     idempotencyKey: row.idempotencyKey ?? null,
     accessType: row.accessType ?? null,
-    sessionPackageId: row.sessionPackageId ?? null
+    sessionPackageId: row.sessionPackageId ?? null,
+    subscriptionSessionPeriodId: row.subscriptionSessionPeriodId ?? null,
+    createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt ?? null
   };
 }
 
@@ -82,7 +84,8 @@ function fromPayload(payload) {
     isPrivate: Boolean(payload.isPrivate),
     idempotencyKey: payload.idempotencyKey ?? null,
     accessType: payload.accessType ?? null,
-    sessionPackageId: payload.sessionPackageId ?? null
+    sessionPackageId: payload.sessionPackageId ?? null,
+    subscriptionSessionPeriodId: payload.subscriptionSessionPeriodId ?? null
   };
 }
 
@@ -192,7 +195,14 @@ export async function createMeetingRecord(payload, { tx = null } = {}) {
   assertDurableStoreAvailable(process.env, "meeting");
   const store = readJsonStore();
   const id = `meet-${randomBytes(6).toString("hex")}`;
-  const record = toRecord({ id, ...data, startTime: data.startTime.toISOString(), endTime: data.endTime.toISOString() });
+  const createdAt = new Date().toISOString();
+  const record = toRecord({
+    id,
+    ...data,
+    startTime: data.startTime.toISOString(),
+    endTime: data.endTime.toISOString(),
+    createdAt
+  });
   store.meetings.push(record);
   writeJsonStore(store);
   return record;

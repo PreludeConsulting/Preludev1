@@ -5,6 +5,7 @@ import PreludeLogo from "../../../components/PreludeLogo.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { useLanguage } from "../../../context/LanguageContext.jsx";
 import { roleFromUser } from "../../../lib/dashboardRoutes.js";
+import { getCurrentProductLabel } from "../../../lib/currentProduct.js";
 import { cn } from "../../../lib/utils.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { usePreludeChatContextOptional } from "../../context/PreludeChatContext.jsx";
@@ -30,7 +31,10 @@ export default function DashboardProductNav({ navItems, basePath }) {
   const tabsRef = useRef(null);
   const role = roleFromUser(user);
   const isMentor = role === "mentor";
-  const planName = planDetails?.name || user?.planName || "Basic";
+  const productLabel = getCurrentProductLabel(
+    planDetails?.id || user?.plan,
+    planDetails?.name || user?.planName
+  );
   const firstName = (user?.firstName || user?.name || "Account").trim().split(/\s+/)[0] || "Account";
   const unreadCount = useMemo(
     () => notifications.filter((item) => item.unread).length,
@@ -259,7 +263,7 @@ export default function DashboardProductNav({ navItems, basePath }) {
             <div className="dash-product-nav__account-summary">
               <strong>{user?.name || "Account"}</strong>
               <span>{user?.email || "Signed in"}</span>
-              {isMentor ? <span>Mentor account</span> : <span>{planName} plan</span>}
+              {isMentor ? <span>Mentor account</span> : <span>{productLabel}</span>}
             </div>
             <div className="dash-product-nav__menu-divider" role="separator" />
             <NavLink

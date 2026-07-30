@@ -24,6 +24,9 @@ export const MENTOR_ROUTE_META = {
   availability: { title: "Availability", subtitle: "Set the times you're available for students to book meetings." },
   settings: { title: "Settings", subtitle: "Profile, account, and preferences." },
   help: { title: "Help and Support", subtitle: "Resources for Prelude mentors." },
-  "demo-student-jordan": { title: "Student profile", subtitle: "Progress, notes, and meeting history." },
+  "demo-student-jordan-essay": { title: "Jordan — Essay Support", subtitle: "Progress, notes, and meeting history." },
+  "demo-student-jordan-plus": { title: "Jordan — Plus", subtitle: "Progress, notes, and meeting history." },
+  "demo-student-jordan-pro": { title: "Jordan — Pro", subtitle: "Progress, notes, and meeting history." },
+  "demo-student-jordan": { title: "Jordan — Essay Support", subtitle: "Progress, notes, and meeting history." },
   "demo-student-alex": { title: "Student profile", subtitle: "Progress, notes, and meeting history." }
 };

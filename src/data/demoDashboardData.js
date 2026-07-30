@@ -11,7 +11,11 @@ import { buildDefaultProgressRewards } from "../dashboard/lib/progressRewards.js
 /** Stable slugs used in events/meetings before DB IDs are known. */
 export const DEMO_SLUGS = {
   mentor: "demo-mentor-maya",
-  jordan: "demo-student-jordan",
+  jordanEssay: "demo-student-jordan-essay",
+  jordanPlus: "demo-student-jordan-plus",
+  jordanPro: "demo-student-jordan-pro",
+  /** @deprecated Prefer jordanEssay — kept for older fixtures/links. */
+  jordan: "demo-student-jordan-essay",
   alex: "demo-student-alex"
 };
 
@@ -80,7 +84,8 @@ function buildUpcomingDemoEvents(slug) {
 }
 
 const jordanMeetingStart = futureMeetingStart(9, 16, 0);
-const alexMeetingStart = futureMeetingStart(14, 15, 30);
+const jordanPlusMeetingStart = futureMeetingStart(11, 15, 30);
+const jordanProMeetingStart = futureMeetingStart(14, 15, 30);
 
 const SHARED_MENTOR = {
   id: DEMO_SLUGS.mentor,
@@ -95,7 +100,19 @@ const SHARED_MENTOR = {
     "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Georgia_Tech_Yellow_Jackets_logo.svg/240px-Georgia_Tech_Yellow_Jackets_logo.svg.png",
   bio: "Maya is a Georgia Tech graduate who helps students organize their college applications, strengthen their essays, and create realistic college lists.",
   expertise: ["STEM applications", "College list strategy", "Essay feedback", "Scholarship planning", "Time management"],
-  availability: "Tuesdays 4–6 PM ET · Thursdays 3–5 PM ET"
+  availability: "Mon 09:00 – 17:00 · Tue 14:00 – 18:00 · Wed 16:00 – 20:00 · Thu 13:00 – 17:00 · Fri 09:00 – 13:00 ET",
+  availabilitySchedule: {
+    timezone: "ET",
+    days: [
+      { dayOfWeek: "Monday", enabled: true, startTime: "09:00", endTime: "17:00" },
+      { dayOfWeek: "Tuesday", enabled: true, startTime: "14:00", endTime: "18:00" },
+      { dayOfWeek: "Wednesday", enabled: true, startTime: "16:00", endTime: "20:00" },
+      { dayOfWeek: "Thursday", enabled: true, startTime: "13:00", endTime: "17:00" },
+      { dayOfWeek: "Friday", enabled: true, startTime: "09:00", endTime: "13:00" },
+      { dayOfWeek: "Saturday", enabled: false, startTime: "09:00", endTime: "17:00" },
+      { dayOfWeek: "Sunday", enabled: false, startTime: "09:00", endTime: "17:00" }
+    ]
+  }
 };
 
 const JORDAN_PROFILE = {
@@ -127,29 +144,42 @@ const ALEX_PROFILE = {
 function buildMeetings() {
   return [
     {
-      id: "demo-meet-jordan-zoom",
-      title: "College List Strategy Session",
-      studentId: DEMO_SLUGS.jordan,
+      id: "demo-meet-jordan-essay-zoom",
+      title: "Essay Support Check-in",
+      studentId: DEMO_SLUGS.jordanEssay,
       mentorId: DEMO_SLUGS.mentor,
       meetingType: "zoom",
       startTime: jordanMeetingStart.toISOString(),
       endTime: meetingEnd(jordanMeetingStart, 45).toISOString(),
       timeZone: "America/New_York",
       status: "scheduled",
+      notes: "Review personal statement draft and Brown supplemental prompts.",
+      isPrivate: false
+    },
+    {
+      id: "demo-meet-jordan-plus-zoom",
+      title: "College List Strategy Session",
+      studentId: DEMO_SLUGS.jordanPlus,
+      mentorId: DEMO_SLUGS.mentor,
+      meetingType: "zoom",
+      startTime: jordanPlusMeetingStart.toISOString(),
+      endTime: meetingEnd(jordanPlusMeetingStart, 45).toISOString(),
+      timeZone: "America/New_York",
+      status: "scheduled",
       notes: "Review reach/target/likely balance and summer essay plan.",
       isPrivate: false
     },
     {
-      id: "demo-meet-alex-zoom",
-      title: "Scholarship & Essay Planning",
-      studentId: DEMO_SLUGS.alex,
+      id: "demo-meet-jordan-pro-zoom",
+      title: "Pro Strategy Session",
+      studentId: DEMO_SLUGS.jordanPro,
       mentorId: DEMO_SLUGS.mentor,
       meetingType: "zoom",
-      startTime: alexMeetingStart.toISOString(),
-      endTime: meetingEnd(alexMeetingStart, 45).toISOString(),
+      startTime: jordanProMeetingStart.toISOString(),
+      endTime: meetingEnd(jordanProMeetingStart, 45).toISOString(),
       timeZone: "America/New_York",
       status: "scheduled",
-      notes: "Outline scholarship targets and personal statement themes.",
+      notes: "Priority mentoring for applications timeline and interview prep.",
       isPrivate: false
     }
   ];
@@ -432,108 +462,64 @@ function mentorBundle() {
     mentor: SHARED_MENTOR,
     students: [
       {
-        id: DEMO_SLUGS.alex,
-        name: "Alex Kim",
-        grade: "12th",
-        major: "Economics",
-        profileCompletion: 64,
-        upcomingDeadlines: 5,
-        lastMeeting: "May 30, 2026",
-        nextMeeting: "Jul 1, 2026",
-        applicationPhase: "applying",
-        priorities: ["Scholarship essays", "FAFSA follow-up"],
-        gamification: { ...buildDefaultGamification(false), streak: 3 }
-      },
-      {
-        id: DEMO_SLUGS.jordan,
+        id: DEMO_SLUGS.jordanEssay,
         name: "Jordan Lee",
+        displayName: "Jordan — Essay Support",
         grade: "11th",
         major: "Computer Science",
+        plan: "basic",
+        planLabel: "Essay Support",
+        paymentType: "one_time",
+        essaySupportOnly: true,
+        reviewCredits: { purchased: 6, assigned: 2, remaining: 4 },
+        usageSummary: "4 review credits remaining",
         profileCompletion: 78,
         upcomingDeadlines: 4,
         lastMeeting: "May 28, 2026",
         nextMeeting: "Jun 28, 2026",
         applicationPhase: "researching",
-        priorities: ["Finalize college list", "Personal statement draft"],
+        priorities: ["Personal statement review", "Brown supplemental essays"],
         gamification: { ...buildDefaultGamification(true), streak: 5 }
       },
       {
-        id: "student-demo-maya",
-        name: "Maya Chen",
-        grade: "12th",
-        major: "English Literature",
-        profileCompletion: 71,
-        upcomingDeadlines: 2,
-        lastMeeting: "Jun 2, 2026",
-        nextMeeting: "Jul 8, 2026",
-        applicationPhase: "applying",
-        priorities: ["Supplement essays", "Interview prep"],
-        gamification: { ...buildDefaultGamification(false), streak: 9 }
-      },
-      {
-        id: "student-demo-sofia",
-        name: "Sofia Ramirez",
+        id: DEMO_SLUGS.jordanPlus,
+        name: "Jordan Lee",
+        displayName: "Jordan — Plus",
         grade: "11th",
-        major: "Business",
-        profileCompletion: 58,
-        upcomingDeadlines: 6,
-        lastMeeting: "Jun 4, 2026",
-        nextMeeting: "Aug 12, 2026",
+        major: "Computer Science",
+        plan: "plus",
+        planLabel: "Plus",
+        paymentType: "monthly",
+        essaySupportOnly: false,
+        sessionAllowance: { included: 2, used: 1, remaining: 1 },
+        usageSummary: "1 of 2 sessions remaining",
+        profileCompletion: 78,
+        upcomingDeadlines: 4,
+        lastMeeting: "May 28, 2026",
+        nextMeeting: "Jun 30, 2026",
         applicationPhase: "researching",
-        priorities: ["Build college list", "Summer program applications"],
-        gamification: { ...buildDefaultGamification(false), streak: 1 }
+        priorities: ["Finalize college list", "Flexible session planning"],
+        gamification: { ...buildDefaultGamification(true), streak: 5 }
       },
       {
-        id: "student-demo-ethan",
-        name: "Ethan Brooks",
-        grade: "12th",
-        major: "Biology",
+        id: DEMO_SLUGS.jordanPro,
+        name: "Jordan Lee",
+        displayName: "Jordan — Pro",
+        grade: "11th",
+        major: "Computer Science",
+        plan: "pro",
+        planLabel: "Pro",
+        paymentType: "monthly",
+        essaySupportOnly: false,
+        sessionAllowance: { included: 4, used: 1, remaining: 3 },
+        usageSummary: "3 of 4 sessions remaining",
         profileCompletion: 82,
         upcomingDeadlines: 3,
-        lastMeeting: "Jun 6, 2026",
-        nextMeeting: "Jul 15, 2026",
-        applicationPhase: "submitted",
-        priorities: ["Financial aid forms", "Scholarship follow-ups"],
-        gamification: { ...buildDefaultGamification(false), streak: 12 }
-      },
-      {
-        id: "student-demo-priya",
-        name: "Priya Shah",
-        grade: "11th",
-        major: "Engineering",
-        profileCompletion: 69,
-        upcomingDeadlines: 4,
-        lastMeeting: "Jun 8, 2026",
-        nextMeeting: "Jul 3, 2026",
-        applicationPhase: "researching",
-        priorities: ["STEM summer programs", "Activity descriptions"],
-        gamification: { ...buildDefaultGamification(false), streak: 6 }
-      },
-      {
-        id: "student-demo-noah",
-        name: "Noah Williams",
-        grade: "12th",
-        major: "Political Science",
-        profileCompletion: 75,
-        upcomingDeadlines: 2,
-        lastMeeting: "Jun 10, 2026",
-        nextMeeting: "Jun 30, 2026",
-        applicationPhase: "deciding",
-        priorities: ["Compare aid packages", "Campus visits"],
-        gamification: { ...buildDefaultGamification(false), streak: 4 }
-      },
-      {
-        id: "student-demo-lily",
-        name: "Lily Nguyen",
-        grade: "10th",
-        major: "Psychology",
-        profileCompletion: 52,
-        upcomingDeadlines: 1,
-        lastMeeting: "Jun 12, 2026",
-        nextMeeting: "Aug 1, 2026",
-        applicationPhase: "researching",
-        priorities: ["Explore majors", "Build extracurricular depth"],
-        gamification: { ...buildDefaultGamification(false), streak: 2 }
+        lastMeeting: "Jun 2, 2026",
+        nextMeeting: "Jul 1, 2026",
+        applicationPhase: "applying",
+        priorities: ["Full application review", "Interview prep"],
+        gamification: { ...buildDefaultGamification(true), streak: 7 }
       }
     ],
     meetings,
@@ -603,33 +589,34 @@ function mentorBundle() {
       }
     ],
     privateNotes: {
-      [DEMO_SLUGS.jordan]: "Strong STEM narrative — encourage more specificity in activity descriptions. Watch essay tone in paragraph 2.",
-      [DEMO_SLUGS.alex]: "Needs tighter scholarship timeline. Personal statement opening is solid but conclusion is vague."
+      [DEMO_SLUGS.jordanEssay]: "Essay Support — 4 of 6 review credits remaining. Focus on personal statement specificity and Brown Open Curriculum prompts.",
+      [DEMO_SLUGS.jordanPlus]: "Plus — 1 of 2 flexible sessions remaining this month. Strong STEM narrative; encourage measurable activity descriptions.",
+      [DEMO_SLUGS.jordanPro]: "Pro — 3 of 4 flexible sessions remaining this month. Ready for full application review and interview prep."
     },
     conversations,
     messages: conversationsToInbox(conversations),
     summaryCards: {
-      students: 24,
-      meetingsThisWeek: 2,
+      students: 3,
+      meetingsThisWeek: 3,
       pendingRequests: 1,
       unreadMessages: 1,
-      upcomingDeadlines: 6,
-      upcomingBookings: 5
+      upcomingDeadlines: 4,
+      upcomingBookings: 3
     },
     pendingRequests: [
       {
         id: "req-1",
-        studentName: "Jordan Lee",
-        studentId: DEMO_SLUGS.jordan,
+        studentName: "Jordan — Essay Support",
+        studentId: DEMO_SLUGS.jordanEssay,
         requestedTime: "Thu, Jun 12 · 4:30 PM ET",
-        type: "Zoom check-in"
+        type: "Essay review check-in"
       }
     ],
     studentActivityFeed: [
-      { id: "sf1", studentName: "Jordan Lee", text: "Finished essay draft", sub: "Personal Statement v2", time: "2h ago" },
-      { id: "sf2", studentName: "Alex Kim", text: "Added colleges", sub: "3 schools updated", time: "5h ago" },
-      { id: "sf3", studentName: "Jordan Lee", text: "Completed mission", sub: "+30 XP", time: "Yesterday" },
-      { id: "sf4", studentName: "Alex Kim", text: "Requested feedback", sub: "Scholarship essay", time: "Yesterday" }
+      { id: "sf1", studentName: "Jordan — Essay Support", text: "Opened personal statement review", sub: "1 credit assigned", time: "2h ago" },
+      { id: "sf2", studentName: "Jordan — Plus", text: "Booked flexible session", sub: "1 of 2 remaining", time: "5h ago" },
+      { id: "sf3", studentName: "Jordan — Pro", text: "Completed mission", sub: "+30 XP", time: "Yesterday" },
+      { id: "sf4", studentName: "Jordan — Essay Support", text: "Brown supplemental assigned", sub: "3 prompts · 1 credit", time: "Yesterday" }
     ]
   };
 }

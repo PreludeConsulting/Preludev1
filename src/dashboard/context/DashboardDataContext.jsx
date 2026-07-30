@@ -41,6 +41,7 @@ import {
 } from "../../lib/billingMembership.js";
 import {
   evaluateMentorAccess,
+  isDailyBookingLimitError,
   isNoMentorAccessError,
   NO_MENTOR_ACCESS_CODE
 } from "../../../shared/mentorAccess.js";
@@ -786,21 +787,41 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
             );
             stored = attachRequestMeta(meeting);
             if (mentorAccess) {
-              setMentorAccess((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      remainingSessions: Math.max(0, (prev.remainingSessions || 1) - 1),
-                      ...(meeting.accessType === "session_package"
-                        ? { packageRemaining: Math.max(0, (prev.packageRemaining || 1) - 1) }
-                        : {
-                            subscriptionRemaining: Math.max(0, (prev.subscriptionRemaining || 1) - 1)
-                          })
-                    }
-                  : prev
-              );
+              setMentorAccess((prev) => {
+                if (!prev) return prev;
+                const isPackage = meeting.accessType === "session_package";
+                const nextSubscription = isPackage
+                  ? prev.subscriptionRemaining
+                  : Math.max(0, (prev.subscriptionRemaining ?? prev.allowance ?? 1) - 1);
+                const nextPackage = isPackage
+                  ? Math.max(0, (prev.packageRemaining || 1) - 1)
+                  : prev.packageRemaining;
+                const allowance = prev.allowance || 0;
+                return {
+                  ...prev,
+                  remainingSessions: Math.max(0, (prev.remainingSessions || 1) - 1),
+                  packageRemaining: nextPackage,
+                  subscriptionRemaining: nextSubscription,
+                  sessionCreditBalanceLabel:
+                    allowance > 0
+                      ? `${nextSubscription} of ${allowance} session credits remaining`
+                      : prev.sessionCreditBalanceLabel,
+                  allowed: isPackage
+                    ? nextSubscription > 0 || nextPackage > 0
+                    : false,
+                  dailyBookingUsed: isPackage ? prev.dailyBookingUsed : true,
+                  reason: isPackage
+                    ? nextSubscription <= 0 && nextPackage <= 0 && allowance > 0
+                      ? "no_session_credits"
+                      : prev.reason
+                    : "daily_booking_limit"
+                };
+              });
             }
           } catch (error) {
+            if (isDailyBookingLimitError(error)) {
+              throw error;
+            }
             if (isNoMentorAccessError(error)) {
               setNoMentorAccessOpen(true);
               throw error;
@@ -815,7 +836,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
               notes: enrichedPayload.notes,
               status: "pending",
               mentorId: enrichedPayload.mentorId,
-              mentorUserId: enrichedPayload.mentorUserId
+              mentorUserId: enrichedPayload.mentorUserId,
+              createdAt: new Date().toISOString(),
+              accessType: "subscription"
             });
           }
           setPendingMeetingRequests((prev) => [...prev.filter((item) => item.id !== stored.id), stored]);
@@ -871,19 +894,34 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         const stored = attachRequestMeta(meeting);
 
         if (mentorAccess) {
-          setMentorAccess((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  remainingSessions: Math.max(0, (prev.remainingSessions || 1) - 1),
-                  ...(meeting.accessType === "session_package"
-                    ? { packageRemaining: Math.max(0, (prev.packageRemaining || 1) - 1) }
-                    : {
-                        subscriptionRemaining: Math.max(0, (prev.subscriptionRemaining || 1) - 1)
-                      })
-                }
-              : prev
-          );
+          setMentorAccess((prev) => {
+            if (!prev) return prev;
+            const isPackage = meeting.accessType === "session_package";
+            const nextSubscription = isPackage
+              ? prev.subscriptionRemaining
+              : Math.max(0, (prev.subscriptionRemaining ?? prev.allowance ?? 1) - 1);
+            const nextPackage = isPackage
+              ? Math.max(0, (prev.packageRemaining || 1) - 1)
+              : prev.packageRemaining;
+            const allowance = prev.allowance || 0;
+            return {
+              ...prev,
+              remainingSessions: Math.max(0, (prev.remainingSessions || 1) - 1),
+              packageRemaining: nextPackage,
+              subscriptionRemaining: nextSubscription,
+              sessionCreditBalanceLabel:
+                allowance > 0
+                  ? `${nextSubscription} of ${allowance} session credits remaining`
+                  : prev.sessionCreditBalanceLabel,
+              allowed: isPackage ? nextSubscription > 0 || nextPackage > 0 : false,
+              dailyBookingUsed: isPackage ? prev.dailyBookingUsed : true,
+              reason: isPackage
+                ? nextSubscription <= 0 && nextPackage <= 0 && allowance > 0
+                  ? "no_session_credits"
+                  : prev.reason
+                : "daily_booking_limit"
+            };
+          });
         }
 
         if (isPending || stored.status === "pending") {
@@ -938,7 +976,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
             (pkg) => String(pkg.bundleId || "").toLowerCase() === "essay_support"
           );
         } catch {
-          // Monthly Basic allowance can still apply without billing summary.
+          // The submission check below reports that Essay Support credits could not be found.
         }
       } else if (localDemo?.sessionPackages) {
         essayPackages = (localDemo.sessionPackages || []).filter(
@@ -948,7 +986,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
       if (!canSubmitApplicationReview(planId, applicationReviews, { essayPackages })) {
         throw new Error(
-          "No application review credits remaining. Purchase Essay Support or wait for your next billing cycle."
+          "No Essay Support credits remaining. Purchase more credits to submit another review."
         );
       }
 
@@ -1248,8 +1286,52 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setSyncStatus("sync-failed");
         throw error;
       }
-      setAvailability(weeklyAvailability.days || []);
-      return weeklyAvailability.days || [];
+      const days = weeklyAvailability.days || [];
+      setAvailability(days);
+      const schedule = {
+        timezone: weeklyAvailability.timezone || "ET",
+        days: days.map((day) => ({
+          dayOfWeek: day.dayOfWeek || day.day,
+          enabled: Boolean(day.enabled ?? day.active),
+          startTime: day.startTime,
+          endTime: day.endTime
+        }))
+      };
+      try {
+        if (typeof window !== "undefined") {
+          const payload = JSON.stringify(schedule);
+          if (user?.id) {
+            window.localStorage.setItem(`prelude_mentor_availability_schedule_${user.id}`, payload);
+          }
+          // Stable demo key so a student session in the same browser picks up mentor saves.
+          window.localStorage.setItem("prelude_mentor_availability_schedule_demo-mentor-maya", payload);
+        }
+        if (typeof globalThis !== "undefined") {
+          globalThis.__preludeMentorSchedules = {
+            ...(globalThis.__preludeMentorSchedules || {}),
+            ...(user?.id ? { [user.id]: schedule } : {}),
+            "demo-mentor-maya": schedule
+          };
+        }
+      } catch {
+        /* ignore persistence failures in demo */
+      }
+      // Keep demo student Book a Session / mentor profile text aligned with the saved weekly hours.
+      setMentor((prev) => {
+        if (!prev) return prev;
+        const enabled = schedule.days.filter((day) => day.enabled);
+        const summary = enabled.length
+          ? enabled
+              .map((day) => `${String(day.dayOfWeek || "").slice(0, 3)} ${day.startTime} – ${day.endTime}`)
+              .join(" · ")
+          : prev.availability;
+        return {
+          ...prev,
+          availability: summary,
+          availabilitySchedule: schedule
+        };
+      });
+      return days;
     },
     [useSupabase, user, localDemo]
   );

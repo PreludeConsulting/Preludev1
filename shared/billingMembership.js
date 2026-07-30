@@ -169,9 +169,13 @@ export function deriveMembershipStatus({
   };
 }
 
-export function membershipAccessExplanation(statusInfo, { sessionBalance = 0 } = {}) {
+export function membershipAccessExplanation(statusInfo, { sessionBalance = 0, subscriptionCreditsRemaining = 0 } = {}) {
   if (statusInfo.key === "cancels_at_period_end" && statusInfo.endsAt) {
-    return `Your membership remains active until ${formatBillingDateTime(statusInfo.endsAt)}. You will not be charged again unless you renew.`;
+    const creditsNote =
+      subscriptionCreditsRemaining > 0
+        ? " You may continue using your remaining session credits until then."
+        : "";
+    return `Your subscription is scheduled to end on ${formatBillingDate(statusInfo.endsAt)}.${creditsNote}`;
   }
   if (statusInfo.key === "active" && statusInfo.renewsAt) {
     return `Your membership renews automatically on ${formatBillingDate(statusInfo.renewsAt)}.`;

@@ -1,3 +1,5 @@
+import { formatAvailabilitySummary } from "../../shared/mentorAvailabilitySync.js";
+
 const profileFields = [
   "full_name", "preferred_name", "school", "grade_level", "time_zone", "language",
   "location_city_state", "bio", "academic_goals", "college_interests", "mentor_preferences",
@@ -254,13 +256,38 @@ export async function handleDashboard(context, action) {
     if (action === "availability" && context.request.method === "PUT") {
       if (!validateAvailability(body)) return json({ error: "validation_error", message: "Check the availability times and retry." }, 400);
       await requireMentorProfile(context, user, token);
+      const availabilitySummary = formatAvailabilitySummary(body);
       const rows = await rest(context, token, "mentor_matching_profiles?on_conflict=mentor_user_id", {
         method: "POST",
         headers: { Prefer: "resolution=merge-duplicates,return=representation" },
-        body: JSON.stringify({ mentor_user_id: user.id, availability_schedule: body, updated_at: now })
+        body: JSON.stringify({
+          mentor_user_id: user.id,
+          availability_schedule: body,
+          ...(availabilitySummary ? { availability: availabilitySummary } : {}),
+          updated_at: now
+        })
       });
       const row = first(rows);
       if (!row) return json({ error: "dashboard_sync_failed", message: "Availability could not be saved. Refresh and retry." }, 409);
+
+      // Best-effort: keep student match cards / summaries aligned with the live schedule.
+      try {
+        await rest(
+          context,
+          token,
+          `mentor_matches?mentor_id=eq.${encodeURIComponent(user.id)}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({
+              availability: availabilitySummary,
+              updated_at: now
+            })
+          }
+        );
+      } catch (syncError) {
+        console.error("[prelude-dashboard-worker] mentor_matches availability sync failed", syncError?.message || syncError);
+      }
+
       return json({ availability: mapAvailability(row) });
     }
     return json({ error: "method_not_allowed" }, 405);

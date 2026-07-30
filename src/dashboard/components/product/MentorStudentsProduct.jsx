@@ -91,17 +91,23 @@ export default function MentorStudentsProduct() {
   const [gradeFilter, setGradeFilter] = useState("");
   const [page, setPage] = useState(1);
 
-  const rosterStudents = useMemo(() => (
-    students.length ? students : activityStudents.map((student) => ({
+  const rosterStudents = useMemo(() => {
+    const activityById = Object.fromEntries((activityStudents || []).map((student) => [student.id, student]));
+    const base = students.length ? students : activityStudents;
+    return (base || []).map((student) => ({
       ...student,
-      grade: student.grade || "",
-      major: "",
-      gamification: { streak: 0 },
-      profileCompletion: 0,
-      upcomingDeadlines: 0,
-      nextDeadline: "TBD"
-    }))
-  ), [students, activityStudents]);
+      ...(activityById[student.id] || {})
+    }));
+  }, [students, activityStudents]);
+
+  async function refreshActivityStudents() {
+    try {
+      const data = await listMentorActivities(undefined, user);
+      setActivityStudents(data.students || []);
+    } catch {
+      /* keep prior roster */
+    }
+  }
 
   const filteredStudents = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -247,6 +253,9 @@ export default function MentorStudentsProduct() {
         students={rosterStudents}
         presetStudentId={assignStudent?.id || ""}
         user={user}
+        onAssigned={async () => {
+          await refreshActivityStudents();
+        }}
       />
     </div>
   );

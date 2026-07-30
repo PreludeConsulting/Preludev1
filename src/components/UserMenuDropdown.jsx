@@ -9,6 +9,7 @@ import {
 import { Link } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
 import { roleFromUser } from "../lib/dashboardRoutes.js";
+import { getCurrentProductLabel } from "../lib/currentProduct.js";
 import {
   billingPathForRole,
   dashboardPathForRole,
@@ -36,9 +37,9 @@ export default function UserMenuDropdown({ className = "" }) {
   const planLabel = isMentor
     ? "Mentor account"
     : planDetails
-      ? `${planDetails.name} plan`
+      ? getCurrentProductLabel(planDetails.id, planDetails.name)
       : user.planName
-        ? `${user.planName} plan`
+        ? getCurrentProductLabel(user.plan, user.planName)
         : "No plan selected";
 
   async function handleLogout(close) {

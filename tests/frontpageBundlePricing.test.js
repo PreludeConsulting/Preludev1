@@ -72,7 +72,7 @@ describe("purchasable pricing catalog", () => {
     expect(getMonthlyOneOnOneLimit("pro")).toBe(4);
     expect(getMonthlyApplicationReviewLimit("plus")).toBe(0);
     expect(getMonthlyApplicationReviewLimit("pro")).toBe(0);
-    expect(getMonthlyApplicationReviewLimit("basic")).toBe(2);
+    expect(getMonthlyApplicationReviewLimit("basic")).toBe(0);
   });
 
   it("quotes Essay Support as a one-time purchase", () => {

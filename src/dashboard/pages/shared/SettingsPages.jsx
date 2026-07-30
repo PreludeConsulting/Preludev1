@@ -30,6 +30,7 @@ import BillingMembershipPanel from "../../components/settings/BillingMembershipP
 import BugReportForm from "../../../components/BugReportForm.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { PARENT_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { getCurrentProductLabel } from "../../../lib/currentProduct.js";
 import { getDemoLinkedChildren, listLinkedChildren } from "../../../lib/parentLinks.js";
 import { shouldUseDemoFixtures } from "../../../lib/devAuthBypass.js";
 import { loadMentorQuestionnaire, saveMentorProfileSettings } from "../../../lib/mentorQuestionnaireService.js";
@@ -842,7 +843,10 @@ export function StudentSettingsPage() {
   }, [loadedPreferences]);
 
   const roleLabel = "Student";
-  const planName = planDetails?.name || user?.planName || "Basic";
+  const planName = getCurrentProductLabel(
+    planDetails?.id || user?.plan,
+    planDetails?.name || user?.planName
+  );
 
   function setPref(key, value) {
     setPrefs((current) => ({ ...current, [key]: value }));
@@ -1149,7 +1153,10 @@ export function ParentSettingsPage() {
   }, [user]);
 
   const roleLabel = "Parent";
-  const planName = planDetails?.name || user?.planName || "Basic";
+  const planName = getCurrentProductLabel(
+    planDetails?.id || user?.plan,
+    planDetails?.name || user?.planName
+  );
 
   function setPref(key, value) {
     setPrefs((current) => ({ ...current, [key]: value }));

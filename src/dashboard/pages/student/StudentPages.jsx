@@ -37,6 +37,7 @@ import MentorLiveUpdatesSection from "../../components/product/MentorLiveUpdates
 import PreludeMessagesPage from "../../components/chat/PreludeMessagesPage.jsx";
 import PreludeChatPanel from "../../components/PreludeChatPanel.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
+import { hasPlusProBookingSubmissionToday } from "../../../../shared/mentorAccess.js";
 import {
   Avatar,
   DashBadge,
@@ -1737,6 +1738,11 @@ export function StudentMentor() {
   const m = mentor;
   const creditMeetings = [...(meetings || []), ...(pendingMeetingRequests || [])];
   const canBook = canBookSession(creditMeetings, mentorAccess);
+  const dailyBookingUsed =
+    mentorAccess?.reason === "daily_booking_limit" ||
+    mentorAccess?.dailyBookingUsed === true ||
+    hasPlusProBookingSubmissionToday(creditMeetings);
+  const canShowBookingForm = canBook && !dailyBookingUsed;
   const mentorUserId = m?.userId || m?.mentorUserId || null;
   const {
     dates: bookingSlotDates,
@@ -1747,12 +1753,26 @@ export function StudentMentor() {
     mentorUserId,
     schedule: m?.availabilitySchedule || null,
     meetings: creditMeetings,
-    enabled: Boolean(m && canBook)
+    enabled: Boolean(m && canShowBookingForm)
   });
   const remainingLabel =
-    mentorAccess && typeof mentorAccess.remainingSessions === "number"
-      ? `${mentorAccess.remainingSessions} session${mentorAccess.remainingSessions === 1 ? "" : "s"} remaining`
-      : sessionCreditBalanceLabel(creditMeetings);
+    mentorAccess?.sessionCreditBalanceLabel ||
+    (mentorAccess && typeof mentorAccess.subscriptionRemaining === "number" && mentorAccess.allowance
+      ? `${mentorAccess.subscriptionRemaining} of ${mentorAccess.allowance} session credits remaining`
+      : mentorAccess && typeof mentorAccess.remainingSessions === "number"
+        ? `${mentorAccess.remainingSessions} session${mentorAccess.remainingSessions === 1 ? "" : "s"} remaining`
+        : sessionCreditBalanceLabel(creditMeetings));
+  const noSessionCredits = mentorAccess?.reason === "no_session_credits" ||
+    (mentorAccess?.allowed === false &&
+      mentorAccess?.packageRemaining === 0 &&
+      Number(mentorAccess?.allowance) > 0);
+  const periodEndLabel = mentorAccess?.periodEnd
+    ? new Date(mentorAccess.periodEnd).toLocaleDateString(undefined, {
+        month: "long",
+        day: "numeric",
+        year: "numeric"
+      })
+    : null;
   const showBookingSurface = canAccess("oneOnOneSessions") || Boolean(mentorAccess?.packageRemaining > 0);
   const upcoming = [...(meetings || [])]
     .filter((meeting) => meeting.status !== "pending")
@@ -1874,17 +1894,43 @@ export function StudentMentor() {
                 ) : null}
               </div>
 
-              {!canBook ? (
-                <p className="dash-plan-session-banner__meta" role="alert">
-                  No sessions remaining with this mentor.{" "}
-                  <button
-                    type="button"
-                    className="dash-linkish"
-                    onClick={() => openNoMentorAccessModal?.()}
-                  >
-                    Purchase sessions or view subscription
-                  </button>
-                </p>
+              {!canBook && !dailyBookingUsed ? (
+                <div className="dash-plan-session-banner__meta" role="alert">
+                  {noSessionCredits ? (
+                    <>
+                      <p>
+                        <strong>No session credits remaining</strong>
+                        {periodEndLabel ? `. Current paid period ends ${periodEndLabel}.` : "."}
+                      </p>
+                      <p>
+                        Your session credits will reset after your next successful subscription payment.
+                      </p>
+                    </>
+                  ) : (
+                    <p>
+                      No sessions remaining with this mentor.{" "}
+                      <button
+                        type="button"
+                        className="dash-linkish"
+                        onClick={() => openNoMentorAccessModal?.()}
+                      >
+                        View Plus and Pro
+                      </button>
+                    </p>
+                  )}
+                </div>
+              ) : null}
+
+              {dailyBookingUsed ? (
+                <div className="dash-plan-session-banner__meta" role="status">
+                  <p>
+                    <strong>You already submitted a session request today.</strong>
+                  </p>
+                  <p>
+                    Plus and Pro allow one Book a Session submission per day so you don&apos;t
+                    accidentally use extra session credits. You can request another session tomorrow.
+                  </p>
+                </div>
               ) : null}
 
               {bookingError ? (
@@ -1899,7 +1945,7 @@ export function StudentMentor() {
                 </p>
               ) : null}
 
-              {canBook ? (
+              {canShowBookingForm ? (
                 <CalendarAddEventModal
                   inline
                   open
@@ -1926,6 +1972,13 @@ export function StudentMentor() {
                         reminderMinutes: payload.reminderMinutes
                       });
                     } catch (error) {
+                      if (error?.code === "DAILY_BOOKING_LIMIT" || error?.payload?.code === "DAILY_BOOKING_LIMIT") {
+                        setBookingError(
+                          error.message ||
+                            "You can submit only one Book a Session request per day on Plus and Pro."
+                        );
+                        throw error;
+                      }
                       if (error?.code !== "NO_MENTOR_ACCESS" && error?.payload?.code !== "NO_MENTOR_ACCESS") {
                         setBookingError(error?.message || "Could not send meeting request.");
                       }

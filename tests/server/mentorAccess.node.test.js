@@ -27,6 +27,7 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PACKAGE_STORE = join(__dirname, "../../server/data/session-packages.json");
 const MEETING_STORE = join(__dirname, "../../server/data/meetings.json");
+const PERIOD_STORE = join(__dirname, "../../server/data/subscription-session-periods.json");
 
 const studentId = "11111111-1111-4111-a111-111111111111";
 const mentorId = "22222222-2222-4222-a222-222222222222";
@@ -48,6 +49,7 @@ function resetStores() {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   writeFileSync(PACKAGE_STORE, JSON.stringify({ packages: [] }, null, 2));
   writeFileSync(MEETING_STORE, JSON.stringify({ meetings: [] }, null, 2));
+  writeFileSync(PERIOD_STORE, JSON.stringify({ periods: [], reservations: [] }, null, 2));
   globalThis.__preludeMentorSchedules = {
     [mentorId]: ALL_DAY_SCHEDULE
   };
@@ -131,10 +133,23 @@ async function main() {
 
   // 2) Active monthly subscription → can create (no package deduct)
   resetStores();
+  {
+    const { activateSessionPeriodFromPayment } = await import("../../server/lib/sessionCredits.js");
+    const start = new Date().toISOString();
+    const end = new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString();
+    await activateSessionPeriodFromPayment({
+      studentUserId: studentId,
+      planId: "plus",
+      periodStart: start,
+      periodEnd: end,
+      stripeInvoiceId: "in_test_sub_access"
+    });
+  }
   const subAccess = evaluateMentorAccess({
     user: subscribedStudent(),
     meetings: [],
-    packages: []
+    packages: [],
+    sessionCredits: { active: true, remaining: 2, allowance: 2, periodEnd: null }
   });
   assert.equal(subAccess.allowed, true);
   assert.equal(subAccess.accessType, "subscription");

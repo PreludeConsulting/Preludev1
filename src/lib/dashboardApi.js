@@ -43,8 +43,13 @@ export async function createMeeting(payload, options = {}) {
 }
 
 export async function getAvailableMentorSlots(mentorUserId) {
-  const params = new URLSearchParams({ mentorUserId: String(mentorUserId) });
-  return dashboardRequest(`/api/meetings/available-slots?${params.toString()}`);
+  const params = new URLSearchParams({
+    mentorUserId: String(mentorUserId),
+    _ts: String(Date.now())
+  });
+  return dashboardRequest(`/api/meetings/available-slots?${params.toString()}`, {
+    headers: { "Cache-Control": "no-store" }
+  });
 }
 
 export async function updateMeeting(id, payload) {

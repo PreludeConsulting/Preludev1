@@ -14,7 +14,7 @@ export default function StudentBillingPage() {
     <div className="dash-page dash-page--premium dash-billing-page">
       <DashboardPageHeader
         title="Plans and Billing"
-        subtitle="Manage your membership, session balance, and purchase history."
+        subtitle="Manage Essay Support credits, memberships, and purchase history."
         actions={
           <SecondaryButton
             as={Link}

@@ -1,5 +1,5 @@
 /**
- * Application-component review requests (async Basic+ admissions support).
+ * Application-component review requests (async Essay Support admissions help).
  * Credits are counted client-side from non-cancelled monthly submissions.
  */
 

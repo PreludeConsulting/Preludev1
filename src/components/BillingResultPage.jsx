@@ -76,11 +76,13 @@ function useCheckoutConfirmation(sessionId, enabled, waitForOnboardingCompletion
 
 export function CheckoutSuccessPage() {
   const [params] = useSearchParams();
-  const plan = getPlan(params.get("plan") || "basic");
+  const checkoutProduct = params.get("plan") || "";
+  const isBundle = checkoutProduct.startsWith("bundle_");
+  const plan = getPlan(checkoutProduct || "basic");
+  const productName = checkoutProduct === "bundle_essay_support" ? "Essay Support" : plan.name;
   const context = params.get("context");
   const sessionId = params.get("session_id");
   const isOnboarding = context === "onboarding";
-  const isBundle = params.get("plan")?.startsWith("bundle_") || false;
   const { status, error } = useCheckoutConfirmation(
     sessionId,
     isOnboarding || isBundle,
@@ -108,7 +110,7 @@ export function CheckoutSuccessPage() {
             {status === "confirming" ? "Confirming payment" : "Checkout complete"}
           </p>
           <h1 className="shopify-hero__headline mt-4 text-5xl font-black leading-none md:text-7xl">
-            {status === "confirming" ? "Almost there" : `Welcome to ${plan.name}`}
+            {status === "confirming" ? "Almost there" : `Welcome to ${productName}`}
           </h1>
           <p className="mt-5 max-w-xl font-body text-base leading-7 text-muted-foreground">
             {status === "confirming"
@@ -137,7 +139,7 @@ export function CheckoutSuccessPage() {
           Checkout complete
         </p>
         <h1 className="shopify-hero__headline mt-4 text-5xl font-black leading-none md:text-7xl">
-          Welcome to {plan.name}
+          Welcome to {productName}
         </h1>
         <p className="mt-5 max-w-xl font-body text-base leading-7 text-muted-foreground">
           Stripe confirmed your checkout. Your account plan updates from the webhook once Stripe sends the subscription event.
@@ -158,7 +160,9 @@ export function CheckoutSuccessPage() {
 
 export function CheckoutCancelPage() {
   const [params] = useSearchParams();
-  const plan = getPlan(params.get("plan") || "basic");
+  const checkoutProduct = params.get("plan") || "";
+  const plan = getPlan(checkoutProduct || "basic");
+  const productName = checkoutProduct === "bundle_essay_support" ? "Essay Support" : plan.name;
   const isOnboarding = params.get("context") === "onboarding";
 
   if (isOnboarding) {
@@ -170,7 +174,7 @@ export function CheckoutCancelPage() {
             Checkout canceled
           </p>
           <h1 className="shopify-hero__headline mt-4 text-5xl font-black leading-none md:text-7xl">
-            {plan.name} is still waiting
+            {productName} is still waiting
           </h1>
           <p className="mt-5 max-w-xl font-body text-base leading-7 text-muted-foreground">
             You were not charged. Choose a plan again to finish creating your Prelude account.
@@ -193,7 +197,7 @@ export function CheckoutCancelPage() {
           Checkout canceled
         </p>
         <h1 className="shopify-hero__headline mt-4 text-5xl font-black leading-none md:text-7xl">
-          {plan.name} is still waiting
+          {productName} is still waiting
         </h1>
         <p className="mt-5 max-w-xl font-body text-base leading-7 text-muted-foreground">
           You were not charged. You can return to pricing whenever you are ready to finish checkout.

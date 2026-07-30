@@ -189,8 +189,9 @@ export default function CalendarPanel({
         {showStudentFilter ? (
           <select className="dash-select" value={studentFilter || ""} onChange={(e) => onStudentFilterChange?.(e.target.value)}>
             <option value="">All students</option>
-            <option value={DEMO_SLUGS.jordan}>Jordan Lee</option>
-            <option value={DEMO_SLUGS.alex}>Alex Kim</option>
+            <option value={DEMO_SLUGS.jordanEssay}>Jordan — Essay Support</option>
+            <option value={DEMO_SLUGS.jordanPlus}>Jordan — Plus</option>
+            <option value={DEMO_SLUGS.jordanPro}>Jordan — Pro</option>
           </select>
         ) : null}
 

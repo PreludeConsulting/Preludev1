@@ -15,14 +15,17 @@ import {
   ACTIVITY_MAX_FILE_BYTES,
   SUBMISSION_METHOD_OPTIONS,
   activityPrimaryAction,
+  activityReviewCreditLabel,
   activityTypeLabel,
   formatFileSize,
   getActivityFileUrl,
+  isDemoEssaySupportStudent,
   isValidDocumentLink,
   listStudentActivities,
   removeActivityDraftFile,
   requestActivityUpload,
   resolveActivityFileMime,
+  saveActivityPromptResponses,
   saveActivitySubmission,
   statusLabel,
   uploadActivityFile,
@@ -47,9 +50,11 @@ function ActivityStatus({ status }) {
 }
 
 function ActivityMeta({ activity }) {
+  const creditLabel = activityReviewCreditLabel(activity);
   return (
     <div className="dash-activity-meta">
       <span>{activityTypeLabel(activity.activityType)}</span>
+      {creditLabel ? <span>{creditLabel}</span> : null}
       {activity.collegeName ? <span>{activity.collegeName}</span> : null}
       <span>Mentor: {activity.mentorName}</span>
       {activity.dueDate ? <span>Due {formatDate(activity.dueDate)}</span> : null}
@@ -116,9 +121,11 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
   const [success, setSuccess] = useState("");
   const [removeConfirm, setRemoveConfirm] = useState(false);
   const [replaceAfterRemove, setReplaceAfterRemove] = useState(false);
+  const [promptDrafts, setPromptDrafts] = useState({});
   const fileInputRef = useRef(null);
   const submitKeyRef = useRef(null);
   const completed = activity?.storedStatus === "completed" || activity?.status === "completed";
+  const hasPromptBuilder = Boolean(activity?.prompts?.length);
 
   useEffect(() => {
     if (!open) return;
@@ -139,7 +146,26 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
     setRemoveConfirm(false);
     setReplaceAfterRemove(false);
     submitKeyRef.current = null;
+    const nextDrafts = {};
+    for (const prompt of activity?.prompts || []) {
+      const existing = activity?.promptResponses?.find((item) => item.promptId === prompt.id);
+      nextDrafts[prompt.id] = existing?.responseText || "";
+    }
+    setPromptDrafts(nextDrafts);
   }, [activity, open]);
+
+  async function savePrompts(asSubmitted) {
+    if (!hasPromptBuilder) return activity;
+    const responses = (activity.prompts || []).map((prompt) => ({
+      promptId: prompt.id,
+      responseText: String(promptDrafts[prompt.id] || "").trim(),
+      submissionStatus: asSubmitted ? "submitted" : "draft"
+    }));
+    if (asSubmitted && responses.some((response) => !response.responseText)) {
+      throw new Error("Add a response for every supplemental prompt before submitting.");
+    }
+    return saveActivityPromptResponses(activity.id, responses, user);
+  }
 
   async function handleFile(file) {
     setError("");
@@ -205,10 +231,23 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
     setError("");
     setSuccess("");
     try {
-      const payload = submissionPayload(isDraft);
-      if (!isDraft && !submitKeyRef.current) submitKeyRef.current = crypto.randomUUID();
-      const idempotencyKey = isDraft ? null : submitKeyRef.current;
-      await saveActivitySubmission(activity.id, payload, idempotencyKey, user);
+      if (hasPromptBuilder) {
+        await savePrompts(!isDraft);
+        // Optional document/file attachment still allowed alongside prompt text.
+        if (method) {
+          const payload = submissionPayload(isDraft);
+          if (!isDraft && !submitKeyRef.current) submitKeyRef.current = crypto.randomUUID();
+          const idempotencyKey = isDraft ? null : submitKeyRef.current;
+          await saveActivitySubmission(activity.id, payload, idempotencyKey, user);
+        } else if (!isDraft) {
+          // Prompt-only submit is enough when no file/link method is chosen.
+        }
+      } else {
+        const payload = submissionPayload(isDraft);
+        if (!isDraft && !submitKeyRef.current) submitKeyRef.current = crypto.randomUUID();
+        const idempotencyKey = isDraft ? null : submitKeyRef.current;
+        await saveActivitySubmission(activity.id, payload, idempotencyKey, user);
+      }
       if (isDraft) {
         setSuccess("Draft saved.");
       } else {
@@ -255,7 +294,42 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
             <ActivityMeta activity={activity} />
           </div>
 
-          {activity?.essayPrompt ? (
+          {activity?.prompts?.length ? (
+            <section className="dash-activity-detail__section">
+              <h3>Essay prompts</h3>
+              <ol className="dash-activity-history">
+                {activity.prompts.map((prompt, index) => (
+                  <li key={prompt.id} className="dash-activity-history__item">
+                    <p><strong>Prompt {index + 1}</strong></p>
+                    <p>{prompt.promptText}</p>
+                    {prompt.optionalWordLimit ? <span className="dash-activity-detail__limit">{prompt.optionalWordLimit} word limit</span> : null}
+                    {completed ? (
+                      promptDrafts[prompt.id] ? (
+                        <blockquote className="dash-activity-feedback">
+                          <strong>Your response</strong>
+                          <p>{promptDrafts[prompt.id]}</p>
+                        </blockquote>
+                      ) : null
+                    ) : (
+                      <label className="dash-field">
+                        <span>Your response</span>
+                        <textarea
+                          value={promptDrafts[prompt.id] || ""}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setPromptDrafts((current) => ({ ...current, [prompt.id]: value }));
+                          }}
+                          placeholder="Write your response to this prompt"
+                          disabled={busy}
+                          rows={6}
+                        />
+                      </label>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : activity?.essayPrompt ? (
             <section className="dash-activity-detail__section">
               <h3>Essay prompt</h3>
               <p>{activity.essayPrompt}</p>
@@ -276,12 +350,12 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
             <section className="dash-activity-submission" aria-labelledby="activity-submission-heading">
               <h3 id="activity-submission-heading">Your submission</h3>
               <label className="dash-field">
-                <span>How would you like to submit your work?</span>
+                <span>{hasPromptBuilder ? "Optional file or link (in addition to prompt responses)" : "How would you like to submit your work?"}</span>
                 <select value={method} onChange={(event) => {
                   setMethod(event.target.value);
                   setError("");
                 }} disabled={busy}>
-                  <option value="">Select a submission method</option>
+                  <option value="">{hasPromptBuilder ? "No additional file or link" : "Select a submission method"}</option>
                   {availableMethods.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </label>
@@ -372,8 +446,22 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
               {error ? <p className="dash-field-error" role="alert">{error}</p> : null}
               {success ? <p className="dash-activity-inline-success" role="status">{success}</p> : null}
               <div className="dash-activity-submission__actions">
-                <SecondaryButton type="button" onClick={() => save(true)} disabled={busy || !method} loading={busy}>Save Draft</SecondaryButton>
-                <PrimaryButton type="button" onClick={() => save(false)} disabled={busy || !method} loading={busy}>Submit to Mentor</PrimaryButton>
+                <SecondaryButton
+                  type="button"
+                  onClick={() => save(true)}
+                  disabled={busy || (!hasPromptBuilder && !method)}
+                  loading={busy}
+                >
+                  Save Draft
+                </SecondaryButton>
+                <PrimaryButton
+                  type="button"
+                  onClick={() => save(false)}
+                  disabled={busy || (!hasPromptBuilder && !method)}
+                  loading={busy}
+                >
+                  Submit to Mentor
+                </PrimaryButton>
               </div>
             </section>
           ) : (
@@ -395,14 +483,21 @@ export default function StudentMentorActivities({ className }) {
   const { user } = useAuth();
   const { isMentorStudentView } = useDashboardData();
   const [activities, setActivities] = useState([]);
+  const [reviewCredits, setReviewCredits] = useState(null);
+  const [sessionAllowance, setSessionAllowance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [showAll, setShowAll] = useState(false);
+  const showEssayCredits = isDemoEssaySupportStudent(user);
+  const planId = String(user?.plan || "").toLowerCase();
+  const showSessionAllowance = Boolean(sessionAllowance && (planId === "plus" || planId === "pro"));
 
   async function load() {
     if (isMentorStudentView) {
       setActivities([]);
+      setReviewCredits(null);
+      setSessionAllowance(null);
       setLoading(false);
       return;
     }
@@ -411,6 +506,8 @@ export default function StudentMentorActivities({ className }) {
     try {
       const data = await listStudentActivities(user);
       setActivities(data.activities || []);
+      setReviewCredits(data.reviewCredits || null);
+      setSessionAllowance(data.sessionAllowance || null);
     } catch (loadError) {
       setError(loadError.message || "Activities are temporarily unavailable.");
     } finally {
@@ -428,6 +525,7 @@ export default function StudentMentorActivities({ className }) {
     [activities]
   );
   const visible = showAll ? activities : activities.slice(0, 3);
+  const remainingCredits = Number(reviewCredits?.remaining) || 0;
 
   if (isMentorStudentView) return null;
 
@@ -440,6 +538,23 @@ export default function StudentMentorActivities({ className }) {
             {incompleteCount ? <span className="dash-mentor-activities__count">{incompleteCount} incomplete</span> : null}
           </div>
           <p>Complete and submit activities assigned by your mentor.</p>
+          {showEssayCredits ? (
+            <div className="dash-activity-credit-balance dash-activity-credit-balance--student" role="status">
+              <p className="dash-activity-credit-balance__remaining">
+                <strong>{remainingCredits} review credit{remainingCredits === 1 ? "" : "s"} remaining</strong>
+              </p>
+              <p>Credits are used when your mentor assigns a personal statement or college supplemental essay review.</p>
+            </div>
+          ) : null}
+          {showSessionAllowance ? (
+            <div className="dash-activity-credit-balance dash-activity-credit-balance--student" role="status">
+              <p className="dash-activity-credit-balance__remaining">
+                <strong>
+                  {sessionAllowance.remaining} of {sessionAllowance.included} flexible sessions remaining this month
+                </strong>
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -456,14 +571,16 @@ export default function StudentMentorActivities({ className }) {
         <EmptyState icon={FileText} title="No activities assigned yet" description="Activities from your mentor will appear here." />
       ) : (
         <div className="dash-mentor-activities__list">
-          {visible.map((activity) => (
+          {visible.map((activity) => {
+            const creditLabel = activityReviewCreditLabel(activity);
+            return (
             <article key={activity.id} className="dash-activity-row">
               <div className="dash-activity-row__icon" aria-hidden="true">
                 {activity.status === "completed" ? <CheckCircle2 className="h-5 w-5" /> : <Clock3 className="h-5 w-5" />}
               </div>
               <div className="dash-activity-row__body">
                 <div className="dash-activity-row__title-line">
-                  <h3>{activity.title}</h3>
+                  <h3>{creditLabel ? `${activity.title} — ${creditLabel}` : activity.title}</h3>
                   <ActivityStatus status={activity.status} />
                 </div>
                 <ActivityMeta activity={activity} />
@@ -473,7 +590,8 @@ export default function StudentMentorActivities({ className }) {
                 {activityPrimaryAction(activity.status)}
               </PrimaryButton>
             </article>
-          ))}
+            );
+          })}
           {activities.length > 3 ? (
             <button type="button" className="dash-mentor-activities__view-all" onClick={() => setShowAll((value) => !value)}>
               {showAll ? "Show Fewer Activities" : "View All Activities"}

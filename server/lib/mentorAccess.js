@@ -6,12 +6,23 @@ import { PrismaClient } from "@prisma/client";
 import { isDatabaseUnavailableError } from "./dbErrors.js";
 import { assertDurableStoreAvailable } from "./durableStorePolicy.js";
 import {
+  buildDailyBookingLimitError,
   buildNoMentorAccessError,
   evaluateMentorAccess,
+  hasActiveMentorSubscription,
   isEssaySupportBundleId,
   isLiveSessionBundleId,
-  NO_MENTOR_ACCESS_CODE
+  NO_MENTOR_ACCESS_CODE,
+  normalizePlanId
 } from "../../shared/mentorAccess.js";
+import {
+  attachReservationMeetingId,
+  ensureSessionPeriodForActiveSubscription,
+  expireSessionPeriodsAtPeriodEnd,
+  getSessionCreditSummary,
+  releaseSubscriptionSessionCredit,
+  reserveSubscriptionSessionCredit
+} from "./sessionCredits.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = join(__dirname, "../data/session-packages.json");
@@ -210,6 +221,9 @@ export async function canRequestMentor({
       remainingSessions: 0,
       subscriptionRemaining: 0,
       packageRemaining: 0,
+      allowance: 0,
+      periodEnd: null,
+      sessionCreditBalanceLabel: null,
       reason: "unauthenticated"
     };
   }
@@ -223,7 +237,8 @@ export async function canRequestMentor({
           id: true,
           plan: true,
           subscriptionStatus: true,
-          subscriptionCurrentPeriodEnd: true
+          subscriptionCurrentPeriodEnd: true,
+          stripeSubscriptionId: true
         }
       });
     } catch (error) {
@@ -232,12 +247,25 @@ export async function canRequestMentor({
   }
   accessUser = accessUser || { id: studentUserId, plan: "basic" };
 
+  await expireSessionPeriodsAtPeriodEnd(studentUserId);
+  if (hasActiveMentorSubscription(accessUser)) {
+    await ensureSessionPeriodForActiveSubscription({
+      studentUserId,
+      planId: accessUser.plan || accessUser.subscriptionPlan || accessUser.planName,
+      periodStart: accessUser.subscriptionCurrentPeriodStart || accessUser.subscription_current_period_start,
+      periodEnd: accessUser.subscriptionCurrentPeriodEnd || accessUser.subscription_current_period_end,
+      stripeSubscriptionId: accessUser.stripeSubscriptionId || accessUser.stripe_subscription_id || null
+    });
+  }
+
+  const creditSummary = await getSessionCreditSummary(studentUserId);
   const packages = await listSessionPackagesForStudent(studentUserId);
   return evaluateMentorAccess({
     user: accessUser,
     mentorId,
     meetings,
-    packages
+    packages,
+    sessionCredits: creditSummary
   });
 }
 
@@ -466,6 +494,19 @@ export async function assertMentorRequestAccess({
   });
 
   if (!access.allowed) {
+    if (access.reason === "daily_booking_limit") {
+      const payload = buildDailyBookingLimitError();
+      const error = new Error(payload.message);
+      error.statusCode = 409;
+      error.code = payload.code;
+      throw error;
+    }
+    if (access.reason === "no_session_credits") {
+      const error = new Error("You have no session credits remaining for the current billing period.");
+      error.statusCode = 409;
+      error.code = "NO_SESSION_CREDITS";
+      throw error;
+    }
     throw userFacingAccessError(
       "You need an available session or an active subscription to request this mentor."
     );
@@ -476,12 +517,15 @@ export async function assertMentorRequestAccess({
 
 /**
  * Consume package inventory when accessType is session_package.
- * Safe under concurrency: updateMany only succeeds when remaining > 0.
+ * For subscription access, reserve exactly one paid-period session credit.
+ * Safe under concurrency: updateMany / FOR UPDATE only succeeds when remaining > 0.
  */
 export async function reserveAccessForMeeting({
   access,
   studentUserId,
   mentorUserId = null,
+  idempotencyKey = null,
+  meetingId = null,
   tx = null
 }) {
   if (!access?.allowed) {
@@ -491,7 +535,27 @@ export async function reserveAccessForMeeting({
   }
 
   if (access.accessType === "subscription") {
-    return { accessType: "subscription", sessionPackageId: null };
+    try {
+      const reserved = await reserveSubscriptionSessionCredit({
+        studentUserId,
+        idempotencyKey: idempotencyKey || `subscription-reserve:${studentUserId}:${Date.now()}`,
+        meetingId,
+        tx
+      });
+      return {
+        accessType: "subscription",
+        sessionPackageId: null,
+        subscriptionSessionPeriodId: reserved.periodId || null
+      };
+    } catch (error) {
+      if (error.code === "NO_SESSION_CREDITS") {
+        const denied = new Error(error.message);
+        denied.statusCode = 409;
+        denied.code = "NO_SESSION_CREDITS";
+        throw denied;
+      }
+      throw error;
+    }
   }
 
   const packageId = await consumePackageSession({
@@ -506,7 +570,14 @@ export async function reserveAccessForMeeting({
     );
   }
 
-  return { accessType: "session_package", sessionPackageId: packageId };
+  return { accessType: "session_package", sessionPackageId: packageId, subscriptionSessionPeriodId: null };
 }
 
-export { pickPackageForConsume, userFacingAccessError, NO_MENTOR_ACCESS_CODE };
+export {
+  pickPackageForConsume,
+  userFacingAccessError,
+  NO_MENTOR_ACCESS_CODE,
+  attachReservationMeetingId,
+  releaseSubscriptionSessionCredit,
+  normalizePlanId
+};

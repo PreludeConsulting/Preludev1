@@ -32,7 +32,10 @@ function readBundlePrices(env) {
     Object.entries(BUNDLE_PRICE_ENV_BY_ID).map(([bundleId, quantityMap]) => [
       bundleId,
       Object.fromEntries(
-        Object.entries(quantityMap).map(([quantity, envKey]) => [quantity, env[envKey] || ""])
+        Object.entries(quantityMap).map(([quantity, envKey]) => {
+          const altKey = `ESSAY_SUPPORT_${quantity}_PRICE_ID`;
+          return [quantity, env[envKey] || env[altKey] || ""];
+        })
       )
     ])
   );

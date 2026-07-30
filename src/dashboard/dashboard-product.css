@@ -4035,6 +4035,37 @@
   color: #6b7280;
 }
 
+.dash-mentor-directory-card__plan {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.4rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.dash-mentor-directory-card__plan--plus {
+  background: hsl(210 80% 45% / 0.12);
+  color: hsl(210 80% 35%);
+}
+
+.dash-mentor-directory-card__plan--pro {
+  background: hsl(160 55% 35% / 0.12);
+  color: hsl(160 55% 28%);
+}
+
+.dash-mentor-directory-card__usage {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #374151;
+}
+
 .dash-mentor-directory-card__menu {
   flex-shrink: 0;
   margin-top: 0.05rem;
@@ -8558,6 +8589,35 @@
   margin: 0.28rem 0 0;
   color: hsl(var(--muted-foreground));
   font-size: 0.86rem;
+}
+
+.dash-activity-credit-balance {
+  margin-top: 0.75rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 12px;
+  background: hsl(var(--primary) / 0.08);
+  border: 1px solid hsl(var(--primary) / 0.16);
+}
+
+.dash-activity-credit-balance p {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.dash-activity-credit-balance p + p {
+  margin-top: 0.3rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.84rem;
+}
+
+.dash-activity-credit-balance__remaining {
+  font-size: 0.95rem;
+}
+
+.dash-activity-credit-balance--student {
+  max-width: 34rem;
 }
 
 .dash-mentor-activities__title-row {

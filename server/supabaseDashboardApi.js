@@ -2,6 +2,10 @@ import { z } from "zod";
 import { readJsonBody, sendJson } from "./http.js";
 import { assertDashboardAppDataOwnership } from "./lib/dataOwnership.js";
 import { requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
+import {
+  formatAvailabilitySummary,
+  syncMentorAvailabilityToStudentMatches
+} from "../shared/mentorAvailabilitySync.js";
 
 const profileFields = [
   "full_name", "preferred_name", "school", "grade_level", "time_zone", "language",
@@ -73,25 +77,6 @@ function mapSettings(row) {
     out[camel] = row[field];
   }
   return out;
-}
-
-function formatAvailabilitySummary(availability) {
-  const timezone = availability?.timezone || "ET";
-  const enabledDays = (availability?.days || []).filter((day) => day.enabled);
-  if (!enabledDays.length) return "";
-
-  function toLabel(time) {
-    const [hourRaw, minuteRaw] = String(time || "00:00").split(":").map(Number);
-    const period = hourRaw >= 12 ? "PM" : "AM";
-    let hour = hourRaw % 12;
-    if (hour === 0) hour = 12;
-    return `${hour}:${String(minuteRaw || 0).padStart(2, "0")} ${period}`;
-  }
-
-  return enabledDays
-    .map((day) => `${String(day.dayOfWeek || "").slice(0, 3)} ${toLabel(day.startTime)} – ${toLabel(day.endTime)}`)
-    .join(" · ")
-    .concat(` ${timezone}`);
 }
 
 function mapAvailability(row) {
@@ -284,6 +269,8 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
             .eq("user_id", user.id);
         }
       }
+
+      await syncMentorAvailabilityToStudentMatches(supabase, user.id, availabilitySummary);
 
       return sendJson(res, 200, { availability: mapAvailability(data) });
     } catch (error) {

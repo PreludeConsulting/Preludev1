@@ -16,7 +16,7 @@ import {
 import { resetDemoMentorActivities } from "../src/lib/demoMentorActivities.js";
 
 const demoMentor = { id: "demo-mentor", email: "mentor@prelude-demo.com", role: "mentor", authProvider: "demo" };
-const demoStudent = { id: "demo-student", email: "student@prelude-demo.com", role: "student", authProvider: "demo" };
+const demoStudent = { id: "demo-student", email: "jordan-basic@prelude-demo.com", role: "student", plan: "basic", authProvider: "demo" };
 
 beforeEach(() => resetDemoMentorActivities());
 
@@ -37,7 +37,7 @@ describe("mentor-assigned activity client helpers", () => {
   });
 
   it("uses the requested activity labels and status actions", () => {
-    expect(activityTypeLabel("personal_statement")).toBe("Personal Statement");
+    expect(activityTypeLabel("personal_statement")).toBe("Personal Statement Review");
     expect(statusLabel("needs_revision")).toBe("Needs Revision");
     expect(activityPrimaryAction("not_started")).toBe("Open Activity");
     expect(activityPrimaryAction("in_progress")).toBe("Continue");
@@ -48,10 +48,22 @@ describe("mentor-assigned activity client helpers", () => {
 
   it("supports the assign, submit, and review workflow across demo accounts", async () => {
     const mentorView = await listMentorActivities(undefined, demoMentor);
-    expect(mentorView.students.map((student) => student.name)).toEqual(["Jordan Lee", "Alex Kim"]);
+    expect(mentorView.students.map((student) => student.displayName)).toEqual([
+      "Jordan — Essay Support",
+      "Jordan — Plus",
+      "Jordan — Pro"
+    ]);
+    const jordan = mentorView.students.find((student) => student.id === "demo-student-jordan-essay");
+    expect(jordan.essaySupportOnly).toBe(true);
+    expect(jordan.reviewCredits.remaining).toBe(4);
+    expect(jordan.usageSummary).toBe("4 review credits remaining");
+    expect(mentorView.students.find((student) => student.id === "demo-student-jordan-plus").sessionAllowance)
+      .toEqual({ included: 2, used: 1, remaining: 1 });
+    expect(mentorView.students.find((student) => student.id === "demo-student-jordan-pro").usageSummary)
+      .toBe("3 of 4 sessions remaining");
 
     const created = await createMentorActivity({
-      studentId: "demo-student-jordan",
+      studentId: "demo-student-jordan-essay",
       activityType: "personal_statement",
       title: "Demo Workflow Essay",
       collegeName: null,
@@ -61,6 +73,9 @@ describe("mentor-assigned activity client helpers", () => {
       dueDate: null,
       allowedSubmissionMethod: "document_link"
     }, demoMentor);
+
+    expect(created.activity.usesReviewCredit).toBe(true);
+    expect(created.reviewCredits.remaining).toBe(3);
 
     const studentView = await listStudentActivities(demoStudent);
     expect(studentView.activities.some((activity) => activity.id === created.activity.id)).toBe(true);
@@ -85,5 +100,64 @@ describe("mentor-assigned activity client helpers", () => {
       .find((activity) => activity.id === created.activity.id);
     expect(completed.status).toBe("completed");
     expect(completed.submissions[0].feedback[0].feedbackText).toBe("Strong draft.");
+  });
+
+  it("limits Essay Support demo students to review activities and remaining credits", async () => {
+    const mentorView = await listMentorActivities(undefined, demoMentor);
+    const jordan = mentorView.students.find((student) => student.id === "demo-student-jordan-essay");
+    const jordanPlus = mentorView.students.find((student) => student.id === "demo-student-jordan-plus");
+    expect(jordan.essaySupportOnly).toBe(true);
+    expect(jordanPlus.essaySupportOnly).toBe(false);
+    expect(jordan.reviewCredits).toEqual({ purchased: 6, assigned: 2, remaining: 4 });
+
+    await expect(createMentorActivity({
+      studentId: "demo-student-jordan-essay",
+      activityType: "activities_list",
+      title: "Should Fail",
+      allowedSubmissionMethod: "document_link"
+    }, demoMentor)).rejects.toThrow(/not available for this student’s plan/i);
+
+    const multiPrompt = await createMentorActivity({
+      studentId: "demo-student-jordan-essay",
+      activityType: "supplemental_essay",
+      title: "Georgia Tech Supplemental Essay Review",
+      collegeName: "Georgia Tech",
+      prompts: [
+        { promptText: "Why Tech?", optionalWordLimit: 150 },
+        { promptText: "Describe a community you care about.", optionalWordLimit: 200 }
+      ],
+      allowedSubmissionMethod: "either"
+    }, demoMentor);
+    expect(multiPrompt.activity.prompts).toHaveLength(2);
+    expect(multiPrompt.activity.reviewCreditsUsed).toBe(1);
+    expect(multiPrompt.reviewCredits.remaining).toBe(3);
+
+    const plusStyle = await createMentorActivity({
+      studentId: "demo-student-jordan-plus",
+      activityType: "resume",
+      title: "Résumé Review",
+      allowedSubmissionMethod: "document_link"
+    }, demoMentor);
+    expect(plusStyle.activity.usesReviewCredit).toBe(false);
+    expect(plusStyle.sessionAllowance).toEqual({ included: 2, used: 1, remaining: 1 });
+
+    for (let i = 0; i < 3; i += 1) {
+      await createMentorActivity({
+        studentId: "demo-student-jordan-essay",
+        activityType: "personal_statement",
+        title: `Extra Review ${i + 1}`,
+        allowedSubmissionMethod: "either"
+      }, demoMentor);
+    }
+
+    const depleted = await listMentorActivities(undefined, demoMentor);
+    expect(depleted.students.find((student) => student.id === "demo-student-jordan-essay").reviewCredits.remaining).toBe(0);
+
+    await expect(createMentorActivity({
+      studentId: "demo-student-jordan-essay",
+      activityType: "personal_statement",
+      title: "Overspend",
+      allowedSubmissionMethod: "either"
+    }, demoMentor)).rejects.toThrow(/no Essay Support review credits remaining/i);
   });
 });

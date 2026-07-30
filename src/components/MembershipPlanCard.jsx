@@ -1,6 +1,23 @@
 import PlanBadge from "./PlanBadge.jsx";
+import EssaySupportCreditsSummary from "./EssaySupportCreditsSummary.jsx";
+import { isEssaySupportProduct } from "../lib/currentProduct.js";
 
-export default function MembershipPlanCard({ plan, planId }) {
+export default function MembershipPlanCard({ plan, planId, reviewCredits, packages }) {
+  if (isEssaySupportProduct(planId)) {
+    return (
+      <div className="membership-plan-card">
+        <EssaySupportCreditsSummary
+          reviewCredits={reviewCredits}
+          packages={packages}
+          compact
+        />
+        <a href="#pricing" className="membership-plan-card__link">
+          View Essay Support
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div className="membership-plan-card">
       <div className="membership-plan-card__head">

@@ -1,19 +1,13 @@
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
-import { CalendarPlus, CreditCard, X } from "lucide-react";
+import { CreditCard, X } from "lucide-react";
 import { Link } from "react-router";
 import { useBelowHeaderModalOffset } from "../../hooks/useBelowHeaderModalOffset.js";
-import {
-  buildPurchaseSessionsPath,
-  buildSubscriptionPath
-} from "../../../../shared/mentorAccess.js";
+import { buildSubscriptionPath } from "../../../../shared/mentorAccess.js";
 
 export default function NoMentorAccessModal({
   open,
   onClose,
-  mentorId = null,
-  mentorUserId = null,
-  purchaseHref,
   subscriptionHref = buildSubscriptionPath()
 }) {
   const titleId = useId();
@@ -22,10 +16,6 @@ export default function NoMentorAccessModal({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useBelowHeaderModalOffset(open);
-
-  const sessionsHref =
-    purchaseHref ||
-    buildPurchaseSessionsPath({ mentorId, mentorUserId });
 
   useEffect(() => {
     if (!open) return undefined;
@@ -88,27 +78,19 @@ export default function NoMentorAccessModal({
             No sessions available
           </h2>
           <p id={descId} className="dash-no-access__subtitle">
-            Sorry, you do not have any sessions remaining with this mentor. Purchase more sessions
-            or start a monthly subscription to continue.
+            Sorry, you do not have any sessions remaining with this mentor. Choose Plus or Pro to
+            continue booking live mentor sessions.
           </p>
         </div>
 
         <div className="dash-no-access__actions">
           <Link
-            to={sessionsHref}
+            to={subscriptionHref}
             className="dash-btn dash-btn--primary dash-no-access__cta"
             onClick={onClose}
           >
-            <CalendarPlus className="h-4 w-4" aria-hidden="true" />
-            Purchase sessions
-          </Link>
-          <Link
-            to={subscriptionHref}
-            className="dash-btn dash-btn--secondary dash-no-access__cta"
-            onClick={onClose}
-          >
             <CreditCard className="h-4 w-4" aria-hidden="true" />
-            View subscription
+            View Plus and Pro
           </Link>
           <button type="button" className="dash-no-access__cancel" onClick={onClose}>
             Cancel

@@ -1,23 +1,41 @@
-import { isDemoEmail, isJordanDemoEmail } from "../data/demoAccounts.js";
+import { getDemoAccountByEmail, isDemoEmail } from "../data/demoAccounts.js";
 import { DEMO_SLUGS } from "../data/demoDashboardData.js";
 
-const STORAGE_KEY = "prelude_demo_mentor_activities_v1";
+const STORAGE_KEY = "prelude_demo_mentor_activities_v3";
 const DEMO_MENTOR_ID = DEMO_SLUGS.mentor;
 const DEMO_UPLOADS = new Map();
+const ESSAY_REVIEW_TYPES = new Set(["personal_statement", "supplemental_essay"]);
+const DEMO_ESSAY_SUPPORT_PURCHASED = 6;
 let memoryState = null;
 
 const DEMO_STUDENTS = [
   {
-    id: DEMO_SLUGS.jordan,
+    id: DEMO_SLUGS.jordanEssay,
     name: "Jordan Lee",
+    displayName: "Jordan — Essay Support",
     grade: "11th grade",
-    colleges: ["Georgia Tech", "UCLA", "University of Michigan"]
+    colleges: ["Brown University", "Georgia Tech", "UCLA"],
+    plan: "basic",
+    planLabel: "Essay Support",
+    essaySupportOnly: true
   },
   {
-    id: DEMO_SLUGS.alex,
-    name: "Alex Kim",
-    grade: "12th grade",
-    colleges: ["NYU", "Boston University", "Emory University"]
+    id: DEMO_SLUGS.jordanPlus,
+    name: "Jordan Lee",
+    displayName: "Jordan — Plus",
+    grade: "11th grade",
+    plan: "plus",
+    planLabel: "Plus",
+    essaySupportOnly: false
+  },
+  {
+    id: DEMO_SLUGS.jordanPro,
+    name: "Jordan Lee",
+    displayName: "Jordan — Pro",
+    grade: "11th grade",
+    plan: "pro",
+    planLabel: "Pro",
+    essaySupportOnly: false
   }
 ];
 
@@ -33,20 +51,89 @@ function dateAtOffset(days, hour = 17) {
   return date.toISOString();
 }
 
-function seedState() {
-  const submittedAt = dateAtOffset(-2, 19);
-  const revisionSubmittedAt = dateAtOffset(-4, 18);
-  const feedbackAt = dateAtOffset(-3, 11);
+function emptyCredits(purchased = 0) {
   return {
-    version: 1,
+    purchased,
+    assigned: 0,
+    remaining: purchased
+  };
+}
+
+function summarizeCredits(state, studentId) {
+  const entry = state.credits?.[studentId] || emptyCredits(0);
+  return {
+    purchased: Math.max(0, Number(entry.purchased) || 0),
+    assigned: Math.max(0, Number(entry.assigned) || 0),
+    remaining: Math.max(0, Number(entry.remaining) || 0)
+  };
+}
+
+function summarizeAllowance(state, studentId) {
+  const entry = state.allowances?.[studentId] || {};
+  const included = Math.max(0, Number(entry.included) || 0);
+  const used = Math.max(0, Number(entry.used) || 0);
+  return {
+    included,
+    used,
+    remaining: Math.max(0, Number(entry.remaining) || 0)
+  };
+}
+
+function usesReviewCredit(activityType) {
+  return ESSAY_REVIEW_TYPES.has(activityType);
+}
+
+function seedState() {
+  const brownPrompts = [
+    {
+      id: "demo-prompt-brown-1",
+      promptText: "Brown’s Open Curriculum allows students to explore broadly while also diving deeply into their academic pursuits. Tell us about any academic interests that excite you, and how you might use the Open Curriculum to pursue them while also embracing topics with which you are unfamiliar.",
+      optionalWordLimit: 250,
+      displayOrder: 0
+    },
+    {
+      id: "demo-prompt-brown-2",
+      promptText: "Brown students care deeply about their communities. Tell us about a community that has shaped you, and how you hope to contribute at Brown.",
+      optionalWordLimit: 200,
+      displayOrder: 1
+    },
+    {
+      id: "demo-prompt-brown-3",
+      promptText: "What is something you would like admissions to know that is not reflected elsewhere in your application?",
+      optionalWordLimit: 100,
+      displayOrder: 2
+    }
+  ];
+
+  return {
+    version: 3,
+    credits: {
+      [DEMO_SLUGS.jordanEssay]: {
+        purchased: DEMO_ESSAY_SUPPORT_PURCHASED,
+        assigned: 2,
+        remaining: 4
+      }
+    },
+    allowances: {
+      [DEMO_SLUGS.jordanPlus]: {
+        included: 2,
+        used: 1,
+        remaining: 1
+      },
+      [DEMO_SLUGS.jordanPro]: {
+        included: 4,
+        used: 1,
+        remaining: 3
+      }
+    },
     activities: [
       {
         id: "demo-activity-personal-statement",
         mentorId: DEMO_MENTOR_ID,
-        studentId: DEMO_SLUGS.jordan,
+        studentId: DEMO_SLUGS.jordanEssay,
         mentorName: "Maya Patel",
         studentName: "Jordan Lee",
-        title: "Personal Statement Opening",
+        title: "Personal Statement Review",
         activityType: "personal_statement",
         collegeName: null,
         essayPrompt: "Describe an experience that changed how you see yourself or your community.",
@@ -55,6 +142,10 @@ function seedState() {
         dueDate: dateAtOffset(6),
         allowedSubmissionMethod: "either",
         status: "not_started",
+        usesReviewCredit: true,
+        reviewCreditsUsed: 1,
+        prompts: [],
+        promptResponses: [],
         createdAt: dateAtOffset(-1, 10),
         updatedAt: dateAtOffset(-1, 10),
         completedAt: null,
@@ -62,102 +153,29 @@ function seedState() {
         feedback: []
       },
       {
-        id: "demo-activity-alex-supplement",
+        id: "demo-activity-jordan-brown-supplement",
         mentorId: DEMO_MENTOR_ID,
-        studentId: DEMO_SLUGS.alex,
-        mentorName: "Maya Patel",
-        studentName: "Alex Kim",
-        title: "Emory Supplemental Essay",
-        activityType: "supplemental_essay",
-        collegeName: "Emory University",
-        essayPrompt: "What academic areas are you interested in exploring at Emory University and why?",
-        wordLimit: 200,
-        instructions: "Connect one academic interest to a specific Emory opportunity.",
-        dueDate: dateAtOffset(3),
-        allowedSubmissionMethod: "document_link",
-        status: "submitted",
-        createdAt: dateAtOffset(-6, 9),
-        updatedAt: submittedAt,
-        completedAt: null,
-        submissions: [
-          {
-            id: "demo-submission-alex-supplement",
-            activityId: "demo-activity-alex-supplement",
-            studentId: DEMO_SLUGS.alex,
-            submissionMethod: "document_link",
-            documentUrl: "https://docs.google.com/document/d/demo-emory-supplement",
-            storagePath: null,
-            originalFileName: null,
-            fileMimeType: null,
-            fileSize: null,
-            isDraft: false,
-            submittedAt,
-            createdAt: submittedAt,
-            updatedAt: submittedAt,
-            feedback: []
-          }
-        ],
-        feedback: []
-      },
-      {
-        id: "demo-activity-jordan-activities-list",
-        mentorId: DEMO_MENTOR_ID,
-        studentId: DEMO_SLUGS.jordan,
+        studentId: DEMO_SLUGS.jordanEssay,
         mentorName: "Maya Patel",
         studentName: "Jordan Lee",
-        title: "Common App Activities List",
-        activityType: "activities_list",
-        collegeName: null,
-        essayPrompt: null,
-        wordLimit: null,
-        instructions: "Revise the robotics and volunteer entries so each begins with a strong action verb and includes measurable impact.",
-        dueDate: dateAtOffset(2),
-        allowedSubmissionMethod: "document_link",
-        status: "needs_revision",
-        createdAt: dateAtOffset(-8, 9),
-        updatedAt: feedbackAt,
+        title: "Brown University Supplemental Essay Review",
+        activityType: "supplemental_essay",
+        collegeName: "Brown University",
+        essayPrompt: brownPrompts[0].promptText,
+        wordLimit: brownPrompts[0].optionalWordLimit,
+        instructions: "Respond to every Brown prompt below. Keep answers specific to Brown’s Open Curriculum and community.",
+        dueDate: dateAtOffset(5),
+        allowedSubmissionMethod: "either",
+        status: "not_started",
+        usesReviewCredit: true,
+        reviewCreditsUsed: 1,
+        prompts: brownPrompts,
+        promptResponses: [],
+        createdAt: dateAtOffset(-2, 11),
+        updatedAt: dateAtOffset(-2, 11),
         completedAt: null,
-        submissions: [
-          {
-            id: "demo-submission-jordan-activities",
-            activityId: "demo-activity-jordan-activities-list",
-            studentId: DEMO_SLUGS.jordan,
-            submissionMethod: "document_link",
-            documentUrl: "https://docs.google.com/document/d/demo-activities-list",
-            storagePath: null,
-            originalFileName: null,
-            fileMimeType: null,
-            fileSize: null,
-            isDraft: false,
-            submittedAt: revisionSubmittedAt,
-            createdAt: revisionSubmittedAt,
-            updatedAt: revisionSubmittedAt,
-            feedback: [
-              {
-                id: "demo-feedback-jordan-activities",
-                activityId: "demo-activity-jordan-activities-list",
-                submissionId: "demo-submission-jordan-activities",
-                mentorId: DEMO_MENTOR_ID,
-                mentorName: "Maya Patel",
-                feedbackText: "Good foundation. Add the number of students reached and clarify what you personally built for the robotics team.",
-                createdAt: feedbackAt,
-                updatedAt: feedbackAt
-              }
-            ]
-          }
-        ],
-        feedback: [
-          {
-            id: "demo-feedback-jordan-activities",
-            activityId: "demo-activity-jordan-activities-list",
-            submissionId: "demo-submission-jordan-activities",
-            mentorId: DEMO_MENTOR_ID,
-            mentorName: "Maya Patel",
-            feedbackText: "Good foundation. Add the number of students reached and clarify what you personally built for the robotics team.",
-            createdAt: feedbackAt,
-            updatedAt: feedbackAt
-          }
-        ]
+        submissions: [],
+        feedback: []
       }
     ]
   };
@@ -171,7 +189,7 @@ function readState() {
   try {
     const raw = globalThis.localStorage?.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    if (parsed?.version === 1 && Array.isArray(parsed.activities)) return parsed;
+    if (parsed?.version === 3 && Array.isArray(parsed.activities) && parsed.credits && parsed.allowances) return parsed;
   } catch {
     // Private browsing and test environments can deny local storage.
   }
@@ -190,8 +208,13 @@ function writeState(state) {
 }
 
 function demoStudentId(user) {
-  if (isJordanDemoEmail(user?.email)) return DEMO_SLUGS.jordan;
-  if ((user?.email || "").toLowerCase() === "student2@prelude-demo.com") return DEMO_SLUGS.alex;
+  const account = getDemoAccountByEmail(user?.email);
+  if (!account) return null;
+  if (account.email === "jordan-basic@prelude-demo.com") return DEMO_SLUGS.jordanEssay;
+  if (account.email === "jordan-pro@prelude-demo.com") return DEMO_SLUGS.jordanPro;
+  if (account.email === "jordan-plus@prelude-demo.com" || account.email === "student@prelude-demo.com") {
+    return DEMO_SLUGS.jordanPlus;
+  }
   return null;
 }
 
@@ -226,7 +249,15 @@ function displayStatus(activity) {
 }
 
 function hydrate(activity) {
-  return { ...clone(activity), storedStatus: activity.status, status: displayStatus(activity) };
+  return {
+    ...clone(activity),
+    storedStatus: activity.status,
+    status: displayStatus(activity),
+    usesReviewCredit: Boolean(activity.usesReviewCredit),
+    reviewCreditsUsed: Number(activity.reviewCreditsUsed) || (activity.usesReviewCredit ? 1 : 0),
+    prompts: Array.isArray(activity.prompts) ? activity.prompts : [],
+    promptResponses: Array.isArray(activity.promptResponses) ? activity.promptResponses : []
+  };
 }
 
 function sortedActivities(activities) {
@@ -235,8 +266,47 @@ function sortedActivities(activities) {
     .map(hydrate);
 }
 
+function mapDemoStudents(state) {
+  return DEMO_STUDENTS.map((student) => {
+    const reviewCredits = student.essaySupportOnly ? summarizeCredits(state, student.id) : null;
+    const sessionAllowance = student.essaySupportOnly ? null : summarizeAllowance(state, student.id);
+    return {
+      ...clone(student),
+      reviewCredits,
+      sessionAllowance,
+      usageSummary: student.essaySupportOnly
+        ? `${reviewCredits.remaining} review credits remaining`
+        : `${sessionAllowance.remaining} of ${sessionAllowance.included} sessions remaining`
+    };
+  });
+}
+
+function reserveDemoReviewCredit(state, student) {
+  if (!student.essaySupportOnly) return null;
+  const credits = summarizeCredits(state, student.id);
+  if (credits.remaining < 1) {
+    throw new Error("This student has no Essay Support review credits remaining.");
+  }
+  state.credits = state.credits || {};
+  state.credits[student.id] = {
+    purchased: credits.purchased,
+    assigned: credits.assigned + 1,
+    remaining: credits.remaining - 1
+  };
+  return state.credits[student.id];
+}
+
 export function isDemoActivityUser(user) {
   return Boolean(user && (user.authProvider === "demo" || user.authProvider === "dev" || isDemoEmail(user.email)));
+}
+
+export function isDemoEssaySupportStudent(user) {
+  if (!isDemoActivityUser(user) || roleOf(user) !== "student") return false;
+  const studentId = demoStudentId(user);
+  if (studentId !== DEMO_SLUGS.jordanEssay) return false;
+  const plan = String(user?.plan || "").toLowerCase();
+  if (plan === "plus" || plan === "pro") return false;
+  return true;
 }
 
 export async function listDemoMentorActivities(user, status = "all") {
@@ -246,9 +316,21 @@ export async function listDemoMentorActivities(user, status = "all") {
     ? state.activities
     : state.activities.filter((activity) => activity.studentId === demoStudentId(user));
   if (status && status !== "all") activities = activities.filter((activity) => activity.status === status);
+  const studentId = demoStudentId(user);
+  const student = DEMO_STUDENTS.find((item) => item.id === studentId) || null;
+  const reviewCredits = student?.essaySupportOnly ? summarizeCredits(state, student.id) : null;
+  const sessionAllowance = student && !student.essaySupportOnly ? summarizeAllowance(state, student.id) : null;
   return {
     activities: sortedActivities(activities),
-    students: roleOf(user) === "mentor" ? clone(DEMO_STUDENTS) : [],
+    students: roleOf(user) === "mentor" ? mapDemoStudents(state) : [],
+    reviewCredits,
+    sessionAllowance,
+    usageSummary: reviewCredits
+      ? `${reviewCredits.remaining} review credits remaining`
+      : sessionAllowance
+        ? `${sessionAllowance.remaining} of ${sessionAllowance.included} sessions remaining`
+        : null,
+    essaySupportOnly: Boolean(student?.essaySupportOnly),
     role: roleOf(user),
     demo: true
   };
@@ -266,6 +348,40 @@ export async function createDemoMentorActivity(user, payload) {
   assertDemoActor(user, ["mentor"]);
   const student = DEMO_STUDENTS.find((item) => item.id === payload.studentId);
   if (!student) throw new Error("Choose an assigned demo student.");
+
+  if (student.essaySupportOnly && !ESSAY_REVIEW_TYPES.has(payload.activityType)) {
+    throw new Error("This activity type is not available for this student’s plan.");
+  }
+
+  const prompts = payload.activityType === "supplemental_essay"
+    ? (Array.isArray(payload.prompts) && payload.prompts.length
+        ? payload.prompts.map((prompt, displayOrder) => ({
+            id: id("demo-prompt"),
+            promptText: String(prompt.promptText || "").trim(),
+            optionalWordLimit: prompt.optionalWordLimit ? Number(prompt.optionalWordLimit) : null,
+            displayOrder
+          }))
+        : (payload.essayPrompt
+            ? [{
+                id: id("demo-prompt"),
+                promptText: String(payload.essayPrompt).trim(),
+                optionalWordLimit: payload.wordLimit || null,
+                displayOrder: 0
+              }]
+            : []))
+    : [];
+
+  if (payload.activityType === "supplemental_essay") {
+    if (!String(payload.collegeName || "").trim()) {
+      throw new Error("College is required for supplemental essay reviews.");
+    }
+    if (!prompts.length || prompts.some((prompt) => !prompt.promptText)) {
+      throw new Error("Add at least one supplemental essay prompt.");
+    }
+  }
+
+  const state = readState();
+  const reserved = reserveDemoReviewCredit(state, student);
   const now = new Date().toISOString();
   const activity = {
     id: id("demo-activity"),
@@ -276,22 +392,30 @@ export async function createDemoMentorActivity(user, payload) {
     title: payload.title,
     activityType: payload.activityType,
     collegeName: payload.collegeName || null,
-    essayPrompt: payload.essayPrompt || null,
-    wordLimit: payload.wordLimit || null,
+    essayPrompt: prompts[0]?.promptText || payload.essayPrompt || null,
+    wordLimit: prompts[0]?.optionalWordLimit || payload.wordLimit || null,
     instructions: payload.instructions || null,
     dueDate: payload.dueDate || null,
     allowedSubmissionMethod: payload.allowedSubmissionMethod || "either",
     status: "not_started",
+    usesReviewCredit: Boolean(reserved) || (student.essaySupportOnly && usesReviewCredit(payload.activityType)),
+    reviewCreditsUsed: reserved ? 1 : 0,
+    prompts,
+    promptResponses: [],
     createdAt: now,
     updatedAt: now,
     completedAt: null,
     submissions: [],
     feedback: []
   };
-  const state = readState();
   state.activities.push(activity);
   writeState(state);
-  return { activity: hydrate(activity), demo: true };
+  return {
+    activity: hydrate(activity),
+    reviewCredits: student.essaySupportOnly ? summarizeCredits(state, student.id) : null,
+    sessionAllowance: student.essaySupportOnly ? null : summarizeAllowance(state, student.id),
+    demo: true
+  };
 }
 
 export async function updateDemoMentorActivity(user, activityId, payload) {
@@ -341,6 +465,37 @@ export async function saveDemoActivitySubmission(user, activityId, payload, idem
   activity.updatedAt = now;
   writeState(state);
   return { submission: clone(submission), activity: hydrate(activity), duplicate: false, demo: true };
+}
+
+export async function saveDemoActivityPromptResponses(user, activityId, responses = []) {
+  const state = readState();
+  const activity = findActivity(state, activityId);
+  assertOwnStudentActivity(user, activity);
+  if (activity.status === "completed") throw new Error("This activity is already completed.");
+  const promptIds = new Set((activity.prompts || []).map((prompt) => prompt.id));
+  const now = new Date().toISOString();
+  activity.promptResponses = (responses || []).map((response) => {
+    if (!promptIds.has(response.promptId)) {
+      throw new Error("One or more prompt responses do not belong to this activity.");
+    }
+    return {
+      id: id("demo-prompt-response"),
+      promptId: response.promptId,
+      activityId,
+      studentId: activity.studentId,
+      responseText: String(response.responseText || ""),
+      submissionStatus: response.submissionStatus || "draft",
+      savedAt: now,
+      submittedAt: response.submissionStatus === "submitted" ? now : null
+    };
+  });
+  const allSubmitted =
+    activity.promptResponses.length === promptIds.size &&
+    activity.promptResponses.every((response) => response.submissionStatus === "submitted");
+  activity.status = allSubmitted ? "submitted" : "in_progress";
+  activity.updatedAt = now;
+  writeState(state);
+  return { activity: hydrate(activity), demo: true };
 }
 
 export async function requestDemoActivityUpload(user, activityId, file) {
@@ -435,6 +590,8 @@ export async function reviewDemoMentorActivity(user, activityId, payload) {
 export function resetDemoMentorActivities() {
   try {
     globalThis.localStorage?.removeItem(STORAGE_KEY);
+    globalThis.localStorage?.removeItem("prelude_demo_mentor_activities_v1");
+    globalThis.localStorage?.removeItem("prelude_demo_mentor_activities_v2");
   } catch {
     // Ignore storage restrictions.
   }

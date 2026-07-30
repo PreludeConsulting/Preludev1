@@ -6,18 +6,22 @@ import {
   getDemoActivityFileUrl,
   getDemoMentorActivity,
   isDemoActivityUser,
+  isDemoEssaySupportStudent,
   listDemoMentorActivities,
   removeDemoActivityDraftFile,
   requestDemoActivityUpload,
   reviewDemoMentorActivity,
+  saveDemoActivityPromptResponses,
   saveDemoActivitySubmission,
   storeDemoActivityUpload,
   updateDemoMentorActivity
 } from "./demoMentorActivities.js";
 
+export { isDemoEssaySupportStudent };
+
 export const ACTIVITY_TYPE_OPTIONS = [
-  { value: "personal_statement", label: "Personal Statement", defaultTitle: "Personal Statement Draft" },
-  { value: "supplemental_essay", label: "Supplemental Essay", defaultTitle: "Supplemental Essay Draft" },
+  { value: "personal_statement", label: "Personal Statement Review", defaultTitle: "Personal Statement Review" },
+  { value: "supplemental_essay", label: "Supplemental Essay Review", defaultTitle: "Supplemental Essay Review" },
   { value: "additional_essay", label: "Additional Essay", defaultTitle: "Additional Essay Draft" },
   { value: "activities_list", label: "Activities List", defaultTitle: "Common App Activities List" },
   { value: "resume", label: "Résumé", defaultTitle: "Résumé Review" },
@@ -136,6 +140,21 @@ export function saveActivitySubmission(id, payload, idempotencyKey, user) {
     headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {},
     body: JSON.stringify(payload)
   });
+}
+
+export function saveActivityPromptResponses(id, responses, user) {
+  if (isDemoActivityUser(user)) return saveDemoActivityPromptResponses(user, id, responses);
+  return activityRequest(`/api/activities/${encodeURIComponent(id)}/prompt-responses`, {
+    method: "POST",
+    body: JSON.stringify({ responses })
+  });
+}
+
+/** Label for essay-review activities that consume one review credit. */
+export function activityReviewCreditLabel(activity) {
+  if (!activity) return null;
+  if (activity.usesReviewCredit || Number(activity.reviewCreditsUsed) > 0) return "1 credit";
+  return null;
 }
 
 export function requestActivityUpload(id, file, user) {

@@ -4,8 +4,10 @@
 
 const DEMO_SLUGS = {
   mentor: "demo-mentor-maya",
-  jordan: "demo-student-jordan",
-  alex: "demo-student-alex"
+  jordanEssay: "demo-student-jordan-essay",
+  jordanPlus: "demo-student-jordan-plus",
+  jordanPro: "demo-student-jordan-pro",
+  jordan: "demo-student-jordan-essay"
 };
 
 function daysAgo(n, hour = 14, minute = 0) {
@@ -44,92 +46,65 @@ function studentParticipant(name, grade, major, id) {
 
 /** @param {'student' | 'mentor'} viewerRole */
 export function getDemoConversations(viewerRole, studentKey = "jordan") {
-  const jordan = studentParticipant("Jordan Lee", "11th grade", "Computer Science", DEMO_SLUGS.jordan);
-  const alex = studentParticipant("Alex Kim", "12th grade", "Economics", DEMO_SLUGS.alex);
+  const jordanEssay = studentParticipant("Jordan — Essay Support", "11th grade", "Computer Science", DEMO_SLUGS.jordanEssay);
+  const jordanPlus = studentParticipant("Jordan — Plus", "11th grade", "Computer Science", DEMO_SLUGS.jordanPlus);
+  const jordanPro = studentParticipant("Jordan — Pro", "11th grade", "Computer Science", DEMO_SLUGS.jordanPro);
 
-  const jordanThread = {
-    id: `conv-${DEMO_SLUGS.jordan}`,
-    participant: jordan,
+  const mentorThreadEssay = {
+    id: `conv-mentor-${DEMO_SLUGS.jordanEssay}`,
+    participant: jordanEssay,
     lastActivity: hoursAgo(2),
     unread: 1,
     nextZoomUrl: "https://zoom.us/j/1234567890",
     messages: [
-      them("j1", "Hi Jordan — great progress on your college list last session.", daysAgo(2, 16, 5)),
-      me("j2", "Thank you! I moved Northeastern to target and added one more likely school.", daysAgo(2, 16, 12), "read", daysAgo(2, 16, 13), daysAgo(2, 16, 14)),
-      them("j3", "Perfect. Before Thursday, skim the Georgia Tech supplemental prompts.", daysAgo(1, 10, 0)),
-      me("j4", "Will do. Can we review my reach school essay angle on Thursday?", daysAgo(1, 10, 8), "delivered", daysAgo(1, 10, 9)),
-      them("j5", "Absolutely — bring a rough outline for paragraph 2.", hoursAgo(5)),
-      them("j6", "Can we review my Georgia Tech supplemental prompt on Thursday?", hoursAgo(2))
+      them("m-e1", "Can we review my Brown supplemental prompts this week?", hoursAgo(2)),
+      me("m-e2", "Yes — that uses one Essay Support review credit for the full set.", hoursAgo(1, 8), "read", hoursAgo(1, 8), hoursAgo(1, 9))
     ]
   };
 
-  const alexThread = {
-    id: `conv-${DEMO_SLUGS.alex}`,
-    participant: alex,
+  const mentorThreadPlus = {
+    id: `conv-mentor-${DEMO_SLUGS.jordanPlus}`,
+    participant: jordanPlus,
+    lastActivity: hoursAgo(5),
+    unread: 0,
+    nextZoomUrl: "https://zoom.us/j/1234567891",
+    messages: [
+      them("m-p1", "I have 1 flexible session remaining this month — can we book college list strategy?", hoursAgo(5)),
+      me("m-p2", "Absolutely. Let's use that session for reach/target/likely balance.", hoursAgo(4, 20), "delivered", hoursAgo(4, 21))
+    ]
+  };
+
+  const mentorThreadPro = {
+    id: `conv-mentor-${DEMO_SLUGS.jordanPro}`,
+    participant: jordanPro,
     lastActivity: daysAgo(1, 9, 0),
     unread: 0,
-    nextZoomUrl: "https://zoom.us/j/9876543210",
+    nextZoomUrl: "https://zoom.us/j/1234567892",
     messages: [
-      them("a1", "Alex — please send your scholarship shortlist before our next Zoom.", daysAgo(3, 15, 0)),
-      me("a2", "Uploaded an updated list with three merit options.", daysAgo(2, 11, 0), "read", daysAgo(2, 11, 2), daysAgo(2, 11, 5)),
-      me("a3", "I uploaded my updated scholarship list — let me know what you think.", daysAgo(1, 9, 0), "sent", daysAgo(1, 9, 1))
+      them("m-r1", "I'd like to use a Pro session for interview prep.", daysAgo(1, 9, 0)),
+      me("m-r2", "Perfect — you still have 3 of 4 sessions remaining this month.", daysAgo(1, 8, 30), "delivered", daysAgo(1, 8, 32))
     ]
   };
 
-  const mentorThreadJordan = {
-    id: `conv-mentor-${DEMO_SLUGS.jordan}`,
-    participant: jordan,
-    lastActivity: hoursAgo(2),
-    unread: 1,
-    nextZoomUrl: "https://zoom.us/j/1234567890",
-    messages: [
-      them("m-j1", "Can we review my Georgia Tech supplemental prompt on Thursday?", hoursAgo(2)),
-      me("m-j2", "Yes — send your draft tonight if you can.", hoursAgo(1, 8), "read", hoursAgo(1, 8), hoursAgo(1, 9))
-    ]
-  };
-
-  const mentorThreadAlex = {
-    id: `conv-mentor-${DEMO_SLUGS.alex}`,
-    participant: alex,
-    lastActivity: daysAgo(1, 8, 0),
-    unread: 0,
-    nextZoomUrl: "https://zoom.us/j/9876543210",
-    messages: [
-      them("m-a1", "I uploaded my updated scholarship list — let me know what you think.", daysAgo(1, 8, 0)),
-      me("m-a2", "Received — I'll review before our next session.", daysAgo(1, 7, 30), "delivered", daysAgo(1, 7, 32))
-    ]
-  };
-
-  const mentorThreadJordanStudent = {
+  const studentThread = {
     id: `conv-mentor-${DEMO_SLUGS.jordan}`,
     participant: MENTOR_PARTICIPANT,
     lastActivity: hoursAgo(2),
     unread: 1,
     nextZoomUrl: "https://zoom.us/j/1234567890",
     messages: [
-      them("s1", "Hi Jordan — let's refine your reach schools on Thursday.", daysAgo(2, 16, 0)),
-      me("s2", "Sounds good. I'll update my college list tiers tonight.", daysAgo(2, 16, 20), "read", daysAgo(2, 16, 21), daysAgo(2, 16, 22)),
-      them("s3", "Great progress on your college list — let's refine your reach schools on Thursday.", hoursAgo(2))
-    ]
-  };
-
-  const mentorThreadAlexStudent = {
-    id: `conv-mentor-${DEMO_SLUGS.alex}`,
-    participant: MENTOR_PARTICIPANT,
-    lastActivity: daysAgo(1, 8, 0),
-    unread: 0,
-    nextZoomUrl: "https://zoom.us/j/9876543210",
-    messages: [
-      them("s4", "Please send your scholarship shortlist before our next Zoom session.", daysAgo(1, 8, 0)),
-      me("s5", "Working on it — I'll share the doc tomorrow morning.", daysAgo(1, 7, 30), "delivered", daysAgo(1, 7, 32))
+      them("s1", "Hi Jordan — let's refine your next application priority.", daysAgo(2, 16, 0)),
+      me("s2", "Sounds good. I'll prepare questions before our check-in.", daysAgo(2, 16, 20), "read", daysAgo(2, 16, 21), daysAgo(2, 16, 22)),
+      them("s3", "Looking forward to it.", hoursAgo(2))
     ]
   };
 
   if (viewerRole === "mentor") {
-    return [mentorThreadJordan, mentorThreadAlex].sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
+    return [mentorThreadEssay, mentorThreadPlus, mentorThreadPro]
+      .sort((a, b) => new Date(b.lastActivity) - new Date(a.lastActivity));
   }
 
-  return [studentKey === "alex" ? mentorThreadAlexStudent : mentorThreadJordanStudent];
+  return [studentThread];
 }
 
 export function conversationsToInbox(conversations) {

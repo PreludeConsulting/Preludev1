@@ -2,6 +2,7 @@ import { Bell, ChevronDown, CircleHelp, CreditCard, LayoutDashboard, LogOut, Men
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { getCurrentProductLabel } from "../../lib/currentProduct.js";
 import { cn } from "../../lib/utils.js";
 import { useDashboardData } from "../context/DashboardDataContext.jsx";
 import { Avatar, IconButton } from "./ui/index.jsx";
@@ -22,7 +23,10 @@ export default function DashboardHeader({ routeMeta, basePath, onMenuToggle }) {
   const studentDetailMatch = location.pathname.match(/\/students\/([^/]+)/);
   const metaKey = studentDetailMatch ? studentDetailMatch[1] : segment;
   const meta = routeMeta[metaKey] || routeMeta.overview || { title: "Dashboard", subtitle: "" };
-  const planName = planDetails?.name || user?.planName || "Basic";
+  const productLabel = getCurrentProductLabel(
+    planDetails?.id || user?.plan,
+    planDetails?.name || user?.planName
+  );
   const firstName = (user?.firstName || user?.name || "Account").trim().split(/\s+/)[0] || "Account";
 
   function closeProfileMenu({ restoreFocus = true } = {}) {
@@ -93,7 +97,7 @@ export default function DashboardHeader({ routeMeta, basePath, onMenuToggle }) {
             <div className="dash-dropdown__summary">
               <strong>{user?.name || "Account"}</strong>
               <span>{user?.email || "Signed in"}</span>
-              <span>{planName} plan</span>
+              <span>{productLabel}</span>
             </div>
             <div className="dash-dropdown__divider" role="separator" />
             <NavLink to={`${basePath}/overview`} className="dash-dropdown__item" role="menuitem" onClick={() => closeProfileMenu({ restoreFocus: false })}>

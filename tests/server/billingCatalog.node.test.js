@@ -17,16 +17,27 @@ describe("Stripe billing catalog", () => {
   });
 
   it("maps purchasable essay packages to dedicated one-time Price env vars", () => {
-    assert.deepEqual(Object.keys(BUNDLE_PRICE_ENV_BY_ID.essay_support), ["3", "6", "10"]);
+    assert.deepEqual(Object.keys(BUNDLE_PRICE_ENV_BY_ID.essay_support), [
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "10"
+    ]);
     assert.equal(BUNDLE_PRICE_ENV_BY_ID.flexible_sessions, undefined);
-    // plus + pro + essay 3/6/10
-    assert.equal(REQUIRED_STRIPE_PRICE_ENV_KEYS.length, 5);
+    // plus + pro + essay 3/4/5/6/7/8/10
+    assert.equal(REQUIRED_STRIPE_PRICE_ENV_KEYS.length, 9);
     assert.ok(!REQUIRED_STRIPE_PRICE_ENV_KEYS.includes("STRIPE_PRICE_ID_BASIC"));
 
     const offerings = listStripeCatalogOfferings();
-    // Legacy Basic remains listed for price lookup / existing subscribers.
     assert.equal(offerings.filter((offering) => offering.kind === "subscription").length, 3);
     assert.equal(offerings.filter((offering) => offering.kind === "one_time").length, 1);
     assert.equal(offerings.find((offering) => offering.id === "essay_support")?.kind, "one_time");
+    assert.equal(
+      offerings.find((offering) => offering.id === "essay_support")?.prices.length,
+      7
+    );
   });
 });

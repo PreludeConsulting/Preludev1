@@ -262,7 +262,7 @@ export const translations = {
         startFree: "Choose Plus",
         choose: "Choose {{plan}}",
         notices: {
-          basicFree: "Basic is no longer available for new purchases. Choose Plus or Pro to continue.",
+          basicFree: "Choose Essay Support for one-time review credits, or Plus or Pro for a monthly membership.",
           signInFirst: "Create or sign into an account first. Your subscription will attach to that account when Stripe is connected.",
           comingSoon: "Paid checkout requires Stripe configuration. Contact Prelude for plan support.",
           unavailable: "Billing is not available right now."
@@ -272,7 +272,7 @@ export const translations = {
             id: "plus",
             name: "Plus",
             description: "More mentor access, 1-on-1 support, and rewards.",
-            featureHeader: "Everything in Basic, and:",
+            featureHeader: "Prelude software access, plus:",
             features: [
               "Full mentor-network messaging",
               "Personalized college and academic guidance",
@@ -638,12 +638,12 @@ export const translations = {
           paid: "유료",
           perMonth: "/월"
         },
-        startFree: "Basic 선택",
+        startFree: "Essay Support 선택",
         choose: "{{plan}} 선택",
         notices: {
-          basicFree: "계정을 만들어 Basic 플랜을 선택한 뒤 결제를 완료하여 시작하세요.",
+          basicFree: "일회성 리뷰 크레딧은 Essay Support를, 월간 멤버십은 Plus 또는 Pro를 선택하세요.",
           signInFirst: "먼저 계정을 만들거나 로그인하세요. Stripe가 연결되면 구독이 해당 계정에 연결됩니다.",
-          comingSoon: "유료 결제는 Stripe 설정이 필요합니다. 지금 Basic을 선택하거나 Prelude에 문의해 주세요.",
+          comingSoon: "유료 결제는 Stripe 설정이 필요합니다. Prelude에 문의해 주세요.",
           unavailable: "현재 결제를 사용할 수 없습니다."
         },
         cards: [
@@ -651,7 +651,7 @@ export const translations = {
             id: "plus",
             name: "Plus",
             description: "더 많은 멘토 접근, 1:1 지원, 리워드.",
-            featureHeader: "Basic의 모든 항목과:",
+            featureHeader: "Prelude 소프트웨어 이용과 함께:",
             features: [
               "전체 멘토 네트워크 메시징",
               "맞춤형 입시·학업 가이드",
@@ -1022,12 +1022,12 @@ export const translations = {
           paid: "付费",
           perMonth: "/月"
         },
-        startFree: "选择 Basic",
+        startFree: "选择 Essay Support",
         choose: "选择 {{plan}}",
         notices: {
-          basicFree: "创建账户以选择 Basic 方案，然后完成结账即可开始。",
+          basicFree: "一次性评审额度请选择 Essay Support；月度会员请选择 Plus 或 Pro。",
           signInFirst: "请先创建或登录账户。Stripe 连接后，订阅会关联到该账户。",
-          comingSoon: "付费结账需要配置 Stripe。可先选择 Basic，或联系 Prelude 获取方案支持。",
+          comingSoon: "付费结账需要配置 Stripe。请联系 Prelude 获取方案支持。",
           unavailable: "当前无法使用计费功能。"
         },
         cards: [
@@ -1035,7 +1035,7 @@ export const translations = {
             id: "plus",
             name: "Plus",
             description: "更多导师接触、1 对 1 支持和奖励。",
-            featureHeader: "Basic 的全部内容，以及：",
+            featureHeader: "Prelude 软件功能，以及：",
             features: [
               "完整导师网络消息",
               "个性化升学与学业指导",
@@ -1407,12 +1407,12 @@ export const translations = {
           paid: "De pago",
           perMonth: "/mes"
         },
-        startFree: "Elegir Basic",
+        startFree: "Elegir Essay Support",
         choose: "Elegir {{plan}}",
         notices: {
-          basicFree: "Crea una cuenta para elegir el plan Basic y completa el pago para empezar.",
+          basicFree: "Elige Essay Support para créditos de revisión de pago único, o Plus o Pro para una membresía mensual.",
           signInFirst: "Crea o inicia sesión en una cuenta primero. Tu suscripción se asociará a esa cuenta cuando Stripe esté conectado.",
-          comingSoon: "El pago requiere configurar Stripe. Elige Basic ahora o contacta a Prelude para ayuda con los planes.",
+          comingSoon: "El pago requiere configurar Stripe. Contacta a Prelude para obtener ayuda con los planes.",
           unavailable: "La facturación no está disponible en este momento."
         },
         cards: [
@@ -1420,7 +1420,7 @@ export const translations = {
             id: "plus",
             name: "Plus",
             description: "Más acceso a mentores, apoyo 1 a 1 y recompensas.",
-            featureHeader: "Todo lo de Basic, y además:",
+            featureHeader: "Acceso al software de Prelude, además de:",
             features: [
               "Mensajería con toda la red de mentores",
               "Orientación personalizada universitaria y académica",

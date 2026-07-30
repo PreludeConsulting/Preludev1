@@ -1,4 +1,4 @@
-import { JORDAN_PLAN_DEMO_ACCOUNTS, DEMO_MENTOR, DEMO_PARENT } from "../../data/demoAccounts.js";
+import { JORDAN_PLAN_DEMO_ACCOUNTS, DEMO_MENTOR, DEMO_PARENT, getDemoLoginPlanLabel } from "../../data/demoAccounts.js";
 
 export default function AuthDemoSection({ loading, activeAction, onDemo }) {
   return (
@@ -15,7 +15,7 @@ export default function AuthDemoSection({ loading, activeAction, onDemo }) {
           >
             {activeAction === `demo-${account.key}`
               ? "Opening…"
-              : `Jordan · ${account.plan.charAt(0).toUpperCase()}${account.plan.slice(1)}`}
+              : `Jordan · ${getDemoLoginPlanLabel(account)}`}
           </button>
         ))}
       </div>

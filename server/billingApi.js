@@ -33,11 +33,17 @@ import {
   invoiceIsQualifyingFirstPayment
 } from "./lib/referralStripe.js";
 import { creditSessionPackagePurchase, consumeEssayReviewCredit } from "./lib/mentorAccess.js";
+import { grantEssaySupportPurchase } from "./lib/reviewCredits.js";
 import {
-  fulfillEssaySupportCheckout,
-  fulfillFlexibleSessionCheckout
+  expireSessionPeriodsAtPeriodEnd,
+  grantSessionCreditsFromPaidInvoice
+} from "./lib/sessionCredits.js";
+import {
+  fulfillFlexibleSessionCheckout,
+  fulfillEssaySupportCheckout
 } from "./lib/sessionPackageFulfillment.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
+import { resolveEssaySupportCheckoutPackage } from "../shared/essaySupportPackages.js";
 import {
   cancelMembershipAtPeriodEnd,
   claimBillingWebhookEvent,
@@ -63,6 +69,7 @@ export const bundleCheckoutSchema = z.object({
     "application_support",
     "college_application"
   ]),
+  packageKey: z.string().trim().min(1).max(64).optional(),
   quantities: z.record(z.number()).optional(),
   addOns: z.record(z.boolean()).optional(),
   services: z.record(z.boolean()).optional(),
@@ -70,7 +77,8 @@ export const bundleCheckoutSchema = z.object({
   guestCheckout: z.boolean().optional(),
   context: z.enum(["onboarding", "public"]).optional(),
   mentorId: z.string().trim().max(80).optional(),
-  mentorUserId: z.string().uuid().optional()
+  mentorUserId: z.string().uuid().optional(),
+  studentId: z.string().uuid().optional()
 }).strict();
 
 const confirmSessionSchema = z.object({
@@ -153,6 +161,32 @@ function checkoutResultUrls(appBaseUrl, planId, context) {
     successUrl: `${appBaseUrl}/checkout/success?plan=${planId}${contextQuery}&session_id={CHECKOUT_SESSION_ID}`,
     cancelUrl: `${appBaseUrl}/checkout/cancel?plan=${planId}${contextQuery}`
   };
+}
+
+async function assertPurchaserCanBuyForStudent(purchaserUserId, studentId) {
+  if (!purchaserUserId || !studentId || purchaserUserId === studentId) return;
+  const admin = getSupabaseAdmin();
+  if (!admin) {
+    const error = new Error("Unable to verify purchase authorization.");
+    error.statusCode = 503;
+    throw error;
+  }
+  const { data: link, error } = await admin
+    .from("parent_student_links")
+    .select("id")
+    .eq("parent_id", purchaserUserId)
+    .eq("student_id", studentId)
+    .maybeSingle();
+  if (error) {
+    const wrapped = new Error("Unable to verify purchase authorization.");
+    wrapped.statusCode = 500;
+    throw wrapped;
+  }
+  if (!link) {
+    const forbidden = new Error("You are not authorized to purchase Essay Support for this student.");
+    forbidden.statusCode = 403;
+    throw forbidden;
+  }
 }
 
 async function resolveCheckoutAuth(req, payload) {
@@ -293,16 +327,47 @@ async function handleBundleCheckout(req, res) {
     return sendJson(res, 400, { error: "invalid_amount", message: "That bundle total is too low to checkout." });
   }
 
-  const authUser = await resolveCheckoutAuth(req, payload);
-  const stripe = getStripeClient(config);
   const quantity = Object.values(quote.selection.quantities)[0];
-  const priceId = getBundlePriceId(quote.selection.bundleId, quantity, config);
+  const resolvedPackage = resolveEssaySupportCheckoutPackage(
+    {
+      packageKey: payload.packageKey,
+      quantities: quote.selection.quantities,
+      credits: quantity
+    },
+    process.env
+  );
+  if (!resolvedPackage.ok) {
+    return sendJson(res, 400, {
+      error: resolvedPackage.error,
+      message: resolvedPackage.message
+    });
+  }
+
+  const authUser = await resolveCheckoutAuth(req, payload);
+  const studentId = payload.studentId || authUser?.userId || null;
+  if (authUser?.userId && payload.studentId) {
+    try {
+      await assertPurchaserCanBuyForStudent(authUser.userId, payload.studentId);
+    } catch (authError) {
+      return sendJson(res, authError.statusCode || 403, {
+        error: "forbidden",
+        message: authError.message
+      });
+    }
+  }
+  const stripe = getStripeClient(config);
+  const priceId =
+    resolvedPackage.package.stripePriceId ||
+    getBundlePriceId(quote.selection.bundleId, quantity, config);
   if (!priceId) {
-    return sendJson(res, 400, { error: "invalid_bundle", message: "That bundle is not available for checkout." });
+    return sendJson(res, 400, {
+      error: "package_unavailable",
+      message: "This Essay Support package is temporarily unavailable."
+    });
   }
   await requireMatchingStripePrice(stripe, {
     priceId,
-    expectedCents: quote.totalCents,
+    expectedCents: resolvedPackage.package.amountCents || quote.totalCents,
     recurring: false,
     offeringId: quote.selection.bundleId,
     label: `${quote.selection.bundleId} (${quantity})`
@@ -312,9 +377,14 @@ async function handleBundleCheckout(req, res) {
   const purchaseKey = `bundle_${quote.selection.bundleId}`;
   const { successUrl, cancelUrl } = checkoutResultUrls(appBaseUrl, purchaseKey, payload.context);
   const metadata = {
-    ...serializeBundleMetadata(quote),
+    ...serializeBundleMetadata(quote, {
+      studentId,
+      purchaserUserId: authUser?.userId || null
+    }),
+    packageKey: resolvedPackage.package.packageKey,
+    creditQuantity: String(resolvedPackage.package.credits),
     ...(authUser
-      ? { userId: authUser.userId, checkoutContext: payload.context || "public" }
+      ? { userId: studentId || authUser.userId, checkoutContext: payload.context || "public" }
       : { checkoutMode: "guest_test" }),
     ...(payload.mentorUserId ? { mentorUserId: payload.mentorUserId } : {}),
     ...(payload.mentorId ? { mentorId: payload.mentorId } : {})
@@ -323,14 +393,19 @@ async function handleBundleCheckout(req, res) {
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     ...(customerId ? { customer: customerId } : {}),
-    ...(authUser ? { client_reference_id: authUser.userId } : {}),
+    ...(authUser ? { client_reference_id: studentId || authUser.userId } : {}),
     success_url: successUrl,
     cancel_url: cancelUrl,
     line_items: [{ price: priceId, quantity: 1 }],
     metadata
   });
 
-  sendJson(res, 200, { url: session.url, totalCents: quote.totalCents, bundleId: quote.selection.bundleId });
+  sendJson(res, 200, {
+    url: session.url,
+    totalCents: quote.totalCents,
+    bundleId: quote.selection.bundleId,
+    packageKey: resolvedPackage.package.packageKey
+  });
 }
 
 async function handleConfirmSession(req, res, deps = {}) {
@@ -365,7 +440,15 @@ async function handleConfirmSession(req, res, deps = {}) {
 
   await syncSupabaseCheckoutSessionFn(session);
   await fulfillFlexibleSessionCheckoutFn(session, creditSessionPackagePurchase);
-  await fulfillEssaySupportCheckoutFn(session, creditSessionPackagePurchase);
+  await fulfillEssaySupportCheckoutFn(session, async (credit) =>
+    grantEssaySupportPurchase({
+      studentUserId: credit.studentUserId,
+      credits: credit.sessionsPurchased,
+      packageKey: credit.packageKey || `essay_support_${credit.sessionsPurchased}`,
+      stripeCheckoutSessionId: credit.stripeCheckoutSessionId,
+      createdByUserId: credit.purchaserUserId || null
+    })
+  );
   try {
     await recordPurchaseFromCheckoutSessionFn(session);
   } catch (error) {
@@ -572,11 +655,24 @@ async function processWebhookEvent(event) {
 
   if (["customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"].includes(event.type)) {
     await syncSubscription(object);
+    const subUser = await findUserForSubscription(object);
+    if (subUser?.id) {
+      // Expire unused credits only when the paid period has ended (Stripe period_end).
+      await expireSessionPeriodsAtPeriodEnd(subUser.id);
+    }
   }
   if (event.type === "checkout.session.completed") {
     await syncSupabaseCheckoutSession(object);
     await fulfillFlexibleSessionCheckout(object, creditSessionPackagePurchase);
-    await fulfillEssaySupportCheckout(object, creditSessionPackagePurchase);
+    await fulfillEssaySupportCheckout(object, async (credit) =>
+      grantEssaySupportPurchase({
+        studentUserId: credit.studentUserId,
+        credits: credit.sessionsPurchased,
+        packageKey: credit.packageKey || `essay_support_${credit.sessionsPurchased}`,
+        stripeCheckoutSessionId: credit.stripeCheckoutSessionId,
+        createdByUserId: credit.purchaserUserId || null
+      })
+    );
     try {
       await recordPurchaseFromCheckoutSession(object);
     } catch (error) {
@@ -613,6 +709,25 @@ async function processWebhookEvent(event) {
       await recordPurchaseFromInvoice(object, subscription);
     } catch (error) {
       console.error("[prelude-billing] invoice purchase history failed", error.message);
+    }
+
+    try {
+      const planId = resolvePlanIdFromSubscription(subscription);
+      const studentUserId =
+        subscription.metadata?.userId ||
+        (await findUserForSubscription(subscription))?.id ||
+        null;
+      if (studentUserId && planId) {
+        await grantSessionCreditsFromPaidInvoice({
+          studentUserId,
+          planId,
+          invoice: object,
+          subscription,
+          stripeEventId: event.id
+        });
+      }
+    } catch (error) {
+      console.error("[prelude-billing] session credit grant failed", error.message);
     }
 
     const userId = subscription.metadata?.userId;

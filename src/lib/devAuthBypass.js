@@ -1,4 +1,5 @@
 import { DEMO_STUDENT, getDemoAccountByKey } from "../data/demoAccounts.js";
+import { getCurrentProductName } from "./currentProduct.js";
 import { getPlan } from "./plans.js";
 
 /** Dev-only: skip login and use a demo student session (never enabled in production builds). */
@@ -19,6 +20,7 @@ export function getDevBypassUser() {
 export function buildDemoSessionUser(account) {
   const planId = account.plan || "basic";
   const plan = getPlan(planId);
+  const planName = getCurrentProductName(planId, account.displayPlanLabel || plan.name);
 
   return {
     id: `demo-${account.key}`,
@@ -28,7 +30,7 @@ export function buildDemoSessionUser(account) {
     name: `${account.firstName} ${account.lastName}`,
     role: account.role.toLowerCase(),
     plan: planId,
-    planName: plan.name,
+    planName,
     planSelected: true,
     authProvider: "demo",
     emailVerified: true,
