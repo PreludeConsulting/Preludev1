@@ -48,6 +48,26 @@ export async function startOnboardingBillingCheckout(planId) {
   });
 }
 
+export async function startAuthenticatedBundleCheckout(selection, options = {}) {
+  const accessToken = await getSupabaseAccessToken();
+  if (!accessToken) {
+    const error = new Error("Your session expired. Sign in again to continue to checkout.");
+    error.status = 401;
+    error.payload = { error: "unauthenticated" };
+    throw error;
+  }
+
+  return api(appPath("/api/billing/bundle-checkout"), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ ...selection, ...options })
+  });
+}
+
+export function startOnboardingBundleCheckout(selection, options = {}) {
+  return startAuthenticatedBundleCheckout(selection, { ...options, context: "onboarding" });
+}
+
 export async function confirmOnboardingCheckoutSession(sessionId) {
   const accessToken = await getSupabaseAccessToken();
   if (!accessToken) {

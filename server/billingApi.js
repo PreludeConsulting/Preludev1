@@ -51,7 +51,7 @@ const checkoutSchema = z.object({
   context: z.enum(["onboarding", "public"]).optional()
 });
 
-const bundleCheckoutSchema = z.object({
+export const bundleCheckoutSchema = z.object({
   bundleId: z.enum([
     "essay_support",
     "flexible_sessions",
@@ -67,7 +67,7 @@ const bundleCheckoutSchema = z.object({
   context: z.enum(["onboarding", "public"]).optional(),
   mentorId: z.string().trim().max(80).optional(),
   mentorUserId: z.string().uuid().optional()
-});
+}).strict();
 
 const confirmSessionSchema = z.object({
   sessionId: z.string().trim().min(1)

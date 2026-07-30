@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Mail, Users } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {
   MATCH_ONBOARDING_PATH,
-  PAYMENT_ONBOARDING_PATH,
   dashboardPathForRole
 } from "../../lib/onboardingRoutes.js";
 import { inviteParent, markParentInviteStepComplete } from "../../lib/parentLinks.js";
+import {
+  peekPendingBundleIntent,
+  pendingBundlePaymentPath
+} from "../../lib/bundlePurchaseIntent.js";
 import OnboardingShell from "./OnboardingShell.jsx";
 
 export default function ParentInviteOnboardingPage() {
@@ -17,6 +20,7 @@ export default function ParentInviteOnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const finishingRef = useRef(false);
 
   if (!ready) {
     return (
@@ -31,14 +35,33 @@ export default function ParentInviteOnboardingPage() {
   const stepAlreadyComplete = Boolean(user.parentInviteStepComplete);
 
   async function finish() {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
     setError("");
     setLoading(true);
     try {
       await markParentInviteStepComplete(user.id);
-      await refreshUser();
-      navigate(PAYMENT_ONBOARDING_PATH, { replace: true });
+      const refreshedUser = await refreshUser();
+      const destination = pendingBundlePaymentPath();
+      if (!refreshedUser?.id) {
+        navigate("/login", { replace: true, state: { from: destination } });
+        return;
+      }
+      if (refreshedUser.id !== user.id) {
+        throw new Error("Your account changed while setup was being saved. Sign in again and retry.");
+      }
+      if (import.meta.env.DEV) {
+        console.debug("[prelude-checkout] parent step complete", {
+          authenticated: Boolean(refreshedUser?.id),
+          userId: refreshedUser?.id || null,
+          bundleId: peekPendingBundleIntent()?.bundleId || null,
+          destination
+        });
+      }
+      navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message || "Could not finish this step. Please try again.");
+      finishingRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -76,7 +99,7 @@ export default function ParentInviteOnboardingPage() {
       useStepCompletionGate={false}
       onContinue={() => {
         if (stepAlreadyComplete) {
-          navigate(PAYMENT_ONBOARDING_PATH);
+          navigate(pendingBundlePaymentPath());
           return;
         }
         finish();

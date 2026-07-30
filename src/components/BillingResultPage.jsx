@@ -5,12 +5,13 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { getPlan } from "../lib/plans.js";
 import { PAYMENT_ONBOARDING_PATH, dashboardPathForRole } from "../lib/onboardingRoutes.js";
 import { confirmOnboardingCheckoutSession, writePaymentStepComplete } from "../lib/onboardingPayment.js";
+import { clearPendingBundleIntent } from "../lib/bundlePurchaseIntent.js";
 import { Button } from "./ui/button.jsx";
 
 const CONFIRM_POLL_MS = 2000;
 const CONFIRM_TIMEOUT_MS = 60000;
 
-function useOnboardingCheckoutConfirmation(sessionId, enabled) {
+function useCheckoutConfirmation(sessionId, enabled, waitForOnboardingCompletion) {
   const { refreshUser, user } = useAuth();
   const [status, setStatus] = useState(enabled ? "confirming" : "idle");
   const [error, setError] = useState("");
@@ -23,15 +24,24 @@ function useOnboardingCheckoutConfirmation(sessionId, enabled) {
     const maxAttempts = Math.ceil(CONFIRM_TIMEOUT_MS / CONFIRM_POLL_MS);
 
     async function confirmOnce() {
+      let confirmed = false;
       try {
-        await confirmOnboardingCheckoutSession(sessionId);
+        const result = await confirmOnboardingCheckoutSession(sessionId);
+        confirmed = Boolean(result?.confirmed);
       } catch (err) {
         if (!cancelled && attempts === 0) {
           setError(err.message || "Could not confirm checkout yet.");
         }
       }
 
-      const refreshed = await refreshUser();
+      if (cancelled) return;
+
+      if (!waitForOnboardingCompletion && confirmed) {
+        setStatus("confirmed");
+        return;
+      }
+
+      const refreshed = waitForOnboardingCompletion ? await refreshUser() : null;
       if (cancelled) return;
 
       if (refreshed?.paymentStepComplete) {
@@ -53,7 +63,7 @@ function useOnboardingCheckoutConfirmation(sessionId, enabled) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, refreshUser, sessionId]);
+  }, [enabled, refreshUser, sessionId, waitForOnboardingCompletion]);
 
   useEffect(() => {
     if (enabled && user?.paymentStepComplete) {
@@ -70,7 +80,16 @@ export function CheckoutSuccessPage() {
   const context = params.get("context");
   const sessionId = params.get("session_id");
   const isOnboarding = context === "onboarding";
-  const { status, error } = useOnboardingCheckoutConfirmation(sessionId, isOnboarding);
+  const isBundle = params.get("plan")?.startsWith("bundle_") || false;
+  const { status, error } = useCheckoutConfirmation(
+    sessionId,
+    isOnboarding || isBundle,
+    isOnboarding
+  );
+
+  useEffect(() => {
+    if (isBundle && status === "confirmed") clearPendingBundleIntent();
+  }, [isBundle, status]);
 
   if (isOnboarding && status === "confirmed") {
     return <Navigate to={dashboardPathForRole("student")} replace />;

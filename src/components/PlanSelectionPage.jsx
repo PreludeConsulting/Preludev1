@@ -16,7 +16,12 @@ import { getPlan, getPricingPlans } from "../lib/plans.js";
 import { getPlanBadgeLabel } from "../lib/planBadges.js";
 import { readOnboardingDraft, writeOnboardingDraft } from "../lib/onboardingFlow.js";
 import { startBillingCheckout, startBundleCheckout } from "../lib/auth.js";
-import { markPendingCheckoutPlan, startOnboardingBillingCheckout } from "../lib/onboardingPayment.js";
+import {
+  markPendingCheckoutPlan,
+  startAuthenticatedBundleCheckout,
+  startOnboardingBillingCheckout,
+  startOnboardingBundleCheckout
+} from "../lib/onboardingPayment.js";
 import {
   WALLET_STATES,
   cardsSelectable,
@@ -34,7 +39,7 @@ import {
 import { usePlanWalletMotion } from "../lib/planWalletMotion.js";
 import { useReducedMotion } from "../lib/useReducedMotion.js";
 import {
-  clearPendingBundleIntent,
+  bundleCheckoutFailureAction,
   peekPendingBundleIntent
 } from "../lib/bundlePurchaseIntent.js";
 import {
@@ -612,11 +617,6 @@ export function PlanWalletExperience({
       : null;
 
   useEffect(() => {
-    if (isBillingContext) return;
-    if (peekPendingBundleIntent()) clearPendingBundleIntent();
-  }, [isBillingContext]);
-
-  useEffect(() => {
     if (purchaseMode === "monthly" && isValidPlanId(state.selectedPlanId)) {
       lastMonthlySelectedRef.current = state.selectedPlanId;
     }
@@ -770,22 +770,50 @@ export function PlanWalletExperience({
       const search = new URLSearchParams(location.search);
       const mentorId = search.get("mentor") || undefined;
       const mentorUserId = search.get("mentorUserId") || undefined;
-      const result = await startBundleCheckout(selection, {
-        context: context === "payment" ? "onboarding" : "public",
-        guestCheckout:
-          context === "public" && (!isAuthenticated || requiresRealAccount),
+      const checkoutOptions = {
         ...(mentorId ? { mentorId } : {}),
         ...(mentorUserId ? { mentorUserId } : {})
-      });
-      if (result.url) window.location.href = result.url;
+      };
+      const result =
+        context === "payment"
+          ? await startOnboardingBundleCheckout(selection, checkoutOptions)
+          : isAuthenticated && user?.authProvider === "supabase" && !requiresRealAccount
+            ? await startAuthenticatedBundleCheckout(selection, {
+                context: "public",
+                ...checkoutOptions
+              })
+          : await startBundleCheckout(selection, {
+              context: "public",
+              guestCheckout: context === "public" && (!isAuthenticated || requiresRealAccount),
+              ...checkoutOptions
+            });
+      if (import.meta.env.DEV) {
+        console.debug("[prelude-checkout] bundle checkout decision", {
+          authenticated: isAuthenticated,
+          context,
+          bundleId: selection.bundleId,
+          checkoutCreated: Boolean(result.url)
+        });
+      }
+      if (result.url) {
+        window.location.href = result.url;
+      }
     } catch (error) {
       if (error.payload?.error === "billing_not_configured") {
         setNotice("Bundle checkout will turn on after billing is connected.");
-      } else if (error.status === 401 || error.status === 403) {
-        setNotice("Create an account or sign in to continue to checkout.");
-        openRegister();
       } else {
-        setNotice(error.message || "Bundle checkout is unavailable right now. Please try again.");
+        const failure = bundleCheckoutFailureAction(
+          error,
+          `${location.pathname}${location.search}`
+        );
+        if (failure?.type === "login") {
+          setNotice(failure.message);
+          navigate(failure.path, { state: failure.state });
+        } else if (failure?.type === "authorization_error") {
+          setNotice(failure.message);
+        } else {
+          setNotice(error.message || "Bundle checkout is unavailable right now. Please try again.");
+        }
       }
     } finally {
       setBusyPlan(null);
