@@ -180,14 +180,12 @@
   border: 1px solid transparent;
   background: linear-gradient(135deg, #5b4fd6, #6d5ce7);
   color: #fff;
-  box-shadow: 0 10px 24px rgb(91 79 214 / 0.22);
 }
 
 .onboarding-flow__continue-btn:hover:not(:disabled),
 .onboarding-flow__continue-btn:focus-visible {
   filter: brightness(1.03);
   outline: none;
-  box-shadow: 0 12px 28px rgb(91 79 214 / 0.28);
 }
 
 .onboarding-flow__continue-btn:disabled,
