@@ -1,0 +1,17 @@
+{
+  "packages": [
+    {
+      "id": "pkg-afcf7a76af1b",
+      "studentUserId": "11111111-1111-4111-a111-111111111111",
+      "mentorUserId": null,
+      "bundleId": "flexible_sessions",
+      "stripeCheckoutSessionId": "cs_pref",
+      "sessionsPurchased": 3,
+      "sessionsRemaining": 3,
+      "status": "active",
+      "expiresAt": null,
+      "createdAt": "2026-07-30T20:03:18.094Z",
+      "updatedAt": "2026-07-30T20:03:18.094Z"
+    }
+  ]
+}
