@@ -118,10 +118,16 @@ export function SupportBundleCard({ card, labels, onCustomize }) {
         })}
       </ul>
 
-      <p className="support-bundle-card__summary">
-        <Check aria-hidden="true" />
-        <span>{card.summary}</span>
-      </p>
+      {card.infoTitle && Array.isArray(card.infoPoints) && card.infoPoints.length ? (
+        <aside className="support-bundle-card__info" aria-label={card.infoTitle}>
+          <p className="support-bundle-card__info-title">{card.infoTitle}</p>
+          <ul className="support-bundle-card__info-list">
+            {card.infoPoints.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+        </aside>
+      ) : null}
 
       <div className="support-bundle-card__footer">
         <button

@@ -321,21 +321,32 @@ export const translations = {
         cards: [
           {
             id: "essay_support",
-            title: "Essay Support",
-            description: "Guided feedback for personal statements and supplemental essays.",
-            options: ["3 essay reviews", "6 essay reviews", "10 essay reviews"],
-            summary: "Personal statements, supplemental essays, revisions, and final edits.",
+            title: "Application & Essay Support",
+            description:
+              "Detailed feedback on personal statements, revisions, final edits, and college-specific supplemental essays.",
+            options: ["3 review credits", "6 review credits", "10 review credits"],
+            infoTitle: "What counts as 1 review credit?",
+            infoPoints: [
+              "One personal statement",
+              "Or the full set of supplemental essays for one college"
+            ],
             ctaLabel: "Customize Essay Support",
-            note: "Choose your essay reviews before checkout"
+            note: "Choose your review credits before checkout"
           },
           {
             id: "flexible_sessions",
             title: "Flexible Sessions",
-            description: "Buy sessions and use them wherever your student needs help.",
+            description:
+              "Purchase one-on-one sessions for targeted support wherever your student needs help.",
             options: ["3 sessions", "6 sessions", "10 sessions"],
-            summary: "Use sessions for admissions, essays, SAT/ACT prep, tutoring, or financial aid.",
-            ctaLabel: "Choose Sessions",
-            note: "Choose your session amount before checkout"
+            infoTitle: "What counts as 1 session?",
+            infoPoints: [
+              "A private meeting with a Prelude mentor",
+              "Use for admissions, essays, or SAT/ACT prep",
+              "Also covers tutoring and financial aid support"
+            ],
+            ctaLabel: "Choose Session Bundle",
+            note: "Choose your number of sessions before checkout"
           }
         ]
       },
@@ -721,20 +732,30 @@ export const translations = {
         cards: [
           {
             id: "essay_support",
-            title: "에세이 지원",
-            description: "자기소개서와 보충 에세이를 위한 가이드형 피드백.",
-            options: ["에세이 리뷰 3회", "에세이 리뷰 6회", "에세이 리뷰 10회"],
-            summary: "자기소개서, 보충 에세이, 수정, 최종 편집.",
+            title: "지원서 & 에세이 지원",
+            description:
+              "자기소개서, 수정, 최종 편집, 대학별 보충 에세이에 대한 상세 피드백.",
+            options: ["리뷰 크레딧 3회", "리뷰 크레딧 6회", "리뷰 크레딧 10회"],
+            infoTitle: "리뷰 크레딧 1회는 무엇인가요?",
+            infoPoints: [
+              "자기소개서 1편",
+              "또는 한 대학의 보충 에세이 전체 세트"
+            ],
             ctaLabel: "에세이 지원 맞춤 설정",
-            note: "결제 전에 에세이 리뷰 횟수를 선택하세요"
+            note: "결제 전에 리뷰 크레딧을 선택하세요"
           },
           {
             id: "flexible_sessions",
             title: "유연 세션",
-            description: "학생이 필요한 곳에 쓸 수 있는 세션을 구매하세요.",
+            description: "학생이 도움 받는 곳에 쓸 수 있는 1:1 세션을 구매하세요.",
             options: ["세션 3회", "세션 6회", "세션 10회"],
-            summary: "입시, 에세이, SAT/ACT, 과외, 재정보조 안내에 사용 가능.",
-            ctaLabel: "세션 선택",
+            infoTitle: "세션 1회는 무엇인가요?",
+            infoPoints: [
+              "Prelude 멘토와의 비공개 미팅",
+              "입시, 에세이, SAT/ACT 준비에 사용",
+              "학업 튜터링과 재정보조 지원도 가능"
+            ],
+            ctaLabel: "세션 번들 선택",
             note: "결제 전에 세션 횟수를 선택하세요"
           }
         ]
@@ -1121,20 +1142,29 @@ export const translations = {
         cards: [
           {
             id: "essay_support",
-            title: "文书支持",
-            description: "针对个人陈述与补充文书的指导性反馈。",
-            options: ["3 次文书审阅", "6 次文书审阅", "10 次文书审阅"],
-            summary: "个人陈述、补充文书、修改与终稿润色。",
+            title: "申请与文书支持",
+            description: "针对个人陈述、修改、终稿润色以及院校补充文书的详细反馈。",
+            options: ["3 次审阅额度", "6 次审阅额度", "10 次审阅额度"],
+            infoTitle: "1 次审阅额度包含什么？",
+            infoPoints: [
+              "一篇个人陈述",
+              "或一所大学的全部补充文书"
+            ],
             ctaLabel: "定制文书支持",
-            note: "结账前选择文书审阅次数"
+            note: "结账前选择审阅额度"
           },
           {
             id: "flexible_sessions",
             title: "灵活课程",
-            description: "购买课程，用在学生最需要帮助的地方。",
+            description: "购买一对一课程，用在学生最需要帮助的地方。",
             options: ["3 次课程", "6 次课程", "10 次课程"],
-            summary: "可用于升学咨询、文书、SAT/ACT、辅导或助学指导。",
-            ctaLabel: "选择课程",
+            infoTitle: "1 次课程包含什么？",
+            infoPoints: [
+              "与 Prelude 导师的私密会面",
+              "可用于升学、文书或 SAT/ACT 备考",
+              "也可用于学业辅导与助学金支持"
+            ],
+            ctaLabel: "选择课程套餐",
             note: "结账前选择课程次数"
           }
         ]
@@ -1523,21 +1553,32 @@ export const translations = {
         cards: [
           {
             id: "essay_support",
-            title: "Apoyo con ensayos",
-            description: "Comentarios guiados para personal statements y ensayos suplementarios.",
-            options: ["3 revisiones de ensayos", "6 revisiones de ensayos", "10 revisiones de ensayos"],
-            summary: "Personal statements, ensayos suplementarios, revisiones y ediciones finales.",
+            title: "Apoyo con solicitudes y ensayos",
+            description:
+              "Comentarios detallados sobre personal statements, revisiones, ediciones finales y ensayos suplementarios por universidad.",
+            options: ["3 créditos de revisión", "6 créditos de revisión", "10 créditos de revisión"],
+            infoTitle: "¿Qué cuenta como 1 crédito de revisión?",
+            infoPoints: [
+              "Un personal statement",
+              "O el conjunto completo de ensayos suplementarios de una universidad"
+            ],
             ctaLabel: "Personalizar apoyo con ensayos",
-            note: "Elige tus revisiones de ensayos antes del pago"
+            note: "Elige tus créditos de revisión antes del pago"
           },
           {
             id: "flexible_sessions",
             title: "Sesiones flexibles",
-            description: "Compra sesiones y úsalas donde tu estudiante más lo necesite.",
+            description:
+              "Compra sesiones individuales para apoyo puntual donde tu estudiante más lo necesite.",
             options: ["3 sesiones", "6 sesiones", "10 sesiones"],
-            summary: "Usa las sesiones para admisiones, ensayos, SAT/ACT, tutoría o ayuda financiera.",
-            ctaLabel: "Elegir sesiones",
-            note: "Elige la cantidad de sesiones antes del pago"
+            infoTitle: "¿Qué cuenta como 1 sesión?",
+            infoPoints: [
+              "Una reunión privada con un mentor de Prelude",
+              "Úsala para admisiones, ensayos o SAT/ACT",
+              "También cubre tutoría y ayuda financiera"
+            ],
+            ctaLabel: "Elegir paquete de sesiones",
+            note: "Elige el número de sesiones antes del pago"
           }
         ]
       },

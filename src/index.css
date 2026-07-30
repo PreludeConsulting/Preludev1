@@ -7768,27 +7768,47 @@ html[data-motion-tier="lite"] .aura-cursor {
   stroke-width: 3;
 }
 
-.support-bundle-card__summary {
+.support-bundle-card__info {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  justify-content: flex-start;
   gap: 0.45rem;
-  margin: 0.8rem 0 0;
-  padding: 0 0.15rem;
+  width: 100%;
+  min-height: 6.75rem;
+  margin: 0.85rem 0 0;
+  padding: 0.85rem 0.95rem;
+  box-sizing: border-box;
+  border-radius: 1rem;
+  border: 1px solid rgb(120 106 255 / 0.16);
+  background: #f4f1ff;
   text-align: left;
+}
+
+.support-bundle-card__info-title {
+  margin: 0;
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+  color: #5b4fd6;
+}
+
+.support-bundle-card__info-list {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0;
+  padding: 0 0 0 1.05rem;
+  list-style: disc;
+  font-family: inherit;
+  font-size: 0.8125rem;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.45;
   color: hsl(var(--muted-foreground));
 }
 
-.support-bundle-card__summary svg {
-  width: 0.95rem;
-  height: 0.95rem;
-  margin-top: 0.1rem;
-  flex-shrink: 0;
+.support-bundle-card__info-list li::marker {
   color: #8b7cf0;
-  stroke-width: 2.4;
 }
 
 .support-bundle-card__footer {

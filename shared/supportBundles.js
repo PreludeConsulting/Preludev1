@@ -50,20 +50,22 @@ export function resolveBundleId(bundleId) {
 export const SUPPORT_BUNDLES = {
   essay_support: {
     id: "essay_support",
-    title: "Essay Support",
+    title: "Application & Essay Support",
     shortTitle: "Essay Support",
-    description: "Guided feedback for personal statements and supplemental essays.",
-    shortDescription: "Guided feedback for personal statements and supplemental essays.",
+    description:
+      "Detailed feedback on personal statements, revisions, final edits, and college-specific supplemental essays.",
+    shortDescription:
+      "Detailed feedback on personal statements, revisions, final edits, and college-specific supplemental essays.",
     ctaLabel: "Customize Essay Support",
     badge: "Best Value",
     currency: "usd",
     startingCents: ESSAY_SUPPORT_PRICE_CENTS[3],
-    note: "Choose your essay reviews before checkout",
+    note: "Choose your review credits before checkout",
     quantities: {
       essayReviews: {
         id: "essayReviews",
-        label: "Essay reviews",
-        hint: "Reviews for personal statements and supplements",
+        label: "Review credits",
+        hint: "One credit = one personal statement or one college's supplements",
         min: BUNDLE_QUANTITY_OPTIONS[0],
         max: BUNDLE_QUANTITY_OPTIONS[BUNDLE_QUANTITY_OPTIONS.length - 1],
         default: 3,
@@ -82,13 +84,14 @@ export const SUPPORT_BUNDLES = {
     id: "flexible_sessions",
     title: "Flexible Sessions",
     shortTitle: "Flexible Sessions",
-    description: "Buy sessions and use them wherever your student needs help.",
-    shortDescription: "Buy sessions and use them across admissions, tutoring, and prep.",
-    ctaLabel: "Choose Sessions",
+    description: "Purchase one-on-one sessions for targeted support wherever your student needs help.",
+    shortDescription:
+      "Purchase one-on-one sessions for targeted support wherever your student needs help.",
+    ctaLabel: "Choose Session Bundle",
     badge: null,
     currency: "usd",
     startingCents: FLEXIBLE_SESSIONS_PRICE_CENTS[3],
-    note: "Choose your session amount before checkout",
+    note: "Choose your number of sessions before checkout",
     quantities: {
       sessions: {
         id: "sessions",
@@ -225,7 +228,7 @@ function essayQuote(selection) {
     discountPercent: 0,
     startingCents: catalog.startingCents,
     summaryLines: [
-      `${quote.qty} essay review${quote.qty === 1 ? "" : "s"}`,
+      `${quote.qty} review credit${quote.qty === 1 ? "" : "s"}`,
       ...selectedServices
     ],
     savingsLabel: null
