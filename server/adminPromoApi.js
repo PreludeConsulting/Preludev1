@@ -9,6 +9,10 @@ import {
   normalizePromoCodeInput
 } from "./lib/promoCodes.js";
 
+function sanitizeFilterValue(value) {
+  return value.replace(/[%_,()]/g, "");
+}
+
 const createSchema = z.object({
   publicCode: z.string().trim().min(4).max(64).optional(),
   description: z.string().trim().max(500).optional(),
@@ -90,8 +94,8 @@ function mapPromoRow(row) {
 
 async function listPromoCodes(supabase, searchParams) {
   let query = supabase.from("promo_codes").select("*").order("created_at", { ascending: false }).limit(200);
-  const search = searchParams.get("q")?.trim();
-  const campaign = searchParams.get("campaign")?.trim();
+  const search = sanitizeFilterValue(searchParams.get("q")?.trim() || "");
+  const campaign = sanitizeFilterValue(searchParams.get("campaign")?.trim() || "");
   if (campaign) query = query.ilike("campaign_name", `%${campaign}%`);
   if (search) query = query.or(`public_code.ilike.%${search}%,campaign_name.ilike.%${search}%`);
   const { data, error } = await query;
@@ -106,8 +110,8 @@ async function listRedemptions(supabase, searchParams) {
     .order("redeemed_at", { ascending: false })
     .limit(200);
 
-  const email = searchParams.get("email")?.trim();
-  const code = searchParams.get("code")?.trim();
+  const email = sanitizeFilterValue(searchParams.get("email")?.trim() || "");
+  const code = sanitizeFilterValue(searchParams.get("code")?.trim() || "");
   if (email) query = query.ilike("email", `%${email}%`);
   if (code) {
     const { data: promo } = await supabase.from("promo_codes").select("id").ilike("public_code", code).maybeSingle();
