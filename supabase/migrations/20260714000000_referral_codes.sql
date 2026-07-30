@@ -547,6 +547,7 @@ grant execute on function public.accept_parent_invite(text) to authenticated;
 -- ---------------------------------------------------------------------------
 -- Ensure active referral code for household (lazy + backfill safe)
 -- ---------------------------------------------------------------------------
+drop function if exists public.ensure_referral_code_for_household(uuid, text, date);
 create or replace function public.ensure_referral_code_for_household(p_household_id uuid, p_seed_name text default null)
 returns public.referral_codes
 language plpgsql
@@ -589,8 +590,8 @@ begin
     normalized := upper(candidate);
 
     begin
-      insert into public.referral_codes (household_id, code, normalized_code, status)
-      values (p_household_id, candidate, normalized, 'active')
+      insert into public.referral_codes (household_id, code, normalized_code, status, valid_month)
+      values (p_household_id, candidate, normalized, 'active', date_trunc('month', now())::date)
       returning * into existing;
       return existing;
     exception when unique_violation then

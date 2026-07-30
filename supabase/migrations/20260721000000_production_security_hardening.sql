@@ -209,6 +209,8 @@ begin
     execute 'alter function public.redeem_promo_code(text, text, uuid) '
       || 'set prelude.allow_entitlement_write = ''true''';
   end if;
+exception when insufficient_privilege then
+  raise notice 'Skipping ALTER FUNCTION SET — not superuser (expected in Supabase dashboard)';
 end;
 $$;
 
