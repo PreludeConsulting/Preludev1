@@ -2,6 +2,7 @@ import { z } from "zod";
 import { readJsonBody, sendJson, getRequestUrl } from "./http.js";
 import { enforceIpRateLimit } from "./lib/ipRateLimit.js";
 import { requireSupabaseUser, getSupabaseAdmin } from "./lib/supabaseRequestAuth.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 import {
   associateReferralAtSignup,
   claimReferralReward,
@@ -282,6 +283,8 @@ export function createReferralApiMiddleware(env = process.env) {
 }
 
 const middleware = createReferralApiMiddleware();
-export default function handler(req, res) {
+function referralHandler(req, res) {
   return middleware(req, res, () => sendJson(res, 404, { error: "not_found" }));
 }
+
+export default withApiRateLimit(referralHandler);

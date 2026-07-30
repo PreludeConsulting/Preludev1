@@ -6,6 +6,7 @@ import {
 } from "./lib/meetingStore.js";
 import { scheduleMeeting, updateScheduledMeeting } from "./lib/meetingSchedule.js";
 import { readJsonBody, requireAuth, sendJson } from "./authApi.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 function readIntegrations(userId) {
   const key = `prelude_integrations_${userId}`;
@@ -190,5 +191,5 @@ export function createDashboardApiHandler() {
   };
 }
 
-const dashboardHandler = createDashboardApiHandler();
+const dashboardHandler = withApiRateLimit(createDashboardApiHandler());
 export default dashboardHandler;

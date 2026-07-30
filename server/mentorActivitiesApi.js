@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import { readJsonBody, sendJson } from "./http.js";
 import { getSupabaseAdmin, requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 export const ACTIVITY_TYPES = [
   "personal_statement",
@@ -674,4 +675,8 @@ export function createMentorActivitiesApiMiddleware({
   };
 }
 
-export default createMentorActivitiesApiMiddleware();
+const mentorActivitiesMiddleware = createMentorActivitiesApiMiddleware();
+
+export default withApiRateLimit(function mentorActivitiesHandler(req, res) {
+  return mentorActivitiesMiddleware(req, res, () => sendJson(res, 404, { error: "not_found" }));
+});

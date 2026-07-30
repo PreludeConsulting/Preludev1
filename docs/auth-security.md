@@ -50,7 +50,22 @@ URLs, UUIDs, route params, and frontend state are never sufficient authorization
 
 ## Rate limiting and account lockout
 
-The API persists rate-limit counters in `rate_limit_buckets`, allowing limits to survive process restarts and work across horizontally scaled instances sharing PostgreSQL. Login, registration, and reset endpoints are rate-limited. Login additionally increments `failed_login_count` and sets `locked_until` after repeated invalid passwords.
+The API persists rate-limit counters in `rate_limit_buckets`, allowing limits to survive process restarts and work across horizontally scaled instances sharing PostgreSQL. Node/Vercel routes use Prisma against that table. Cloudflare Pages Functions use the `check_api_rate_limit` Supabase RPC, with in-memory buckets only for tests and local development.
+
+Balanced API tiers:
+
+- `ai`: `/api/chat`, 8/minute and 80/hour. This tier fails closed if durable limiter storage is unavailable.
+- `money`: Stripe checkout, portal, confirmation, cancellation/reactivation, essay-credit consumption, and referral reward claim routes, 5/minute and 30/hour. This tier fails closed if durable limiter storage is unavailable.
+- `auth_email`: verification, password reset, login challenge, parent invite, contact, and support email routes. Existing stricter per-route limits still apply inside handlers.
+- `auth_session`: login, registration, reset, session refresh/logout, account verification, and account deletion routes. Existing auth lockout and stricter per-route limits still apply inside handlers.
+- `write`: dashboard, meetings, activities, integrations, onboarding, referral association, and promo redemption mutations, 30/minute and 300/hour.
+- `read_private`: authenticated dashboard, account, billing, referral, and student reads, 240/minute and 2000/hour.
+- `read_public`: dataset/search/config/validation reads, 120/minute and 1000/hour.
+- `admin`: admin routes, 60/minute.
+
+`OPTIONS`, `/api/billing/webhook`, and `/api/cron/rotate-referral-codes` are exempt from normal IP throttles. Stripe webhooks rely on signature verification and idempotent event handling; cron rotation relies on bearer/header secrets.
+
+Rate-limited responses use `429` with `error: "rate_limit_exceeded"` or `error: "rate_limit_unavailable"`, plus `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset` headers.
 
 ## Email delivery without personal funds
 
