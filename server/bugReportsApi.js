@@ -4,6 +4,7 @@ import { readJsonBody, sendJson } from "./http.js";
 import { sendBugReport } from "./lib/bugReports.js";
 import { enforceIpRateLimit } from "./lib/ipRateLimit.js";
 import { requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 async function optionalVerifiedAccount(req) {
   try {
@@ -46,4 +47,6 @@ export function createBugReportsMiddleware(env = process.env) {
 }
 
 const middleware = createBugReportsMiddleware();
-export default function handler(req, res) { return middleware(req, res, () => sendJson(res, 404, { error: "not_found" })); }
+function bugReportsHandler(req, res) { return middleware(req, res, () => sendJson(res, 404, { error: "not_found" })); }
+
+export default withApiRateLimit(bugReportsHandler);

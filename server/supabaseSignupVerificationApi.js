@@ -4,6 +4,7 @@ import { readJsonBody, sendJson } from "./http.js";
 import { enforceIpRateLimit } from "./lib/ipRateLimit.js";
 import { createSupabaseAdmin } from "./lib/supabasePasswordReset.js";
 import { sendSupabaseSignupVerificationEmail } from "./lib/supabaseSignupVerification.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 const sendSignupVerificationSchema = z.object({
   email: z.string().trim().email().max(255),
@@ -103,6 +104,8 @@ export function createSupabaseSignupVerificationMiddleware(env = process.env) {
 
 const middleware = createSupabaseSignupVerificationMiddleware();
 
-export default function handler(req, res) {
+function supabaseSignupVerificationHandler(req, res) {
   return middleware(req, res, () => sendJson(res, 404, { error: "not_found" }));
 }
+
+export default withApiRateLimit(supabaseSignupVerificationHandler);

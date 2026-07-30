@@ -3,6 +3,7 @@ import { readJsonBody, sendJson } from "./http.js";
 import { enforceIpRateLimit } from "./lib/ipRateLimit.js";
 import { createSupabaseAdmin } from "./lib/supabasePasswordReset.js";
 import { sendParentInviteEmail } from "./lib/parentInvites.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 const INVITE_SEND_LIMIT = 10;
 const INVITE_SEND_WINDOW_SECONDS = 60 * 60;
@@ -69,6 +70,8 @@ export function createSupabaseParentInvitesMiddleware(env = process.env) {
 
 const middleware = createSupabaseParentInvitesMiddleware();
 
-export default function handler(req, res) {
+function supabaseParentInvitesHandler(req, res) {
   return middleware(req, res, () => sendJson(res, 404, { error: "not_found" }));
 }
+
+export default withApiRateLimit(supabaseParentInvitesHandler);

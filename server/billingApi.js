@@ -37,6 +37,7 @@ import {
   fulfillEssaySupportCheckout,
   fulfillFlexibleSessionCheckout
 } from "./lib/sessionPackageFulfillment.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 import {
   cancelMembershipAtPeriodEnd,
   claimBillingWebhookEvent,
@@ -722,8 +723,10 @@ export function createBillingApiMiddleware() {
 
 const middleware = createBillingApiMiddleware();
 
-export default function handler(req, res) {
+function billingHandler(req, res) {
   return middleware(req, res, () => {
     sendJson(res, 404, { error: "not_found" });
   });
 }
+
+export default withApiRateLimit(billingHandler);

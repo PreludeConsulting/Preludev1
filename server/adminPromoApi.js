@@ -2,6 +2,7 @@ import { z } from "zod";
 import { readJsonBody, sendJson, getRequestUrl } from "./http.js";
 import { getSupabaseAdmin, requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 import { db } from "./authApi.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 import {
   generatePromoCode,
   hashPromoCode,
@@ -304,6 +305,8 @@ export function createAdminPromoApiMiddleware(env = process.env) {
 }
 
 const middleware = createAdminPromoApiMiddleware();
-export default function handler(req, res) {
+function adminPromoHandler(req, res) {
   return middleware(req, res, () => sendJson(res, 404, { error: "not_found" }));
 }
+
+export default withApiRateLimit(adminPromoHandler);

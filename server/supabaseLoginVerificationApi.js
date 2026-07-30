@@ -10,6 +10,7 @@ import {
   getLoginVerificationSecret,
   hashLoginToken
 } from "./lib/loginAssurance.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 const CODE_TTL_MINUTES = 10;
 const SEND_COOLDOWN_SECONDS = 30;
@@ -516,6 +517,8 @@ export function createSupabaseLoginVerificationMiddleware() {
 
 const middleware = createSupabaseLoginVerificationMiddleware();
 
-export default function handler(req, res) {
+function supabaseLoginVerificationHandler(req, res) {
   return middleware(req, res, () => sendJson(res, 404, { error: "not_found" }));
 }
+
+export default withApiRateLimit(supabaseLoginVerificationHandler);

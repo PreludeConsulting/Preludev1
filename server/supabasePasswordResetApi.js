@@ -7,6 +7,7 @@ import {
   resolvePasswordResetEmail,
   sendSupabasePasswordResetEmail
 } from "./lib/supabasePasswordReset.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 const requestPasswordResetSchema = z.object({
   email: z.string().trim().email().max(255),
@@ -117,6 +118,8 @@ export function createSupabasePasswordResetMiddleware(env = process.env) {
 
 const middleware = createSupabasePasswordResetMiddleware();
 
-export default function handler(req, res) {
+function supabasePasswordResetHandler(req, res) {
   return middleware(req, res, () => sendJson(res, 404, { error: "not_found" }));
 }
+
+export default withApiRateLimit(supabasePasswordResetHandler);

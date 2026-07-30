@@ -1,4 +1,5 @@
 import { createDatasetsApiMiddleware } from "./datasetsApi.js";
+import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 const middleware = createDatasetsApiMiddleware();
 
@@ -17,7 +18,7 @@ function buildPath(req, pathname) {
 }
 
 export function createVercelDatasetsHandler(pathname) {
-  return async function handler(req, res) {
+  return withApiRateLimit(async function handler(req, res) {
     req.url = buildPath(req, pathname);
     await new Promise((resolve) => {
       middleware(req, res, () => {
@@ -29,5 +30,5 @@ export function createVercelDatasetsHandler(pathname) {
         resolve();
       });
     });
-  };
+  });
 }

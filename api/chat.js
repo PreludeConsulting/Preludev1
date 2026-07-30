@@ -5,8 +5,9 @@ import { mergeStudentProfileForChat } from "../server/rag/studentProfile.js";
 import { mapChatError, shouldLogChatError } from "../server/chatErrors.js";
 import { validateChatRequestBody } from "../server/chatRequest.js";
 import { sanitizeStudentProfile } from "../server/rag/studentProfile.js";
+import { withApiRateLimit } from "../server/lib/apiRateLimitMiddleware.js";
 
-export default async function handler(req, res) {
+async function chatHandler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -81,3 +82,5 @@ export default async function handler(req, res) {
     res.status(mapped.status).json(mapped.body);
   }
 }
+
+export default withApiRateLimit(chatHandler);
