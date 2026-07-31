@@ -81,8 +81,13 @@ export function friendlyVerificationError(error) {
   return "Verification could not be completed. Please try again.";
 }
 
-function isEmailUnconfirmedError(message = "") {
+export function isEmailUnconfirmedError(message = "") {
   return /confirm your email|email not confirmed|email_unconfirmed|email_unconfirmed/i.test(String(message || ""));
+}
+
+export function shouldRouteToSignupVerification(error, authenticatedUser = null) {
+  const authoritativeUser = authenticatedUser || error?.authenticatedUser;
+  return !authoritativeUser?.emailVerified && isEmailUnconfirmedError(error?.message);
 }
 
 function focusField(ref) {
@@ -172,8 +177,10 @@ export function LoginPage() {
     setAuthAction("email");
     setFormError("");
     setMessage("");
+    let authenticatedUser = null;
     try {
       const nextUser = await signIn(loginEmail, loginPassword, { captchaToken });
+      authenticatedUser = nextUser;
       if (nextUser?.requiresLoginVerification) {
         const challenge = nextUser.challengeId ? `&challenge=${encodeURIComponent(nextUser.challengeId)}` : "";
         navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}${challenge}`, { replace: true });
@@ -183,7 +190,7 @@ export function LoginPage() {
       navigate(postConfirmationDestination(nextUser, requestedDestination), { replace: true });
       clearPendingJourney();
     } catch (err) {
-      if (isEmailUnconfirmedError(err.message)) {
+      if (shouldRouteToSignupVerification(err, authenticatedUser)) {
         const targetEmail = loginEmail.trim();
         storePendingSignupVerification(targetEmail, { cooldownSeconds: 0 });
         navigate("/verify-email", { replace: true });

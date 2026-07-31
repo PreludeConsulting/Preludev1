@@ -3,10 +3,29 @@ import { describe, it } from "node:test";
 import {
   LOGIN_VERIFICATION_STORAGE_ERROR,
   LOGIN_VERIFICATION_STORAGE_MESSAGE,
+  isConfirmedAuthUser,
   isLoginVerificationStorageError
 } from "../../server/supabaseLoginVerificationApi.js";
 
 describe("login verification diagnostics", () => {
+  it("accepts either authoritative Supabase confirmation timestamp", () => {
+    assert.equal(isConfirmedAuthUser({
+      email: "vincent.zhu@preludeconsultingllc.com",
+      email_confirmed_at: null,
+      confirmed_at: "2026-07-31T01:43:24.000Z"
+    }), true);
+    assert.equal(isConfirmedAuthUser({
+      email: "vincent.zhu@preludeconsultingllc.com",
+      email_confirmed_at: "2026-07-31T01:43:24.000Z",
+      confirmed_at: null
+    }), true);
+    assert.equal(isConfirmedAuthUser({
+      email: "vincent.zhu@preludeconsultingllc.com",
+      email_confirmed_at: null,
+      confirmed_at: null
+    }), false);
+  });
+
   it("classifies missing Supabase verification tables as setup errors", () => {
     assert.equal(
       isLoginVerificationStorageError({
