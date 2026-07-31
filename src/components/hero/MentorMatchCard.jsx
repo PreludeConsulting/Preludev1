@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { cn } from "../../lib/utils.js";
+import MentorPhotoAvatar from "../MentorPhotoAvatar.jsx";
 
 function MatchPercent({ value, reducedMotion }) {
   const [display, setDisplay] = useState(reducedMotion ? value : 0);
@@ -34,9 +35,12 @@ export default function MentorMatchCard({ mentor, reducedMotion, onView, onBook 
     >
       {mentor.bestMatch ? <span className="hero-mm-mentor__badge">Best Match</span> : null}
       <div className="hero-mm-mentor__head">
-        <div className={cn("hero-mm-mentor__avatar", `bg-gradient-to-br ${mentor.accent}`)} aria-hidden="true">
-          {mentor.initials}
-        </div>
+        <MentorPhotoAvatar
+          photo={mentor.photo}
+          initials={mentor.initials}
+          objectPosition={mentor.objectPosition}
+          className={cn("hero-mm-mentor__avatar", !mentor.photo && `bg-gradient-to-br ${mentor.accent || ""}`)}
+        />
         <div>
           <h3 className="hero-mm-mentor__name">{mentor.name}</h3>
           <p className="hero-mm-mentor__school">{mentor.school}</p>

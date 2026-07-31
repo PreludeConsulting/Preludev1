@@ -1,3 +1,5 @@
+import { ASIM_YOONAS_PHOTO } from "./demoAccounts.js";
+
 /** Mentor mock data for the homepage PreludeMatch results demo. */
 export const PRELUDE_MATCH_MENTORS = [
   {
@@ -10,7 +12,9 @@ export const PRELUDE_MATCH_MENTORS = [
     reason: "Clear roadmap for CS applicants.",
     availability: "Available this week",
     bestMatch: true,
-    initials: "AY"
+    initials: "AY",
+    photo: ASIM_YOONAS_PHOTO,
+    objectPosition: "50% 18%"
   },
   {
     id: "jordan",

@@ -1,9 +1,12 @@
 import { Calendar, Paperclip, Search, Send, Smile, Video } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext.jsx";
+import { ASIM_YOONAS_PHOTO } from "../data/demoAccounts.js";
+import MentorPhotoAvatar from "./MentorPhotoAvatar.jsx";
 
 const MENTOR = {
   name: "Asim Yoonas",
-  initials: "AY"
+  initials: "AY",
+  photo: ASIM_YOONAS_PHOTO
 };
 
 const SIDEBAR_THREADS = [
@@ -12,6 +15,7 @@ const SIDEBAR_THREADS = [
     active: true,
     name: MENTOR.name,
     initials: MENTOR.initials,
+    photo: MENTOR.photo,
     unread: 1
   },
   {
@@ -25,7 +29,16 @@ const SIDEBAR_THREADS = [
 
 const CHAT_SIDES = ["them", "me", "them"];
 
-function MockAvatar({ initials, size = "md" }) {
+function MockAvatar({ initials, photo, size = "md" }) {
+  if (photo) {
+    return (
+      <MentorPhotoAvatar
+        photo={photo}
+        initials={initials}
+        className={`network-messages-mock__avatar network-messages-mock__avatar--${size} network-messages-mock__avatar--photo`}
+      />
+    );
+  }
   return <span className={`network-messages-mock__avatar network-messages-mock__avatar--${size}`}>{initials}</span>;
 }
 
@@ -53,7 +66,7 @@ export default function NetworkMessagesVisual() {
                       : "network-messages-mock__thread"
                   }
                 >
-                  <MockAvatar initials={thread.initials} size="sm" />
+                  <MockAvatar initials={thread.initials} photo={thread.photo} size="sm" />
                   <div className="network-messages-mock__thread-body">
                     <div className="network-messages-mock__thread-head">
                       <strong>{thread.name}</strong>
@@ -74,7 +87,7 @@ export default function NetworkMessagesVisual() {
 
           <div className="network-messages-mock__panel">
             <header className="network-messages-mock__header">
-              <MockAvatar initials={MENTOR.initials} />
+              <MockAvatar initials={MENTOR.initials} photo={MENTOR.photo} />
               <div className="network-messages-mock__header-text">
                 <strong>{MENTOR.name}</strong>
                 <span>{t("network.messagesVisual.mentorMeta")}</span>
@@ -98,7 +111,7 @@ export default function NetworkMessagesVisual() {
                   key={`${side}-${index}`}
                   className={`network-messages-mock__group network-messages-mock__group--${side}`}
                 >
-                  {side === "them" ? <MockAvatar initials={MENTOR.initials} size="sm" /> : null}
+                  {side === "them" ? <MockAvatar initials={MENTOR.initials} photo={MENTOR.photo} size="sm" /> : null}
                   <div className="network-messages-mock__bubble-wrap">
                     <div className={`network-messages-mock__bubble network-messages-mock__bubble--${side}`}>
                       {chatMessages[index]}

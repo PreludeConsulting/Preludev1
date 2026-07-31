@@ -4,6 +4,8 @@ import { Calendar } from "lucide-react";
 import { useLanguage } from "../../context/LanguageContext.jsx";
 import { usePreludeMotion } from "../../context/MotionContext.jsx";
 import { useViewportActivity } from "../../lib/motion/useViewportActivity.js";
+import { ASIM_YOONAS_PHOTO } from "../../data/demoAccounts.js";
+import MentorPhotoAvatar from "../MentorPhotoAvatar.jsx";
 
 const CHAT_MESSAGES = [
   {
@@ -14,12 +16,14 @@ const CHAT_MESSAGES = [
   {
     from: "asim",
     name: "Asim",
-    initials: "AY"
+    initials: "AY",
+    photo: ASIM_YOONAS_PHOTO
   },
   {
     from: "asim",
     name: "Asim",
-    initials: "AY"
+    initials: "AY",
+    photo: ASIM_YOONAS_PHOTO
   },
   {
     from: "jordan",
@@ -29,7 +33,8 @@ const CHAT_MESSAGES = [
   {
     from: "asim",
     name: "Asim",
-    initials: "AY"
+    initials: "AY",
+    photo: ASIM_YOONAS_PHOTO
   }
 ];
 
@@ -65,7 +70,11 @@ export default function AnimatedChatDemo() {
   return (
     <div ref={rootRef} className="sn-chat-demo" aria-hidden="true" data-motion-active={active ? "true" : "false"}>
       <header className="sn-chat-demo__header">
-        <span className="sn-chat-demo__avatar sn-chat-demo__avatar--mentor">AY</span>
+        <MentorPhotoAvatar
+          photo={ASIM_YOONAS_PHOTO}
+          initials="AY"
+          className="sn-chat-demo__avatar sn-chat-demo__avatar--mentor sn-chat-demo__avatar--photo"
+        />
         <div className="sn-chat-demo__header-text">
           <strong>Asim Yoonas</strong>
           <span>{t("studentNetwork.chat.roleLine")}</span>
@@ -90,7 +99,11 @@ export default function AnimatedChatDemo() {
             transition={{ duration: reduceMotion ? 0 : FADE_S, ease: "easeOut" }}
           >
             {msg.from === "asim" ? (
-              <span className="sn-chat-demo__avatar sn-chat-demo__avatar--sm">{msg.initials}</span>
+              <MentorPhotoAvatar
+                photo={msg.photo}
+                initials={msg.initials}
+                className="sn-chat-demo__avatar sn-chat-demo__avatar--sm sn-chat-demo__avatar--photo"
+              />
             ) : null}
             <div className={`sn-chat-demo__bubble sn-chat-demo__bubble--${msg.from}`}>{messages[index]}</div>
             {msg.from === "jordan" ? (

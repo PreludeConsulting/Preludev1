@@ -2,6 +2,7 @@ import { cn } from "../../lib/utils.js";
 import { useContext } from "react";
 import { AuthContext } from "../../context/AuthContext.jsx";
 import { savePendingJourney } from "../../lib/authJourney.js";
+import MentorPhotoAvatar from "../MentorPhotoAvatar.jsx";
 
 const registerPath = `${import.meta.env.BASE_URL}register`.replace(/\/+/g, "/");
 
@@ -25,9 +26,12 @@ export default function PreludeMentorCard({ mentor, showAction = true, serviceId
   return (
     <article className={cn("pm-mentor-card", mentor.bestMatch && "pm-mentor-card--best")}>
       <div className="pm-mentor-card__top">
-        <div className="pm-mentor-card__avatar" aria-hidden="true">
-          {mentor.initials}
-        </div>
+        <MentorPhotoAvatar
+          photo={mentor.photo}
+          initials={mentor.initials}
+          objectPosition={mentor.objectPosition}
+          className="pm-mentor-card__avatar"
+        />
         <div className="pm-mentor-card__identity">
           <div className="pm-mentor-card__name-row">
             <h3 className="pm-mentor-card__name">{mentor.name}</h3>

@@ -38,7 +38,8 @@ const MENTOR_PARTICIPANT = {
   context: "Georgia Tech · CS",
   status: "Active today",
   online: true,
-  avatarUrl: "/media/mentors/asim-yoonas.png"
+  avatarUrl: "/media/mentors/asim-yoonas.png",
+  photo: "/media/mentors/asim-yoonas.png"
 };
 
 function studentParticipant(name, grade, major, id) {

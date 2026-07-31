@@ -35,7 +35,7 @@ export const EXAMPLE_MENTORS = [
     description: "Georgia Tech CS student known for strong time management and helping students build a clear, personalized admissions roadmap.",
     emblem: `${mediaBase}media/universities/georgia-tech.png`,
     photo: `${mediaBase}media/mentors/asim-yoonas.png`,
-    objectPosition: "50% 28%"
+    objectPosition: "50% 18%"
   },
   {
     name: "Jessica Li",

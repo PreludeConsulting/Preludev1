@@ -99,7 +99,7 @@ const SHARED_MENTOR = {
   graduationYear: "2027",
   headshot: `${import.meta.env.BASE_URL}media/mentors/asim-yoonas.png`,
   avatarUrl: `${import.meta.env.BASE_URL}media/mentors/asim-yoonas.png`,
-  objectPosition: "50% 28%",
+  objectPosition: "50% 18%",
   universityLogo:
     "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Georgia_Tech_Yellow_Jackets_logo.svg/240px-Georgia_Tech_Yellow_Jackets_logo.svg.png",
   bio: "Asim is a Georgia Tech student who helps students organize their college applications, strengthen their essays, and create realistic college lists.",
@@ -468,6 +468,18 @@ function mentorBundle() {
   const conversations = getDemoConversations("mentor");
   return {
     mentor: SHARED_MENTOR,
+    profile: {
+      fullName: SHARED_MENTOR.name,
+      preferredName: "Asim",
+      email: DEMO_MENTOR.email,
+      school: SHARED_MENTOR.university,
+      major: SHARED_MENTOR.major,
+      graduationYear: SHARED_MENTOR.graduationYear,
+      bio: SHARED_MENTOR.bio,
+      avatarUrl: SHARED_MENTOR.avatarUrl,
+      colleges: SHARED_MENTOR.targetSchools,
+      majors: SHARED_MENTOR.targetMajors
+    },
     students: [
       {
         id: DEMO_SLUGS.jordanEssay,

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { HERO_MATCHING_STATUSES, HERO_MENTOR_MOCK } from "../../data/heroMentorMatch.js";
 import PreludePigAvatar from "./PreludePigAvatar.jsx";
+import MentorPhotoAvatar from "../MentorPhotoAvatar.jsx";
 
 export default function MatchingAnimation({ onComplete, reducedMotion }) {
   const [statusIndex, setStatusIndex] = useState(0);
@@ -49,7 +50,12 @@ export default function MatchingAnimation({ onComplete, reducedMotion }) {
             }}
             transition={{ delay: index * 0.12, duration: 0.4 }}
           >
-            <span>{mentor.initials}</span>
+            <MentorPhotoAvatar
+              photo={mentor.photo}
+              initials={mentor.initials}
+              objectPosition={mentor.objectPosition}
+              className="hero-mm-matching__mini-avatar"
+            />
           </motion.div>
         ))}
       </div>

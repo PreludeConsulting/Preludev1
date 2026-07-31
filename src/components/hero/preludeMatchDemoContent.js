@@ -48,6 +48,8 @@ export const HERO_DEMO_STEPS = [
     mentor: {
       initials: "AY",
       name: "Asim Yoonas",
+      photo: "/media/mentors/asim-yoonas.png",
+      objectPosition: "50% 18%",
       detail: "Georgia Tech - STEM essays",
       match: "Strong",
       reasons: ["STEM essay strategy", "Weekly accountability", "Target-school fit"]

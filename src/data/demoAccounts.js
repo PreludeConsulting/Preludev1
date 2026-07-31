@@ -62,6 +62,9 @@ export const DEMO_STUDENT_2 = {
   displayPlanLabel: "Plus"
 };
 
+/** Shared headshot for demo mentor Asim across marketing + dashboard fixtures. */
+export const ASIM_YOONAS_PHOTO = "/media/mentors/asim-yoonas.png";
+
 export const DEMO_MENTOR = {
   key: "mentor",
   email: "mentor@prelude-demo.com",
@@ -69,7 +72,7 @@ export const DEMO_MENTOR = {
   firstName: "Asim",
   lastName: "Yoonas",
   role: "MENTOR",
-  avatarUrl: "/media/mentors/asim-yoonas.png"
+  avatarUrl: ASIM_YOONAS_PHOTO
 };
 
 export const DEMO_PARENT = {

@@ -226,13 +226,13 @@ export function Avatar({ name, user, profile, avatarUrl, oauthAvatarUrl, size = 
   return <UserAvatar name={name} user={user} profile={profile} avatarUrl={avatarUrl} oauthAvatarUrl={oauthAvatarUrl} size={size} className={cn("dash-avatar", `dash-avatar--${size}`)} />;
 }
 
-export function MeetingPreviewCard({ meeting, mentorName, studentName, role, onView }) {
+export function MeetingPreviewCard({ meeting, mentorName, studentName, avatarUrl, role, onView }) {
   const start = new Date(meeting.startTime);
   const showJoin = isJoinableMeeting(meeting);
   return (
     <article className="dash-meeting-preview">
       <div className="dash-meeting-preview__head">
-        <Avatar name={mentorName || studentName} />
+        <Avatar name={mentorName || studentName} avatarUrl={avatarUrl} />
         <div>
           <p className="dash-meeting-preview__title">{meeting.title}</p>
           <p className="dash-meeting-preview__meta">
