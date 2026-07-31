@@ -301,7 +301,7 @@ export default function PreludeMatchOnboardingPage() {
 
               {!showCompletedPanel && renderQuestionnaireFlow && phase === "intro" ? (
                 <motion.div key="intro" className="pm-card__panel" exit={{ opacity: 0 }}>
-                  <PreludeMatchIntro onStart={handleStart} reducedMotion={reducedMotion} />
+                  <PreludeMatchIntro onStart={handleStart} showDemoTrigger reducedMotion={reducedMotion} />
                 </motion.div>
               ) : null}
 

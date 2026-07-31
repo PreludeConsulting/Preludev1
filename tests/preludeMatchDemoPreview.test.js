@@ -18,8 +18,8 @@ function renderWithLanguage(element) {
 }
 
 describe("PreludeMatch demo preview", () => {
-  it("renders the layered cinematic PreludeMatch loop and hover demo overlay", () => {
-    const html = renderWithLanguage(React.createElement(PreludeMatch));
+  it("renders the layered cinematic PreludeMatch loop without a Try PreludeMatch hover CTA on the hero", () => {
+    const html = renderWithLanguage(React.createElement(PreludeMatch, { cinematicOnly: true }));
 
     expect(html).toContain("pm-card__traffic-light");
     expect(html).toContain("pm-cinematic");
@@ -61,8 +61,8 @@ describe("PreludeMatch demo preview", () => {
     expect(html).toContain("pm-cinematic__camera");
     expect(html).toContain("pm-cinematic__atmosphere");
     expect(html).toContain("pm-cinematic__progress-glow");
-    expect(html).toContain("pm-cinematic__demo-overlay");
-    expect(html).toContain("Try PreludeMatch");
+    expect(html).not.toContain("pm-cinematic__demo-overlay");
+    expect(html).not.toContain("Try PreludeMatch");
     expect(html).not.toContain("#050505");
     expect(html).not.toContain("Too many choices.");
     expect(html).not.toContain("pm-reference-ad");
@@ -70,18 +70,32 @@ describe("PreludeMatch demo preview", () => {
     expect(html).not.toContain("pm-motion-ad");
   });
 
-  it("renders reduced-motion static wordmark with demo overlay", () => {
+  it("renders reduced-motion static wordmark without a demo overlay by default", () => {
     const html = renderWithLanguage(
-      React.createElement(PreludeMatchIntro, { reducedMotion: true, onStart: () => {} })
+      React.createElement(PreludeMatchIntro, { reducedMotion: true })
     );
 
     expect(html).toContain("pm-intro--static");
     expect(html).toContain("prelude-logo--compact");
-    expect(html).toContain("Try PreludeMatch");
+    expect(html).not.toContain("Try PreludeMatch");
+    expect(html).not.toContain("pm-cinematic__demo-overlay");
     expect(html).not.toContain("pm-cinematic__beat--opener");
     expect(html).not.toContain("Maya Patel");
     expect(html).not.toContain("Maya Chen");
     expect(html).not.toContain("Ryan Cain");
+  });
+
+  it("keeps an optional Try PreludeMatch trigger when explicitly enabled", () => {
+    const html = renderWithLanguage(
+      React.createElement(PreludeMatchIntro, {
+        reducedMotion: true,
+        onStart: () => {},
+        showDemoTrigger: true
+      })
+    );
+
+    expect(html).toContain("Try PreludeMatch");
+    expect(html).toContain("pm-cinematic__demo-overlay");
   });
 
   it("renders the post-match dashboard payoff preview", () => {
