@@ -22,7 +22,7 @@ describe("demo Essay Support / Plus / Pro mentor roster", () => {
     expect(markup).not.toContain("Jordan · Basic");
   });
 
-  it("gives Mentor Maya exactly three Jordan plan students", () => {
+  it("gives Mentor Asim exactly three Jordan plan students", () => {
     const mentor = getDemoDashboardForUser("mentor@prelude-demo.com", "MENTOR");
     expect(mentor.summaryCards.students).toBe(3);
     expect(mentor.students).toHaveLength(3);

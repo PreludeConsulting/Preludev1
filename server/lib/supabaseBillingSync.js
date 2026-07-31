@@ -4,30 +4,34 @@ import { persistSubscriptionFields, recordPurchaseFromCheckoutSession } from "./
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 
 export async function syncSupabasePaymentComplete(userId, {
-  planId,
+  planId = null,
   stripeCustomerId = null,
   stripeSubscriptionId = null,
-  subscriptionStatus = "active",
+  subscriptionStatus = undefined,
   currentPeriodStart = null,
   currentPeriodEnd = null,
-  cancelAtPeriodEnd = null,
-  canceledAt = null
+  cancelAtPeriodEnd = undefined,
+  canceledAt = undefined
 } = {}) {
   const supabase = getSupabaseAdmin();
-  if (!supabase || !userId || !planId) return;
+  if (!supabase || !userId) return;
 
+  // Monthly plan checkout sets plan_id. Bundle-only checkout unlocks the
+  // payment step without assigning a subscription plan.
   const profilePatch = {
-    plan_id: planId,
+    ...(planId ? { plan_id: planId } : {}),
     ...(stripeCustomerId ? { stripe_customer_id: stripeCustomerId } : {}),
     ...(stripeSubscriptionId ? { stripe_subscription_id: stripeSubscriptionId } : {}),
-    ...(subscriptionStatus ? { subscription_status: subscriptionStatus } : {}),
+    ...(subscriptionStatus != null ? { subscription_status: subscriptionStatus } : {}),
     ...(currentPeriodStart ? { subscription_current_period_start: currentPeriodStart } : {}),
     ...(currentPeriodEnd ? { subscription_current_period_end: currentPeriodEnd } : {}),
-    ...(cancelAtPeriodEnd != null ? { subscription_cancel_at_period_end: Boolean(cancelAtPeriodEnd) } : {}),
+    ...(cancelAtPeriodEnd !== undefined ? { subscription_cancel_at_period_end: Boolean(cancelAtPeriodEnd) } : {}),
     ...(canceledAt !== undefined ? { subscription_canceled_at: canceledAt } : {})
   };
 
-  await supabase.from("profiles").update(profilePatch).eq("id", userId);
+  if (Object.keys(profilePatch).length > 0) {
+    await supabase.from("profiles").update(profilePatch).eq("id", userId);
+  }
   await supabase.from("onboarding_progress").upsert(
     {
       user_id: userId,
@@ -74,24 +78,23 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
 export async function syncSupabaseCheckoutSession(session) {
   const userId = session.metadata?.userId || session.client_reference_id;
   const planId = session.metadata?.planId;
-  if (!userId || !planId) {
-    if (userId) {
-      try {
-        await recordPurchaseFromCheckoutSession(session);
-      } catch (error) {
-        console.error("[prelude-billing] purchase history checkout sync failed", error.message);
-      }
-    }
-    return;
-  }
+  const bundleId = String(session.metadata?.bundleId || "").trim();
+  if (!userId) return;
   if (session.payment_status && session.payment_status !== "paid") return;
 
-  await syncSupabasePaymentComplete(userId, {
-    planId,
-    stripeCustomerId: typeof session.customer === "string" ? session.customer : session.customer?.id,
-    stripeSubscriptionId: typeof session.subscription === "string" ? session.subscription : session.subscription?.id,
-    subscriptionStatus: session.status || "checkout_completed"
-  });
+  // Paid monthly plan or support bundle both complete onboarding payment.
+  if (planId) {
+    await syncSupabasePaymentComplete(userId, {
+      planId,
+      stripeCustomerId: typeof session.customer === "string" ? session.customer : session.customer?.id,
+      stripeSubscriptionId: typeof session.subscription === "string" ? session.subscription : session.subscription?.id,
+      subscriptionStatus: session.status || "checkout_completed"
+    });
+  } else if (bundleId) {
+    await syncSupabasePaymentComplete(userId, {
+      stripeCustomerId: typeof session.customer === "string" ? session.customer : session.customer?.id
+    });
+  }
 
   try {
     await recordPurchaseFromCheckoutSession(session);

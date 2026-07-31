@@ -10,7 +10,7 @@ import { buildDefaultProgressRewards } from "../dashboard/lib/progressRewards.js
 
 /** Stable slugs used in events/meetings before DB IDs are known. */
 export const DEMO_SLUGS = {
-  mentor: "demo-mentor-maya",
+  mentor: "demo-mentor-asim",
   jordanEssay: "demo-student-jordan-essay",
   jordanPlus: "demo-student-jordan-plus",
   jordanPro: "demo-student-jordan-pro",
@@ -89,17 +89,25 @@ const jordanProMeetingStart = futureMeetingStart(14, 15, 30);
 
 const SHARED_MENTOR = {
   id: DEMO_SLUGS.mentor,
-  name: "Maya Patel",
+  mentorUserId: DEMO_SLUGS.mentor,
+  userId: DEMO_SLUGS.mentor,
+  name: "Asim Yoonas",
   university: "Georgia Institute of Technology",
+  college: "Georgia Institute of Technology",
   universityId: "georgia-tech",
   major: "Computer Science",
-  graduationYear: "2024",
-  headshot: `${import.meta.env.BASE_URL}media/mentors/moon-headshot.png`,
-  objectPosition: "50% 22%",
+  graduationYear: "2027",
+  headshot: `${import.meta.env.BASE_URL}media/mentors/asim-yoonas.png`,
+  avatarUrl: `${import.meta.env.BASE_URL}media/mentors/asim-yoonas.png`,
+  objectPosition: "50% 28%",
   universityLogo:
     "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Georgia_Tech_Yellow_Jackets_logo.svg/240px-Georgia_Tech_Yellow_Jackets_logo.svg.png",
-  bio: "Maya is a Georgia Tech graduate who helps students organize their college applications, strengthen their essays, and create realistic college lists.",
-  expertise: ["STEM applications", "College list strategy", "Essay feedback", "Scholarship planning", "Time management"],
+  bio: "Asim is a Georgia Tech student who helps students organize their college applications, strengthen their essays, and create realistic college lists.",
+  specialties: ["Application strategy", "Essay brainstorming", "Academic profile review"],
+  targetMajors: ["Computer science", "Engineering"],
+  targetSchools: ["Emory University", "University of Georgia", "Georgia Institute of Technology"],
+  supportStyles: ["Structured step-by-step guidance", "Accountability and check-ins"],
+  expertise: ["Application strategy", "Essay brainstorming", "Academic profile review"],
   availability: "Mon 09:00 – 17:00 · Tue 14:00 – 18:00 · Wed 16:00 – 20:00 · Thu 13:00 – 17:00 · Fri 09:00 – 13:00 ET",
   availabilitySchedule: {
     timezone: "ET",
@@ -125,7 +133,7 @@ const JORDAN_PROFILE = {
   majors: ["Computer Science", "Data Science"],
   colleges: ["Georgia Tech", "UCLA", "University of Michigan", "Northeastern University", "University of Georgia"],
   profileCompletion: 78,
-  mentorName: "Maya Patel"
+  mentorName: "Asim Yoonas"
 };
 
 const ALEX_PROFILE = {
@@ -138,7 +146,7 @@ const ALEX_PROFILE = {
   majors: ["Economics", "Business"],
   colleges: ["NYU", "Boston University", "Emory University", "University of Georgia"],
   profileCompletion: 64,
-  mentorName: "Maya Patel"
+  mentorName: "Asim Yoonas"
 };
 
 function buildMeetings() {
@@ -307,7 +315,7 @@ function buildAvailabilityEvents() {
   return [
     {
       id: "demo-av-tue",
-      title: "Maya Patel — Office hours",
+      title: "Asim Yoonas — Office hours",
       category: "mentor_availability",
       start: tueStart.toISOString(),
       end: meetingEnd(tueStart, 120).toISOString(),
@@ -316,7 +324,7 @@ function buildAvailabilityEvents() {
     },
     {
       id: "demo-av-thu",
-      title: "Maya Patel — Office hours",
+      title: "Asim Yoonas — Office hours",
       category: "mentor_availability",
       start: thuStart.toISOString(),
       end: meetingEnd(thuStart, 120).toISOString(),
@@ -359,7 +367,7 @@ function studentBundle(email) {
       ? [
           { id: "t-j1", title: "Finalize reach school essay prompts", priority: "high", done: false },
           { id: "t-j2", title: "Update robotics club description", priority: "medium", done: false },
-          { id: "t-j3", title: "Prepare questions for Maya", priority: "medium", done: true }
+          { id: "t-j3", title: "Prepare questions for Asim", priority: "medium", done: true }
         ]
       : [
           { id: "t-a1", title: "Complete FAFSA checklist", priority: "high", done: false },

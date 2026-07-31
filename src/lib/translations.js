@@ -92,7 +92,7 @@ export const translations = {
         status: "Online",
         scheduleZoom: "Schedule Zoom",
         messages: [
-          "Hey Maya, I keep rewriting my personal statement and now I have no idea if it's actually getting better.",
+          "Hey Asim, I keep rewriting my personal statement and now I have no idea if it's actually getting better.",
           "Haha, you're good~ I think you've just been looking at it for too long.",
           "Tell you what, instead of going back and forth over messages, let's hop on a quick Zoom call sometime this week. I think it'd be way easier to talk through your story together and figure out what's not clicking.",
           "That would help so much! I've been stressing about this for weeks 🥲",
@@ -471,7 +471,7 @@ export const translations = {
         status: "온라인",
         scheduleZoom: "Zoom 예약",
         messages: [
-          "Maya, 자기소개서를 계속 고쳐 쓰고 있는데 이제 정말 나아지고 있는지 모르겠어.",
+          "Asim, 자기소개서를 계속 고쳐 쓰고 있는데 이제 정말 나아지고 있는지 모르겠어.",
           "하하, 괜찮아~ 너무 오래 들여다봐서 그런 것 같아.",
           "메시지로 계속 주고받기보다 이번 주에 짧게 Zoom으로 이야기해 보자. 네 이야기를 같이 풀어 보고 어디가 잘 안 맞는지 찾는 게 훨씬 쉬울 것 같아.",
           "그러면 정말 도움이 될 것 같아! 몇 주째 이것 때문에 스트레스였어 🥲",
@@ -855,7 +855,7 @@ export const translations = {
         status: "在线",
         scheduleZoom: "预约 Zoom",
         messages: [
-          "嘿 Maya，我一直在改个人陈述，现在完全不知道它到底有没有变好。",
+          "嘿 Asim，我一直在改个人陈述，现在完全不知道它到底有没有变好。",
           "哈哈，别担心~ 我觉得你只是盯着它看太久了。",
           "这样吧，与其一直发消息来回说，不如这周找个时间快速开个 Zoom。我觉得一起聊你的故事、找出哪里不顺，会容易很多。",
           "那真的太有帮助了！我已经为这个焦虑好几周了 🥲",
@@ -1240,7 +1240,7 @@ export const translations = {
         status: "En línea",
         scheduleZoom: "Agendar Zoom",
         messages: [
-          "Hola Maya, sigo reescribiendo mi ensayo personal y ya no sé si realmente está mejorando.",
+          "Hola Asim, sigo reescribiendo mi ensayo personal y ya no sé si realmente está mejorando.",
           "Jaja, vas bien~ creo que solo lo has mirado durante demasiado tiempo.",
           "Te propongo algo: en vez de seguir hablando por mensajes, hagamos una llamada rápida por Zoom esta semana. Creo que será mucho más fácil conversar sobre tu historia y descubrir qué no está funcionando.",
           "¡Eso me ayudaría muchísimo! Llevo semanas estresándome por esto 🥲",

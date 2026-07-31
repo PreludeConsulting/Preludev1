@@ -2,13 +2,13 @@ import { Calendar, Paperclip, Search, Send, Smile, Video } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext.jsx";
 
 const MENTOR = {
-  name: "Maya Patel",
-  initials: "MP"
+  name: "Asim Yoonas",
+  initials: "AY"
 };
 
 const SIDEBAR_THREADS = [
   {
-    id: "maya",
+    id: "asim",
     active: true,
     name: MENTOR.name,
     initials: MENTOR.initials,

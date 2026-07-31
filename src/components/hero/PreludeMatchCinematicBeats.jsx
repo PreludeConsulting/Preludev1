@@ -9,7 +9,7 @@ const mentorStep = HERO_DEMO_STEPS.find((step) => step.id === "mentor");
 const dashboardStep = HERO_DEMO_STEPS.find((step) => step.id === "dashboard");
 const meetingStep = HERO_DEMO_STEPS.find((step) => step.id === "meeting");
 const featuredMentor =
-  EXAMPLE_MENTORS.find((mentor) => mentor.name === "Asim Patel") ?? EXAMPLE_MENTORS[0];
+  EXAMPLE_MENTORS.find((mentor) => mentor.name === "Asim Yoonas") ?? EXAMPLE_MENTORS[0];
 const OVERFLOW_COINS = ["25", "20", "35", "+", "50"];
 const OVERFLOW_CASH = ["$", "$", "$"];
 const OVERFLOW_HATS = Array.from({ length: 4 });

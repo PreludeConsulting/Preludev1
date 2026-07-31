@@ -32,10 +32,10 @@ export const EXAMPLE_MENTORS = [
     major: "Computer Science",
     specialty: "STEM",
     specialties: ["STEM", "Research positioning", "Technical activities"],
-    description: "Sports medicine specialist known for strong time management and helping students build a strong, personalized roadmap.",
+    description: "Georgia Tech CS student known for strong time management and helping students build a clear, personalized admissions roadmap.",
     emblem: `${mediaBase}media/universities/georgia-tech.png`,
-    photo: `${mediaBase}media/mentors/asim-patel.png`,
-    objectPosition: "50% 50%"
+    photo: `${mediaBase}media/mentors/asim-yoonas.png`,
+    objectPosition: "50% 28%"
   },
   {
     name: "Jessica Li",

@@ -48,8 +48,8 @@ const DEMO_ACCOUNTS = [
   {
     email: "mentor@prelude-demo.com",
     password: "Mentor123!",
-    firstName: "Maya",
-    lastName: "Chen",
+    firstName: "Asim",
+    lastName: "Yoonas",
     role: "MENTOR"
   }
 ];

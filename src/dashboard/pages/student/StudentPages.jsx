@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import {
   Award,
@@ -31,6 +31,16 @@ import { useInteractionFeedback } from "../../../components/interaction/Interact
 import { useInterfaceSound } from "../../../lib/sound/SoundProvider.jsx";
 import { cn } from "../../../lib/utils.js";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { getInitials } from "../../../lib/avatar.js";
+import {
+  buildMentorCollegeLine,
+  formatMentorCollegeLine,
+  pickStableMentorCardTags,
+  resolveMentorCardBio,
+  resolveMentorCardGraduationYear,
+  resolveMentorCardMajor,
+  resolveMentorCardPhoto
+} from "../../../lib/studentMentorCard.js";
 import AdmissionsCalendarVisual from "../../components/product/AdmissionsCalendarVisual.jsx";
 import { CalendarAddEventModal } from "../../components/CalendarEventModals.jsx";
 import MentorLiveUpdatesSection from "../../components/product/MentorLiveUpdatesSection.jsx";
@@ -1715,9 +1725,54 @@ function MentorAvailabilityList({ availability, slotDates = [] }) {
   );
 }
 
-function mentorHeadshot(mentor) {
-  const mediaBase = import.meta.env.BASE_URL;
-  return mentor?.headshot || `${mediaBase}media/mentors/moon-headshot.png`;
+const MENTOR_BIO_CLAMP_CHARS = 280;
+
+function MentorProfileBio({ bio }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!bio) return null;
+  const needsClamp = bio.length > MENTOR_BIO_CLAMP_CHARS;
+  const shown = !needsClamp || expanded ? bio : `${bio.slice(0, MENTOR_BIO_CLAMP_CHARS).trimEnd()}…`;
+
+  return (
+    <div className="dash-mentor-profile__bio-wrap">
+      <p className={`dash-mentor-profile__bio${needsClamp && !expanded ? " dash-mentor-profile__bio--clamped" : ""}`}>
+        {shown}
+      </p>
+      {needsClamp ? (
+        <button
+          type="button"
+          className="dash-mentor-profile__bio-toggle"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? "Show less" : "Read more"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function MentorProfilePhoto({ mentor }) {
+  const src = resolveMentorCardPhoto(mentor);
+  const name = mentor?.name || "Mentor";
+  if (src) {
+    return (
+      <section className="dash-panel dash-mentor-profile__photo-card" aria-label={`Photo of ${name}`}>
+        <img
+          src={src}
+          alt={name}
+          className="dash-mentor-profile__photo"
+          style={mentor.objectPosition ? { objectPosition: mentor.objectPosition } : undefined}
+        />
+      </section>
+    );
+  }
+  return (
+    <section className="dash-panel dash-mentor-profile__photo-card dash-mentor-profile__photo-card--fallback" aria-label={name}>
+      <span className="dash-mentor-profile__photo-initials" aria-hidden="true">
+        {getInitials(name, "M")}
+      </span>
+    </section>
+  );
 }
 
 export function StudentMentor() {
@@ -1736,6 +1791,12 @@ export function StudentMentor() {
   const [bookingError, setBookingError] = useState("");
   const [bookingBusy, setBookingBusy] = useState(false);
   const m = mentor;
+  const collegeLine = useMemo(() => formatMentorCollegeLine(m), [m]);
+  const collegeList = useMemo(() => buildMentorCollegeLine(m), [m]);
+  const profileTags = useMemo(() => pickStableMentorCardTags(m), [m]);
+  const major = resolveMentorCardMajor(m);
+  const graduationYear = resolveMentorCardGraduationYear(m);
+  const bio = resolveMentorCardBio(m);
   const creditMeetings = [...(meetings || []), ...(pendingMeetingRequests || [])];
   const canBook = canBookSession(creditMeetings, mentorAccess);
   const dailyBookingUsed =
@@ -1778,7 +1839,6 @@ export function StudentMentor() {
     .filter((meeting) => meeting.status !== "pending")
     .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
   const nextMeeting = upcoming[0];
-  const headshot = mentorHeadshot(m);
 
   if (!m) {
     return (
@@ -1810,15 +1870,37 @@ export function StudentMentor() {
               <DashBadge variant="success"><UserCheck className="h-3 w-3" /> Matched mentor</DashBadge>
             </div>
             <p className="dash-mentor-profile__role">Peer Mentor</p>
-            <div className="dash-mentor-profile__chips">
-              {m.university ? <span className="dash-mentor-profile__chip"><Building2 className="h-4 w-4" /> {m.university}</span> : null}
-              {m.major ? <span className="dash-mentor-profile__chip"><GraduationCap className="h-4 w-4" /> {m.major}</span> : null}
-              {m.graduationYear ? <span className="dash-mentor-profile__chip"><CalendarDays className="h-4 w-4" /> Class of {m.graduationYear}</span> : null}
-            </div>
-            {m.bio ? <p className="dash-mentor-profile__bio">{m.bio}</p> : null}
-            {m.expertise?.length ? (
-              <div className="dash-tags">
-                {m.expertise.map((e) => <DashBadge key={e} variant="lavender">{e}</DashBadge>)}
+            {collegeLine ? (
+              <p className="dash-mentor-profile__colleges" title={collegeLine}>
+                <Building2 className="h-4 w-4" aria-hidden="true" />
+                <span>{collegeList.map((college, index) => (
+                  <span key={`${college}-${index}`}>
+                    {index > 0 ? <span className="dash-mentor-profile__college-sep" aria-hidden="true"> · </span> : null}
+                    <span className="dash-mentor-profile__college">{college}</span>
+                  </span>
+                ))}</span>
+              </p>
+            ) : null}
+            {(major || graduationYear) ? (
+              <div className="dash-mentor-profile__chips">
+                {major ? (
+                  <span className="dash-mentor-profile__chip">
+                    <GraduationCap className="h-4 w-4" /> {major}
+                  </span>
+                ) : null}
+                {graduationYear ? (
+                  <span className="dash-mentor-profile__chip">
+                    <CalendarDays className="h-4 w-4" /> Class of {graduationYear}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            <MentorProfileBio bio={bio} />
+            {profileTags.length ? (
+              <div className="dash-tags dash-mentor-profile__tags">
+                {profileTags.map((tag) => (
+                  <DashBadge key={tag} variant="lavender">{tag}</DashBadge>
+                ))}
               </div>
             ) : null}
             <div className="dash-mentor-profile__cta">
@@ -1832,14 +1914,7 @@ export function StudentMentor() {
           </div>
         </SectionCard>
 
-        <section className="dash-panel dash-mentor-profile__photo-card" aria-label={`Photo of ${m.name}`}>
-          <img
-            src={headshot}
-            alt={m.name}
-            className="dash-mentor-profile__photo"
-            style={m.objectPosition ? { objectPosition: m.objectPosition } : undefined}
-          />
-        </section>
+        <MentorProfilePhoto mentor={m} />
       </div>
 
       <div className="dash-metric-row">

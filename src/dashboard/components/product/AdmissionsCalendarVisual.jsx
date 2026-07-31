@@ -647,7 +647,7 @@ export default function AdmissionsCalendarVisual({
   meetings = [],
   events = [],
   students = [],
-  mentorName = "Maya Patel",
+  mentorName = "Asim Yoonas",
   role = "student",
   mentorView = false,
   showStudentFilter = false,

@@ -50,7 +50,7 @@ export default function HeroDashboardMockup() {
           </aside>
 
           <div className="dashboard-mockup__main">
-            <p className="dashboard-mockup__greeting">Welcome back, Maya! 👋</p>
+            <p className="dashboard-mockup__greeting">Welcome back, Asim! 👋</p>
 
             <div className="dashboard-mockup__card">
               <p className="dashboard-mockup__card-label">Next Mentor Session</p>

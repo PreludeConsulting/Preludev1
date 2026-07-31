@@ -176,6 +176,34 @@ describe("onboarding route decisions", () => {
     expect(canAccessDashboard(user)).toBe(true);
   });
 
+  it("allows dashboard after bundle-only payment unlock without a monthly plan", () => {
+    const user = supabaseUser({
+      role: "student",
+      matchOnboardingComplete: true,
+      parentInviteStepComplete: true,
+      paymentStepComplete: true,
+      planSelected: false,
+      plan: null,
+      onboardingStatus: ONBOARDING_STATUS.ONBOARDING_COMPLETED
+    });
+
+    expect(userNeedsPaymentStep(user)).toBe(false);
+    expect(canAccessDashboard(user)).toBe(true);
+    expect(postAuthDestination(user)).toBe("/dashboard/student/overview");
+  });
+
+  it("keeps unpaid new students on the payment step instead of the dashboard", () => {
+    const user = supabaseUser({
+      role: "student",
+      matchOnboardingComplete: true,
+      parentInviteStepComplete: true,
+      paymentStepComplete: false
+    });
+
+    expect(canAccessDashboard(user)).toBe(false);
+    expect(postAuthDestination(user)).toBe(PAYMENT_ONBOARDING_PATH);
+  });
+
   it("sends promo students to Prelude Match even when payment is already waived", () => {
     const user = supabaseUser({
       role: "student",

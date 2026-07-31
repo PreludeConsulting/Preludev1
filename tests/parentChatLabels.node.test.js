@@ -9,7 +9,7 @@ describe("applyParentThreadLabels", () => {
         id: "t1",
         mentorId: "m1",
         studentId: "s1",
-        mentorName: "Maya Chen",
+        mentorName: "Asim Yoonas",
         studentName: "Jordan Lee"
       },
       {
@@ -21,7 +21,7 @@ describe("applyParentThreadLabels", () => {
       }
     ]);
 
-    assert.equal(labeled.find((row) => row.studentName === "Jordan Lee")?.tabLabel, "Maya Chen");
+    assert.equal(labeled.find((row) => row.studentName === "Jordan Lee")?.tabLabel, "Asim Yoonas");
     assert.equal(labeled.find((row) => row.studentName === "Alex Kim")?.tabLabel, "Chris Nguyen");
   });
 
@@ -31,14 +31,14 @@ describe("applyParentThreadLabels", () => {
         id: "t1",
         mentorId: "m1",
         studentId: "s1",
-        mentorName: "Maya Chen",
+        mentorName: "Asim Yoonas",
         studentName: "Jordan Lee"
       },
       {
         id: "t2",
         mentorId: "m1",
         studentId: "s2",
-        mentorName: "Maya Chen",
+        mentorName: "Asim Yoonas",
         studentName: "Alex Kim"
       }
     ]);
@@ -47,7 +47,7 @@ describe("applyParentThreadLabels", () => {
     const alex = labeled.find((row) => row.studentName === "Alex Kim");
     assert.equal(jordan?.tabLabel, "Jordan Lee");
     assert.equal(alex?.tabLabel, "Alex Kim");
-    assert.equal(jordan?.tabSublabel, "Maya Chen");
+    assert.equal(jordan?.tabSublabel, "Asim Yoonas");
     assert.equal(jordan?.sharedMentor, true);
   });
 });

@@ -50,7 +50,7 @@ export const DEMO_STUDENT = {
   ...JORDAN_STUDENT_BASE
 };
 
-/** Legacy Alex account — kept for seed/compat; not on Mentor Maya's demo roster. */
+/** Legacy Alex account — kept for seed/compat; not on Mentor Asim's demo roster. */
 export const DEMO_STUDENT_2 = {
   key: "student2",
   email: "student2@prelude-demo.com",
@@ -66,9 +66,10 @@ export const DEMO_MENTOR = {
   key: "mentor",
   email: "mentor@prelude-demo.com",
   password: "Mentor123!",
-  firstName: "Maya",
-  lastName: "Patel",
-  role: "MENTOR"
+  firstName: "Asim",
+  lastName: "Yoonas",
+  role: "MENTOR",
+  avatarUrl: "/media/mentors/asim-yoonas.png"
 };
 
 export const DEMO_PARENT = {

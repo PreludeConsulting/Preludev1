@@ -1304,13 +1304,13 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
             window.localStorage.setItem(`prelude_mentor_availability_schedule_${user.id}`, payload);
           }
           // Stable demo key so a student session in the same browser picks up mentor saves.
-          window.localStorage.setItem("prelude_mentor_availability_schedule_demo-mentor-maya", payload);
+          window.localStorage.setItem("prelude_mentor_availability_schedule_demo-mentor-asim", payload);
         }
         if (typeof globalThis !== "undefined") {
           globalThis.__preludeMentorSchedules = {
             ...(globalThis.__preludeMentorSchedules || {}),
             ...(user?.id ? { [user.id]: schedule } : {}),
-            "demo-mentor-maya": schedule
+            "demo-mentor-asim": schedule
           };
         }
       } catch {

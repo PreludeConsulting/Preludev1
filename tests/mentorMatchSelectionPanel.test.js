@@ -6,8 +6,8 @@ import MentorMatchSelectionPanel from "../src/components/onboarding/MentorMatchS
 const mentors = [
   {
     id: "mentor-1",
-    initials: "MP",
-    name: "Maya Patel",
+    initials: "AY",
+    name: "Asim Yoonas",
     school: "Georgia Tech",
     major: "Computer Science",
     matchPercent: 94,

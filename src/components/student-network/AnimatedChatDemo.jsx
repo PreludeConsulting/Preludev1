@@ -12,14 +12,14 @@ const CHAT_MESSAGES = [
     initials: "JL"
   },
   {
-    from: "maya",
-    name: "Maya",
-    initials: "MP"
+    from: "asim",
+    name: "Asim",
+    initials: "AY"
   },
   {
-    from: "maya",
-    name: "Maya",
-    initials: "MP"
+    from: "asim",
+    name: "Asim",
+    initials: "AY"
   },
   {
     from: "jordan",
@@ -27,9 +27,9 @@ const CHAT_MESSAGES = [
     initials: "JL"
   },
   {
-    from: "maya",
-    name: "Maya",
-    initials: "MP"
+    from: "asim",
+    name: "Asim",
+    initials: "AY"
   }
 ];
 
@@ -65,9 +65,9 @@ export default function AnimatedChatDemo() {
   return (
     <div ref={rootRef} className="sn-chat-demo" aria-hidden="true" data-motion-active={active ? "true" : "false"}>
       <header className="sn-chat-demo__header">
-        <span className="sn-chat-demo__avatar sn-chat-demo__avatar--mentor">MP</span>
+        <span className="sn-chat-demo__avatar sn-chat-demo__avatar--mentor">AY</span>
         <div className="sn-chat-demo__header-text">
-          <strong>Maya Patel</strong>
+          <strong>Asim Yoonas</strong>
           <span>{t("studentNetwork.chat.roleLine")}</span>
           <span className="sn-chat-demo__status">{t("studentNetwork.chat.status")}</span>
         </div>
@@ -89,7 +89,7 @@ export default function AnimatedChatDemo() {
             }}
             transition={{ duration: reduceMotion ? 0 : FADE_S, ease: "easeOut" }}
           >
-            {msg.from === "maya" ? (
+            {msg.from === "asim" ? (
               <span className="sn-chat-demo__avatar sn-chat-demo__avatar--sm">{msg.initials}</span>
             ) : null}
             <div className={`sn-chat-demo__bubble sn-chat-demo__bubble--${msg.from}`}>{messages[index]}</div>

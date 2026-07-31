@@ -13,6 +13,7 @@ import {
   taskTemplateIdsForCategory
 } from "./rewardTaskCatalog.js";
 import { applyCoinMultiplier, getCoinMultiplier } from "../dashboard/lib/progressRewards.js";
+import { enrichAssignedMentorMatch } from "./studentMentorCard.js";
 
 function db() {
   const client = getSupabase();
@@ -386,30 +387,30 @@ export async function getMyMentorMatches(userId) {
   ];
   if (!mentorIds.length) return { matches, error: null };
 
-  const { data: profiles, error: profileError } = await db()
-    .from("mentor_matching_profiles")
-    .select("mentor_user_id, availability, availability_schedule")
-    .in("mentor_user_id", mentorIds);
+  const [matchingRes, accountRes] = await Promise.all([
+    db()
+      .from("mentor_matching_profiles")
+      .select(
+        "mentor_user_id, display_name, college, major, bio, specialties, target_majors, target_schools, support_styles, application_strengths, availability, availability_schedule"
+      )
+      .in("mentor_user_id", mentorIds),
+    db()
+      .from("profiles")
+      .select("id, full_name, avatar_url, graduation_year")
+      .in("id", mentorIds)
+  ]);
 
-  if (profileError || !profiles?.length) {
-    return { matches, error: error?.message || null };
-  }
-
-  const byMentorId = Object.fromEntries(
-    profiles.map((profile) => [profile.mentor_user_id, profile])
+  const matchingById = Object.fromEntries(
+    (matchingRes.data || []).map((profile) => [profile.mentor_user_id, profile])
   );
+  const accountById = Object.fromEntries((accountRes.data || []).map((profile) => [profile.id, profile]));
 
   return {
     matches: matches.map((match) => {
-      const profile = byMentorId[match.mentorUserId || match.userId];
-      if (!profile) return match;
-      return {
-        ...match,
-        availability: profile.availability || match.availability,
-        availabilitySchedule: profile.availability_schedule || match.availabilitySchedule || null
-      };
+      const mentorKey = match.mentorUserId || match.userId;
+      return enrichAssignedMentorMatch(match, matchingById[mentorKey] || null, accountById[mentorKey] || null);
     }),
-    error: null
+    error: matchingRes.error?.message || accountRes.error?.message || null
   };
 }
 

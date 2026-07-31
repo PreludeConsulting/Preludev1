@@ -27,14 +27,15 @@ describe("PreludeMatch demo preview", () => {
     expect(html).toContain("Four minutes of context.");
     expect(html).toContain("One mentor who actually fits.");
     expect(html).not.toContain("pm-cinematic__opener-accent");
-    expect(html).toContain("Ryan Cain");
-    expect(html).toContain("University of Pennsylvania - STEM");
-    expect(html).toContain("media/mentors/declan-brooks.png");
+    expect(html).toContain("Asim Yoonas");
+    expect(html).toContain("Georgia Tech - STEM");
+    expect(html).toContain("media/mentors/asim-yoonas.png");
     expect(html).toContain("Top mentor found");
     expect(html).toContain("Mentor profile complete");
     expect(html).toContain("Great job.");
     expect(html).toContain("Plan unlocked.");
     expect(html).toContain("Finalize reach school essay prompts");
+    expect(html).toContain("Prepare questions for Asim");
     expect(html).toContain("Your plan this week");
     expect(html).toContain("Mentor Meeting Completed");
     expect(html).toContain("College List Strategy");
@@ -79,6 +80,8 @@ describe("PreludeMatch demo preview", () => {
     expect(html).toContain("Try PreludeMatch");
     expect(html).not.toContain("pm-cinematic__beat--opener");
     expect(html).not.toContain("Maya Patel");
+    expect(html).not.toContain("Maya Chen");
+    expect(html).not.toContain("Ryan Cain");
   });
 
   it("renders the post-match dashboard payoff preview", () => {

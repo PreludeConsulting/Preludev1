@@ -74,7 +74,7 @@ export default function CalendarPanel({
   meetings = [],
   students = [],
   studentId = DEMO_SLUGS.jordan,
-  mentorName = "Maya Patel",
+  mentorName = "Asim Yoonas",
   googleConnected,
   onConnectGoogle,
   onDisconnectGoogle,

@@ -222,19 +222,22 @@ async function patchSupabaseOnboarding(context, userId, data) {
 }
 
 async function syncSupabasePaymentComplete(context, userId, {
-  planId,
+  planId = null,
   stripeCustomerId = null,
   stripeSubscriptionId = null,
-  subscriptionStatus = "active"
+  subscriptionStatus = undefined
 } = {}) {
-  if (!userId || !planId) return;
+  if (!userId) return;
 
-  await patchSupabaseProfile(context, userId, {
-    plan_id: planId,
+  const profilePatch = {
+    ...(planId ? { plan_id: planId } : {}),
     ...(stripeCustomerId ? { stripe_customer_id: stripeCustomerId } : {}),
     ...(stripeSubscriptionId ? { stripe_subscription_id: stripeSubscriptionId } : {}),
-    ...(subscriptionStatus ? { subscription_status: subscriptionStatus } : {})
-  });
+    ...(subscriptionStatus != null ? { subscription_status: subscriptionStatus } : {})
+  };
+  if (Object.keys(profilePatch).length > 0) {
+    await patchSupabaseProfile(context, userId, profilePatch);
+  }
 
   await patchSupabaseOnboarding(context, userId, {
     payment_step_completed: true,
@@ -266,14 +269,19 @@ async function syncSubscription(context, subscription) {
 async function syncCheckoutSession(context, session) {
   const userId = session.metadata?.userId || session.client_reference_id;
   const planId = session.metadata?.planId;
-  if (!userId || !planId) return;
+  const bundleId = String(session.metadata?.bundleId || "").trim();
+  if (!userId || (!planId && !bundleId)) return;
   if (session.payment_status && session.payment_status !== "paid") return;
 
   await syncSupabasePaymentComplete(context, userId, {
-    planId,
+    planId: planId || null,
     stripeCustomerId: stripeObjectId(session.customer),
-    stripeSubscriptionId: stripeObjectId(session.subscription),
-    subscriptionStatus: session.status || "checkout_completed"
+    ...(planId
+      ? {
+          stripeSubscriptionId: stripeObjectId(session.subscription),
+          subscriptionStatus: session.status || "checkout_completed"
+        }
+      : {})
   });
 }
 

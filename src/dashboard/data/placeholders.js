@@ -2,7 +2,7 @@
 
 export const PLACEHOLDER_MENTOR = {
   id: "mentor-demo-1",
-  name: "Maya Patel",
+  name: "Asim Yoonas",
   university: "Georgia Institute of Technology",
   major: "Computer Science",
   graduationYear: "2027",
@@ -95,7 +95,7 @@ export const PLACEHOLDER_COLLEGES = [
 export const PLACEHOLDER_MESSAGES = [
   {
     id: "m1",
-    from: "Maya Patel",
+    from: "Asim Yoonas",
     preview: "Great progress on your essay outline — let's review paragraph 2 on Thursday.",
     time: "2h ago",
     unread: true
