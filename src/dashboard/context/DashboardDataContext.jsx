@@ -451,37 +451,67 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
     if (useSupabase) {
       try {
-        const appData = await getDashboardAppData();
-        const data = await loadSupabaseDashboard(user.id, user.email);
-        if (data.errors?.length) {
-          setError(formatDashboardPersistenceError(data.errors));
+        // Cloudflare /api/dashboard/app-data and direct Supabase loads are independent.
+        // One failing must not blank the mentor/student dashboard on production.
+        const [appDataResult, dashboardResult] = await Promise.allSettled([
+          getDashboardAppData(),
+          loadSupabaseDashboard(user.id, user.email)
+        ]);
+        const appData = appDataResult.status === "fulfilled" ? appDataResult.value : null;
+        const data = dashboardResult.status === "fulfilled" ? dashboardResult.value : null;
+        if (!data) {
+          throw dashboardResult.reason || new Error("Dashboard data is temporarily unavailable. Refresh to retry.");
+        }
+        if (appDataResult.status === "rejected" && import.meta.env.DEV) {
+          console.error("[prelude-dashboard-app-data]", appDataResult.reason);
+        }
+
+        const persistenceError = data.errors?.length
+          ? formatDashboardPersistenceError(data.errors)
+          : null;
+        const appDataError =
+          appDataResult.status === "rejected"
+            ? (appDataResult.reason?.message || "Some dashboard settings are temporarily unavailable. Refresh to retry.")
+            : null;
+
+        if (persistenceError) {
+          setError(persistenceError);
           setDashboardSyncState(createSyncState({
             status: SYNC_STATUS.FAILED,
-            error: formatDashboardPersistenceError(data.errors),
+            error: persistenceError,
+            source: "dashboard"
+          }));
+        } else if (appDataError) {
+          setError(null);
+          setDashboardSyncState(createSyncState({
+            status: SYNC_STATUS.FAILED,
+            error: appDataError,
             source: "dashboard"
           }));
         } else {
+          setError(null);
           setDashboardSyncState(createSyncState({
             status: SYNC_STATUS.SAVED,
             lastSyncedAt: new Date().toISOString(),
             source: "dashboard"
           }));
         }
+
         setProfileOverrides({});
-        setProfile(appData.profile || data.profile);
-        const nextPreferences = appData.settings || data.preferences;
+        setProfile(appData?.profile || data.profile);
+        const nextPreferences = appData?.settings || data.preferences;
         setPreferences(nextPreferences);
         persistDashboardPreferences(nextPreferences);
-        setAvailability((appData.availability?.days || []).map((day) => ({
+        setAvailability((appData?.availability?.days || []).map((day) => ({
           id: `av-${day.dayOfWeek.toLowerCase()}`,
           day: day.dayOfWeek,
           active: day.enabled,
           startTime: day.startTime,
           endTime: day.endTime,
-          timezone: appData.availability?.timezone || "ET",
+          timezone: appData?.availability?.timezone || "ET",
           recurring: true
         })));
-        setRewardsData(appData.rewards || null);
+        setRewardsData(appData?.rewards || null);
         setOnboarding(data.onboarding || EMPTY_ONBOARDING);
         setMentor(data.mentor);
         setMentors(data.mentors || []);
@@ -492,7 +522,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           setAssignedStudents([]);
         }
         setMeetings(data.meetings || []);
-        if (appData.mentorAccess) setMentorAccess(appData.mentorAccess);
+        if (appData?.mentorAccess) setMentorAccess(appData.mentorAccess);
         setEvents((data.events || []).filter((e) => !e.userCreated));
         setUserCalendarEvents((data.events || []).filter((e) => e.userCreated));
         setMessages(data.messages || []);
@@ -501,7 +531,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
             ? data.conversations
             : buildMentorConversation(data.mentor, data.messages || [], user.name)
         );
-        setNotifications(data.notifications || []);
+        setNotifications(appData?.notifications?.length ? appData.notifications : (data.notifications || []));
         setSavedResources(data.savedResources || []);
         setSupabaseTasks(data.tasks || []);
         setSupabaseEssays(data.essays || []);
@@ -520,14 +550,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setApplicationReviews(
           reviewsResult.reviews?.length ? reviewsResult.reviews : localReviews
         );
-        const availabilityUnavailable = appData.featureErrors?.includes("availability");
+        const availabilityUnavailable = appData?.featureErrors?.includes("availability");
         setSyncError(availabilityUnavailable ? "Availability is temporarily unavailable. Retry in a moment." : null);
-        setSyncStatus(availabilityUnavailable ? "sync-failed" : "synced");
-        setDashboardSyncState(createSyncState({
-          status: SYNC_STATUS.SAVED,
-          lastSyncedAt: new Date().toISOString(),
-          source: "dashboard"
-        }));
+        setSyncStatus(availabilityUnavailable || persistenceError || appDataError ? "sync-failed" : "synced");
       } catch (err) {
         if (import.meta.env.DEV) console.error("[prelude-dashboard-load]", err);
         const safeMessage = "Dashboard data is temporarily unavailable. Refresh to retry.";
