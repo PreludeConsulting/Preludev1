@@ -1,9 +1,9 @@
 import { Loader2, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import {
-  PROMO_SUCCESS_SUBTITLE,
   PROMO_SUCCESS_TITLE,
-  normalizePromoCodeInput
+  normalizePromoCodeInput,
+  promoSuccessSubtitle
 } from "../../../shared/promoCodeConstants.js";
 import { normalizeReferralCodeInput } from "../../../shared/referralConstants.js";
 import { validatePromoCode } from "../../lib/promoCodes.js";
@@ -240,7 +240,7 @@ export default function PromoOrReferralCodeField({
         ) : kind === "promo" && summary ? (
           <div className="promo-code-field__success" role="status">
             <p className="promo-code-field__success-title">{PROMO_SUCCESS_TITLE}</p>
-            <p className="promo-code-field__success-copy">{PROMO_SUCCESS_SUBTITLE}</p>
+            <p className="promo-code-field__success-copy">{promoSuccessSubtitle(summary?.planId)}</p>
             <dl className="promo-code-field__summary">
               <div>
                 <dt>Plan</dt>

@@ -28,6 +28,21 @@ describe("deriveMembershipStatus", () => {
     assert.equal(status.endsAt, null);
   });
 
+  it("treats complimentary promotional Pro access as active without auto-renew", () => {
+    const status = deriveMembershipStatus({
+      planId: "pro",
+      subscriptionStatus: "promotional",
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: null
+    });
+    assert.equal(status.key, "active");
+    assert.equal(status.label, "Promotional");
+    assert.equal(status.accessActive, true);
+    assert.equal(status.autoRenew, false);
+    assert.equal(status.renewsAt, null);
+    assert.equal(canPurchaseMembership(status), false);
+  });
+
   it("keeps access until exact period end when cancel_at_period_end is set", () => {
     const periodEnd = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
     const status = deriveMembershipStatus({

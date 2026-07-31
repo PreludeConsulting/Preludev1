@@ -1,9 +1,9 @@
--- Seed the single-use complimentary Pro Plan promo code.
--- Prefer: supabase/migrations/20260730000000_pro_single_use_promo_code.sql
--- Or from the repo: npm run seed:promo-codes
---
--- Code: PRO-FREE-7K9M
--- Effect: free permanent Pro at signup, payment waived, deactivated after first use.
+-- =============================================================================
+-- Seed one single-use complimentary Pro Plan promo code.
+-- Redeeming grants permanent Pro access with payment waived.
+-- After one redemption the code is inactive and cannot be reused.
+-- Safe to re-run (upserts on code_hash).
+-- =============================================================================
 
 insert into public.promo_codes (
   public_code,
@@ -58,3 +58,5 @@ on conflict (code_hash) do update set
     else null
   end,
   updated_at = now();
+
+notify pgrst, 'reload schema';

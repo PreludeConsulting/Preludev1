@@ -17,7 +17,7 @@ export const PROMO_ERROR_MESSAGES = {
 
 export const PROMO_SUCCESS_TITLE = "Promo code applied successfully";
 export const PROMO_SUCCESS_SUBTITLE =
-  "Your Plus Plan is complimentary. No payment is required during registration.";
+  "Your plan is complimentary. No payment is required during registration.";
 
 export const PROMO_CODE_PATTERN = /^[A-Z0-9-]+$/;
 
@@ -30,6 +30,10 @@ const PROMO_PLAN_LABELS = {
 export function promoPlanLabel(planId = "basic") {
   const id = String(planId || "basic").toLowerCase();
   return PROMO_PLAN_LABELS[id] || "Basic";
+}
+
+export function promoSuccessSubtitle(planId) {
+  return `Your ${promoPlanLabel(planId)} Plan is complimentary. No payment is required during registration.`;
 }
 
 export function normalizePromoCodeInput(raw = "") {

@@ -55,11 +55,28 @@ const SAMPLE_CODES = [
 
 const CAMPAIGN_NAME = "Launch Complimentary Plus";
 
+const PRO_CODE = {
+  public_code: "PRO-FREE-7K9M",
+  code_hash: "0290fc5322c57f773fd87d68b157f15b3933b7b67d1b7b5c89b4ad180b633d2b",
+  description: "Single-use complimentary Pro Plan code",
+  campaign_name: "Complimentary Pro",
+  applicable_plan: "pro",
+  discount_type: "complimentary",
+  single_use: true,
+  max_redemptions: 1,
+  max_redemptions_per_user: 1,
+  active: true,
+  new_users_only: true,
+  access_duration_days: null,
+  renewal_behavior: "requires_payment",
+  internal_notes: "One-time free Pro account. Deactivated after first redemption."
+};
+
 function hashCode(code) {
   return createHash("sha256").update(code).digest("hex");
 }
 
-function buildRows() {
+function buildPlusRows() {
   return SAMPLE_CODES.map((publicCode, index) => ({
     public_code: publicCode,
     code_hash: hashCode(publicCode),
@@ -76,10 +93,25 @@ function buildRows() {
   }));
 }
 
+function buildProRow() {
+  return { ...PRO_CODE };
+}
+
 function supabaseConfig() {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   return { url, key };
+}
+
+function isUsableSupabaseConfig({ url, key }) {
+  if (!url || !key) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (!host || host === "your-project.supabase.co" || host.includes("example")) return false;
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 async function retireOldCodesSupabase(supabase) {
@@ -91,26 +123,59 @@ async function retireOldCodesSupabase(supabase) {
   console.log(`Retired ${RETIRED_CODES.length} legacy Basic promo codes.`);
 }
 
-async function seedSupabase(rows) {
-  const { url, key } = supabaseConfig();
-  if (!url || !key) return { seeded: false, reason: "missing_env" };
+async function seedProSupabase(supabase) {
+  const proRow = buildProRow();
+  const { data: existing, error: lookupError } = await supabase
+    .from("promo_codes")
+    .select("current_redemption_count")
+    .eq("code_hash", proRow.code_hash)
+    .maybeSingle();
+  if (lookupError) throw lookupError;
 
-  const supabase = createClient(url, key, { auth: { persistSession: false } });
-  await retireOldCodesSupabase(supabase);
-  const { error } = await supabase.from("promo_codes").upsert(rows, { onConflict: "code_hash" });
-  if (error) {
-    if (/relation .*promo_codes.* does not exist/i.test(error.message || "")) {
-      const migrationError = new Error(
-        "Supabase table promo_codes does not exist yet. Run supabase/migrations/20260710000000_promo_codes.sql in the Supabase SQL editor, then retry."
-      );
-      migrationError.cause = error;
-      throw migrationError;
+  const alreadyRedeemed = (existing?.current_redemption_count || 0) >= 1;
+  const payload = {
+    ...proRow,
+    active: alreadyRedeemed ? false : true
+  };
+
+  const { error } = await supabase.from("promo_codes").upsert(payload, { onConflict: "code_hash" });
+  if (error) throw error;
+  console.log(
+    alreadyRedeemed
+      ? `Pro promo code ${proRow.public_code} already redeemed — left inactive.`
+      : `Seeded single-use Pro promo code ${proRow.public_code}.`
+  );
+}
+
+async function seedSupabase(plusRows) {
+  const config = supabaseConfig();
+  if (!isUsableSupabaseConfig(config)) return { seeded: false, reason: "missing_env" };
+
+  try {
+    const supabase = createClient(config.url, config.key, { auth: { persistSession: false } });
+    await retireOldCodesSupabase(supabase);
+    const { error } = await supabase.from("promo_codes").upsert(plusRows, { onConflict: "code_hash" });
+    if (error) {
+      if (/relation .*promo_codes.* does not exist/i.test(error.message || "")) {
+        const migrationError = new Error(
+          "Supabase table promo_codes does not exist yet. Run supabase/migrations/20260710000000_promo_codes.sql in the Supabase SQL editor, then retry."
+        );
+        migrationError.cause = error;
+        throw migrationError;
+      }
+      throw error;
+    }
+
+    console.log(`Seeded ${plusRows.length} single-use Plus promo codes into Supabase.`);
+    await seedProSupabase(supabase);
+    return { seeded: true };
+  } catch (error) {
+    if (/fetch failed|ENOTFOUND|ECONNREFUSED|getaddrinfo/i.test(String(error?.message || error))) {
+      console.warn("Supabase unreachable; falling back to local Prisma/Postgres.");
+      return { seeded: false, reason: "unreachable" };
     }
     throw error;
   }
-
-  console.log(`Seeded ${rows.length} single-use Plus promo codes into Supabase.`);
-  return { seeded: true };
 }
 
 async function retireOldCodesPrisma(prisma) {
@@ -121,7 +186,58 @@ async function retireOldCodesPrisma(prisma) {
   console.log(`Retired ${RETIRED_CODES.length} legacy Basic promo codes.`);
 }
 
-async function seedPrisma(rows) {
+async function seedProPrisma(prisma) {
+  const proRow = buildProRow();
+  const existing = await prisma.promoCode.findUnique({
+    where: { codeHash: proRow.code_hash },
+    select: { currentRedemptionCount: true }
+  });
+  const alreadyRedeemed = (existing?.currentRedemptionCount || 0) >= 1;
+
+  await prisma.promoCode.upsert({
+    where: { codeHash: proRow.code_hash },
+    update: {
+      publicCode: proRow.public_code,
+      description: proRow.description,
+      campaignName: proRow.campaign_name,
+      applicablePlan: proRow.applicable_plan,
+      discountType: proRow.discount_type,
+      singleUse: proRow.single_use,
+      maxRedemptions: proRow.max_redemptions,
+      maxRedemptionsPerUser: proRow.max_redemptions_per_user,
+      active: !alreadyRedeemed,
+      newUsersOnly: proRow.new_users_only,
+      accessDurationDays: proRow.access_duration_days,
+      renewalBehavior: proRow.renewal_behavior,
+      internalNotes: proRow.internal_notes,
+      revokedAt: alreadyRedeemed ? undefined : null
+    },
+    create: {
+      publicCode: proRow.public_code,
+      codeHash: proRow.code_hash,
+      description: proRow.description,
+      campaignName: proRow.campaign_name,
+      applicablePlan: proRow.applicable_plan,
+      discountType: proRow.discount_type,
+      singleUse: proRow.single_use,
+      maxRedemptions: proRow.max_redemptions,
+      maxRedemptionsPerUser: proRow.max_redemptions_per_user,
+      active: true,
+      newUsersOnly: proRow.new_users_only,
+      accessDurationDays: proRow.access_duration_days,
+      renewalBehavior: proRow.renewal_behavior,
+      internalNotes: proRow.internal_notes
+    }
+  });
+
+  console.log(
+    alreadyRedeemed
+      ? `Pro promo code ${proRow.public_code} already redeemed — left inactive.`
+      : `Seeded single-use Pro promo code ${proRow.public_code}.`
+  );
+}
+
+async function seedPrisma(plusRows) {
   const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl() } } });
 
   if (!prisma.promoCode?.upsert) {
@@ -132,7 +248,7 @@ async function seedPrisma(rows) {
 
   try {
     await retireOldCodesPrisma(prisma);
-    for (const row of rows) {
+    for (const row of plusRows) {
       await prisma.promoCode.upsert({
         where: { codeHash: row.code_hash },
         update: {
@@ -161,7 +277,8 @@ async function seedPrisma(rows) {
         }
       });
     }
-    console.log(`Seeded ${rows.length} single-use Plus promo codes into local Prisma/Postgres.`);
+    console.log(`Seeded ${plusRows.length} single-use Plus promo codes into local Prisma/Postgres.`);
+    await seedProPrisma(prisma);
     return { seeded: true };
   } finally {
     await prisma.$disconnect();
@@ -184,12 +301,12 @@ function printSetupHelp() {
 }
 
 async function main() {
-  const rows = buildRows();
-  const supabaseResult = await seedSupabase(rows);
+  const plusRows = buildPlusRows();
+  const supabaseResult = await seedSupabase(plusRows);
   if (supabaseResult.seeded) return;
 
   try {
-    await seedPrisma(rows);
+    await seedPrisma(plusRows);
   } catch (error) {
     if (/Can't reach database server|P1001/i.test(error.message || "")) {
       printSetupHelp();

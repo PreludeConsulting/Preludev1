@@ -126,14 +126,17 @@ export function deriveMembershipStatus({
   }
 
   if (ACTIVE.has(status) && (plan === "plus" || plan === "pro" || plan === "basic" || status === "promotional")) {
-    const paidPlan = plan === "plus" || plan === "pro" || status === "promotional";
+    const isPromotional = status === "promotional";
+    const paidPlan = plan === "plus" || plan === "pro" || isPromotional;
     return {
       key: "active",
-      label: "Active",
-      autoRenew: !cancelAtPeriodEnd && paidPlan,
+      label: isPromotional ? "Promotional" : "Active",
+      // Complimentary promo access has no Stripe subscription and must not look like it renews/charges.
+      autoRenew: !isPromotional && !cancelAtPeriodEnd && paidPlan,
       accessActive: paidPlan || plan === "basic",
       endsAt: null,
-      renewsAt: !cancelAtPeriodEnd && periodEndValid ? periodEnd.toISOString() : null
+      renewsAt:
+        !isPromotional && !cancelAtPeriodEnd && periodEndValid ? periodEnd.toISOString() : null
     };
   }
 
