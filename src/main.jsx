@@ -2,6 +2,15 @@ import React, { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import App from "./App.jsx";
+import {
+  AuthCallbackPage,
+  ForgotPasswordPage,
+  LoginPage,
+  RegisterPage,
+  ResetPasswordPage,
+  VerifyEmailPage,
+  VerifyLoginPage
+} from "./components/AuthPages.jsx";
 
 const lazyNamed = (loader, name) => lazy(() => loader().then((module) => ({ default: module[name] })));
 const DashboardRouter = lazy(() => import("./dashboard/DashboardRouter.jsx"));
@@ -17,13 +26,6 @@ const PreludeMatchOnboardingPage = lazy(() => import("./components/onboarding/Pr
 const ParentInviteOnboardingPage = lazy(() => import("./components/onboarding/ParentInviteOnboardingPage.jsx"));
 const PaymentOnboardingPage = lazy(() => import("./components/onboarding/PaymentOnboardingPage.jsx"));
 const MentorQuestionnaireOnboardingPage = lazy(() => import("./components/onboarding/MentorQuestionnaireOnboardingPage.jsx"));
-const AuthCallbackPage = lazyNamed(() => import("./components/AuthPages.jsx"), "AuthCallbackPage");
-const ForgotPasswordPage = lazyNamed(() => import("./components/AuthPages.jsx"), "ForgotPasswordPage");
-const LoginPage = lazyNamed(() => import("./components/AuthPages.jsx"), "LoginPage");
-const RegisterPage = lazyNamed(() => import("./components/AuthPages.jsx"), "RegisterPage");
-const ResetPasswordPage = lazyNamed(() => import("./components/AuthPages.jsx"), "ResetPasswordPage");
-const VerifyEmailPage = lazyNamed(() => import("./components/AuthPages.jsx"), "VerifyEmailPage");
-const VerifyLoginPage = lazyNamed(() => import("./components/AuthPages.jsx"), "VerifyLoginPage");
 const PromoRegistrationSuccessPage = lazyNamed(() => import("./components/auth/PromoRegistrationSuccessPage.jsx"), "PromoRegistrationSuccessPage");
 const ScrollAnimationTestPage = import.meta.env.DEV
   ? lazy(() => import("./dev/ScrollAnimationTestPage.jsx"))
@@ -66,6 +68,34 @@ function RouteLoadingFallback() {
   );
 }
 
+class RouteErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error) {
+    console.error("[prelude-route] Page failed to load:", error?.message || error);
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <main className="route-loading" role="alert">
+        <h1>This page could not load</h1>
+        <p>Prelude may have just been updated. Reload the page to continue.</p>
+        <button type="button" className="dash-btn dash-btn--primary" onClick={() => window.location.reload()}>
+          Reload page
+        </button>
+      </main>
+    );
+  }
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter basename={ROUTER_BASENAME || undefined}>
@@ -77,8 +107,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <InteractionFeedbackProvider>
         <AuthProvider>
           <LegalModalProvider>
-          <Suspense fallback={<RouteLoadingFallback />}>
-          <Routes>
+          <RouteErrorBoundary>
+            <Suspense fallback={<RouteLoadingFallback />}>
+            <Routes>
             <Route path="/" element={<App />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -133,8 +164,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/auth/account" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth/*" element={<Navigate to="/register" replace />} />
             <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-          </Suspense>
+            </Routes>
+            </Suspense>
+          </RouteErrorBoundary>
           <LegalModal />
           </LegalModalProvider>
         </AuthProvider>
