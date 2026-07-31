@@ -8,7 +8,8 @@ import { getSupabase } from "./supabase.js";
 import { appPath } from "./appPaths.js";
 import { sanitizeAuthRedirect } from "./authRedirects.js";
 import { getPublicAppUrl, getSupabaseConfigError, isSupabaseConfigured } from "./supabaseConfig.js";
-import { mapSupabaseUser } from "./supabaseSession.js";
+import { isSupabaseUserConfirmed, mapSupabaseUser } from "./supabaseSession.js";
+import { clearPendingSignupVerification } from "./signupVerificationState.js";
 import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
 import {
   clearLocalUserData,
@@ -303,7 +304,7 @@ export async function logIn({ email, password, captchaToken }) {
   const supabase = getSupabase();
   if (!supabase) return { user: null, error: "Supabase client unavailable." };
   requireTurnstileToken(captchaToken);
-  const { data, error } = await withAuthTimeout(
+  const { error } = await withAuthTimeout(
     supabase.auth.signInWithPassword({
       email,
       password,
@@ -311,8 +312,10 @@ export async function logIn({ email, password, captchaToken }) {
     })
   );
   if (error) return { user: null, error: friendlyPasswordSignInError(error) };
-  const { profile } = await getProfile(data.user.id);
-  return { user: mapSupabaseUser(data.session, profile), error: null };
+  const user = await resolveSupabaseAppUser();
+  if (!user) return { user: null, error: "Login succeeded, but Prelude could not reload your account." };
+  if (user.emailVerified) clearPendingSignupVerification();
+  return { user, error: null };
 }
 
 export async function saveUserRoleSelection(userId, role) {
@@ -1083,6 +1086,7 @@ export async function resolveSupabaseAppUser() {
     error: userError
   } = await supabase.auth.getUser();
   if (userError || !authUser) return null;
+  if (isSupabaseUserConfirmed(authUser)) clearPendingSignupVerification();
 
   const userId = authUser.id;
   const { profile } = await ensureUserProfile(authUser);

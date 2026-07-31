@@ -14,6 +14,32 @@ function session(overrides = {}) {
 }
 
 describe("mapSupabaseUser", () => {
+  it("treats a confirmed auth user as verified when the public profile email is null", () => {
+    const user = mapSupabaseUser(
+      session({
+        email: "vincent.zhu@preludeconsultingllc.com",
+        email_confirmed_at: null,
+        confirmed_at: "2026-07-31T01:00:00.000Z"
+      }),
+      {
+        id: "user-1",
+        email: null,
+        full_name: "Vincent Zhu",
+        role: "student",
+        role_selection_complete: true
+      },
+      {
+        mentor_matching_complete: false,
+        parent_invite_step_completed: false,
+        onboarding_status: "needs_match"
+      }
+    );
+
+    expect(user.email).toBe("vincent.zhu@preludeconsultingllc.com");
+    expect(user.emailVerified).toBe(true);
+    expect(user.matchOnboardingComplete).toBe(false);
+  });
+
   it("does not send first-login users to plan selection before role selection", () => {
     const user = mapSupabaseUser(
       session(),

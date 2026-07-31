@@ -179,7 +179,8 @@ export function LoginPage() {
         navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}${challenge}`, { replace: true });
         return;
       }
-      navigate(resolveJourneyDestination(readPendingJourney() || { next: destination }, nextUser), { replace: true });
+      const requestedDestination = resolveJourneyDestination(readPendingJourney() || { next: destination }, nextUser);
+      navigate(postConfirmationDestination(nextUser, requestedDestination), { replace: true });
       clearPendingJourney();
     } catch (err) {
       if (isEmailUnconfirmedError(err.message)) {
@@ -510,7 +511,8 @@ export function RegisterPage() {
           navigate(`/verify-login?next=${encodeURIComponent(verificationDestination || "/dashboard")}${challenge}`, { replace: true });
           return;
         }
-        navigate(resolveJourneyDestination(readPendingJourney() || { next: destination }, result), { replace: true });
+        const requestedDestination = resolveJourneyDestination(readPendingJourney() || { next: destination }, result);
+        navigate(postConfirmationDestination(result, requestedDestination), { replace: true });
         clearPendingJourney();
         return;
       }
