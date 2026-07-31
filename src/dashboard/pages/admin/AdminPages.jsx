@@ -236,12 +236,12 @@ export default function MatchingTeamPage() {
           </p>
         </div>
         <div className="matching-team-hero__stat">
-          <strong>{filteredStudents.length}</strong>
+          <strong>{error ? "—" : filteredStudents.length}</strong>
           <span>students in view</span>
         </div>
       </header>
 
-      <section className="matching-team-filters dash-panel">
+      {!error ? <section className="matching-team-filters dash-panel">
         <label className="matching-team-search">
           <Search className="h-4 w-4" aria-hidden="true" />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search students, goals, majors, needs..." />
@@ -273,12 +273,12 @@ export default function MatchingTeamPage() {
         <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" onClick={() => setFilters({ grade: "", major: "", stage: "", status: "", mentorType: "" })}>
           <SlidersHorizontal className="h-4 w-4" aria-hidden="true" /> Clear filters
         </button>
-      </section>
+      </section> : null}
 
       {error ? <div className="plan-select-page__error" role="alert">{error}</div> : null}
       {message ? <p className="pm-match-result__saved" role="status">{message}</p> : null}
 
-      <div className="matching-team-list">
+      {!error ? <div className="matching-team-list">
         {filteredStudents.map((student) => {
           const summary = studentSummary(student);
           const matchedMentors = mentors.filter((mentor) => (student.matchedMentorIds || []).includes(mentor.id));
@@ -369,9 +369,9 @@ export default function MatchingTeamPage() {
             </article>
           );
         })}
-      </div>
+      </div> : null}
 
-      {!filteredStudents.length ? (
+      {!error && !filteredStudents.length ? (
         <div className="dash-empty">No student submissions match the current filters.</div>
       ) : null}
     </section>

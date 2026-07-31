@@ -296,6 +296,30 @@ function getMatchStatus(row) {
   return "unmatched";
 }
 
+const FINAL_MENTOR_MATCH_STATUSES = ["assigned", "accepted", "active"];
+const FINAL_MENTOR_ASSIGNMENT_STATUSES = new Set([
+  MENTOR_ASSIGNMENT_STATUS.ADMIN_ASSIGNED,
+  MENTOR_ASSIGNMENT_STATUS.STUDENT_SELECTED
+]);
+
+export function hasSubmittedMatchingQuestionnaire(answers) {
+  return Boolean(
+    answers
+    && typeof answers === "object"
+    && !Array.isArray(answers)
+    && Object.keys(answers).length
+  );
+}
+
+export function isStudentEligibleForMatchingQueue({ onboarding, profile, hasFinalMentorMatch = false }) {
+  if (String(profile?.role || "").toLowerCase() !== "student") return false;
+  if (!hasSubmittedMatchingQuestionnaire(onboarding?.questionnaire_answers)) return false;
+  if (onboarding?.admin_review_required !== true) return false;
+  if (hasFinalMentorMatch) return false;
+  if (FINAL_MENTOR_ASSIGNMENT_STATUSES.has(onboarding?.mentor_assignment_status)) return false;
+  return true;
+}
+
 async function loadCompletedMentors(supabase) {
   const { data, error } = await supabase
     .from("mentor_matching_profiles")
@@ -316,17 +340,49 @@ async function handleAdminList(req, res) {
   const { data: rows, error } = await supabase
     .from("onboarding_progress")
     .select("user_id, questionnaire_answers, matched_mentor_ids, matched_mentor_count, admin_review_required, mentor_assignment_status, mentor_selection_method, selected_mentor_id, mentor_selection_timestamp, updated_at")
-    .not("questionnaire_answers", "is", null)
+    .eq("admin_review_required", true)
     .order("mentor_selection_timestamp", { ascending: false, nullsFirst: false });
   if (error) return sendJson(res, 500, { error: "load_failed", message: "Could not load mentor review queue." });
 
   const userIds = (rows || []).map((row) => row.user_id);
-  const { data: profiles } = userIds.length
+  const { data: profiles, error: profilesError } = userIds.length
     ? await supabase.from("profiles").select("id, full_name, role").in("id", userIds)
-    : { data: [] };
+    : { data: [], error: null };
+  if (profilesError) {
+    return sendJson(res, 500, { error: "load_failed", message: "Could not load student profiles for the mentor review queue." });
+  }
   const profileById = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
 
-  const students = (rows || []).map((row) => ({
+  const [matchesByUser, matchesByStudent] = userIds.length
+    ? await Promise.all([
+      supabase
+        .from("mentor_matches")
+        .select("user_id, student_id, status")
+        .in("user_id", userIds)
+        .in("status", FINAL_MENTOR_MATCH_STATUSES),
+      supabase
+        .from("mentor_matches")
+        .select("user_id, student_id, status")
+        .in("student_id", userIds)
+        .in("status", FINAL_MENTOR_MATCH_STATUSES)
+    ])
+    : [{ data: [], error: null }, { data: [], error: null }];
+  if (matchesByUser.error || matchesByStudent.error) {
+    return sendJson(res, 500, { error: "load_failed", message: "Could not verify final mentor assignments." });
+  }
+  const assignedStudentIds = new Set(
+    [...(matchesByUser.data || []), ...(matchesByStudent.data || [])]
+      .flatMap((match) => [match.user_id, match.student_id])
+      .filter(Boolean)
+  );
+
+  const eligibleRows = (rows || []).filter((row) => isStudentEligibleForMatchingQueue({
+    onboarding: row,
+    profile: profileById[row.user_id],
+    hasFinalMentorMatch: assignedStudentIds.has(row.user_id)
+  }));
+
+  const students = eligibleRows.map((row) => ({
     studentId: row.user_id,
     studentName: profileById[row.user_id]?.full_name || "Student",
     questionnaireAnswers: row.questionnaire_answers || {},
