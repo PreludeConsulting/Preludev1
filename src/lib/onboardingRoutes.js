@@ -185,6 +185,16 @@ export function postAuthDestination(user) {
   return dashboardPathForRole(user.role);
 }
 
+/**
+ * Database-backed onboarding gates always outrank a requested post-auth path.
+ * Once onboarding is complete, callers may resume a safe in-app destination.
+ */
+export function postConfirmationDestination(user, requestedPath = "") {
+  const required = postAuthDestination(user);
+  if (required.startsWith("/onboarding/")) return required;
+  return requestedPath || required;
+}
+
 export function canAccessDashboard(user) {
   if (!user) return false;
   if (userNeedsRoleSelection(user)) return false;

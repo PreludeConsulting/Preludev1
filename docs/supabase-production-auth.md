@@ -45,8 +45,13 @@ Authentication URL configuration:
 - Site URL: `https://preludeconsultingllc.com`
 - Redirect URLs:
   - `https://preludeconsultingllc.com/**`
+  - `https://www.preludeconsultingllc.com/**`
   - `https://preludev1.pages.dev/**`
   - `http://localhost:5173/**`
+
+`preludeconsultingllc.com` is the canonical production origin. Configure Cloudflare
+to redirect `www.preludeconsultingllc.com` to that origin, and keep both origins in
+Supabase's allow list so an older or manually-entered `www` auth link is accepted.
 
 Google provider:
 
@@ -57,7 +62,12 @@ Google provider:
 Built-in Supabase auth email:
 
 - Configure Supabase Auth SMTP with Resend for optional fallback delivery.
-- Prelude sends **signup verification links through Resend directly** via `POST /api/auth/send-signup-verification` (Supabase admin `generateLink` + Prelude HTML email). Links point to `https://your-domain/verify-email?token_hash=...&type=signup`.
+- In **Authentication → Email Templates → Confirm signup**, display
+  `{{ .Token }}` as the six-digit signup verification code. Prelude verifies
+  it with `verifyOtp({ email, token, type: "email" })`.
+- Supabase sends the primary signup confirmation email. Its Confirm signup
+  template displays `{{ .Token }}`, and Prelude sends users to `/verify-email`
+  to enter that code. The older token-hash callback remains compatibility-only.
 - Prelude sends **password reset links through Resend directly** via `POST /api/auth/request-password-reset` (Supabase admin `generateLink` + Prelude HTML email). Email links point to `https://your-domain/reset-password?token_hash=...&type=recovery` (not Supabase `action_link`) so scanners are less likely to consume the token and users always land on the reset page.
 - Host: `smtp.resend.com`
 - Port: `465`
@@ -102,4 +112,3 @@ If production shows `login_verification_storage_missing`, the Cloudflare Functio
 5. Log out and log back in on the same browser; trusted device should skip the code for 30 days.
 6. Test Google login and confirm it lands on `/auth/callback` before verification/dashboard routing.
 7. Test forgot password and reset password from the email link.
-

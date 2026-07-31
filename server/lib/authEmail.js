@@ -15,7 +15,7 @@ export function isProductionEnv(env) {
   return resolveRuntimeEnv(env).NODE_ENV === "production";
 }
 
-/** Development only: print verification/reset links in the server terminal. */
+/** Development-only delivery diagnostics. Secure links are never logged. */
 export function shouldLogAuthEmails(env) {
   const runtimeEnv = resolveRuntimeEnv(env);
   return !isProductionEnv(runtimeEnv) && runtimeEnv.PRELUDE_LOG_AUTH_EMAILS !== "0";
@@ -204,7 +204,7 @@ export async function deliverAuthEmail({ kind, to, url, req, env = process.env }
   }
 
   if (shouldLogAuthEmails()) {
-    console.info(`[prelude-auth:${kind}] To ${to}:\n${url}`);
+    console.info(`[prelude-auth:${kind}] Email prepared for ${to}; secure link omitted.`);
   }
 
   return { delivered: false, logged: shouldLogAuthEmails(), devOnly: !hasResendConfig(env) };
@@ -278,7 +278,7 @@ export async function deliverParentInviteEmail({ to, studentName, url, req, env 
   }
 
   if (shouldLogAuthEmails(env)) {
-    console.info(`[prelude-auth:parent-invite] To ${to} for student ${studentName}:\n${url}`);
+    console.info(`[prelude-auth:parent-invite] Email prepared for ${to} for student ${studentName}; secure link omitted.`);
   }
 
   return {

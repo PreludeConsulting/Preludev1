@@ -253,10 +253,9 @@ async function issueVerification(tx, userId) {
 }
 
 function sendDevEmail(_kind, _to, _url) {
-  // Legacy Prisma auth: verification/reset links are not emailed in dev.
-  // Set PRELUDE_LOG_AUTH_EMAILS=1 to print links to the server console.
+  // Never print credential-bearing verification/reset URLs.
   if (process.env.PRELUDE_LOG_AUTH_EMAILS !== "1") return;
-  console.info(`Auth link (${_kind}) → ${_to}\n${_url}`);
+  console.info(`Auth email (${_kind}) prepared for ${_to}; secure link omitted.`);
 }
 
 function makeAccessToken(user, sessionId) {

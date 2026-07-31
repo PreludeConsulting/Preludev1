@@ -2,7 +2,7 @@
  * Authoritative Plus/Pro session-credit lifecycle tests.
  */
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { evaluateMentorAccess } from "../../shared/mentorAccess.js";
@@ -84,7 +84,8 @@ function userFor(id, plan) {
 }
 
 async function book(studentId, plan, hour, key) {
-  const slot = futureHourSlot(2 + Math.floor(hour / 24), 8 + (hour % 12));
+  // Production permits one Book a Session request per calendar day.
+  const slot = futureHourSlot(2 + hour, 8 + (hour % 12));
   return scheduleMeeting(
     {
       title: `Session ${key}`,
@@ -97,6 +98,16 @@ async function book(studentId, plan, hour, key) {
     userFor(studentId, plan),
     mockReq({ "Idempotency-Key": key })
   );
+}
+
+function ageMeetingRequests() {
+  const store = JSON.parse(readFileSync(MEETING_STORE, "utf8"));
+  const previousDay = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  store.meetings = (store.meetings || []).map((meeting) => ({
+    ...meeting,
+    createdAt: previousDay
+  }));
+  writeFileSync(MEETING_STORE, JSON.stringify(store, null, 2));
 }
 
 async function main() {
@@ -127,12 +138,16 @@ async function main() {
     );
 
     await book(studentPro, "pro", 1, `pro-book-1-${Date.now()}`);
+    ageMeetingRequests();
     summary = await getSessionCreditSummary(studentPro);
     assert.equal(summary.remaining, 3);
 
     await book(studentPro, "pro", 2, `pro-book-2-${Date.now()}`);
+    ageMeetingRequests();
     await book(studentPro, "pro", 3, `pro-book-3-${Date.now()}`);
+    ageMeetingRequests();
     await book(studentPro, "pro", 4, `pro-book-4-${Date.now()}`);
+    ageMeetingRequests();
     summary = await getSessionCreditSummary(studentPro);
     assert.equal(summary.remaining, 0);
 
@@ -165,10 +180,12 @@ async function main() {
     assert.equal(summary.allowance, 2);
 
     await book(studentPlus, "plus", 1, `plus-book-1-${Date.now()}`);
+    ageMeetingRequests();
     summary = await getSessionCreditSummary(studentPlus);
     assert.equal(summary.remaining, 1);
 
     await book(studentPlus, "plus", 2, `plus-book-2-${Date.now()}`);
+    ageMeetingRequests();
     summary = await getSessionCreditSummary(studentPlus);
     assert.equal(summary.remaining, 0);
 
@@ -265,6 +282,7 @@ async function main() {
       stripeInvoiceId: "in_pro_period1"
     });
     await book(studentPro, "pro", 1, `pro-roll-1-${Date.now()}`);
+    ageMeetingRequests();
     await book(studentPro, "pro", 2, `pro-roll-2-${Date.now()}`);
     assert.equal((await getSessionCreditSummary(studentPro)).remaining, 2);
 

@@ -7,6 +7,7 @@ import {
   PAYMENT_ONBOARDING_PATH,
   ROLE_SELECTION_PATH,
   canAccessDashboard,
+  postConfirmationDestination,
   postAuthDestination,
   userNeedsMatchDecision,
   userNeedsPaymentStep,
@@ -42,6 +43,33 @@ describe("onboarding route decisions", () => {
     expect(userNeedsPlanSelection(user)).toBe(false);
     expect(postAuthDestination(user)).toBe(ROLE_SELECTION_PATH);
     expect(canAccessDashboard(user)).toBe(false);
+    expect(postConfirmationDestination(user, "/dashboard/student/overview")).toBe(ROLE_SELECTION_PATH);
+  });
+
+  it("never sends a confirmed user back to email verification", () => {
+    const user = supabaseUser({
+      emailVerified: true,
+      roleSelectionComplete: false,
+      onboardingStatus: ONBOARDING_STATUS.NEEDS_PLAN,
+      matchOnboardingComplete: false,
+      parentInviteStepComplete: false
+    });
+
+    expect(postConfirmationDestination(user, "/verify-email")).toBe(ROLE_SELECTION_PATH);
+  });
+
+  it("allows purchase destinations only after database onboarding gates are complete", () => {
+    const user = supabaseUser({
+      emailVerified: true,
+      matchOnboardingComplete: true,
+      parentInviteStepComplete: true,
+      paymentStepComplete: true,
+      planSelected: true,
+      onboardingStatus: ONBOARDING_STATUS.ONBOARDING_COMPLETED
+    });
+
+    expect(postConfirmationDestination(user, "/dashboard/student/billing?bundle=essay_support"))
+      .toBe("/dashboard/student/billing?bundle=essay_support");
   });
 
   it("sends new Supabase mentors to mentor onboarding without requiring a student plan", () => {
