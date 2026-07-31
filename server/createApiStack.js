@@ -40,7 +40,7 @@ export function createPreludeApiStack(env = process.env) {
     createSupabaseParentInvitesMiddleware(env),
     createSupabasePasswordResetMiddleware(env),
     createSupabaseSignupVerificationMiddleware(env),
-    createOnboardingMentorSelectionMiddleware(),
+    createOnboardingMentorSelectionMiddleware(env),
     createPromoApiMiddleware(env),
     createAdminPromoApiMiddleware(env),
     createReferralApiMiddleware(env),

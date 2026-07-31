@@ -7,6 +7,10 @@ import {
   resolveMentorSelection
 } from "../shared/mentorSelectionLogic.js";
 import { hasMatchingTeamAccess } from "../shared/matchingTeamAccess.js";
+import {
+  hasSubmittedMatchingQuestionnaire,
+  isStudentEligibleForMatchingQueue
+} from "../shared/matchingQueueEligibility.js";
 import { readJsonBody, sendJson } from "./http.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
@@ -50,23 +54,23 @@ function mapMentorRow(row, score = null, reasons = []) {
   };
 }
 
-function getSupabaseConfig() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+function getSupabaseConfig(env = process.env) {
+  const url = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
+  const anonKey = env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
   return { url, anonKey };
 }
 
-function getSupabaseAdmin() {
-  const { url } = getSupabaseConfig();
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+function getSupabaseAdmin(env = process.env) {
+  const { url } = getSupabaseConfig(env);
+  const key = env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
   });
 }
 
-function getSupabaseForUser(accessToken) {
-  const { url, anonKey } = getSupabaseConfig();
+function getSupabaseForUser(accessToken, env = process.env) {
+  const { url, anonKey } = getSupabaseConfig(env);
   if (!url || !anonKey) return null;
   return createClient(url, anonKey, {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -74,7 +78,7 @@ function getSupabaseForUser(accessToken) {
   });
 }
 
-async function requireSupabaseUser(req) {
+async function requireSupabaseUser(req, env = process.env) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
   if (!token) {
     const error = new Error("Authentication required.");
@@ -82,7 +86,7 @@ async function requireSupabaseUser(req) {
     throw error;
   }
 
-  const supabase = getSupabaseForUser(token);
+  const supabase = getSupabaseForUser(token, env);
   if (!supabase) {
     const error = new Error("Supabase is not configured.");
     error.statusCode = 503;
@@ -116,8 +120,8 @@ function isMatchingTeamProfile(profile, user) {
   return Boolean(email && matchingTeamEmails().includes(email));
 }
 
-async function requireMatchingTeam(req) {
-  const { supabase, user } = await requireSupabaseUser(req);
+async function requireMatchingTeam(req, env = process.env) {
+  const { supabase, user } = await requireSupabaseUser(req, env);
   const { data: profile, error } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
   if (error || !isMatchingTeamProfile(profile, user)) {
     const authError = new Error("Matching Team access required.");
@@ -125,8 +129,8 @@ async function requireMatchingTeam(req) {
     throw authError;
   }
 
-  const adminClient = getSupabaseAdmin() || supabase;
-  return { supabase: adminClient, user, profile };
+  const adminClient = getSupabaseAdmin(env);
+  return { supabase, adminClient, user, profile };
 }
 
 async function getMentorDisplay(supabase, mentorId) {
@@ -297,28 +301,7 @@ function getMatchStatus(row) {
 }
 
 const FINAL_MENTOR_MATCH_STATUSES = ["assigned", "accepted", "active"];
-const FINAL_MENTOR_ASSIGNMENT_STATUSES = new Set([
-  MENTOR_ASSIGNMENT_STATUS.ADMIN_ASSIGNED,
-  MENTOR_ASSIGNMENT_STATUS.STUDENT_SELECTED
-]);
-
-export function hasSubmittedMatchingQuestionnaire(answers) {
-  return Boolean(
-    answers
-    && typeof answers === "object"
-    && !Array.isArray(answers)
-    && Object.keys(answers).length
-  );
-}
-
-export function isStudentEligibleForMatchingQueue({ onboarding, profile, hasFinalMentorMatch = false }) {
-  if (String(profile?.role || "").toLowerCase() !== "student") return false;
-  if (!hasSubmittedMatchingQuestionnaire(onboarding?.questionnaire_answers)) return false;
-  if (onboarding?.admin_review_required !== true) return false;
-  if (hasFinalMentorMatch) return false;
-  if (FINAL_MENTOR_ASSIGNMENT_STATUSES.has(onboarding?.mentor_assignment_status)) return false;
-  return true;
-}
+export { hasSubmittedMatchingQuestionnaire, isStudentEligibleForMatchingQueue };
 
 async function loadCompletedMentors(supabase) {
   const { data, error } = await supabase
@@ -330,13 +313,27 @@ async function loadCompletedMentors(supabase) {
   return (data || []).map((row) => mapMentorRow(row)).filter(Boolean);
 }
 
-async function handleMatchingTeamAccess(req, res) {
-  await requireMatchingTeam(req);
+async function handleMatchingTeamAccess(req, res, env) {
+  await requireMatchingTeam(req, env);
   return sendJson(res, 200, { allowed: true, teamName: "Matching Team" });
 }
 
-async function handleAdminList(req, res) {
-  const { supabase } = await requireMatchingTeam(req);
+function matchingAdminUnavailable(res) {
+  console.info("[prelude-matching]", JSON.stringify({
+    event: "queue_load",
+    serviceRoleClientAvailable: false
+  }));
+  return sendJson(res, 503, {
+    error: "matching_admin_client_unavailable",
+    message: "The Matching Team data service is not configured."
+  });
+}
+
+async function handleAdminList(req, res, env) {
+  const { adminClient: supabase } = await requireMatchingTeam(req, env);
+  if (!supabase) {
+    return matchingAdminUnavailable(res);
+  }
   const { data: rows, error } = await supabase
     .from("onboarding_progress")
     .select("user_id, questionnaire_answers, matched_mentor_ids, matched_mentor_count, admin_review_required, mentor_assignment_status, mentor_selection_method, selected_mentor_id, mentor_selection_timestamp, updated_at")
@@ -382,6 +379,15 @@ async function handleAdminList(req, res) {
     hasFinalMentorMatch: assignedStudentIds.has(row.user_id)
   }));
 
+  console.info("[prelude-matching]", JSON.stringify({
+    event: "queue_load",
+    serviceRoleClientAvailable: true,
+    onboardingRows: (rows || []).length,
+    profileRows: (profiles || []).length,
+    finalAssignments: assignedStudentIds.size,
+    eligibleStudents: eligibleRows.length
+  }));
+
   const students = eligibleRows.map((row) => ({
     studentId: row.user_id,
     studentName: profileById[row.user_id]?.full_name || "Student",
@@ -401,8 +407,9 @@ async function handleAdminList(req, res) {
   return sendJson(res, 200, { students, mentors });
 }
 
-async function handleAdminAssign(req, res, studentId) {
-  const { supabase } = await requireMatchingTeam(req);
+async function handleAdminAssign(req, res, studentId, env) {
+  const { adminClient: supabase } = await requireMatchingTeam(req, env);
+  if (!supabase) return matchingAdminUnavailable(res);
   const payload = adminAssignSchema.parse(await readJsonBody(req));
 
   const { data: onboarding, error: loadError } = await supabase
@@ -446,8 +453,9 @@ async function handleAdminAssign(req, res, studentId) {
   });
 }
 
-async function handleAdminRemoveAssign(req, res, studentId) {
-  const { supabase } = await requireMatchingTeam(req);
+async function handleAdminRemoveAssign(req, res, studentId, env) {
+  const { adminClient: supabase } = await requireMatchingTeam(req, env);
+  if (!supabase) return matchingAdminUnavailable(res);
 
   const { data: onboarding, error: loadError } = await supabase
     .from("onboarding_progress")
@@ -487,7 +495,7 @@ async function handleAdminRemoveAssign(req, res, studentId) {
   });
 }
 
-export function createOnboardingMentorSelectionMiddleware() {
+export function createOnboardingMentorSelectionMiddleware(env = process.env) {
   return async function onboardingMentorSelectionMiddleware(req, res, next) {
     const url = new URL(req.url || "/", "http://localhost");
     const pathname = url.pathname;
@@ -509,21 +517,27 @@ export function createOnboardingMentorSelectionMiddleware() {
     try {
       if (isSelectionRoute && req.method === "GET") return await handleGetMentorSelection(req, res);
       if (isSelectionRoute && req.method === "POST") return await handleSaveMentorSelection(req, res);
-      if (isAdminAccess && req.method === "GET") return await handleMatchingTeamAccess(req, res);
-      if (isAdminList && req.method === "GET") return await handleAdminList(req, res);
+      if (isAdminAccess && req.method === "GET") return await handleMatchingTeamAccess(req, res, env);
+      if (isAdminList && req.method === "GET") return await handleAdminList(req, res, env);
       if (isAdminAssign && req.method === "POST") {
         const studentId = pathname.split("/")[4];
-        return await handleAdminAssign(req, res, studentId);
+        return await handleAdminAssign(req, res, studentId, env);
       }
       if (isAdminAssign && req.method === "DELETE") {
         const studentId = pathname.split("/")[4];
-        return await handleAdminRemoveAssign(req, res, studentId);
+        return await handleAdminRemoveAssign(req, res, studentId, env);
       }
       return sendJson(res, 404, { error: "not_found" });
     } catch (error) {
       if (error instanceof z.ZodError) return sendJson(res, 400, { error: "validation_error", issues: error.issues });
       const statusCode = error.statusCode || 500;
-      if (statusCode >= 500) console.error("[prelude-mentor-selection]", error);
+      if (statusCode >= 500) {
+        console.error("[prelude-matching]", JSON.stringify({
+          event: "request_failed",
+          status: statusCode,
+          code: error.code || "server_error"
+        }));
+      }
       return sendJson(res, statusCode, {
         error: error.code || (statusCode >= 500 ? "server_error" : "request_failed"),
         message: error.message || "Request failed."
