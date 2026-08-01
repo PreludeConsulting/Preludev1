@@ -16,7 +16,7 @@ import PreludeMatchLoading from "./PreludeMatchLoading.jsx";
 import PreludeMatchQuestionFlow from "./PreludeMatchQuestionFlow.jsx";
 import PreludeMatchResults from "./PreludeMatchResults.jsx";
 
-export default function PreludeMatch({ onStartOverride = null } = {}) {
+export default function PreludeMatch({ onStartOverride = null, cinematicOnly = false } = {}) {
   const reducedMotion = useReducedMotion();
   const { t } = useLanguage();
   const [phase, setPhase] = useState("intro");
@@ -150,67 +150,77 @@ export default function PreludeMatch({ onStartOverride = null } = {}) {
           <span className="pm-card__traffic-light pm-card__traffic-light--green" />
         </div>
 
-        <AnimatePresence mode="wait">
-          {phase === "intro" ? (
-            <motion.div
-              key="intro"
-              className="pm-card__panel pm-card__panel--intro"
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-            >
-              <PreludeMatchIntro reducedMotion={reducedMotion} onStart={handleStart} />
-            </motion.div>
-          ) : null}
+        {cinematicOnly ? (
+          <div className="pm-card__panel pm-card__panel--intro">
+            <PreludeMatchIntro reducedMotion={reducedMotion} />
+          </div>
+        ) : (
+          <AnimatePresence mode="wait">
+            {phase === "intro" ? (
+              <motion.div
+                key="intro"
+                className="pm-card__panel pm-card__panel--intro"
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <PreludeMatchIntro
+                  reducedMotion={reducedMotion}
+                  onStart={handleStart}
+                  showDemoTrigger
+                />
+              </motion.div>
+            ) : null}
 
-          {phase === "boot" ? (
-            <motion.div key="boot" className="pm-card__panel">
-              <PreludeMatchBoot reducedMotion={reducedMotion} onComplete={handleBootComplete} />
-            </motion.div>
-          ) : null}
+            {phase === "boot" ? (
+              <motion.div key="boot" className="pm-card__panel">
+                <PreludeMatchBoot reducedMotion={reducedMotion} onComplete={handleBootComplete} />
+              </motion.div>
+            ) : null}
 
-          {phase === "questions" && currentQuestion ? (
-            <motion.div
-              key="questions"
-              className="pm-card__panel"
-              initial={reducedMotion ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              <PreludeMatchQuestionFlow
-                question={currentQuestion}
-                answers={answers}
-                progress={progress}
-                onAnswer={handleAnswer}
-                onBack={handleBack}
-                onContinue={handleContinue}
-                onSkip={handleSkip}
-                pigMotion={pigMotion}
-                reducedMotion={reducedMotion}
-                canGoBack={currentIndex > 0}
-                isLast={isLastQuestion}
-              />
-            </motion.div>
-          ) : null}
+            {phase === "questions" && currentQuestion ? (
+              <motion.div
+                key="questions"
+                className="pm-card__panel"
+                initial={reducedMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <PreludeMatchQuestionFlow
+                  question={currentQuestion}
+                  answers={answers}
+                  progress={progress}
+                  onAnswer={handleAnswer}
+                  onBack={handleBack}
+                  onContinue={handleContinue}
+                  onSkip={handleSkip}
+                  pigMotion={pigMotion}
+                  reducedMotion={reducedMotion}
+                  canGoBack={currentIndex > 0}
+                  isLast={isLastQuestion}
+                />
+              </motion.div>
+            ) : null}
 
-          {phase === "loading" ? (
-            <motion.div key="loading" className="pm-card__panel">
-              <PreludeMatchLoading
-                reducedMotion={reducedMotion}
-                progressFrom={progress}
-                onComplete={() => {
-                  setProgress(100);
-                  setPhase("results");
-                }}
-              />
-            </motion.div>
-          ) : null}
+            {phase === "loading" ? (
+              <motion.div key="loading" className="pm-card__panel">
+                <PreludeMatchLoading
+                  reducedMotion={reducedMotion}
+                  progressFrom={progress}
+                  onComplete={() => {
+                    setProgress(100);
+                    setPhase("results");
+                  }}
+                />
+              </motion.div>
+            ) : null}
 
-          {phase === "results" ? (
-            <motion.div key="results" className="pm-card__panel pm-card__panel--results">
-              <PreludeMatchResults reducedMotion={reducedMotion} onRestart={handleRestart} matchSummary={matchSummary} />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+            {phase === "results" ? (
+              <motion.div key="results" className="pm-card__panel pm-card__panel--results">
+                <PreludeMatchResults reducedMotion={reducedMotion} onRestart={handleRestart} matchSummary={matchSummary} />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        )}
 
       </div>
     </motion.div>

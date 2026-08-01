@@ -35,6 +35,14 @@ describe("deployed dashboard persistence routes", () => {
     expect(fs.existsSync(path.join(root, file))).toBe(true);
   });
 
+  it.each([
+    "functions/api/admin/mentor-review/index.js",
+    "functions/api/admin/mentor-review/access.js",
+    "functions/api/admin/mentor-review/[studentId]/assign.js"
+  ])("ships the Matching Team endpoint at %s", (route) => {
+    expect(fs.existsSync(path.join(root, route))).toBe(true);
+  });
+
   it("routes every Cloudflare dashboard endpoint through the shared persistence handler", () => {
     for (const route of ["app-data", "profile", "settings", "availability"]) {
       expect(read(`functions/api/dashboard/${route}.js`)).toContain("handleDashboard");

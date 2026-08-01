@@ -42,12 +42,14 @@ export const HERO_DEMO_STEPS = [
     railLabel: "Mentor",
     kicker: "Near-peer mentor",
     title: "PreludeMatch pairs the student with a mentor who fits the path.",
-    body: "The ad needs to feel like software, so the match shows why Maya fits instead of just flashing a percentage.",
+    body: "The ad needs to feel like software, so the match shows why Asim fits instead of just flashing a percentage.",
     metric: "Strong",
     metricLabel: "mentor fit",
     mentor: {
-      initials: "MP",
-      name: "Maya Patel",
+      initials: "AY",
+      name: "Asim Yoonas",
+      photo: "/media/mentors/asim-yoonas.png",
+      objectPosition: "50% 18%",
       detail: "Georgia Tech - STEM essays",
       match: "Strong",
       reasons: ["STEM essay strategy", "Weekly accountability", "Target-school fit"]
@@ -64,7 +66,7 @@ export const HERO_DEMO_STEPS = [
     metricLabel: "priority tasks",
     tasks: [
       { label: "Finalize reach school essay prompts", status: "Due this week" },
-      { label: "Prepare questions for Maya", status: "Ready" },
+      { label: "Prepare questions for Asim", status: "Ready" },
       { label: "Review scholarship opportunity", status: "Next" }
     ]
   },

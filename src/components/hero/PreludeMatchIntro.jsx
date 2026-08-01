@@ -36,7 +36,7 @@ function resetCinematicLayers(runtime) {
   runtime?.showOpener?.();
 }
 
-export default function PreludeMatchIntro({ reducedMotion, onStart }) {
+export default function PreludeMatchIntro({ reducedMotion, onStart = null, showDemoTrigger = false }) {
   const mobile = useMobileCinematic();
   const { motionTier } = usePreludeMotion();
   const rootRef = useRef(null);
@@ -46,6 +46,7 @@ export default function PreludeMatchIntro({ reducedMotion, onStart }) {
   const runtimeRef = useRef(null);
   const hoveredRef = useRef(false);
   const hasStartedRef = useRef(false);
+  const canStartDemo = Boolean(showDemoTrigger && typeof onStart === "function");
 
   useEffect(() => {
     if (reducedMotion) return undefined;
@@ -101,11 +102,13 @@ export default function PreludeMatchIntro({ reducedMotion, onStart }) {
   }, [active]);
 
   function handlePointerEnter() {
+    if (!canStartDemo) return;
     hoveredRef.current = true;
     timelineRef.current?.pause?.();
   }
 
   function handlePointerLeave() {
+    if (!canStartDemo) return;
     hoveredRef.current = false;
     if (active) {
       timelineRef.current?.play?.();
@@ -115,7 +118,7 @@ export default function PreludeMatchIntro({ reducedMotion, onStart }) {
   function handleDemoStart(event) {
     event.stopPropagation();
     timelineRef.current?.pause?.();
-    onStart();
+    onStart?.();
   }
 
   if (reducedMotion) {
@@ -126,11 +129,13 @@ export default function PreludeMatchIntro({ reducedMotion, onStart }) {
         onPointerLeave={handlePointerLeave}
       >
         <PreludeMatchCinematicStatic />
-        <div className="pm-cinematic__demo-overlay">
-          <button type="button" className="pm-cinematic__demo-trigger" onClick={handleDemoStart}>
-            Try PreludeMatch
-          </button>
-        </div>
+        {canStartDemo ? (
+          <div className="pm-cinematic__demo-overlay">
+            <button type="button" className="pm-cinematic__demo-trigger" onClick={handleDemoStart}>
+              Try PreludeMatch
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -146,14 +151,15 @@ export default function PreludeMatchIntro({ reducedMotion, onStart }) {
     >
       <span className="sr-only">
         College admissions made simple. PreludeMatch mentor matching, dashboard tasks, and progress.
-        Try PreludeMatch to start the demo.
       </span>
       <PreludeMatchCinematicBeats mobile={mobile} />
-      <div className="pm-cinematic__demo-overlay">
-        <button type="button" className="pm-cinematic__demo-trigger" onClick={handleDemoStart}>
-          Try PreludeMatch
-        </button>
-      </div>
+      {canStartDemo ? (
+        <div className="pm-cinematic__demo-overlay">
+          <button type="button" className="pm-cinematic__demo-trigger" onClick={handleDemoStart}>
+            Try PreludeMatch
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

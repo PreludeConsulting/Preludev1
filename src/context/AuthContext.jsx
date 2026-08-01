@@ -360,11 +360,13 @@ export function AuthProvider({ children }) {
 
   const signIn = useCallback(async (email, password, options = {}) => {
     setAuthError(null);
+    let authoritativeUser = null;
     try {
       if (useSupabase) {
         const { logIn } = await loadSupabaseAuth();
         const { user: next, error } = await logIn({ email, password, captchaToken: options.captchaToken });
         if (error) throw new Error(error);
+        authoritativeUser = next;
         if (next?.role === "parent") {
           await acceptPendingParentInvite(next.id);
         } else if (next?.role === "student") {
@@ -387,6 +389,9 @@ export function AuthProvider({ children }) {
       setSignInOpen(false);
       return next;
     } catch (error) {
+      if (authoritativeUser?.emailVerified) {
+        error.authenticatedUser = authoritativeUser;
+      }
       setAuthError(error.message);
       throw error;
     }

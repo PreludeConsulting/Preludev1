@@ -1,4 +1,5 @@
 import { cn } from "../../lib/utils.js";
+import MentorPhotoAvatar from "../MentorPhotoAvatar.jsx";
 
 export default function PreludeMentorRow({ mentor, onView, onBook }) {
   return (
@@ -6,9 +7,12 @@ export default function PreludeMentorRow({ mentor, onView, onBook }) {
       {mentor.bestMatch ? <span className="pm-row__badge">Best Match</span> : null}
 
       <div className="pm-row__identity">
-        <div className="pm-row__avatar" aria-hidden="true">
-          {mentor.initials}
-        </div>
+        <MentorPhotoAvatar
+          photo={mentor.photo}
+          initials={mentor.initials}
+          objectPosition={mentor.objectPosition}
+          className="pm-row__avatar"
+        />
         <div>
           <h3 className="pm-row__name">{mentor.name}</h3>
           <p className="pm-row__school">{mentor.school}</p>

@@ -37,7 +37,8 @@ export function buildDemoSessionUser(account) {
     onboardingStatus: "onboarding_completed",
     matchOnboardingComplete: true,
     paymentStepComplete: true,
-    parentInviteStepComplete: true
+    parentInviteStepComplete: true,
+    ...(account.avatarUrl ? { avatarUrl: account.avatarUrl } : {})
   };
 }
 

@@ -95,7 +95,12 @@ function demoDisplayName(account) {
   return `${account.firstName} ${account.lastName}`;
 }
 
+function demoAvatarUrl(account) {
+  return account?.avatarUrl || null;
+}
+
 function buildDemoParentThreads() {
+  const mentorAvatarUrl = demoAvatarUrl(DEMO_MENTOR);
   const raw = [
     {
       id: "demo-thread-mp-jordan-essay",
@@ -105,7 +110,8 @@ function buildDemoParentThreads() {
       parentId: DEMO_IDS.parent,
       mentorName: demoDisplayName(DEMO_MENTOR),
       studentName: "Jordan — Essay Support",
-      participantRole: "Mentor"
+      participantRole: "Mentor",
+      avatarUrl: mentorAvatarUrl
     },
     {
       id: "demo-thread-mp-jordan-plus",
@@ -115,7 +121,8 @@ function buildDemoParentThreads() {
       parentId: DEMO_IDS.parent,
       mentorName: demoDisplayName(DEMO_MENTOR),
       studentName: "Jordan — Plus",
-      participantRole: "Mentor"
+      participantRole: "Mentor",
+      avatarUrl: mentorAvatarUrl
     },
     {
       id: "demo-thread-mp-jordan-pro",
@@ -125,7 +132,8 @@ function buildDemoParentThreads() {
       parentId: DEMO_IDS.parent,
       mentorName: demoDisplayName(DEMO_MENTOR),
       studentName: "Jordan — Pro",
-      participantRole: "Mentor"
+      participantRole: "Mentor",
+      avatarUrl: mentorAvatarUrl
     }
   ];
 
@@ -135,6 +143,7 @@ function buildDemoParentThreads() {
 function buildDemoThreadsForUser(user) {
   const role = (user.role || "student").toLowerCase();
   const threads = [];
+  const mentorAvatarUrl = demoAvatarUrl(DEMO_MENTOR);
 
   if (role === "student") {
     threads.push(withStorageKey({
@@ -145,7 +154,8 @@ function buildDemoThreadsForUser(user) {
       parentId: null,
       label: demoDisplayName(DEMO_MENTOR),
       sublabel: "Your mentor",
-      participantRole: "Mentor"
+      participantRole: "Mentor",
+      avatarUrl: mentorAvatarUrl
     }));
     return threads;
   }
@@ -191,10 +201,33 @@ function buildDemoThreadsForUser(user) {
   return threads;
 }
 
+/** Prefer fresh demo labels/avatars while keeping any stored thread extras. */
+function reconcileDemoThreads(stored, demo) {
+  if (!stored?.length) return demo;
+  const storedById = new Map(stored.map((thread) => [thread.id, thread]));
+  return demo.map((thread) => withStorageKey({
+    ...(storedById.get(thread.id) || {}),
+    ...thread
+  }));
+}
+
+async function fetchProfileSummary(userId) {
+  if (!userId || !isSupabaseConfigured()) return { name: null, avatarUrl: null };
+  const { data } = await db()
+    .from("profiles")
+    .select("full_name, role, avatar_url")
+    .eq("id", userId)
+    .maybeSingle();
+  return {
+    name: data?.full_name || null,
+    avatarUrl: data?.avatar_url || null,
+    role: data?.role || null
+  };
+}
+
 async function fetchProfileName(userId) {
-  if (!userId || !isSupabaseConfigured()) return null;
-  const { data } = await db().from("profiles").select("full_name, role").eq("id", userId).maybeSingle();
-  return data?.full_name || null;
+  const profile = await fetchProfileSummary(userId);
+  return profile.name;
 }
 
 async function resolveMentorForStudent(studentId) {
@@ -212,7 +245,8 @@ async function resolveStudentThreads(studentId) {
   const match = await resolveMentorForStudent(studentId);
   if (!match?.mentor_id) return [];
 
-  const mentorName = match.mentor_name || (await fetchProfileName(match.mentor_id)) || "Mentor";
+  const mentorProfile = await fetchProfileSummary(match.mentor_id);
+  const mentorName = match.mentor_name || mentorProfile.name || "Mentor";
   const thread = await ensureThread({
     chatType: CHAT_TYPE.MENTOR_STUDENT,
     mentorId: match.mentor_id,
@@ -224,7 +258,8 @@ async function resolveStudentThreads(studentId) {
     ...thread,
     label: mentorName,
     sublabel: "Your mentor",
-    participantRole: "Mentor"
+    participantRole: "Mentor",
+    avatarUrl: mentorProfile.avatarUrl || null
   }];
 }
 
@@ -240,9 +275,9 @@ async function resolveParentThreads(parentId) {
     const match = await resolveMentorForStudent(link.student_id);
     if (!match?.mentor_id) continue;
 
-    const [mentorName, studentName] = await Promise.all([
-      fetchProfileName(match.mentor_id),
-      fetchProfileName(link.student_id)
+    const [mentorProfile, studentProfile] = await Promise.all([
+      fetchProfileSummary(match.mentor_id),
+      fetchProfileSummary(link.student_id)
     ]);
 
     const thread = await ensureThread({
@@ -254,9 +289,10 @@ async function resolveParentThreads(parentId) {
 
     rawThreads.push({
       ...thread,
-      mentorName: mentorName || match.mentor_name || "Mentor",
-      studentName: studentName || "Student",
-      participantRole: "Mentor"
+      mentorName: mentorProfile.name || match.mentor_name || "Mentor",
+      studentName: studentProfile.name || "Student",
+      participantRole: "Mentor",
+      avatarUrl: mentorProfile.avatarUrl || null
     });
   }
 
@@ -288,7 +324,7 @@ async function resolveMentorThreads(mentorId) {
 
   const threads = [];
   for (const studentId of studentIds) {
-    const studentName = (await fetchProfileName(studentId)) || "Student";
+    const studentProfile = await fetchProfileSummary(studentId);
     const studentThread = await ensureThread({
       chatType: CHAT_TYPE.MENTOR_STUDENT,
       mentorId,
@@ -297,9 +333,10 @@ async function resolveMentorThreads(mentorId) {
     });
     threads.push({
       ...studentThread,
-      label: studentName,
+      label: studentProfile.name || "Student",
       sublabel: assignedStudentIds.has(studentId) ? "Assigned student" : "Student",
-      participantRole: "Student"
+      participantRole: "Student",
+      avatarUrl: studentProfile.avatarUrl || null
     });
   }
 
@@ -364,8 +401,8 @@ export async function listChatThreadsForUser(user) {
       return { threads: demo, error: null };
     }
     const stored = loadLocalChatThreads(user.id);
-    const merged = stored.length ? stored.map(withStorageKey) : demo;
-    if (!stored.length) saveLocalChatThreads(user.id, demo);
+    const merged = reconcileDemoThreads(stored, demo);
+    saveLocalChatThreads(user.id, merged);
     return { threads: merged, error: null };
   }
 

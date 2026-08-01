@@ -8,7 +8,8 @@ import { getSupabase } from "./supabase.js";
 import { appPath } from "./appPaths.js";
 import { sanitizeAuthRedirect } from "./authRedirects.js";
 import { getPublicAppUrl, getSupabaseConfigError, isSupabaseConfigured } from "./supabaseConfig.js";
-import { mapSupabaseUser } from "./supabaseSession.js";
+import { isSupabaseUserConfirmed, mapSupabaseUser } from "./supabaseSession.js";
+import { clearPendingSignupVerification } from "./signupVerificationState.js";
 import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
 import {
   clearLocalUserData,
@@ -25,7 +26,6 @@ import {
 } from "../../shared/passwordSameness.js";
 import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConstants.js";
 import {
-  SIGNUP_VERIFICATION_GENERIC_MESSAGE,
   SIGNUP_VERIFICATION_SENT_MESSAGE
 } from "../../shared/signupVerificationConstants.js";
 
@@ -86,8 +86,8 @@ function callbackKey(prefix, search = "", hash = "") {
   const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
   return [
     prefix,
-    searchParams.get("code") || "",
-    searchParams.get("token_hash") || hashParams.get("token_hash") || "",
+    Boolean(searchParams.get("code")),
+    Boolean(searchParams.get("token_hash") || hashParams.get("token_hash")),
     searchParams.get("type") || hashParams.get("type") || "",
     Boolean(hashParams.get("access_token"))
   ].join(":");
@@ -95,10 +95,9 @@ function callbackKey(prefix, search = "", hash = "") {
 
 function runSingleFlight(map, key, task) {
   if (map.has(key)) return map.get(key);
-  const promise = task().finally(() => {
-    const schedule = typeof window !== "undefined" ? window.setTimeout.bind(window) : setTimeout;
-    schedule(() => map.delete(key), 5000);
-  });
+  // Callback credentials are single-use. Retain the settled promise for this
+  // page lifetime so StrictMode/remounts cannot exchange the same credential twice.
+  const promise = task();
   map.set(key, promise);
   return promise;
 }
@@ -251,14 +250,6 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
   if (error) return { user: null, error: friendlyError(error), rawError: error.message, needsEmailConfirmation: false };
 
   const needsEmailConfirmation = Boolean(data?.user && !data?.session);
-  let verificationDelivery = { error: null, message: null };
-  if (needsEmailConfirmation) {
-    verificationDelivery = await requestSignupVerificationEmail(normalizedEmail, captchaToken);
-    authDebug("signup_verification_email_requested", {
-      email: normalizedEmail,
-      delivered: !verificationDelivery.error
-    });
-  }
   let profile = null;
   if (data?.session?.user) {
     const result = await ensureUserProfile(data.session.user, {
@@ -276,43 +267,10 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
     accessToken: data?.session?.access_token || null,
     error: null,
     needsEmailConfirmation,
-    verificationEmailSent: Boolean(needsEmailConfirmation && !verificationDelivery.error),
-    verificationEmailError: verificationDelivery.error || "",
-    message: verificationDelivery.message || ""
+    verificationEmailSent: needsEmailConfirmation,
+    verificationEmailError: "",
+    message: needsEmailConfirmation ? SIGNUP_VERIFICATION_SENT_MESSAGE : ""
   };
-}
-
-async function requestSignupVerificationEmail(email, captchaToken) {
-  try {
-    const response = await withAuthTimeout(
-      fetch(appPath("/api/auth/send-signup-verification"), {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          email: normalizeEmail(email),
-          captchaToken: captchaToken || undefined
-        })
-      })
-    );
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return {
-        error: friendlyError({
-          message: payload.message || "Could not send verification email."
-        })
-      };
-    }
-    return {
-      error: null,
-      message: payload.message || SIGNUP_VERIFICATION_GENERIC_MESSAGE
-    };
-  } catch (error) {
-    return { error: friendlyError(error) };
-  }
 }
 
 export async function signInWithOAuth(provider = "google", options = {}) {
@@ -346,7 +304,7 @@ export async function logIn({ email, password, captchaToken }) {
   const supabase = getSupabase();
   if (!supabase) return { user: null, error: "Supabase client unavailable." };
   requireTurnstileToken(captchaToken);
-  const { data, error } = await withAuthTimeout(
+  const { error } = await withAuthTimeout(
     supabase.auth.signInWithPassword({
       email,
       password,
@@ -354,8 +312,10 @@ export async function logIn({ email, password, captchaToken }) {
     })
   );
   if (error) return { user: null, error: friendlyPasswordSignInError(error) };
-  const { profile } = await getProfile(data.user.id);
-  return { user: mapSupabaseUser(data.session, profile), error: null };
+  const user = await resolveSupabaseAppUser();
+  if (!user) return { user: null, error: "Login succeeded, but Prelude could not reload your account." };
+  if (user.emailVerified) clearPendingSignupVerification();
+  return { user, error: null };
 }
 
 export async function saveUserRoleSelection(userId, role) {
@@ -511,13 +471,69 @@ export async function resendSignupConfirmation(email) {
 
   const normalizedEmail = normalizeEmail(email);
   authDebug("resend_confirmation_started", { email: normalizedEmail });
-  const result = await requestSignupVerificationEmail(normalizedEmail);
+  const result = await resendSignupConfirmationWithClient(getSupabase(), normalizedEmail);
   authDebug("resend_confirmation_response_received", {
     email: normalizedEmail,
     error: result.error || null
   });
   if (result.error) throw new Error(result.error);
   return { message: SIGNUP_VERIFICATION_SENT_MESSAGE };
+}
+
+export async function resendSignupConfirmationWithClient(supabase, email) {
+  const normalizedEmail = normalizeEmail(email);
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: normalizedEmail
+  });
+  return { error: error ? friendlyError(error) : null };
+}
+
+function friendlySignupOtpError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  if (message.includes("expired")) return "That verification code expired. Request a new code and try again.";
+  if (message.includes("invalid") || message.includes("otp") || message.includes("token")) {
+    return "That verification code is incorrect. Check the email and try again.";
+  }
+  return friendlyError(error);
+}
+
+export async function establishSignupOtpSession(supabase, email, verificationCode) {
+  const normalizedEmail = normalizeEmail(email);
+  const token = String(verificationCode || "").replace(/\s/g, "");
+  if (!normalizedEmail) return { user: null, error: "Enter the email address used to create your account." };
+  if (!/^\d{6}$/.test(token)) return { user: null, error: "Enter the complete six-digit code." };
+
+  const { error } = await supabase.auth.verifyOtp({
+    email: normalizedEmail,
+    token,
+    type: "email"
+  });
+  if (error) return { user: null, error: friendlySignupOtpError(error) };
+
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return { user: null, error: friendlyError(userError) || "Verification succeeded, but no authenticated session was created." };
+  }
+  if (!user.email_confirmed_at && !user.confirmed_at) {
+    return { user: null, error: "Supabase did not confirm this email. Request a new code and try again." };
+  }
+  return { user, error: null };
+}
+
+export async function verifySignupOtp(email, verificationCode) {
+  if (!isSupabaseConfigured()) {
+    return { user: null, error: getSupabaseConfigError() || "Supabase is not configured for this deployment." };
+  }
+  const supabase = getSupabase();
+  const verification = await establishSignupOtpSession(supabase, email, verificationCode);
+  if (verification.error) return verification;
+  const { error: profileError } = await ensureUserProfile(verification.user);
+  if (profileError) return { user: null, error: profileError };
+  return { user: await resolveSupabaseAppUser(), error: null };
 }
 
 function createEphemeralSupabaseClient() {
@@ -843,6 +859,23 @@ export async function completeAuthCallback(search = window.location.search, hash
 async function processEmailVerification(search, hash) {
   if (!isSupabaseConfigured()) return { user: null, error: getSupabaseConfigError() || "Supabase is not configured for this deployment." };
   const supabase = getSupabase();
+  const verification = await establishEmailVerificationSession(supabase, search, hash);
+  if (verification.error) return { user: null, error: verification.error };
+  const user = verification.user;
+  authDebug("session_detected", { userId: user.id, email: normalizeEmail(user.email) });
+
+  const { error: profileError } = await ensureUserProfile(user);
+  if (profileError) return { user: null, error: profileError };
+  const appUser = await resolveSupabaseAppUser();
+  return { user: appUser, error: null, alreadyVerified: verification.alreadyVerified };
+}
+
+/**
+ * Establish and validate the session represented by an email-confirmation URL.
+ * Kept separate from profile hydration so callback behavior can be regression-tested
+ * without a database. A parameterless visit is valid when a confirmed session exists.
+ */
+export async function establishEmailVerificationSession(supabase, search = "", hash = "") {
   const searchParams = new URLSearchParams(search || "");
   const hashParams = new URLSearchParams((hash || "").replace(/^#/, ""));
   authDebug("verify_email_parameters_detected", {
@@ -852,23 +885,27 @@ async function processEmailVerification(search, hash) {
   });
 
   const providerError = searchParams.get("error_description") || searchParams.get("error") || hashParams.get("error_description") || hashParams.get("error");
-  if (providerError) return { user: null, error: friendlyProviderError(providerError) };
+  if (providerError) return { user: null, error: friendlyProviderError(providerError), alreadyVerified: false };
 
   const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");
   const rawType = searchParams.get("type") || hashParams.get("type") || "signup";
   const type = rawType === "email" ? "signup" : rawType;
+  let processedLink = false;
   if (tokenHash) {
+    processedLink = true;
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-    if (error) return { user: null, error: friendlyError(error) };
+    if (error) return { user: null, error: friendlyError(error), alreadyVerified: false };
   } else {
     const code = searchParams.get("code");
     if (code) {
+      processedLink = true;
       authDebug("callback_code_detected", { flow: "verify-email" });
       const { error } = await supabase.auth.exchangeCodeForSession(code);
-      if (error) return { user: null, error: friendlyError(error) };
-    } else {
+      if (error) return { user: null, error: friendlyError(error), alreadyVerified: false };
+    } else if (hashParams.get("access_token") || hashParams.get("refresh_token")) {
+      processedLink = true;
       const { error } = await setSessionFromHashIfPresent(supabase, hashParams);
-      if (error) return { user: null, error: friendlyError(error) };
+      if (error) return { user: null, error: friendlyError(error), alreadyVerified: false };
     }
   }
 
@@ -877,14 +914,22 @@ async function processEmailVerification(search, hash) {
     error: userError
   } = await supabase.auth.getUser();
   if (userError || !user) {
-    return { user: null, error: friendlyError(userError) || "This verification link is invalid or expired." };
+    return {
+      user: null,
+      error: friendlyError(userError) || (processedLink
+        ? "This verification link is invalid or expired."
+        : "No confirmed session was found. Open the link from your email or log in."),
+      alreadyVerified: false
+    };
   }
-  authDebug("session_detected", { userId: user.id, email: normalizeEmail(user.email) });
-
-  const { error: profileError } = await ensureUserProfile(user);
-  if (profileError) return { user: null, error: profileError };
-  const appUser = await resolveSupabaseAppUser();
-  return { user: appUser, error: null };
+  if (!user.email_confirmed_at && !user.confirmed_at) {
+    return {
+      user: null,
+      error: "Your email is not confirmed yet. Request a new verification email and try again.",
+      alreadyVerified: false
+    };
+  }
+  return { user, error: null, alreadyVerified: !processedLink };
 }
 
 export async function completeEmailVerification(search = window.location.search, hash = window.location.hash) {
@@ -1041,6 +1086,7 @@ export async function resolveSupabaseAppUser() {
     error: userError
   } = await supabase.auth.getUser();
   if (userError || !authUser) return null;
+  if (isSupabaseUserConfirmed(authUser)) clearPendingSignupVerification();
 
   const userId = authUser.id;
   const { profile } = await ensureUserProfile(authUser);

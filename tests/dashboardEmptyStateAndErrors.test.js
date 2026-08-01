@@ -12,13 +12,13 @@ describe("dashboard load: empty results, races, and error classification", () =>
     // A successful-but-empty meetings response must not throw or flip sync status to failed;
     // only 401/403 from the meetings fetch should propagate as an auth error.
     const start = source.search(/setMeetings\(\[\]\);\s*setPendingMeetingRequests\(\[\]\);/);
-    const tryBlock = source.slice(start, source.indexOf("if (appData.mentorAccess)"));
+    const tryBlock = source.slice(start, source.indexOf("if (appData?.mentorAccess)"));
     expect(tryBlock).toContain("catch (meetingErr)");
     expect(tryBlock).toMatch(/if \(meetingErr\?\.status === 401 \|\| meetingErr\?\.status === 403\) throw meetingErr;/);
   });
 
   it("sources meetings from the API/app-data payload, not calendar_events", () => {
-    expect(source).toMatch(/const meetingPayload = appData\.meetings[\s\S]*?: await getMeetings\(\)/);
+    expect(source).toMatch(/const meetingPayload = appData\?\.meetings[\s\S]*?: await getMeetings\(\)/);
     expect(source).not.toMatch(/setMeetings\(data\.meetings/);
   });
 

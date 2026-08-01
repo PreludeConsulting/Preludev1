@@ -6,7 +6,7 @@ const POLL_INTERVAL_MS = 30_000;
 
 function readPersistedMentorSchedule(mentorUserId) {
   try {
-    const keys = [mentorUserId, "demo-mentor-maya"].filter(Boolean);
+    const keys = [mentorUserId, "demo-mentor-asim"].filter(Boolean);
     for (const key of keys) {
       const fromMemory = globalThis.__preludeMentorSchedules?.[key];
       if (fromMemory) return fromMemory;

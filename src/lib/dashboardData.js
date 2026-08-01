@@ -13,6 +13,7 @@ import {
   taskTemplateIdsForCategory
 } from "./rewardTaskCatalog.js";
 import { applyCoinMultiplier, getCoinMultiplier } from "../dashboard/lib/progressRewards.js";
+import { enrichAssignedMentorMatch } from "./studentMentorCard.js";
 
 function db() {
   const client = getSupabase();
@@ -368,6 +369,44 @@ function scholarshipToRow(input = {}) {
   return row;
 }
 
+const MENTOR_MATCH_PROFILE_SELECT =
+  "mentor_user_id, display_name, college, major, bio, specialties, target_majors, target_schools, support_styles, application_strengths, availability, availability_schedule";
+const MENTOR_MATCH_PROFILE_FALLBACK_SELECT = "mentor_user_id, availability, availability_schedule";
+const MENTOR_ACCOUNT_PROFILE_SELECT = "id, full_name, avatar_url, graduation_year";
+
+async function loadMentorMatchEnrichment(mentorIds) {
+  let matchingRes = await db()
+    .from("mentor_matching_profiles")
+    .select(MENTOR_MATCH_PROFILE_SELECT)
+    .in("mentor_user_id", mentorIds);
+
+  // Production schemas can lag behind the client select list — fall back instead of
+  // failing the whole dashboard load for an enrichment-only query.
+  if (matchingRes.error) {
+    logFeatureError("mentor-match-enrichment", matchingRes.error.message);
+    matchingRes = await db()
+      .from("mentor_matching_profiles")
+      .select(MENTOR_MATCH_PROFILE_FALLBACK_SELECT)
+      .in("mentor_user_id", mentorIds);
+  }
+
+  const accountRes = await db()
+    .from("profiles")
+    .select(MENTOR_ACCOUNT_PROFILE_SELECT)
+    .in("id", mentorIds);
+
+  if (accountRes.error) {
+    logFeatureError("mentor-account-enrichment", accountRes.error.message);
+  }
+
+  return {
+    matchingById: Object.fromEntries(
+      (matchingRes.data || []).map((profile) => [profile.mentor_user_id, profile])
+    ),
+    accountById: Object.fromEntries((accountRes.data || []).map((profile) => [profile.id, profile]))
+  };
+}
+
 export async function getMyMentorMatches(userId) {
   const id = requireUserId(userId);
   const { data, error } = await db()
@@ -386,31 +425,20 @@ export async function getMyMentorMatches(userId) {
   ];
   if (!mentorIds.length) return { matches, error: null };
 
-  const { data: profiles, error: profileError } = await db()
-    .from("mentor_matching_profiles")
-    .select("mentor_user_id, availability, availability_schedule")
-    .in("mentor_user_id", mentorIds);
-
-  if (profileError || !profiles?.length) {
-    return { matches, error: error?.message || null };
+  try {
+    const { matchingById, accountById } = await loadMentorMatchEnrichment(mentorIds);
+    return {
+      matches: matches.map((match) => {
+        const mentorKey = match.mentorUserId || match.userId;
+        return enrichAssignedMentorMatch(match, matchingById[mentorKey] || null, accountById[mentorKey] || null);
+      }),
+      // Enrichment is best-effort; never block dashboard boot on profile joins.
+      error: null
+    };
+  } catch (enrichmentError) {
+    logFeatureError("mentor-match-enrichment", enrichmentError?.message || enrichmentError);
+    return { matches, error: null };
   }
-
-  const byMentorId = Object.fromEntries(
-    profiles.map((profile) => [profile.mentor_user_id, profile])
-  );
-
-  return {
-    matches: matches.map((match) => {
-      const profile = byMentorId[match.mentorUserId || match.userId];
-      if (!profile) return match;
-      return {
-        ...match,
-        availability: profile.availability || match.availability,
-        availabilitySchedule: profile.availability_schedule || match.availabilitySchedule || null
-      };
-    }),
-    error: null
-  };
 }
 
 export async function saveMatchAnswer(userId, questionId, answer) {

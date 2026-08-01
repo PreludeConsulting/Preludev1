@@ -75,7 +75,11 @@ describe("Cloudflare API rate limiting", () => {
       STRIPE_PRICE_ID_PLUS: "price_plus",
       STRIPE_PRICE_ID_PRO: "price_pro",
       STRIPE_PRICE_ID_ESSAY_SUPPORT_3: "price_essay3",
+      STRIPE_PRICE_ID_ESSAY_SUPPORT_4: "price_essay4",
+      STRIPE_PRICE_ID_ESSAY_SUPPORT_5: "price_essay5",
       STRIPE_PRICE_ID_ESSAY_SUPPORT_6: "price_essay6",
+      STRIPE_PRICE_ID_ESSAY_SUPPORT_7: "price_essay7",
+      STRIPE_PRICE_ID_ESSAY_SUPPORT_8: "price_essay8",
       STRIPE_PRICE_ID_ESSAY_SUPPORT_10: "price_essay10",
       STRIPE_ALLOW_GUEST_CHECKOUT: "true",
       RATE_LIMIT_STORE: "memory"

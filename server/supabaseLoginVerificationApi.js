@@ -28,6 +28,10 @@ const verifyCodeSchema = z.object({
   deviceName: z.string().trim().max(120).optional()
 });
 
+export function isConfirmedAuthUser(user) {
+  return Boolean(user?.email && (user?.email_confirmed_at || user?.confirmed_at));
+}
+
 function correlationId() {
   return randomBytes(12).toString("hex");
 }
@@ -281,7 +285,7 @@ async function handleSend(req, res) {
   const requestId = correlationId();
   const { supabase, user } = await requireSupabaseUser(req);
   logAuth("verification.challenge.create.started", { requestId, userId: user.id });
-  if (!user.email || !user.email_confirmed_at) {
+  if (!isConfirmedAuthUser(user)) {
     return sendJson(res, 403, { error: "email_unconfirmed", message: "Confirm your email before completing login verification." });
   }
 

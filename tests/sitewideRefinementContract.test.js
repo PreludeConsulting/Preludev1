@@ -20,15 +20,17 @@ describe("sitewide refinement contracts", () => {
     expect(css).not.toContain("box-shadow: 0 6px 24px rgb(35 39 48 / 0.06)");
   });
 
-  it("lazy-loads route families without suspending dashboard tab navigation", () => {
+  it("keeps critical auth routes eager while lazy-loading noncritical route families", () => {
     const source = read("src/main.jsx");
     expect(source).toMatch(/lazy\(\(\) => import\("\.\/dashboard\/DashboardRouter\.jsx"\)\)/);
     expect(source).toMatch(/lazy\(\(\) => import\("\.\/components\/MentorsPage\.jsx"\)\)/);
     expect(source).toMatch(/lazy\(\(\) => import\("\.\/components\/ContactPage\.jsx"\)\)/);
-    expect(source).toContain('lazyNamed(() => import("./components/AuthPages.jsx"), "LoginPage")');
+    expect(source).toMatch(/import\s*\{[\s\S]*LoginPage[\s\S]*\}\s*from\s*"\.\/components\/AuthPages\.jsx"/);
+    expect(source).not.toContain('lazyNamed(() => import("./components/AuthPages.jsx"), "LoginPage")');
     expect(source).toContain('lazyNamed(() => import("./components/PlanSelectionPage.jsx"), "PlansPage")');
     expect(source).toContain('lazy(() => import("./components/onboarding/PreludeMatchOnboardingPage.jsx"))');
     expect(source).toContain("RouteLoadingFallback");
+    expect(source).toContain("RouteErrorBoundary");
     expect(source).not.toContain("v7_startTransition: true");
 
     const dashboard = read("src/dashboard/DashboardRouter.jsx");

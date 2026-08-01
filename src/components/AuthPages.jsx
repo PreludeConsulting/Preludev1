@@ -2,7 +2,7 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
-import { postAuthDestination } from "../lib/onboardingRoutes.js";
+import { postAuthDestination, postConfirmationDestination } from "../lib/onboardingRoutes.js";
 import { signInWithGoogle } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -30,6 +30,12 @@ import { PASSWORD_RESET_GENERIC_MESSAGE } from "../../shared/passwordResetConsta
 import { isTurnstileRequired } from "../lib/turnstile.js";
 import { readPendingJourney, savePendingJourney, clearPendingJourney, resolveJourneyDestination } from "../lib/authJourney.js";
 import { sanitizeAuthRedirect } from "../lib/authRedirects.js";
+import {
+  clearPendingSignupVerification,
+  pendingSignupResendSeconds,
+  readPendingSignupVerification,
+  storePendingSignupVerification
+} from "../lib/signupVerificationState.js";
 import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerification.js";
 import { maskEmail } from "../../shared/passwordValidation.js";
 import {
@@ -75,8 +81,13 @@ export function friendlyVerificationError(error) {
   return "Verification could not be completed. Please try again.";
 }
 
-function isEmailUnconfirmedError(message = "") {
+export function isEmailUnconfirmedError(message = "") {
   return /confirm your email|email not confirmed|email_unconfirmed|email_unconfirmed/i.test(String(message || ""));
+}
+
+export function shouldRouteToSignupVerification(error, authenticatedUser = null) {
+  const authoritativeUser = authenticatedUser || error?.authenticatedUser;
+  return !authoritativeUser?.emailVerified && isEmailUnconfirmedError(error?.message);
 }
 
 function focusField(ref) {
@@ -166,30 +177,23 @@ export function LoginPage() {
     setAuthAction("email");
     setFormError("");
     setMessage("");
+    let authenticatedUser = null;
     try {
       const nextUser = await signIn(loginEmail, loginPassword, { captchaToken });
+      authenticatedUser = nextUser;
       if (nextUser?.requiresLoginVerification) {
         const challenge = nextUser.challengeId ? `&challenge=${encodeURIComponent(nextUser.challengeId)}` : "";
         navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}${challenge}`, { replace: true });
         return;
       }
-      navigate(resolveJourneyDestination(readPendingJourney() || { next: destination }, nextUser), { replace: true });
+      const requestedDestination = resolveJourneyDestination(readPendingJourney() || { next: destination }, nextUser);
+      navigate(postConfirmationDestination(nextUser, requestedDestination), { replace: true });
       clearPendingJourney();
     } catch (err) {
-      if (isEmailUnconfirmedError(err.message)) {
+      if (shouldRouteToSignupVerification(err, authenticatedUser)) {
         const targetEmail = loginEmail.trim();
-        setConfirmationEmail(targetEmail);
-        setAuthAction("email-confirmation");
-        try {
-          const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
-          await resendSignupConfirmation(targetEmail);
-          setMessage(`We sent a confirmation email to ${maskEmail(targetEmail)}. Verify your address before logging in.`);
-          setResendCooldown(RESEND_COOLDOWN_SECONDS);
-          setFormError("");
-        } catch (sendError) {
-          setMessage("Your email still needs verification, but Prelude could not send the confirmation email automatically. Use resend to try again.");
-          setFormError(friendlyAuthError(sendError.message, "signin"));
-        }
+        storePendingSignupVerification(targetEmail, { cooldownSeconds: 0 });
+        navigate("/verify-email", { replace: true });
         return;
       }
       setFormError(friendlyAuthError(err.message, "signin"));
@@ -479,6 +483,11 @@ export function RegisterPage() {
       }
 
       if (result?.needsEmailConfirmation || result?.verificationEmailSent) {
+        if (supabaseAuth) {
+          storePendingSignupVerification(userEmail);
+          navigate("/verify-email", { replace: true });
+          return;
+        }
         setConfirmationEmail(form.email.trim());
         if (result?.verificationEmailError) {
           setFormError(result.verificationEmailError);
@@ -509,7 +518,8 @@ export function RegisterPage() {
           navigate(`/verify-login?next=${encodeURIComponent(verificationDestination || "/dashboard")}${challenge}`, { replace: true });
           return;
         }
-        navigate(resolveJourneyDestination(readPendingJourney() || { next: destination }, result), { replace: true });
+        const requestedDestination = resolveJourneyDestination(readPendingJourney() || { next: destination }, result);
+        navigate(postConfirmationDestination(result, requestedDestination), { replace: true });
         clearPendingJourney();
         return;
       }
@@ -517,9 +527,8 @@ export function RegisterPage() {
     } catch (err) {
       const duplicate = /already exists|already registered|try logging in/i.test(err.message || "");
       if (supabaseAuth && duplicate) {
-        setConfirmationEmail(form.email.trim());
-        setMessage("An account with this email already exists. If it is not confirmed yet, resend the confirmation email; otherwise log in or reset your password.");
-        setFormError("");
+        storePendingSignupVerification(form.email);
+        navigate("/verify-email", { replace: true });
       } else {
         setFormError(friendlyAuthError(err.message, "signup"));
       }
@@ -780,11 +789,25 @@ export function ForgotPasswordPage() {
 
 export function VerifyEmailPage() {
   const navigate = useNavigate();
-  const { user, refreshUser, beginLoginVerification } = useAuth();
+  const { refreshUser } = useAuth();
   const supabaseAuth = isSupabaseConfigured();
   const verificationUrl = useMemo(() => ({ search: window.location.search, hash: window.location.hash }), []);
   const verificationToken = useMemo(() => new URLSearchParams(window.location.search).get("token") || "", []);
-  const [state, setState] = useState({ loading: true, message: "", error: "", alreadyVerified: false });
+  const pendingVerification = useMemo(() => readPendingSignupVerification(), []);
+  const [email, setEmail] = useState(pendingVerification?.email || "");
+  const [digits, setDigits] = useState(["", "", "", "", "", ""]);
+  const [state, setState] = useState({ checking: true, processing: false, message: "", error: "", alreadyVerified: false });
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(() => pendingSignupResendSeconds(pendingVerification));
+  const code = digits.join("");
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return undefined;
+    const id = window.setInterval(() => {
+      setResendCooldown(pendingSignupResendSeconds(readPendingSignupVerification()));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [resendCooldown]);
 
   useEffect(() => {
     if (window.location.search || window.location.hash) {
@@ -792,35 +815,31 @@ export function VerifyEmailPage() {
     }
     if (supabaseAuth) {
       let cancelled = false;
+      const hasCompatibilityCallback = /(?:code|token_hash|access_token|refresh_token|error)=/.test(
+        `${verificationUrl.search}&${verificationUrl.hash}`
+      );
       import("../lib/supabaseAuth.js")
         .then(({ completeEmailVerification }) => completeEmailVerification(verificationUrl.search, verificationUrl.hash))
-        .then(async ({ user: nextUser, error }) => {
+        .then(async ({ user: nextUser, error, alreadyVerified }) => {
           if (cancelled) return;
           if (error) {
-            setState({ loading: false, message: "", error: friendlyAuthError(error, "signup"), alreadyVerified: false });
+            setState({
+              checking: false,
+              processing: false,
+              message: "",
+              error: hasCompatibilityCallback ? friendlyAuthError(error, "signup") : "",
+              alreadyVerified: false
+            });
             return;
           }
-          await refreshUser();
-          setState({
-            loading: false,
-            message: "Email verified. We're checking your Prelude profile before continuing.",
-            error: "",
-            alreadyVerified: false
-          });
-          const destination = postAuthDestination(nextUser);
-          const verification = await beginLoginVerification();
-          if (!verification.verified) {
-            const challenge = verification.challengeId ? `&challenge=${encodeURIComponent(verification.challengeId)}` : "";
-            setTimeout(
-              () => navigate(`/verify-login?next=${encodeURIComponent(destination || "/dashboard")}${challenge}`, { replace: true }),
-              900
-            );
-            return;
-          }
-          setTimeout(() => navigate(destination, { replace: true }), 900);
+          const refreshedUser = await refreshUser();
+          if (cancelled) return;
+          const resolvedUser = refreshedUser || nextUser;
+          clearPendingSignupVerification();
+          navigate(postAuthDestination(resolvedUser), { replace: true });
         })
         .catch((err) => {
-          if (!cancelled) setState({ loading: false, message: "", error: friendlyAuthError(err.message, "signup"), alreadyVerified: false });
+          if (!cancelled) setState({ checking: false, processing: false, message: "", error: friendlyAuthError(err.message, "signup"), alreadyVerified: false });
         });
       return () => {
         cancelled = true;
@@ -829,7 +848,8 @@ export function VerifyEmailPage() {
 
     if (!verificationToken) {
       setState({
-        loading: false,
+        checking: false,
+        processing: false,
         message: "",
         error: "This verification link is missing a token. Request a new link from your account settings or sign up again.",
         alreadyVerified: false
@@ -843,52 +863,122 @@ export function VerifyEmailPage() {
         if (cancelled) return;
         await refreshUser();
         setState({
-          loading: false,
+          checking: false,
+          processing: false,
           message: result.message || "Email verified.",
           error: "",
           alreadyVerified: Boolean(result.alreadyVerified)
         });
       })
       .catch((err) => {
-        if (!cancelled) setState({ loading: false, message: "", error: friendlyAuthError(err.message, "signup"), alreadyVerified: false });
+        if (!cancelled) setState({ checking: false, processing: false, message: "", error: friendlyAuthError(err.message, "signup"), alreadyVerified: false });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [beginLoginVerification, refreshUser, supabaseAuth, verificationToken, verificationUrl.hash, verificationUrl.search, navigate]);
+  }, [refreshUser, supabaseAuth, verificationToken, verificationUrl.hash, verificationUrl.search, navigate]);
 
-  const continuePath = user ? postAuthDestination(user) : "/login";
-  const continueLabel = user ? "Continue to dashboard" : "Continue to login";
-  const verified = !state.loading && !state.error && state.message;
+  async function submitVerification(event) {
+    event.preventDefault();
+    if (state.processing || !/^\d{6}$/.test(code)) return;
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      setState((current) => ({ ...current, error: "Enter the email address used to create your account." }));
+      return;
+    }
+    storePendingSignupVerification(normalizedEmail, { cooldownSeconds: resendCooldown });
+    setState((current) => ({ ...current, processing: true, error: "", message: "" }));
+    try {
+      const { verifySignupOtp } = await import("../lib/supabaseAuth.js");
+      const { user: verifiedUser, error } = await verifySignupOtp(normalizedEmail, code.trim());
+      if (error) {
+        setState((current) => ({ ...current, processing: false, error }));
+        return;
+      }
+      const refreshedUser = (await refreshUser()) || verifiedUser;
+      clearPendingSignupVerification();
+      navigate(postAuthDestination(refreshedUser), { replace: true });
+    } catch (error) {
+      setState((current) => ({ ...current, processing: false, error: friendlyAuthError(error.message, "signup") }));
+    }
+  }
+
+  async function resendConfirmation() {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      setState((current) => ({ ...current, error: "Enter the email address used to create your account." }));
+      return;
+    }
+    setResending(true);
+    try {
+      const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
+      await resendSignupConfirmation(normalizedEmail);
+      storePendingSignupVerification(normalizedEmail);
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setState({ checking: false, processing: false, message: "A new six-digit code was sent. Check your inbox.", error: "", alreadyVerified: false });
+    } catch (error) {
+      setState((current) => ({ ...current, error: friendlyAuthError(error.message, "signup"), message: "" }));
+    } finally {
+      setResending(false);
+    }
+  }
 
   return (
     <AuthLayout
-      title={verified ? "Email verified" : "Email verification"}
-      subtitle={verified ? "Your account is confirmed. Continuing to Prelude…" : "Confirm your email address so Prelude can protect account updates and recovery."}
+      title="Check your email"
+      subtitle={email ? `Enter the six-digit code sent to ${maskEmail(email)}.` : "Enter the email used to sign up and its six-digit verification code."}
       headerLink={{ prefix: "Need help?", label: "Log in", href: "/login" }}
     >
-      {state.loading ? (
+      {state.checking ? (
         <div className="auth-inline-loading">
           <Loader2 className="auth-loading-spinner" aria-hidden="true" />
-          <span>Verifying your email…</span>
+          <span>Checking your verification status…</span>
         </div>
       ) : null}
       <AuthBanner tone="error" reserve={Boolean(state.error)}>
         {state.error || null}
       </AuthBanner>
-      {verified ? (
-        <div className="auth-success-state" role="status" aria-live="polite">
-          <span className="auth-success-state__icon" aria-hidden="true">
-            <CheckCircle2 size={28} />
-          </span>
-          <p>{state.alreadyVerified ? "Email already verified." : "Email verified."}</p>
-        </div>
+      {!state.checking && supabaseAuth ? (
+        <form className="auth-form auth-verify-form" onSubmit={submitVerification} noValidate>
+          <AuthField
+            label="Email"
+            type="email"
+            name="verification-email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              if (state.error) setState((current) => ({ ...current, error: "" }));
+            }}
+            disabled={state.processing || resending}
+            required
+          />
+          <OtpInput
+            value={digits}
+            onChange={(nextDigits) => {
+              setDigits(nextDigits);
+              if (state.error) setState((current) => ({ ...current, error: "" }));
+            }}
+            disabled={state.processing || resending}
+            error={state.error}
+            label="Six-digit signup verification code"
+          />
+          <AuthSubmitButton disabled={state.processing || resending || code.length !== 6} loading={state.processing}>
+            {state.processing ? "Verifying email…" : "Verify email"}
+          </AuthSubmitButton>
+        </form>
       ) : null}
-      {!state.loading && !state.error ? (
-        <AuthSubmitButton type="button" onClick={() => navigate(continuePath, { replace: true })}>
-          {continueLabel}
-        </AuthSubmitButton>
+      {!state.checking && supabaseAuth ? (
+        <div className="auth-resend" aria-live="polite">
+          <p>{state.error ? "" : state.message || "The code expires according to your Supabase email OTP settings."}</p>
+          <div className="auth-resend__actions">
+            <button type="button" disabled={state.processing || resending || resendCooldown > 0} onClick={resendConfirmation}>
+              {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : resending ? "Sending…" : "Resend code"}
+            </button>
+            <AppLink to="/register">Use a different email</AppLink>
+          </div>
+        </div>
       ) : null}
     </AuthLayout>
   );
@@ -906,14 +996,6 @@ export function AuthCallbackPage() {
 
   useEffect(() => {
     let active = true;
-    const timeoutId = window.setTimeout(() => {
-      if (!active) return;
-      setState({
-        loading: false,
-        error: "We couldn't finish signing you in. Please try again.",
-        message: ""
-      });
-    }, 20000);
 
     if (callbackUrl.search || callbackUrl.hash) {
       window.history.replaceState({}, "", window.location.pathname);
@@ -928,7 +1010,6 @@ export function AuthCallbackPage() {
     callbackPromise.current
       .then(async ({ user: nextUser, error }) => {
         if (!active) return;
-        window.clearTimeout(timeoutId);
         if (error) {
           setState({ loading: false, error: friendlyAuthError(error, "signin"), message: "" });
           return;
@@ -943,19 +1024,18 @@ export function AuthCallbackPage() {
           navigate(`/verify-login?next=${encodeURIComponent(nextPath || "/dashboard")}${challenge}`, { replace: true });
           return;
         }
-        const destination = nextPath === "/dashboard" ? postAuthDestination(resolvedUser) : nextPath || postAuthDestination(resolvedUser);
+        const requestedDestination = nextPath === "/dashboard" ? "" : nextPath;
+        const destination = postConfirmationDestination(resolvedUser, requestedDestination);
         setState({ loading: false, error: "", message: "Signed in. Opening Prelude…" });
         navigate(destination, { replace: true });
       })
       .catch((err) => {
         if (active) {
-          window.clearTimeout(timeoutId);
           setState({ loading: false, error: friendlyAuthError(err.message, "signin"), message: "" });
         }
       });
     return () => {
       active = false;
-      window.clearTimeout(timeoutId);
     };
   }, [beginLoginVerification, callbackUrl.hash, callbackUrl.search, navigate, nextPath, refreshUser]);
 

@@ -292,7 +292,7 @@ DATABASE_URL="postgresql://prelude:prelude_dev_password@localhost:5432/prelude_d
 DIRECT_URL="postgresql://prelude:prelude_dev_password@localhost:5432/prelude_dev?schema=public"
 JWT_ACCESS_SECRET="replace-with-a-long-random-secret"
 PUBLIC_APP_URL="http://localhost:5173"
-PRELUDE_LOG_AUTH_EMAILS=1
+PRELUDE_LOG_AUTH_EMAILS=1 # logs delivery diagnostics only; secure links are omitted
 VITE_SUPABASE_URL=
 VITE_SUPABASE_PUBLISHABLE_KEY=
 ```

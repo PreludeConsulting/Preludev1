@@ -34,18 +34,12 @@ export function assertDashboardAppDataOwnership({
   profile,
   settings,
   availability,
-  wallet,
-  tasks,
-  notifications,
-  events,
-  messages
+  wallet
 }) {
   if (profile) assertRowsBelongToUser(profile, userId, ["id"], "Profile data");
   if (settings) assertRowsBelongToUser(settings, userId, ["user_id"], "Settings data");
   if (availability) assertRowsBelongToUser(availability, userId, ["mentor_user_id"], "Availability data");
   if (wallet) assertRowsBelongToUser(wallet, userId, ["user_id"], "Reward wallet data");
-  assertRowsBelongToUser(tasks || [], userId, ["user_id"], "Reward task data");
-  assertRowsBelongToUser(notifications || [], userId, ["user_id"], "Notification data");
-  assertRowsBelongToUser(events || [], userId, ["user_id"], "Calendar data");
-  assertRowsBelongToUser(messages || [], userId, ["user_id", "sender_id", "receiver_id"], "Message data");
+  // events/messages/notifications/tasks stay RLS-scoped; mentors/parents may see
+  // linked-student rows and must not brick dashboard boot.
 }

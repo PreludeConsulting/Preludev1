@@ -1,8 +1,10 @@
+import { ASIM_YOONAS_PHOTO } from "./demoAccounts.js";
+
 /** Mentor mock data for the homepage PreludeMatch results demo. */
 export const PRELUDE_MATCH_MENTORS = [
   {
-    id: "maya",
-    name: "Maya Patel",
+    id: "asim",
+    name: "Asim Yoonas",
     school: "Georgia Tech",
     major: "Computer Science",
     matchPercent: 96,
@@ -10,7 +12,9 @@ export const PRELUDE_MATCH_MENTORS = [
     reason: "Clear roadmap for CS applicants.",
     availability: "Available this week",
     bestMatch: true,
-    initials: "MP"
+    initials: "AY",
+    photo: ASIM_YOONAS_PHOTO,
+    objectPosition: "50% 18%"
   },
   {
     id: "jordan",

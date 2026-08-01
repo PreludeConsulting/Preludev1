@@ -28,7 +28,20 @@ async function mentorSelectionApi(path, options = {}) {
     ...options,
     headers
   });
-  const payload = await response.json().catch(() => ({}));
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    const error = new Error("The Matching Team data service returned an invalid response. The Cloudflare Function may not be deployed.");
+    error.status = 502;
+    error.payload = { error: "matching_api_invalid_response" };
+    throw error;
+  }
+  const payload = await response.json().catch(() => null);
+  if (!payload || typeof payload !== "object") {
+    const error = new Error("The Matching Team data service returned an invalid response.");
+    error.status = 502;
+    error.payload = { error: "matching_api_invalid_response" };
+    throw error;
+  }
   if (!response.ok) {
     const error = new Error(payload.message || payload.error || "Request failed.");
     error.status = response.status;

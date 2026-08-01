@@ -81,15 +81,11 @@ function ensureOwnedRow(row, userId, fields, label) {
   }
 }
 
-function ensureDashboardOwnership(user, { profile, settings, availability, wallet, tasks, notifications, events, messages }) {
+function ensureDashboardOwnership(user, { profile, settings, availability, wallet }) {
   ensureOwnedRow(profile, user.id, ["id"], "Profile data");
   ensureOwnedRow(settings, user.id, ["user_id"], "Settings data");
   ensureOwnedRow(availability, user.id, ["mentor_user_id"], "Availability data");
   ensureOwnedRow(wallet, user.id, ["user_id"], "Reward wallet data");
-  for (const row of tasks || []) ensureOwnedRow(row, user.id, ["user_id"], "Reward task data");
-  for (const row of notifications || []) ensureOwnedRow(row, user.id, ["user_id"], "Notification data");
-  for (const row of events || []) ensureOwnedRow(row, user.id, ["user_id"], "Calendar data");
-  for (const row of messages || []) ensureOwnedRow(row, user.id, ["user_id", "sender_id", "receiver_id"], "Message data");
 }
 
 async function loadAppData(context, user, token) {
@@ -112,18 +108,22 @@ async function loadAppData(context, user, token) {
   const featureErrors = [];
   if (availability.status === "rejected") featureErrors.push("availability");
   if (wallet.status === "rejected" || tasks.status === "rejected") featureErrors.push("rewards");
+  // Collection payloads (events/messages/notifications/tasks) are already scoped by
+  // the REST filters + Supabase RLS. Do not hard-fail app-data when a linked-student
+  // calendar/message row is visible to a mentor/parent — that previously 403'd the
+  // whole Cloudflare dashboard boot.
   ensureDashboardOwnership(user, {
     profile: first(profile.value),
     settings: first(settings.value),
     availability: availability.status === "fulfilled" ? first(availability.value) : null,
-    wallet: wallet.status === "fulfilled" ? first(wallet.value) : null,
-    tasks: tasks.status === "fulfilled" ? tasks.value : [],
-    notifications: notifications.value || [],
-    events: events.value || [],
-    messages: messages.value || []
+    wallet: wallet.status === "fulfilled" ? first(wallet.value) : null
   });
 
   const resolvedRole = (user.user_metadata?.role || first(profile.value)?.role || "student").toLowerCase();
+  const taskRows = tasks.status === "fulfilled" ? tasks.value : [];
+  const notificationRows = notifications.value || [];
+  const eventRows = events.value || [];
+  const messageRows = messages.value || [];
 
   let meetings = [];
   try {
@@ -147,8 +147,8 @@ async function loadAppData(context, user, token) {
     profile: mapProfile(first(profile.value), user.email),
     settings: mapSettings(first(settings.value)),
     availability: mapAvailability(availability.status === "fulfilled" ? first(availability.value) : null),
-    rewards: mapRewards(wallet.status === "fulfilled" ? first(wallet.value) : null, tasks.status === "fulfilled" ? tasks.value : []),
-    notifications: (notifications.value || []).map((item) => ({
+    rewards: mapRewards(wallet.status === "fulfilled" ? first(wallet.value) : null, taskRows),
+    notifications: notificationRows.map((item) => ({
       id: item.id,
       title: item.title,
       body: item.body,
@@ -159,8 +159,8 @@ async function loadAppData(context, user, token) {
       actionPayload: item.action_payload || {},
       actionCompletedAt: item.action_completed_at || null
     })),
-    events: events.value || [],
-    messages: messages.value || [],
+    events: eventRows,
+    messages: messageRows,
     meetings,
     integrations,
     featureErrors

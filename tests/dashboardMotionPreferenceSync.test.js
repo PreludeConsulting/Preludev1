@@ -10,7 +10,7 @@ const source = fs.readFileSync(
 describe("dashboard motion preference synchronization", () => {
   it("applies server-loaded and successfully saved preferences to the browser motion store", () => {
     expect(source).toContain('savePreferences as persistDashboardPreferences');
-    expect(source).toMatch(/const nextPreferences = appData\.settings \|\| data\.preferences;[\s\S]*persistDashboardPreferences\(nextPreferences\)/);
+    expect(source).toMatch(/const nextPreferences = appData\?\.settings \|\| data\.preferences;[\s\S]*persistDashboardPreferences\(nextPreferences\)/);
     expect(source).toMatch(/const nextPreferences = result\?\.settings \|\| prefs;[\s\S]*persistDashboardPreferences\(nextPreferences\)/);
   });
 });

@@ -7,7 +7,7 @@ const SHORT_TITLES = {
   "Revise personal statement": "Personal Statement",
   "Update extracurricular activities list": "Update Activities",
   "Review scholarship opportunities": "Scholarship Deadline",
-  "Maya Patel — Office hours": "Office Hours",
+  "Asim Yoonas — Office hours": "Office Hours",
   "UC application opens": "UC Application",
   "Early action deadline": "Early Action",
   "Mentor planning block": "Planning Block",

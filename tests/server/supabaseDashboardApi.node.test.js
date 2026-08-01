@@ -73,7 +73,31 @@ function fakeSupabase(rows) {
 }
 
 describe("Supabase dashboard API", () => {
-  it("rejects app-data responses when Supabase returns rows owned by another user", async () => {
+  it("still rejects app-data when a singleton row is owned by another user", async () => {
+    const middleware = createSupabaseDashboardApiMiddleware({
+      requireUser: async () => ({
+        user: { id: "user-1", email: "student@example.com", user_metadata: { role: "student" } },
+        supabase: fakeSupabase({
+          profiles: { id: "user-2", full_name: "Other Student", role: "student" },
+          user_settings: { user_id: "user-1", email_updates: false },
+          mentor_matching_profiles: { mentor_user_id: "user-1", availability_schedule: { days: [] } },
+          reward_wallets: { user_id: "user-1", coin_balance: 18 },
+          reward_task_instances: [],
+          notifications: [],
+          calendar_events: [],
+          messages: []
+        })
+      })
+    });
+    const res = response();
+
+    await middleware(request(), res, () => assert.fail("app-data should be handled"));
+
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.error, "forbidden");
+  });
+
+  it("tolerates linked collection rows owned by another user (RLS-scoped)", async () => {
     const middleware = createSupabaseDashboardApiMiddleware({
       requireUser: async () => ({
         user: { id: "user-1", email: "student@example.com", user_metadata: { role: "student" } },
@@ -93,8 +117,8 @@ describe("Supabase dashboard API", () => {
 
     await middleware(request(), res, () => assert.fail("app-data should be handled"));
 
-    assert.equal(res.statusCode, 403);
-    assert.equal(res.body.error, "forbidden");
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.user.id, "user-1");
   });
 
   it("isolates rewards and availability schema failures from core dashboard data", async () => {

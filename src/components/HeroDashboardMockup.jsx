@@ -10,6 +10,8 @@ import {
   Search
 } from "lucide-react";
 import { DASHBOARD_COLLEGES } from "../data/universities.js";
+import { ASIM_YOONAS_PHOTO } from "../data/demoAccounts.js";
+import MentorPhotoAvatar from "./MentorPhotoAvatar.jsx";
 import PreludeLogo from "./PreludeLogo.jsx";
 import UniversityLogo from "./UniversityLogo.jsx";
 
@@ -32,7 +34,11 @@ export default function HeroDashboardMockup() {
           <div className="dashboard-mockup__topbar-actions">
             <Search className="h-4 w-4 opacity-50" />
             <Bell className="h-4 w-4 opacity-50" />
-            <span className="dashboard-mockup__avatar">M</span>
+            <MentorPhotoAvatar
+              photo={ASIM_YOONAS_PHOTO}
+              initials="AY"
+              className="dashboard-mockup__avatar dashboard-mockup__avatar--photo"
+            />
           </div>
         </header>
 
@@ -50,7 +56,7 @@ export default function HeroDashboardMockup() {
           </aside>
 
           <div className="dashboard-mockup__main">
-            <p className="dashboard-mockup__greeting">Welcome back, Maya! 👋</p>
+            <p className="dashboard-mockup__greeting">Welcome back, Asim! 👋</p>
 
             <div className="dashboard-mockup__card">
               <p className="dashboard-mockup__card-label">Next Mentor Session</p>

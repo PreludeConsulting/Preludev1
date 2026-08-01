@@ -459,39 +459,68 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
 
     if (useSupabase) {
       try {
-        const appData = await getDashboardAppData();
+        // Cloudflare /api/dashboard/app-data and direct Supabase loads are independent.
+        // One failing must not blank the mentor/student dashboard on production.
+        const [appDataResult, dashboardResult] = await Promise.allSettled([
+          getDashboardAppData(),
+          loadSupabaseDashboard(user.id, user.email)
+        ]);
         if (isStale()) return;
-        const data = await loadSupabaseDashboard(user.id, user.email);
-        if (isStale()) return;
-        if (data.errors?.length) {
-          setError(formatDashboardPersistenceError(data.errors));
+        const appData = appDataResult.status === "fulfilled" ? appDataResult.value : null;
+        const data = dashboardResult.status === "fulfilled" ? dashboardResult.value : null;
+        if (!data) {
+          throw dashboardResult.reason || new Error("Dashboard data is temporarily unavailable. Refresh to retry.");
+        }
+        if (appDataResult.status === "rejected" && import.meta.env.DEV) {
+          console.error("[prelude-dashboard-app-data]", appDataResult.reason);
+        }
+
+        const persistenceError = data.errors?.length
+          ? formatDashboardPersistenceError(data.errors)
+          : null;
+        const appDataError =
+          appDataResult.status === "rejected"
+            ? (appDataResult.reason?.message || "Some dashboard settings are temporarily unavailable. Refresh to retry.")
+            : null;
+
+        if (persistenceError) {
+          setError(persistenceError);
           setDashboardSyncState(createSyncState({
             status: SYNC_STATUS.FAILED,
-            error: formatDashboardPersistenceError(data.errors),
+            error: persistenceError,
+            source: "dashboard"
+          }));
+        } else if (appDataError) {
+          setError(null);
+          setDashboardSyncState(createSyncState({
+            status: SYNC_STATUS.FAILED,
+            error: appDataError,
             source: "dashboard"
           }));
         } else {
+          setError(null);
           setDashboardSyncState(createSyncState({
             status: SYNC_STATUS.SAVED,
             lastSyncedAt: new Date().toISOString(),
             source: "dashboard"
           }));
         }
+
         setProfileOverrides({});
-        setProfile(appData.profile || data.profile);
-        const nextPreferences = appData.settings || data.preferences;
+        setProfile(appData?.profile || data.profile);
+        const nextPreferences = appData?.settings || data.preferences;
         setPreferences(nextPreferences);
         persistDashboardPreferences(nextPreferences);
-        setAvailability((appData.availability?.days || []).map((day) => ({
+        setAvailability((appData?.availability?.days || []).map((day) => ({
           id: `av-${day.dayOfWeek.toLowerCase()}`,
           day: day.dayOfWeek,
           active: day.enabled,
           startTime: day.startTime,
           endTime: day.endTime,
-          timezone: appData.availability?.timezone || "ET",
+          timezone: appData?.availability?.timezone || "ET",
           recurring: true
         })));
-        setRewardsData(appData.rewards || null);
+        setRewardsData(appData?.rewards || null);
         setOnboarding(data.onboarding || EMPTY_ONBOARDING);
         setMentor(data.mentor);
         setMentors(data.mentors || []);
@@ -505,7 +534,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setMeetings([]);
         setPendingMeetingRequests([]);
         try {
-          const meetingPayload = appData.meetings
+          const meetingPayload = appData?.meetings
             ? { meetings: appData.meetings }
             : await getMeetings();
           if (isStale()) return;
@@ -515,8 +544,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         } catch (meetingErr) {
           if (meetingErr?.status === 401 || meetingErr?.status === 403) throw meetingErr;
         }
-        if (appData.mentorAccess) setMentorAccess(appData.mentorAccess);
-        if (appData.integrations) setIntegrations(appData.integrations);
+        if (appData?.mentorAccess) setMentorAccess(appData.mentorAccess);
+        if (appData?.integrations) setIntegrations(appData.integrations);
         setEvents((data.events || []).filter((e) => !e.userCreated));
         setUserCalendarEvents((data.events || []).filter((e) => e.userCreated));
         setMessages(data.messages || []);
@@ -525,7 +554,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
             ? data.conversations
             : buildMentorConversation(data.mentor, data.messages || [], user.name)
         );
-        setNotifications(data.notifications || []);
+        setNotifications(appData?.notifications?.length ? appData.notifications : (data.notifications || []));
         setSavedResources(data.savedResources || []);
         setSupabaseTasks(data.tasks || []);
         setSupabaseEssays(data.essays || []);
@@ -542,14 +571,9 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           if (import.meta.env.DEV) console.error("[prelude-application-reviews]", reviewsResult.error);
         }
         setApplicationReviews(reviewsResult.reviews || []);
-        const availabilityUnavailable = appData.featureErrors?.includes("availability");
+        const availabilityUnavailable = appData?.featureErrors?.includes("availability");
         setSyncError(availabilityUnavailable ? "Availability is temporarily unavailable. Retry in a moment." : null);
-        setSyncStatus(availabilityUnavailable ? "sync-failed" : "synced");
-        setDashboardSyncState(createSyncState({
-          status: SYNC_STATUS.SAVED,
-          lastSyncedAt: new Date().toISOString(),
-          source: "dashboard"
-        }));
+        setSyncStatus(availabilityUnavailable || persistenceError || appDataError ? "sync-failed" : "synced");
       } catch (err) {
         if (isStale() || err?.name === "AbortError") return;
         if (import.meta.env.DEV) console.error("[prelude-dashboard-load]", err);
@@ -1336,13 +1360,13 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
             window.localStorage.setItem(`prelude_mentor_availability_schedule_${user.id}`, payload);
           }
           // Stable demo key so a student session in the same browser picks up mentor saves.
-          window.localStorage.setItem("prelude_mentor_availability_schedule_demo-mentor-maya", payload);
+          window.localStorage.setItem("prelude_mentor_availability_schedule_demo-mentor-asim", payload);
         }
         if (typeof globalThis !== "undefined") {
           globalThis.__preludeMentorSchedules = {
             ...(globalThis.__preludeMentorSchedules || {}),
             ...(user?.id ? { [user.id]: schedule } : {}),
-            "demo-mentor-maya": schedule
+            "demo-mentor-asim": schedule
           };
         }
       } catch {

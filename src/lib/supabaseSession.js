@@ -12,6 +12,10 @@ import { normalizeAuthProviders } from "./authSignInMethod.js";
 import { resolveAvatarUrl } from "./avatar.js";
 import { hasMatchingTeamAccess } from "../../shared/matchingTeamAccess.js";
 
+export function isSupabaseUserConfirmed(user) {
+  return Boolean(user?.email_confirmed_at || user?.confirmed_at);
+}
+
 export function mapSupabaseUser(
   session,
   profile = null,
@@ -91,7 +95,8 @@ export function mapSupabaseUser(
     paymentWaived: Boolean(profile?.payment_waived),
     promoCampaign: profile?.promo_campaign || null,
     promoAccessEndsAt: profile?.promo_access_ends_at || null,
-    emailVerified: Boolean(u.email_confirmed_at),
+    // Auth user confirmation is authoritative; profile.email may legitimately be null.
+    emailVerified: isSupabaseUserConfirmed(u),
     authProvider: "supabase",
     authSignInMethods,
     avatarUrl,

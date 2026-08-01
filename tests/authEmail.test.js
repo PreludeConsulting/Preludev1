@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAuthEmailHtml } from "../server/lib/authEmail.js";
+import { buildAuthEmailHtml, resolvePublicAppUrl } from "../server/lib/authEmail.js";
 import { PASSWORD_RESET_LINK_EXPIRY_MINUTES } from "../shared/passwordResetConstants.js";
 
 describe("auth email templates", () => {
@@ -21,5 +21,15 @@ describe("auth email templates", () => {
     });
     expect(html).toContain("Verify your email");
     expect(html).not.toContain("expires in about");
+  });
+
+  it("uses the configured canonical non-www origin even when a request arrives on www", () => {
+    expect(resolvePublicAppUrl(
+      { headers: { host: "www.preludeconsultingllc.com" } },
+      {
+        NODE_ENV: "production",
+        PUBLIC_APP_URL: "https://preludeconsultingllc.com"
+      }
+    )).toBe("https://preludeconsultingllc.com");
   });
 });

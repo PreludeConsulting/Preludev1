@@ -3,7 +3,7 @@
  */
 
 const DEMO_SLUGS = {
-  mentor: "demo-mentor-maya",
+  mentor: "demo-mentor-asim",
   jordanEssay: "demo-student-jordan-essay",
   jordanPlus: "demo-student-jordan-plus",
   jordanPro: "demo-student-jordan-pro",
@@ -33,11 +33,13 @@ function me(id, body, createdAt, status, deliveredAt = null, readAt = null) {
 
 const MENTOR_PARTICIPANT = {
   id: DEMO_SLUGS.mentor,
-  name: "Maya Patel",
+  name: "Asim Yoonas",
   role: "Mentor",
   context: "Georgia Tech · CS",
   status: "Active today",
-  online: true
+  online: true,
+  avatarUrl: "/media/mentors/asim-yoonas.png",
+  photo: "/media/mentors/asim-yoonas.png"
 };
 
 function studentParticipant(name, grade, major, id) {
