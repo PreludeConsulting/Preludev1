@@ -55,17 +55,59 @@ async function refreshCsrfToken() {
 }
 
 export async function api(path, options = {}) {
-  const { _csrfRetry, ...fetchOptions } = options;
+  const { _csrfRetry, _sessionRefreshRetry, ...fetchOptions } = options;
   const headers = { Accept: "application/json", ...(options.headers || {}) };
   if (options.body && !(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
   const csrf = getCsrfToken();
   if (csrf && !["GET", "HEAD", "OPTIONS"].includes(options.method || "GET")) headers["X-CSRF-Token"] = csrf;
   const response = await fetch(path, { credentials: "include", ...fetchOptions, headers });
-  const payload = await response.json().catch(() => ({}));
+  const contentType = response.headers.get("content-type") || "";
+  const rawText = await response.text();
+  const looksLikeHtml =
+    /text\/html/i.test(contentType) ||
+    /^\s*<!DOCTYPE/i.test(rawText) ||
+    /^\s*<html[\s>]/i.test(rawText);
+  if (looksLikeHtml || (response.ok && rawText && !/application\/json/i.test(contentType) && !rawText.trim().startsWith("{") && !rawText.trim().startsWith("["))) {
+    const error = new Error(
+      "API route returned non-JSON. This deployment is missing server handlers."
+    );
+    error.status = 502;
+    error.payload = { error: "deployment_misconfigured", message: error.message };
+    throw error;
+  }
+  let payload = {};
+  if (rawText) {
+    try {
+      payload = JSON.parse(rawText);
+    } catch {
+      if (response.ok) {
+        const error = new Error(
+          "API route returned non-JSON. This deployment is missing server handlers."
+        );
+        error.status = 502;
+        error.payload = { error: "deployment_misconfigured", message: error.message };
+        throw error;
+      }
+      payload = {};
+    }
+  }
   if (payload.csrfToken) storeCsrf(payload.csrfToken);
   if (!response.ok && isCsrfError(response, payload) && !_csrfRetry) {
     const refreshed = await refreshCsrfToken();
     if (refreshed) return api(path, { ...options, _csrfRetry: true });
+  }
+  if (!response.ok && response.status === 401 && !_sessionRefreshRetry && isPrivateDashboardPath(path)) {
+    const refreshedToken = await refreshSupabaseSessionOnce();
+    if (refreshedToken) {
+      return api(path, {
+        ...options,
+        _sessionRefreshRetry: true,
+        headers: {
+          ...(options.headers || {}),
+          Authorization: `Bearer ${refreshedToken}`
+        }
+      });
+    }
   }
   if (!response.ok) {
     const message = sanitizeClientErrorMessage(payload, payload.error);
@@ -75,6 +117,28 @@ export async function api(path, options = {}) {
     throw error;
   }
   return payload;
+}
+
+function isPrivateDashboardPath(path) {
+  const pathname = String(path || "").split("?")[0];
+  return (
+    pathname.startsWith("/api/dashboard") ||
+    pathname.startsWith("/api/meetings") ||
+    pathname.startsWith("/api/integrations") ||
+    pathname.startsWith("/api/activities") ||
+    pathname.startsWith("/api/students")
+  );
+}
+
+async function refreshSupabaseSessionOnce() {
+  try {
+    const supabase = getSupabase();
+    if (!supabase?.auth?.refreshSession) return null;
+    const { data, error } = await supabase.auth.refreshSession();
+    return (!error && data?.session?.access_token) || null;
+  } catch {
+    return null;
+  }
 }
 
 function attachFrontendFields(user) {

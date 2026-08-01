@@ -11,8 +11,8 @@ async function dashboardRequest(path, options = {}) {
   });
 }
 
-export async function getDashboardAppData() {
-  return dashboardRequest("/api/dashboard/app-data");
+export async function getDashboardAppData(options = {}) {
+  return dashboardRequest("/api/dashboard/app-data", options);
 }
 
 export async function updateDashboardProfile(fields) {
@@ -27,51 +27,58 @@ export async function updateMentorAvailability(availability) {
   return dashboardRequest("/api/dashboard/availability", { method: "PUT", body: JSON.stringify(availability) });
 }
 
-export async function getMeetings() {
-  return api("/api/meetings");
+export async function getMeetings(options = {}) {
+  return dashboardRequest("/api/meetings", options);
 }
 
 export async function createMeeting(payload, options = {}) {
-  const headers = {};
-  const idempotencyKey = options.idempotencyKey || payload.clientRequestId || payload.idempotencyKey;
-  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
-  return api("/api/meetings", {
+  const { idempotencyKey, ...requestOptions } = options;
+  const headers = { ...(requestOptions.headers || {}) };
+  const resolvedIdempotencyKey = idempotencyKey || payload.clientRequestId || payload.idempotencyKey;
+  if (resolvedIdempotencyKey) headers["Idempotency-Key"] = resolvedIdempotencyKey;
+  return dashboardRequest("/api/meetings", {
+    ...requestOptions,
     method: "POST",
     body: JSON.stringify(payload),
     headers
   });
 }
 
-export async function getAvailableMentorSlots(mentorUserId) {
+export async function getAvailableMentorSlots(mentorUserId, options = {}) {
   const params = new URLSearchParams({
     mentorUserId: String(mentorUserId),
     _ts: String(Date.now())
   });
   return dashboardRequest(`/api/meetings/available-slots?${params.toString()}`, {
-    headers: { "Cache-Control": "no-store" }
+    ...options,
+    headers: { "Cache-Control": "no-store", ...(options.headers || {}) }
   });
 }
 
-export async function updateMeeting(id, payload) {
-  return api(`/api/meetings/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
+export async function updateMeeting(id, payload, options = {}) {
+  return dashboardRequest(`/api/meetings/${encodeURIComponent(id)}`, {
+    ...options,
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
 }
 
-export async function getIntegrations() {
-  return api("/api/integrations");
+export async function getIntegrations(options = {}) {
+  return dashboardRequest("/api/integrations", options);
 }
 
 export async function connectGoogleCalendar() {
-  return api("/api/integrations/google-calendar/connect", { method: "POST" });
+  return dashboardRequest("/api/integrations/google-calendar/connect", { method: "POST" });
 }
 
 export async function disconnectGoogleCalendar() {
-  return api("/api/integrations/google-calendar/disconnect", { method: "POST" });
+  return dashboardRequest("/api/integrations/google-calendar/disconnect", { method: "POST" });
 }
 
 export async function connectZoom() {
-  return api("/api/integrations/zoom/connect", { method: "POST" });
+  return dashboardRequest("/api/integrations/zoom/connect", { method: "POST" });
 }
 
 export async function disconnectZoom() {
-  return api("/api/integrations/zoom/disconnect", { method: "POST" });
+  return dashboardRequest("/api/integrations/zoom/disconnect", { method: "POST" });
 }

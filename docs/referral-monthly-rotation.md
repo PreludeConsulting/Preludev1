@@ -7,7 +7,7 @@
 - **Attribution:** `referrals.referrer_household_id` and `referral_rewards.household_id` never change when the visible code rotates.
 - **Timezone:** `America/New_York` (product ET). Month boundaries and the cron schedule use this zone.
 
-## Schema (after `20260718000000_monthly_referral_code_rotation.sql`)
+## Schema (after `20260718010000_monthly_referral_code_rotation.sql`)
 
 | Table / column | Role |
 | --- | --- |
@@ -39,7 +39,7 @@ Jobs are **idempotent**: re-running the same month skips households that already
 
 ## Deploy steps
 
-1. Apply Supabase migration `20260718000000_monthly_referral_code_rotation.sql`.
+1. Apply Supabase migration `20260718010000_monthly_referral_code_rotation.sql`.
 2. Set `CRON_SECRET` in Vercel / Cloudflare / `.env`.
 3. Confirm Vercel cron is enabled for the project.
 4. Optionally run `npm run referral:rotate` once after deploy to backfill any missing current-month codes.
