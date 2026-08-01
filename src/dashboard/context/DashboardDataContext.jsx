@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { updateProfile } from "../../lib/auth.js";
 import {
   connectGoogleCalendar,
@@ -376,6 +376,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   const [syncError, setSyncError] = useState(null);
   const [dashboardSyncState, setDashboardSyncState] = useState(() => createSyncState());
   const [studentSyncTick, setStudentSyncTick] = useState(0);
+  const loadGenerationRef = useRef(0);
+  const loadAbortRef = useRef(null);
 
   const localDemo = useMemo(() => {
     if (!user) return null;
@@ -400,6 +402,12 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       setLoading(false);
       return;
     }
+
+    if (loadAbortRef.current) loadAbortRef.current.abort();
+    const controller = new AbortController();
+    loadAbortRef.current = controller;
+    const generation = ++loadGenerationRef.current;
+    const isStale = () => generation !== loadGenerationRef.current || controller.signal.aborted;
 
     setLoading(true);
     setError(null);
@@ -445,7 +453,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         lastSyncedAt: new Date().toISOString(),
         source: "demo"
       }));
-      setLoading(false);
+      if (!isStale()) setLoading(false);
       return;
     }
 
@@ -457,6 +465,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           getDashboardAppData(),
           loadSupabaseDashboard(user.id, user.email)
         ]);
+        if (isStale()) return;
         const appData = appDataResult.status === "fulfilled" ? appDataResult.value : null;
         const data = dashboardResult.status === "fulfilled" ? dashboardResult.value : null;
         if (!data) {
@@ -517,12 +526,26 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setMentors(data.mentors || []);
         if (roleFromUser(user) === "mentor") {
           const activityData = await listMentorActivities(undefined, user).catch(() => null);
+          if (isStale()) return;
           setAssignedStudents(activityData?.students || []);
         } else {
           setAssignedStudents([]);
         }
-        setMeetings(data.meetings || []);
+        setMeetings([]);
+        setPendingMeetingRequests([]);
+        try {
+          const meetingPayload = appData?.meetings
+            ? { meetings: appData.meetings }
+            : await getMeetings();
+          if (isStale()) return;
+          const split = splitMeetingsByStatus(meetingPayload.meetings || []);
+          setMeetings(split.scheduled);
+          setPendingMeetingRequests(split.pending);
+        } catch (meetingErr) {
+          if (meetingErr?.status === 401 || meetingErr?.status === 403) throw meetingErr;
+        }
         if (appData?.mentorAccess) setMentorAccess(appData.mentorAccess);
+        if (appData?.integrations) setIntegrations(appData.integrations);
         setEvents((data.events || []).filter((e) => !e.userCreated));
         setUserCalendarEvents((data.events || []).filter((e) => e.userCreated));
         setMessages(data.messages || []);
@@ -543,29 +566,36 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           role === "mentor"
             ? await listApplicationReviewsForMentor(user.id)
             : await listApplicationReviewsForStudent(user.id);
+        if (isStale()) return;
         if (reviewsResult.error && !reviewsResult.missingTable) {
           if (import.meta.env.DEV) console.error("[prelude-application-reviews]", reviewsResult.error);
         }
-        const localReviews = loadLocalDashboardStore(user.id).applicationReviews || [];
-        setApplicationReviews(
-          reviewsResult.reviews?.length ? reviewsResult.reviews : localReviews
-        );
+        setApplicationReviews(reviewsResult.reviews || []);
         const availabilityUnavailable = appData?.featureErrors?.includes("availability");
         setSyncError(availabilityUnavailable ? "Availability is temporarily unavailable. Retry in a moment." : null);
         setSyncStatus(availabilityUnavailable || persistenceError || appDataError ? "sync-failed" : "synced");
       } catch (err) {
+        if (isStale() || err?.name === "AbortError") return;
         if (import.meta.env.DEV) console.error("[prelude-dashboard-load]", err);
-        const safeMessage = "Dashboard data is temporarily unavailable. Refresh to retry.";
+        const status = Number(err?.status) || 0;
+        const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+        const safeMessage = offline
+          ? "You appear to be offline. Reconnect and retry."
+          : status === 401
+            ? "Sign in again to continue."
+            : status === 403
+              ? "You do not have access to this dashboard data."
+              : "Dashboard data is temporarily unavailable. Refresh to retry.";
         setError(safeMessage);
         setSyncError(safeMessage);
-        setSyncStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "sync-failed");
+        setSyncStatus(offline ? "offline" : status === 401 ? "unauthenticated" : status === 403 ? "forbidden" : "sync-failed");
         setDashboardSyncState(createSyncState({
           status: SYNC_STATUS.FAILED,
           error: safeMessage,
           source: "dashboard"
         }));
       } finally {
-        setLoading(false);
+        if (!isStale()) setLoading(false);
       }
       return;
     }
@@ -633,6 +663,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
     if (user) {
       refresh();
     } else {
+      if (loadAbortRef.current) loadAbortRef.current.abort();
       setMeetings([]);
       setPendingMeetingRequests([]);
       setResolvedPendingRequestIds([]);
@@ -2185,13 +2216,8 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         setIntegrations(r.integrations);
       },
       reloadMeetings: async () => {
-        if (useSupabase && user) {
-          const data = await loadSupabaseDashboard(user.id, user.email);
-          setMeetings(data.meetings || []);
-          return;
-        }
         const { meetings: next } = await getMeetings();
-        const split = splitMeetingsByStatus(next);
+        const split = splitMeetingsByStatus(next || []);
         setMeetings(split.scheduled);
         setPendingMeetingRequests(split.pending);
       }

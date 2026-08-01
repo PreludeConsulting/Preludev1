@@ -21,7 +21,7 @@ import { hasMatchingTeamAccess } from "../../../shared/matchingTeamAccess.js";
 export default function DashboardLayout({ navItems, basePath, productNav }) {
   const location = useLocation();
   const { user } = useAuth();
-  const { error: dataError, dashboardSyncState } = useDashboardData();
+  const { error: dataError, dashboardSyncState, refresh } = useDashboardData();
   const [showMatchingNav, setShowMatchingNav] = useState(false);
   const showVerifyBanner = Boolean(user && !user.emailVerified);
   const showParentReminder = roleFromUser(user) === "student";
@@ -78,12 +78,16 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
           <div className="dash-product-frame">
             <DashboardProductNav navItems={visibleNavItems} basePath={basePath} />
             <main className="dash-product-main">
-              <DataSyncBanner syncState={dashboardSyncState?.status === "failed" ? dashboardSyncState : null} />
-              {dataError ? (
-                <div className="dash-callout dash-callout--error" role="alert">
-                  <p>{dataError}</p>
-                </div>
-              ) : null}
+              <DataSyncBanner
+                syncState={
+                  dashboardSyncState?.status === "failed"
+                    ? dashboardSyncState
+                    : dataError
+                      ? { status: "failed", error: dataError }
+                      : null
+                }
+                onRetry={refresh}
+              />
               <MotionPage key={location.pathname}>
                 <Outlet />
               </MotionPage>

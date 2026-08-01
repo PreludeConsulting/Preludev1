@@ -1,5 +1,5 @@
 -- Seed the single-use complimentary Pro Plan promo code.
--- Prefer: supabase/migrations/20260730000000_pro_single_use_promo_code.sql
+-- Prefer: supabase/migrations/20260730010000_pro_single_use_promo_code.sql
 -- Or from the repo: npm run seed:promo-codes
 --
 -- Code: PRO-FREE-7K9M

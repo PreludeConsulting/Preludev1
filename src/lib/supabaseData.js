@@ -157,7 +157,7 @@ export async function loadSupabaseDashboard(userId, email) {
   const mentors = mentorsRes.matches || [];
   const assigned = mentors.find((m) => m.status === "assigned") || mentors[0] || null;
   const events = eventsRes.events || [];
-  const meetings = events.filter((e) => e.eventType === "meeting" || e.eventType === "session");
+  const meetings = [];
   const messages = messagesRes.messages || [];
   const onboardingRow = onboardingRes.data;
   const onboarding = mapOnboarding(onboardingRow);

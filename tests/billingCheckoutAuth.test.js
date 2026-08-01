@@ -22,11 +22,13 @@ describe("Stripe checkout authentication", () => {
         })
       }
     };
+    const responseBody = JSON.stringify({ url: "https://checkout.stripe.com/c/pay/cs_test_example" });
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: vi.fn().mockResolvedValue({
-        url: "https://checkout.stripe.com/c/pay/cs_test_example"
-      })
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
+      text: vi.fn().mockResolvedValue(responseBody),
+      json: vi.fn().mockResolvedValue(JSON.parse(responseBody))
     });
   });
 

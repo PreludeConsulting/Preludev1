@@ -1,4 +1,7 @@
 import { formatAvailabilitySummary } from "../../shared/mentorAvailabilitySync.js";
+import { first, httpError, json, requireUser, rest } from "./http.js";
+import { loadMeetingsForUser, sanitizeMeetingForRole } from "./meetings.js";
+import { DEFAULT_INTEGRATIONS, normalizeIntegrations } from "./integrations.js";
 
 const profileFields = [
   "full_name", "preferred_name", "school", "grade_level", "time_zone", "language",
@@ -25,65 +28,6 @@ const defaultSettings = {
   reduceMotion: false, hapticFeedback: true, profileVisibility: "mentors_only", theme: "system"
 };
 
-function json(payload, status = 200) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" }
-  });
-}
-
-function config(context) {
-  return {
-    url: context.env?.SUPABASE_URL || context.env?.VITE_SUPABASE_URL || "",
-    key: context.env?.SUPABASE_ANON_KEY || context.env?.VITE_SUPABASE_PUBLISHABLE_KEY || context.env?.SUPABASE_SERVICE_ROLE_KEY || ""
-  };
-}
-
-function bearerToken(context) {
-  return (context.request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
-}
-
-function runtimeFetch(context) {
-  return context.fetch || fetch;
-}
-
-async function requireUser(context) {
-  const { url, key } = config(context);
-  const token = bearerToken(context);
-  if (!token) throw Object.assign(new Error("Authentication required."), { status: 401 });
-  if (!url || !key) throw Object.assign(new Error("Supabase is not configured."), { status: 503 });
-  const response = await runtimeFetch(context)(`${url.replace(/\/$/, "")}/auth/v1/user`, {
-    headers: { apikey: key, Authorization: `Bearer ${token}` }
-  });
-  const user = await response.json().catch(() => null);
-  if (!response.ok || !user?.id) throw Object.assign(new Error("Authentication required."), { status: 401 });
-  return { user, token };
-}
-
-async function rest(context, token, path, options = {}) {
-  const { url, key } = config(context);
-  const response = await runtimeFetch(context)(`${url.replace(/\/$/, "")}/rest/v1/${path}`, {
-    ...options,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-      ...(options.headers || {})
-    }
-  });
-  const text = await response.text();
-  const body = text ? JSON.parse(text) : null;
-  if (!response.ok) {
-    throw Object.assign(new Error(body?.message || body?.hint || "Supabase request failed."), {
-      status: response.status,
-      details: body
-    });
-  }
-  return body;
-}
-
-const first = (rows) => Array.isArray(rows) ? rows[0] || null : rows || null;
 const pickFields = (body, allowed) => Object.fromEntries(
   Object.entries(body || {}).filter(([key, value]) => allowed.includes(key) && value !== undefined)
 );
@@ -133,10 +77,7 @@ function mapRewards(wallet, tasks) {
 function ensureOwnedRow(row, userId, fields, label) {
   if (!row) return;
   if (!fields.some((field) => row[field] === userId)) {
-    throw Object.assign(new Error(`${label} does not belong to this account.`), {
-      status: 403,
-      code: "forbidden"
-    });
+    throw httpError(`${label} does not belong to this account.`, 403, "forbidden");
   }
 }
 
@@ -177,13 +118,32 @@ async function loadAppData(context, user, token) {
     availability: availability.status === "fulfilled" ? first(availability.value) : null,
     wallet: wallet.status === "fulfilled" ? first(wallet.value) : null
   });
+
+  const resolvedRole = (user.user_metadata?.role || first(profile.value)?.role || "student").toLowerCase();
   const taskRows = tasks.status === "fulfilled" ? tasks.value : [];
   const notificationRows = notifications.value || [];
   const eventRows = events.value || [];
   const messageRows = messages.value || [];
+
+  let meetings = [];
+  try {
+    meetings = (await loadMeetingsForUser(context, token, user.id, resolvedRole)).map((meeting) =>
+      sanitizeMeetingForRole(meeting, resolvedRole)
+    );
+  } catch {
+    featureErrors.push("meetings");
+  }
+
+  let integrations = DEFAULT_INTEGRATIONS();
+  try {
+    integrations = normalizeIntegrations(first(settings.value)?.integrations);
+  } catch {
+    featureErrors.push("integrations");
+  }
+
   return {
     version: 1,
-    user: { id: user.id, email: user.email || null, role: (user.user_metadata?.role || first(profile.value)?.role || "student").toLowerCase() },
+    user: { id: user.id, email: user.email || null, role: resolvedRole },
     profile: mapProfile(first(profile.value), user.email),
     settings: mapSettings(first(settings.value)),
     availability: mapAvailability(availability.status === "fulfilled" ? first(availability.value) : null),
@@ -199,7 +159,11 @@ async function loadAppData(context, user, token) {
       actionPayload: item.action_payload || {},
       actionCompletedAt: item.action_completed_at || null
     })),
-    events: eventRows, messages: messageRows, featureErrors
+    events: eventRows,
+    messages: messageRows,
+    meetings,
+    integrations,
+    featureErrors
   };
 }
 
@@ -219,10 +183,7 @@ async function requireMentorProfile(context, user, token) {
   );
   const profile = first(rows);
   if (!profile || profile.id !== user.id || String(profile.role || "").toLowerCase() !== "mentor") {
-    throw Object.assign(new Error("Mentor access required."), {
-      status: 403,
-      code: "forbidden"
-    });
+    throw httpError("Mentor access required.", 403, "forbidden");
   }
 }
 
