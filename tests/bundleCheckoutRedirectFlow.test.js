@@ -19,6 +19,10 @@ import {
   savePendingBundleIntent
 } from "../src/lib/bundlePurchaseIntent.js";
 import {
+  ESSAY_SUPPORT_OPTIONS,
+  SUBSCRIPTION_PAYMENT_LINKS
+} from "../shared/stripePaymentLinks.js";
+import {
   confirmOnboardingCheckoutSession,
   startAuthenticatedBundleCheckout,
   startOnboardingBillingCheckout,
@@ -45,13 +49,12 @@ describe("complete bundle checkout redirect flow", () => {
   });
 
   it("preserves a guest selection through onboarding and clears it only after paid confirmation", async () => {
-    // Guest selects a bundle before account creation.
     savePendingBundleIntent("essay_support");
     expect(peekPendingBundleIntent()?.bundleId).toBe("essay_support");
 
-    // Account, questionnaire, and parent steps complete; refresh returns the authenticated user.
     const refreshedUser = {
       id: "student-1",
+      email: "student@example.com",
       authProvider: "supabase",
       matchOnboardingComplete: true,
       parentInviteStepComplete: true,
@@ -62,25 +65,22 @@ describe("complete bundle checkout redirect flow", () => {
       "/onboarding/payment?mode=bundles&wallet=open&bundle=essay_support&details=open"
     );
 
+    const checkout = startOnboardingBundleCheckout(
+      { bundleId: "essay_support", quantities: { essayReviews: 3 } },
+      refreshedUser
+    );
+    expect(checkout.url).toContain("buy.stripe.com");
+    expect(checkout.paymentLinkId).toBe(ESSAY_SUPPORT_OPTIONS[3].paymentLinkId);
+    expect(new URL(checkout.url).searchParams.get("client_reference_id")).toBe("student-1");
+    expect(mocks.api).not.toHaveBeenCalled();
+
+    expect(peekPendingBundleIntent()?.bundleId).toBe("essay_support");
+    expect(pendingBundlePaymentPath()).toContain("bundle=essay_support");
+
     mocks.getSession.mockResolvedValue({
       data: { session: { access_token: "supabase-token" } }
     });
-    mocks.api
-      .mockResolvedValueOnce({ url: "https://checkout.stripe.test/session" })
-      .mockResolvedValueOnce({ confirmed: true, paymentStatus: "paid" });
-
-    const checkout = await startOnboardingBundleCheckout({
-      bundleId: "essay_support",
-      quantities: { essayReviews: 3 }
-    });
-    expect(checkout.url).toContain("checkout.stripe.test");
-    expect(mocks.api.mock.calls[0][1].headers).toEqual({
-      Authorization: "Bearer supabase-token"
-    });
-
-    // Session creation, refresh, Back, or cancel must retain retry state.
-    expect(peekPendingBundleIntent()?.bundleId).toBe("essay_support");
-    expect(pendingBundlePaymentPath()).toContain("bundle=essay_support");
+    mocks.api.mockResolvedValueOnce({ confirmed: true, paymentStatus: "paid" });
 
     const confirmation = await confirmOnboardingCheckoutSession("cs_test_paid");
     expect(confirmation.confirmed).toBe(true);
@@ -114,7 +114,7 @@ describe("complete bundle checkout redirect flow", () => {
     expect(action.path).toBeUndefined();
   });
 
-  it("allows an existing authenticated Supabase user to purchase a bundle", async () => {
+  it("allows an existing authenticated Supabase user to purchase a bundle via API", async () => {
     mocks.getSession.mockResolvedValue({
       data: { session: { access_token: "existing-user-token" } }
     });
@@ -130,20 +130,14 @@ describe("complete bundle checkout redirect flow", () => {
     );
   });
 
-  it("keeps monthly onboarding checkout on its existing authenticated endpoint", async () => {
-    mocks.getSession.mockResolvedValue({
-      data: { session: { access_token: "monthly-token" } }
+  it("uses Plus Payment Link for monthly onboarding checkout", () => {
+    const checkout = startOnboardingBillingCheckout("plus", {
+      id: "monthly-user",
+      email: "plus@example.com"
     });
-    mocks.api.mockResolvedValue({ url: "https://checkout.stripe.test/monthly" });
 
-    await startOnboardingBillingCheckout("plus");
-
-    expect(mocks.api).toHaveBeenCalledWith(
-      "/api/billing/checkout",
-      expect.objectContaining({
-        headers: { Authorization: "Bearer monthly-token" },
-        body: JSON.stringify({ planId: "plus", context: "onboarding" })
-      })
-    );
+    expect(checkout.paymentLinkId).toBe(SUBSCRIPTION_PAYMENT_LINKS.plus.paymentLinkId);
+    expect(new URL(checkout.url).searchParams.get("client_reference_id")).toBe("monthly-user");
+    expect(mocks.api).not.toHaveBeenCalled();
   });
 });

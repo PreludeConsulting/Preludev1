@@ -5,6 +5,10 @@ import {
   PLAN_PRICE_CENTS,
   PLAN_PRICE_ENV_BY_ID
 } from "../../shared/billingCatalog.js";
+import {
+  enrichCheckoutSessionFromPaymentLink,
+  isCheckoutPaymentSuccessful
+} from "../../shared/stripePaymentLinks.js";
 
 const PAID_PLAN_IDS = ["basic", "plus", "pro"];
 const PURCHASABLE_PLAN_IDS = ["plus", "pro"];
@@ -248,7 +252,22 @@ async function syncSupabasePaymentComplete(context, userId, {
 }
 
 async function syncSubscription(context, subscription) {
-  const userId = subscription.metadata?.userId;
+  let userId = subscription.metadata?.userId || null;
+  if (!userId) {
+    const customerId = stripeObjectId(subscription.customer);
+    if (customerId) {
+      try {
+        const rows = await supabaseRest(
+          context,
+          `profiles?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=id&limit=1`,
+          { method: "GET", prefer: "return=representation" }
+        );
+        userId = Array.isArray(rows) && rows[0]?.id ? rows[0].id : null;
+      } catch {
+        userId = null;
+      }
+    }
+  }
   const config = getBillingConfig(context);
   const metadataPlanId = subscription.metadata?.planId;
   const planId = PAID_PLAN_IDS.includes(metadataPlanId)
@@ -267,19 +286,20 @@ async function syncSubscription(context, subscription) {
 }
 
 async function syncCheckoutSession(context, session) {
-  const userId = session.metadata?.userId || session.client_reference_id;
-  const planId = session.metadata?.planId;
-  const bundleId = String(session.metadata?.bundleId || "").trim();
+  const enriched = enrichCheckoutSessionFromPaymentLink(session);
+  const userId = enriched.metadata?.userId || enriched.client_reference_id;
+  const planId = enriched.metadata?.planId;
+  const bundleId = String(enriched.metadata?.bundleId || "").trim();
   if (!userId || (!planId && !bundleId)) return;
-  if (session.payment_status && session.payment_status !== "paid") return;
+  if (!isCheckoutPaymentSuccessful(enriched)) return;
 
   await syncSupabasePaymentComplete(context, userId, {
     planId: planId || null,
-    stripeCustomerId: stripeObjectId(session.customer),
+    stripeCustomerId: stripeObjectId(enriched.customer),
     ...(planId
       ? {
-          stripeSubscriptionId: stripeObjectId(session.subscription),
-          subscriptionStatus: session.status || "checkout_completed"
+          stripeSubscriptionId: stripeObjectId(enriched.subscription),
+          subscriptionStatus: enriched.status || "checkout_completed"
         }
       : {})
   });
@@ -550,8 +570,12 @@ async function processWebhookEvent(context, event) {
     await syncSubscription(context, object);
   }
 
-  if (event.type === "checkout.session.completed") {
-    await syncCheckoutSession(context, object);
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded"
+  ) {
+    const session = enrichCheckoutSessionFromPaymentLink(object);
+    await syncCheckoutSession(context, session);
     const { fulfillEssaySupportCheckout, fulfillFlexibleSessionCheckout } = await import(
       "../../server/lib/sessionPackageFulfillment.js"
     );
@@ -580,11 +604,11 @@ async function processWebhookEvent(context, event) {
       });
       return Array.isArray(inserted) ? inserted[0] : inserted;
     };
-    await fulfillFlexibleSessionCheckout(object, creditFn);
-    await fulfillEssaySupportCheckout(object, async (payload) => {
+    await fulfillFlexibleSessionCheckout(session, creditFn);
+    await fulfillEssaySupportCheckout(session, async (payload) => {
       const result = await creditFn(payload);
       const packageKey =
-        String(object.metadata?.packageKey || "").trim() ||
+        String(session.metadata?.packageKey || "").trim() ||
         `essay_support_${payload.sessionsPurchased}`;
       try {
         await supabaseRest(context, "review_credit_ledger", {
@@ -598,7 +622,7 @@ async function processWebhookEvent(context, event) {
             stripe_checkout_session_id: payload.stripeCheckoutSessionId,
             idempotency_key: `purchase:${payload.stripeCheckoutSessionId}`,
             reason: "Essay Support purchase",
-            created_by_user_id: object.metadata?.purchaserUserId || object.metadata?.userId || null
+            created_by_user_id: session.metadata?.purchaserUserId || session.metadata?.userId || null
           }
         });
       } catch (ledgerError) {
@@ -606,6 +630,29 @@ async function processWebhookEvent(context, event) {
       }
       return result;
     });
+
+    const userId = session.metadata?.userId || session.client_reference_id;
+    const subscriptionId = stripeObjectId(session.subscription);
+    const planId = session.metadata?.planId;
+    if (userId && subscriptionId && planId && PURCHASABLE_PLAN_IDS.includes(planId)) {
+      try {
+        const metaParams = new URLSearchParams();
+        metaParams.set("metadata[userId]", userId);
+        metaParams.set("metadata[planId]", planId);
+        metaParams.set(
+          "metadata[checkoutContext]",
+          session.metadata?.checkoutContext || "onboarding"
+        );
+        await stripeRequest(
+          context,
+          "POST",
+          `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+          metaParams
+        );
+      } catch (metaError) {
+        console.error("[stripe-billing] subscription metadata stamp failed", metaError?.message || metaError);
+      }
+    }
   }
 
   const invoiceSubscriptionId = stripeObjectId(object.subscription) ||
@@ -888,18 +935,19 @@ export async function handleBillingConfirmSession(context) {
     return json({ error: "validation_error", message: "sessionId is required." }, 400);
   }
 
-  const session = await stripeRequest(
+  const sessionRaw = await stripeRequest(
     context,
     "GET",
     `/v1/checkout/sessions/${encodeURIComponent(sessionId)}`
   );
+  const session = enrichCheckoutSessionFromPaymentLink(sessionRaw);
 
   const sessionUserId = session.metadata?.userId || session.client_reference_id;
   if (!sessionUserId || sessionUserId !== authResult.user.id) {
     return json({ error: "forbidden", message: "That checkout session does not belong to this account." }, 403);
   }
 
-  if (session.payment_status !== "paid") {
+  if (!isCheckoutPaymentSuccessful(session)) {
     return json({
       error: "payment_pending",
       message: "Stripe has not confirmed payment for this checkout session yet.",

@@ -1,7 +1,13 @@
 /**
- * Onboarding payment helpers — checkout launch and payment confirmation state.
+ * Onboarding payment helpers — Payment Link checkout launch and confirmation.
  */
 
+import {
+  buildStripePaymentLinkUrl,
+  getEssaySupportPaymentLink,
+  getSubscriptionPaymentLink,
+  isAllowedReviewCreditQuantity
+} from "../../shared/stripePaymentLinks.js";
 import { appPath } from "./appPaths.js";
 import { api } from "./auth.js";
 import { getSupabase } from "./supabase.js";
@@ -17,6 +23,26 @@ async function getSupabaseAccessToken() {
     data: { session }
   } = await supabase.auth.getSession();
   return session?.access_token || null;
+}
+
+function requireCheckoutIdentity(user) {
+  const userId = String(user?.id || "").trim();
+  const email = String(user?.email || "").trim();
+  if (!userId || !email) {
+    if (import.meta.env.DEV) {
+      console.error("[prelude-checkout] missing checkout identity", {
+        hasUserId: Boolean(userId),
+        hasEmail: Boolean(email)
+      });
+    }
+    const error = new Error(
+      "Your account is missing required checkout details. Please sign in again and retry."
+    );
+    error.code = "missing_checkout_identity";
+    error.status = 401;
+    throw error;
+  }
+  return { userId, email };
 }
 
 export function readPaymentStepComplete(userId) {
@@ -37,17 +63,56 @@ export function writePaymentStepComplete(userId) {
   }
 }
 
-export async function startOnboardingBillingCheckout(planId) {
-  const accessToken = await getSupabaseAccessToken();
-  const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
-
-  return api(appPath("/api/billing/checkout"), {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ planId, context: "onboarding" })
-  });
+/**
+ * Build Plus/Pro Payment Link URL for onboarding (no Checkout Session API).
+ * @param {string} planId
+ * @param {{ id?: string, email?: string } | null} user
+ */
+export function startOnboardingBillingCheckout(planId, user) {
+  const { userId, email } = requireCheckoutIdentity(user);
+  const link = getSubscriptionPaymentLink(planId);
+  if (!link?.url) {
+    const error = new Error("That paid plan is not available.");
+    error.code = "invalid_plan";
+    throw error;
+  }
+  return {
+    url: buildStripePaymentLinkUrl(link.url, { userId, email }),
+    paymentLinkId: link.paymentLinkId,
+    planId: String(planId).toLowerCase()
+  };
 }
 
+/**
+ * Build Essay Support Payment Link URL for onboarding (no Checkout Session API).
+ * @param {{ quantities?: { essayReviews?: number } }} selection
+ * @param {{ id?: string, email?: string } | null} user
+ */
+export function startOnboardingBundleCheckout(selection, user) {
+  const { userId, email } = requireCheckoutIdentity(user);
+  const credits = Math.floor(Number(selection?.quantities?.essayReviews));
+  if (!isAllowedReviewCreditQuantity(credits)) {
+    const error = new Error("Choose a valid Essay Support package.");
+    error.code = "invalid_package";
+    throw error;
+  }
+  const link = getEssaySupportPaymentLink(credits);
+  if (!link?.url) {
+    const error = new Error("This Essay Support package is temporarily unavailable.");
+    error.code = "package_unavailable";
+    throw error;
+  }
+  return {
+    url: buildStripePaymentLinkUrl(link.url, { userId, email }),
+    paymentLinkId: link.paymentLinkId,
+    credits,
+    packageKey: `essay_support_${credits}`,
+    totalCents: Math.round(link.price * 100),
+    bundleId: "essay_support"
+  };
+}
+
+/** Authenticated bundle checkout outside onboarding (still uses Checkout Sessions). */
 export async function startAuthenticatedBundleCheckout(selection, options = {}) {
   const accessToken = await getSupabaseAccessToken();
   if (!accessToken) {
@@ -62,10 +127,6 @@ export async function startAuthenticatedBundleCheckout(selection, options = {}) 
     headers: { Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify({ ...selection, ...options })
   });
-}
-
-export function startOnboardingBundleCheckout(selection, options = {}) {
-  return startAuthenticatedBundleCheckout(selection, { ...options, context: "onboarding" });
 }
 
 export async function confirmOnboardingCheckoutSession(sessionId) {

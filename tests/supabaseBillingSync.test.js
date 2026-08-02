@@ -89,6 +89,35 @@ describe("syncSupabaseCheckoutSession", () => {
     expect(mocks.recordPurchase).toHaveBeenCalled();
   });
 
+  it("activates Plus from Payment Link even when amount_total is $0", async () => {
+    await syncSupabaseCheckoutSession({
+      client_reference_id: "student-zero",
+      payment_link: "plink_1U07ivGRpwYd0PZQFhZs1ERC",
+      customer: "cus_zero",
+      subscription: "sub_zero",
+      payment_status: "paid",
+      amount_total: 0,
+      mode: "subscription",
+      status: "complete",
+      metadata: {}
+    });
+
+    expect(mocks.profileUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan_id: "plus",
+        stripe_customer_id: "cus_zero",
+        stripe_subscription_id: "sub_zero"
+      })
+    );
+    expect(mocks.onboardingUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "student-zero",
+        payment_step_completed: true
+      }),
+      { onConflict: "user_id" }
+    );
+  });
+
   it("does not unlock when checkout is unpaid", async () => {
     await syncSupabaseCheckoutSession({
       metadata: { userId: "student-3", bundleId: "essay_support" },

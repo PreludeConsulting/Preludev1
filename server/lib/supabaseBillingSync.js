@@ -1,3 +1,7 @@
+import {
+  enrichCheckoutSessionFromPaymentLink,
+  isCheckoutPaymentSuccessful
+} from "../../shared/stripePaymentLinks.js";
 import { getSupabaseAdmin } from "./supabaseRequestAuth.js";
 import { persistSubscriptionFields, recordPurchaseFromCheckoutSession } from "./billingMembership.js";
 
@@ -44,8 +48,24 @@ export async function syncSupabasePaymentComplete(userId, {
   );
 }
 
+async function findProfileIdByStripeCustomer(customerId) {
+  const supabase = getSupabaseAdmin();
+  if (!supabase || !customerId) return null;
+  const { data } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
+  return data?.id || null;
+}
+
 export async function syncSupabaseSubscription(subscription, resolvedPlanId = null) {
-  const userId = subscription.metadata?.userId;
+  let userId = subscription.metadata?.userId || null;
+  if (!userId) {
+    const customerId =
+      typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
+    userId = await findProfileIdByStripeCustomer(customerId);
+  }
   const planId = resolvedPlanId || subscription.metadata?.planId;
   if (!userId) return;
 
@@ -76,28 +96,31 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
 }
 
 export async function syncSupabaseCheckoutSession(session) {
-  const userId = session.metadata?.userId || session.client_reference_id;
-  const planId = session.metadata?.planId;
-  const bundleId = String(session.metadata?.bundleId || "").trim();
+  const enriched = enrichCheckoutSessionFromPaymentLink(session);
+  const userId = enriched.metadata?.userId || enriched.client_reference_id;
+  const planId = enriched.metadata?.planId;
+  const bundleId = String(enriched.metadata?.bundleId || "").trim();
   if (!userId) return;
-  if (session.payment_status && session.payment_status !== "paid") return;
+  if (!isCheckoutPaymentSuccessful(enriched)) return;
 
   // Paid monthly plan or support bundle both complete onboarding payment.
   if (planId) {
     await syncSupabasePaymentComplete(userId, {
       planId,
-      stripeCustomerId: typeof session.customer === "string" ? session.customer : session.customer?.id,
-      stripeSubscriptionId: typeof session.subscription === "string" ? session.subscription : session.subscription?.id,
-      subscriptionStatus: session.status || "checkout_completed"
+      stripeCustomerId: typeof enriched.customer === "string" ? enriched.customer : enriched.customer?.id,
+      stripeSubscriptionId:
+        typeof enriched.subscription === "string" ? enriched.subscription : enriched.subscription?.id,
+      // $0 fully-discounted subscriptions still activate when payment_status is paid/no_payment_required.
+      subscriptionStatus: enriched.status || "checkout_completed"
     });
   } else if (bundleId) {
     await syncSupabasePaymentComplete(userId, {
-      stripeCustomerId: typeof session.customer === "string" ? session.customer : session.customer?.id
+      stripeCustomerId: typeof enriched.customer === "string" ? enriched.customer : enriched.customer?.id
     });
   }
 
   try {
-    await recordPurchaseFromCheckoutSession(session);
+    await recordPurchaseFromCheckoutSession(enriched);
   } catch (error) {
     console.error("[prelude-billing] purchase history checkout sync failed", error.message);
   }

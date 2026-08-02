@@ -45,6 +45,10 @@ import {
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 import { resolveEssaySupportCheckoutPackage } from "../shared/essaySupportPackages.js";
 import {
+  enrichCheckoutSessionFromPaymentLink,
+  isCheckoutPaymentSuccessful
+} from "../shared/stripePaymentLinks.js";
+import {
   cancelMembershipAtPeriodEnd,
   claimBillingWebhookEvent,
   getBillingSummary,
@@ -423,14 +427,15 @@ async function handleConfirmSession(req, res, deps = {}) {
   const payload = confirmSessionSchema.parse(await readJsonBody(req));
   const { user } = await requireSupabaseUserFn(req);
   const stripe = getStripeClientFn(config);
-  const session = await stripe.checkout.sessions.retrieve(payload.sessionId);
+  const rawSession = await stripe.checkout.sessions.retrieve(payload.sessionId);
+  const session = enrichCheckoutSessionFromPaymentLink(rawSession);
 
   const sessionUserId = session.metadata?.userId || session.client_reference_id;
   if (!sessionUserId || sessionUserId !== user.id) {
     return sendJson(res, 403, { error: "forbidden", message: "That checkout session does not belong to this account." });
   }
 
-  if (session.payment_status !== "paid") {
+  if (!isCheckoutPaymentSuccessful(session)) {
     return sendJson(res, 409, {
       error: "payment_pending",
       message: "Stripe has not confirmed payment for this checkout session yet.",
@@ -661,10 +666,14 @@ async function processWebhookEvent(event) {
       await expireSessionPeriodsAtPeriodEnd(subUser.id);
     }
   }
-  if (event.type === "checkout.session.completed") {
-    await syncSupabaseCheckoutSession(object);
-    await fulfillFlexibleSessionCheckout(object, creditSessionPackagePurchase);
-    await fulfillEssaySupportCheckout(object, async (credit) =>
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded"
+  ) {
+    const session = enrichCheckoutSessionFromPaymentLink(object);
+    await syncSupabaseCheckoutSession(session);
+    await fulfillFlexibleSessionCheckout(session, creditSessionPackagePurchase);
+    await fulfillEssaySupportCheckout(session, async (credit) =>
       grantEssaySupportPurchase({
         studentUserId: credit.studentUserId,
         credits: credit.sessionsPurchased,
@@ -674,14 +683,29 @@ async function processWebhookEvent(event) {
       })
     );
     try {
-      await recordPurchaseFromCheckoutSession(object);
+      await recordPurchaseFromCheckoutSession(session);
     } catch (error) {
       console.error("[prelude-billing] webhook purchase history failed", error.message);
     }
-    const userId = object.metadata?.userId || object.client_reference_id;
-    const customerId = stripeObjectId(object.customer);
-    const subscriptionId = stripeObjectId(object.subscription);
-    const planId = object.metadata?.planId;
+    const userId = session.metadata?.userId || session.client_reference_id;
+    const customerId = stripeObjectId(session.customer);
+    const subscriptionId = stripeObjectId(session.subscription);
+    const planId = session.metadata?.planId;
+    if (userId && subscriptionId && planId && PAID_PLAN_IDS.includes(planId)) {
+      // Stamp subscription metadata so later invoice/subscription webhooks resolve the user.
+      try {
+        const stripe = getStripeClient();
+        await stripe.subscriptions.update(subscriptionId, {
+          metadata: {
+            userId,
+            planId,
+            checkoutContext: session.metadata?.checkoutContext || "onboarding"
+          }
+        });
+      } catch (error) {
+        console.error("[prelude-billing] subscription metadata stamp failed", error.message);
+      }
+    }
     if (userId && PAID_PLAN_IDS.includes(planId)) {
       try {
         await db().user.update({
@@ -690,7 +714,7 @@ async function processWebhookEvent(event) {
             plan: normalizePlan(planId),
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId,
-            subscriptionStatus: object.status || "checkout_completed"
+            subscriptionStatus: session.status || "checkout_completed"
           }
         });
       } catch {

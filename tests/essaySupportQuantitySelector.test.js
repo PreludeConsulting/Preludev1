@@ -94,4 +94,23 @@ describe("essay support quantity packages", () => {
     expect(atMax).toContain('aria-label="Increase Review credits" disabled');
     expect(atMax).not.toContain('aria-label="Decrease Review credits" disabled');
   });
+
+  it("defaults Essay Support to 3 credits and $149", () => {
+    const quote = quoteBundleSelection({
+      bundleId: "essay_support",
+      quantities: { essayReviews: 3 }
+    });
+    expect(quote.ok).toBe(true);
+    expect(quote.totalCents).toBe(14900);
+    expect(quote.displayTotal).toBe("$149");
+    expect(quote.summaryLines[0]).toBe("3 review credits");
+  });
+
+  it("never accepts 9 credits from API-style input without snapping", () => {
+    const rejected = normalizeBundleSelection(
+      { bundleId: "essay_support", quantities: { essayReviews: 9 } },
+      { snapInvalidQuantities: false }
+    );
+    expect(rejected.ok).toBe(false);
+  });
 });

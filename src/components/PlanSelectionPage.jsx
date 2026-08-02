@@ -718,6 +718,7 @@ export function PlanWalletExperience({
     const requiresRealAccount = user?.authProvider === "demo" || user?.authProvider === "dev";
 
     if (context === "billing-current") return;
+    if (busyPlan) return;
 
     if (context === "public" && (!isAuthenticated || requiresRealAccount) && !allowGuestCheckout) {
       setNotice("Create an account or sign in to purchase this bundle.");
@@ -726,7 +727,22 @@ export function PlanWalletExperience({
     }
 
     setBusyPlan(selection.bundleId);
+    let redirected = false;
     try {
+      if (context === "payment") {
+        const result = startOnboardingBundleCheckout(selection, user);
+        if (import.meta.env.DEV) {
+          console.debug("[prelude-checkout] essay payment link redirect", {
+            bundleId: selection.bundleId,
+            credits: selection.quantities?.essayReviews,
+            paymentLinkId: result.paymentLinkId
+          });
+        }
+        window.location.assign(result.url);
+        redirected = true;
+        return;
+      }
+
       const search = new URLSearchParams(location.search);
       const mentorId = search.get("mentor") || undefined;
       const mentorUserId = search.get("mentorUserId") || undefined;
@@ -738,13 +754,11 @@ export function PlanWalletExperience({
           : {})
       };
       const result =
-        context === "payment"
-          ? await startOnboardingBundleCheckout(selection, checkoutOptions)
-          : isAuthenticated && user?.authProvider === "supabase" && !requiresRealAccount
-            ? await startAuthenticatedBundleCheckout(selection, {
-                context: "public",
-                ...checkoutOptions
-              })
+        isAuthenticated && user?.authProvider === "supabase" && !requiresRealAccount
+          ? await startAuthenticatedBundleCheckout(selection, {
+              context: "public",
+              ...checkoutOptions
+            })
           : await startBundleCheckout(selection, {
               context: "public",
               guestCheckout: context === "public" && (!isAuthenticated || requiresRealAccount),
@@ -760,9 +774,13 @@ export function PlanWalletExperience({
       }
       if (result.url) {
         window.location.href = result.url;
+        redirected = true;
+        return;
       }
     } catch (error) {
-      if (error.payload?.error === "billing_not_configured") {
+      if (error.code === "missing_checkout_identity") {
+        setNotice(error.message);
+      } else if (error.payload?.error === "billing_not_configured") {
         setNotice("Bundle checkout will turn on after billing is connected.");
       } else {
         const failure = bundleCheckoutFailureAction(
@@ -779,7 +797,7 @@ export function PlanWalletExperience({
         }
       }
     } finally {
-      setBusyPlan(null);
+      if (!redirected) setBusyPlan(null);
     }
   }
 
@@ -800,16 +818,27 @@ export function PlanWalletExperience({
 
   async function handleChoosePayment(plan) {
     setNotice("");
+    if (busyPlan) return;
     setBusyPlan(plan.id);
+    let redirected = false;
     try {
       if (user?.id) {
         await markPendingCheckoutPlan(user.id, plan.id);
         persistDraft({ selectedPlanId: plan.id, checkoutStarted: true });
       }
-      const result = await startOnboardingBillingCheckout(plan.id);
-      if (result.url) window.location.href = result.url;
+      const result = startOnboardingBillingCheckout(plan.id, user);
+      if (import.meta.env.DEV) {
+        console.debug("[prelude-checkout] subscription payment link redirect", {
+          planId: plan.id,
+          paymentLinkId: result.paymentLinkId
+        });
+      }
+      window.location.assign(result.url);
+      redirected = true;
     } catch (error) {
-      if (error.payload?.error === "billing_not_configured") {
+      if (error.code === "missing_checkout_identity") {
+        setNotice(error.message);
+      } else if (error.payload?.error === "billing_not_configured") {
         setNotice("Checkout is not connected yet. Please try again once billing is configured.");
       } else if (error.status === 401 || error.status === 403) {
         setNotice("Your session expired. Sign in again and retry checkout.");
@@ -817,7 +846,7 @@ export function PlanWalletExperience({
         setNotice(error.message || "Checkout is unavailable right now. Please try again.");
       }
     } finally {
-      setBusyPlan(null);
+      if (!redirected) setBusyPlan(null);
     }
   }
 

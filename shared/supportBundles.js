@@ -1,5 +1,10 @@
 /** Configurable one-time support bundles (client + server). */
 
+import {
+  ALLOWED_REVIEW_CREDITS,
+  ESSAY_SUPPORT_PRICE_CENTS_FROM_LINKS
+} from "./stripePaymentLinks.js";
+
 export const BUNDLE_IDS = ["essay_support"];
 
 /** Legacy one-time session packages — not sold; kept for fulfillment of past purchases. */
@@ -11,8 +16,8 @@ const BUNDLE_ID_ALIASES = {
   college_application: "essay_support"
 };
 
-/** Purchasable essay-support package sizes (only these are sold). */
-export const BUNDLE_QUANTITY_OPTIONS = [3, 4, 5, 6, 7, 8, 10];
+/** Purchasable essay-support package sizes (only these are sold). No 9. */
+export const BUNDLE_QUANTITY_OPTIONS = [...ALLOWED_REVIEW_CREDITS];
 
 /** Alias used by Essay Support UI/tests. */
 export const APPROVED_CREDIT_OPTIONS = BUNDLE_QUANTITY_OPTIONS;
@@ -20,15 +25,9 @@ export const APPROVED_CREDIT_OPTIONS = BUNDLE_QUANTITY_OPTIONS;
 /** Legacy flexible-session package sizes kept for historical fulfillment only. */
 export const LEGACY_SESSION_QUANTITY_OPTIONS = [3, 4, 5, 6, 7, 8, 10];
 
-/** Fixed package prices in USD cents — source of truth for FE + BE checkout. */
+/** Fixed package prices in USD cents — derived from Payment Link catalog. */
 export const ESSAY_SUPPORT_PRICE_CENTS = Object.freeze({
-  3: 14900,
-  4: 18900,
-  5: 22900,
-  6: 26500,
-  7: 29900,
-  8: 32900,
-  10: 39900
+  ...ESSAY_SUPPORT_PRICE_CENTS_FROM_LINKS
 });
 
 export const FLEXIBLE_SESSIONS_PRICE_CENTS = Object.freeze({

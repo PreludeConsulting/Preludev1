@@ -12,6 +12,10 @@ import {
   membershipAccessExplanation
 } from "../../shared/billingMembership.js";
 import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
+import {
+  enrichCheckoutSessionFromPaymentLink,
+  isCheckoutPaymentSuccessful
+} from "../../shared/stripePaymentLinks.js";
 import { evaluateMentorAccess, sumPackageRemaining } from "../../shared/mentorAccess.js";
 import { ensureHouseholdForUser } from "./referralCodes.js";
 import { listSessionPackagesForStudent } from "./mentorAccess.js";
@@ -502,24 +506,25 @@ export async function persistSubscriptionFields(userId, subscription, planId = n
 }
 
 export async function recordPurchaseFromCheckoutSession(session) {
-  const userId = session.metadata?.userId || session.client_reference_id;
+  const enriched = enrichCheckoutSessionFromPaymentLink(session);
+  const userId = enriched.metadata?.userId || enriched.client_reference_id;
   if (!userId) return null;
   // Subscription purchases are recorded from invoice.paid to avoid double entries.
-  if (session.mode === "subscription") return null;
+  if (enriched.mode === "subscription") return null;
 
   const ctx = await resolveBillingContext(userId).catch(() => null);
   if (!ctx?.householdId) return null;
 
-  const planId = session.metadata?.planId || null;
-  const amountCents = session.amount_total ?? 0;
-  const bundleId = String(session.metadata?.bundleId || "").trim();
-  let sessionsPurchased = session.metadata?.sessionsPurchased
-    ? Number(session.metadata.sessionsPurchased)
+  const planId = enriched.metadata?.planId || null;
+  const amountCents = enriched.amount_total ?? 0;
+  const bundleId = String(enriched.metadata?.bundleId || "").trim();
+  let sessionsPurchased = enriched.metadata?.sessionsPurchased
+    ? Number(enriched.metadata.sessionsPurchased)
     : null;
 
-  if (session.metadata?.bundleConfig && !Number.isFinite(sessionsPurchased)) {
+  if (enriched.metadata?.bundleConfig && !Number.isFinite(sessionsPurchased)) {
     try {
-      const config = JSON.parse(session.metadata.bundleConfig);
+      const config = JSON.parse(enriched.metadata.bundleConfig);
       const quantities = config?.q || config?.quantities || {};
       if (bundleId === "essay_support") {
         sessionsPurchased = Number(quantities.essayReviews);
@@ -534,15 +539,23 @@ export async function recordPurchaseFromCheckoutSession(session) {
   if (
     bundleId === "essay_support" &&
     !Number.isFinite(sessionsPurchased) &&
-    session.metadata?.essayReviews
+    enriched.metadata?.essayReviews
   ) {
-    sessionsPurchased = Number(session.metadata.essayReviews);
+    sessionsPurchased = Number(enriched.metadata.essayReviews);
+  }
+
+  if (
+    bundleId === "essay_support" &&
+    enriched.metadata?.creditQuantity &&
+    Number.isFinite(Number(enriched.metadata.creditQuantity))
+  ) {
+    sessionsPurchased = Number(enriched.metadata.creditQuantity);
   }
 
   const qty =
     Number.isFinite(sessionsPurchased) && sessionsPurchased > 0 ? sessionsPurchased : null;
 
-  let displayName = session.metadata?.bundleId || "Prelude purchase";
+  let displayName = enriched.metadata?.bundleId || "Prelude purchase";
   if (bundleId === "flexible_sessions") {
     displayName = `Flexible sessions${qty ? ` (${qty})` : ""}`;
   } else if (bundleId === "essay_support") {
@@ -555,22 +568,22 @@ export async function recordPurchaseFromCheckoutSession(session) {
     subscriberUserId: ctx.subscriber?.id || userId,
     purchaseType: "session_package",
     planId,
-    productId: session.metadata?.bundleId || planId || null,
+    productId: enriched.metadata?.bundleId || planId || null,
     displayName,
     quantity: 1,
     sessionsPurchased: qty,
     amountCents,
-    currency: session.currency || "usd",
-    paymentStatus: session.payment_status === "paid" ? "paid" : "pending",
-    stripeCustomerId: typeof session.customer === "string" ? session.customer : session.customer?.id,
-    stripeCheckoutSessionId: session.id,
+    currency: enriched.currency || "usd",
+    paymentStatus: isCheckoutPaymentSuccessful(enriched) ? "paid" : "pending",
+    stripeCustomerId: typeof enriched.customer === "string" ? enriched.customer : enriched.customer?.id,
+    stripeCheckoutSessionId: enriched.id,
     stripePaymentIntentId:
-      typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id,
+      typeof enriched.payment_intent === "string" ? enriched.payment_intent : enriched.payment_intent?.id,
     stripeSubscriptionId:
-      typeof session.subscription === "string" ? session.subscription : session.subscription?.id,
-    idempotencyKey: `checkout:${session.id}`,
-    purchasedAt: session.created ? new Date(session.created * 1000).toISOString() : undefined,
-    metadata: { mode: session.mode || null }
+      typeof enriched.subscription === "string" ? enriched.subscription : enriched.subscription?.id,
+    idempotencyKey: `checkout:${enriched.id}`,
+    purchasedAt: enriched.created ? new Date(enriched.created * 1000).toISOString() : undefined,
+    metadata: { mode: enriched.mode || null }
   });
 }
 

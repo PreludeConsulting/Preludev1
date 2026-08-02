@@ -3,6 +3,13 @@
  * Idempotent on stripe checkout session id.
  */
 
+import {
+  enrichCheckoutSessionFromPaymentLink,
+  isCheckoutPaymentSuccessful,
+  resolvePurchaseFromPaymentLinkId,
+  stripePaymentLinkObjectId
+} from "../../shared/stripePaymentLinks.js";
+
 function parseBundleConfigQuantity(metadata = {}, quantityKeys = []) {
   if (!metadata.bundleConfig) return null;
   try {
@@ -24,9 +31,11 @@ function parsePositiveInt(value) {
 
 function extractPaidCheckoutCredit(session, { bundleId, quantityKeys, metadataFallbackKeys = [] }) {
   if (!session) return null;
-  if (session.payment_status && session.payment_status !== "paid" && session.status !== "complete") {
-    // Allow complete sessions without explicit payment_status in some test fixtures.
-    if (session.mode === "payment" && session.status !== "complete") return null;
+  if (!isCheckoutPaymentSuccessful(session)) {
+    // Legacy fixtures: mode payment + status complete without payment_status.
+    if (!(session.mode === "payment" && session.status === "complete" && !session.payment_status)) {
+      return null;
+    }
   }
 
   const metadata = session.metadata || {};
@@ -65,20 +74,38 @@ export function extractFlexibleSessionCredit(session) {
 }
 
 export function extractEssaySupportCredit(session) {
-  const credit = extractPaidCheckoutCredit(session, {
+  const enriched = enrichCheckoutSessionFromPaymentLink(session);
+  const paymentLinkId = stripePaymentLinkObjectId(session?.payment_link);
+  const linkedPurchase = resolvePurchaseFromPaymentLinkId(paymentLinkId);
+
+  // Unknown Payment Link IDs must never grant essay credits.
+  if (paymentLinkId && !linkedPurchase) return null;
+  if (linkedPurchase && linkedPurchase.kind !== "essay_support") return null;
+
+  const credit = extractPaidCheckoutCredit(enriched, {
     bundleId: "essay_support",
     quantityKeys: ["essayReviews"],
     metadataFallbackKeys: ["essayReviews", "creditQuantity", "sessionsPurchased"]
   });
   if (!credit) return null;
-  const metadata = session.metadata || {};
+
+  const metadata = enriched.metadata || {};
   const purchaseType = String(metadata.purchaseType || "").trim();
   if (purchaseType && purchaseType !== "ESSAY_SUPPORT" && purchaseType !== "one_time_bundle") {
     return null;
   }
-  const fromCreditQuantity = parsePositiveInt(metadata.creditQuantity);
-  if (fromCreditQuantity) credit.sessionsPurchased = fromCreditQuantity;
-  credit.packageKey = String(metadata.packageKey || "").trim() || `essay_support_${credit.sessionsPurchased}`;
+
+  // Prefer verified Payment Link mapping over any client/metadata quantity.
+  if (linkedPurchase?.kind === "essay_support") {
+    credit.sessionsPurchased = linkedPurchase.credits;
+    credit.packageKey = linkedPurchase.packageKey;
+  } else {
+    const fromCreditQuantity = parsePositiveInt(metadata.creditQuantity);
+    if (fromCreditQuantity) credit.sessionsPurchased = fromCreditQuantity;
+    credit.packageKey =
+      String(metadata.packageKey || "").trim() || `essay_support_${credit.sessionsPurchased}`;
+  }
+
   credit.studentUserId = String(metadata.studentId || credit.studentUserId);
   credit.purchaserUserId = metadata.purchaserUserId || metadata.userId || null;
   return credit;
