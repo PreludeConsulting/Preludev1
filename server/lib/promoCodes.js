@@ -21,17 +21,22 @@ export function hashPromoCode(code) {
 
 export function buildPromoSummary(validation) {
   const permanent = Boolean(validation.permanentAccess);
+  const days = Number(validation.accessDurationDays) || 0;
   const accessPeriod = permanent
     ? "Complimentary access — no expiration"
-    : validation.accessDurationDays
-      ? `${validation.accessDurationDays} days of complimentary access`
-      : "Limited complimentary access";
+    : days === 30
+      ? "1 month of complimentary access"
+      : days > 0
+        ? `${days} days of complimentary access`
+        : "Limited complimentary access";
 
   const renewalTerms =
     validation.renewalBehavior === "requires_payment"
       ? permanent
         ? "No payment is required unless you upgrade to a paid plan."
-        : "When your promotional access ends, you will need to add a payment method to continue."
+        : days === 30
+          ? "After your free month, a paid Pro subscription is required to continue."
+          : "When your promotional access ends, a paid subscription is required to continue."
       : "See your confirmation email for renewal details.";
 
   const planId = validation.planId || "basic";
@@ -99,10 +104,11 @@ async function validateWithSupabase(codeHash, email, userId) {
 async function validateWithPrisma(codeHash, email, userId) {
   const promo = await db().promoCode.findUnique({ where: { codeHash } });
   if (!promo) return { valid: false, error: "not_found" };
+  // Prefer already_redeemed over inactive so used single-use codes show a clear error.
+  if (promo.currentRedemptionCount >= 1) return { valid: false, error: "already_redeemed" };
   if (!promo.active || promo.revokedAt) return { valid: false, error: "inactive" };
   if (promo.startsAt && promo.startsAt > new Date()) return { valid: false, error: "not_started" };
   if (promo.expiresAt && promo.expiresAt <= new Date()) return { valid: false, error: "expired" };
-  if (promo.singleUse && promo.currentRedemptionCount >= 1) return { valid: false, error: "already_redeemed" };
   if (promo.maxRedemptions != null && promo.currentRedemptionCount >= promo.maxRedemptions) {
     return { valid: false, error: "redemption_limit_reached" };
   }

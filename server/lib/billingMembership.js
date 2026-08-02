@@ -50,7 +50,7 @@ export async function resolveBillingContext(userId) {
   const { data: viewer, error } = await supabase
     .from("profiles")
     .select(
-      "id, role, full_name, preferred_name, plan_id, household_id, stripe_customer_id, stripe_subscription_id, subscription_status, subscription_current_period_start, subscription_current_period_end, subscription_cancel_at_period_end, subscription_canceled_at, payment_waived"
+      "id, role, full_name, preferred_name, plan_id, household_id, stripe_customer_id, stripe_subscription_id, subscription_status, subscription_current_period_start, subscription_current_period_end, subscription_cancel_at_period_end, subscription_canceled_at, payment_waived, promo_access_ends_at"
     )
     .eq("id", userId)
     .maybeSingle();
@@ -87,7 +87,7 @@ export async function resolveBillingContext(userId) {
       const { data: profiles } = await supabase
         .from("profiles")
         .select(
-          "id, role, full_name, preferred_name, plan_id, stripe_customer_id, stripe_subscription_id, subscription_status, subscription_current_period_start, subscription_current_period_end, subscription_cancel_at_period_end, subscription_canceled_at, payment_waived"
+          "id, role, full_name, preferred_name, plan_id, stripe_customer_id, stripe_subscription_id, subscription_status, subscription_current_period_start, subscription_current_period_end, subscription_cancel_at_period_end, subscription_canceled_at, payment_waived, promo_access_ends_at"
         )
         .in("id", ids);
       members = profiles || [];
@@ -151,7 +151,8 @@ export async function getBillingSummary(userId) {
     user: {
       plan: planId,
       subscriptionStatus: sub.subscription_status,
-      subscriptionCurrentPeriodEnd: sub.subscription_current_period_end
+      subscriptionCurrentPeriodEnd: sub.subscription_current_period_end,
+      promoAccessEndsAt: sub.promo_access_ends_at
     },
     packages,
     sessionCredits: creditSummary

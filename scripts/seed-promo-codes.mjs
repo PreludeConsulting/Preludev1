@@ -55,6 +55,26 @@ const SAMPLE_CODES = [
 
 const CAMPAIGN_NAME = "Launch Complimentary Plus";
 
+const PRO_MONTH_CODES = [
+  "PRO-MONTH-8K2N",
+  "PRO-MONTH-4Q7X",
+  "PRO-MONTH-9M3P",
+  "PRO-MONTH-2T6R",
+  "PRO-MONTH-5J8K",
+  "PRO-MONTH-7X1D",
+  "PRO-MONTH-3P9V",
+  "PRO-MONTH-6R4C",
+  "PRO-MONTH-1W8N",
+  "PRO-MONTH-9F2Q",
+  "PRO-MONTH-4H7K",
+  "PRO-MONTH-8C5Z",
+  "PRO-MONTH-2V6T",
+  "PRO-MONTH-5N3J",
+  "PRO-MONTH-7Z9M"
+];
+
+const PRO_MONTH_CAMPAIGN = "Complimentary Pro Month";
+
 const PRO_CODE = {
   public_code: "PRO-FREE-7K9M",
   code_hash: "0290fc5322c57f773fd87d68b157f15b3933b7b67d1b7b5c89b4ad180b633d2b",
@@ -93,6 +113,26 @@ function buildPlusRows() {
   }));
 }
 
+function buildProMonthRows() {
+  return PRO_MONTH_CODES.map((publicCode, index) => ({
+    public_code: publicCode,
+    code_hash: hashCode(publicCode),
+    description: `Single-use 1-month complimentary Pro Plan code ${index + 1}`,
+    campaign_name: PRO_MONTH_CAMPAIGN,
+    applicable_plan: "pro",
+    discount_type: "complimentary",
+    single_use: true,
+    max_redemptions: 1,
+    max_redemptions_per_user: 1,
+    active: true,
+    new_users_only: true,
+    access_duration_days: 30,
+    renewal_behavior: "requires_payment",
+    internal_notes:
+      "One free month of Pro. Deactivated after first redemption; payment required after access ends."
+  }));
+}
+
 function buildProRow() {
   return { ...PRO_CODE };
 }
@@ -123,6 +163,37 @@ async function retireOldCodesSupabase(supabase) {
   console.log(`Retired ${RETIRED_CODES.length} legacy Basic promo codes.`);
 }
 
+async function upsertPromoRowsSupabase(supabase, rows, label) {
+  const hashes = rows.map((row) => row.code_hash);
+  const { data: existingRows, error: lookupError } = await supabase
+    .from("promo_codes")
+    .select("code_hash, current_redemption_count")
+    .in("code_hash", hashes);
+  if (lookupError) throw lookupError;
+
+  const redeemed = new Set(
+    (existingRows || [])
+      .filter((row) => (row.current_redemption_count || 0) >= 1)
+      .map((row) => row.code_hash)
+  );
+
+  const payload = rows.map((row) => ({
+    ...row,
+    active: redeemed.has(row.code_hash) ? false : row.active
+  }));
+
+  const { error } = await supabase.from("promo_codes").upsert(payload, { onConflict: "code_hash" });
+  if (error) throw error;
+
+  const activeCount = payload.filter((row) => row.active).length;
+  const usedCount = payload.length - activeCount;
+  console.log(
+    usedCount > 0
+      ? `Seeded ${payload.length} ${label} (${activeCount} active, ${usedCount} already redeemed).`
+      : `Seeded ${payload.length} ${label}.`
+  );
+}
+
 async function seedProSupabase(supabase) {
   const proRow = buildProRow();
   const { data: existing, error: lookupError } = await supabase
@@ -147,7 +218,7 @@ async function seedProSupabase(supabase) {
   );
 }
 
-async function seedSupabase(plusRows) {
+async function seedSupabase(plusRows, proMonthRows) {
   const config = supabaseConfig();
   if (!isUsableSupabaseConfig(config)) return { seeded: false, reason: "missing_env" };
 
@@ -168,6 +239,7 @@ async function seedSupabase(plusRows) {
 
     console.log(`Seeded ${plusRows.length} single-use Plus promo codes into Supabase.`);
     await seedProSupabase(supabase);
+    await upsertPromoRowsSupabase(supabase, proMonthRows, "1-month Pro promo codes into Supabase");
     return { seeded: true };
   } catch (error) {
     if (/fetch failed|ENOTFOUND|ECONNREFUSED|getaddrinfo/i.test(String(error?.message || error))) {
@@ -186,50 +258,55 @@ async function retireOldCodesPrisma(prisma) {
   console.log(`Retired ${RETIRED_CODES.length} legacy Basic promo codes.`);
 }
 
-async function seedProPrisma(prisma) {
-  const proRow = buildProRow();
+async function upsertPromoRowPrisma(prisma, row) {
   const existing = await prisma.promoCode.findUnique({
-    where: { codeHash: proRow.code_hash },
+    where: { codeHash: row.code_hash },
     select: { currentRedemptionCount: true }
   });
   const alreadyRedeemed = (existing?.currentRedemptionCount || 0) >= 1;
 
   await prisma.promoCode.upsert({
-    where: { codeHash: proRow.code_hash },
+    where: { codeHash: row.code_hash },
     update: {
-      publicCode: proRow.public_code,
-      description: proRow.description,
-      campaignName: proRow.campaign_name,
-      applicablePlan: proRow.applicable_plan,
-      discountType: proRow.discount_type,
-      singleUse: proRow.single_use,
-      maxRedemptions: proRow.max_redemptions,
-      maxRedemptionsPerUser: proRow.max_redemptions_per_user,
+      publicCode: row.public_code,
+      description: row.description,
+      campaignName: row.campaign_name,
+      applicablePlan: row.applicable_plan,
+      discountType: row.discount_type,
+      singleUse: row.single_use,
+      maxRedemptions: row.max_redemptions,
+      maxRedemptionsPerUser: row.max_redemptions_per_user ?? 1,
       active: !alreadyRedeemed,
-      newUsersOnly: proRow.new_users_only,
-      accessDurationDays: proRow.access_duration_days,
-      renewalBehavior: proRow.renewal_behavior,
-      internalNotes: proRow.internal_notes,
+      newUsersOnly: row.new_users_only,
+      accessDurationDays: row.access_duration_days,
+      renewalBehavior: row.renewal_behavior,
+      internalNotes: row.internal_notes ?? null,
       revokedAt: alreadyRedeemed ? undefined : null
     },
     create: {
-      publicCode: proRow.public_code,
-      codeHash: proRow.code_hash,
-      description: proRow.description,
-      campaignName: proRow.campaign_name,
-      applicablePlan: proRow.applicable_plan,
-      discountType: proRow.discount_type,
-      singleUse: proRow.single_use,
-      maxRedemptions: proRow.max_redemptions,
-      maxRedemptionsPerUser: proRow.max_redemptions_per_user,
+      publicCode: row.public_code,
+      codeHash: row.code_hash,
+      description: row.description,
+      campaignName: row.campaign_name,
+      applicablePlan: row.applicable_plan,
+      discountType: row.discount_type,
+      singleUse: row.single_use,
+      maxRedemptions: row.max_redemptions,
+      maxRedemptionsPerUser: row.max_redemptions_per_user ?? 1,
       active: true,
-      newUsersOnly: proRow.new_users_only,
-      accessDurationDays: proRow.access_duration_days,
-      renewalBehavior: proRow.renewal_behavior,
-      internalNotes: proRow.internal_notes
+      newUsersOnly: row.new_users_only,
+      accessDurationDays: row.access_duration_days,
+      renewalBehavior: row.renewal_behavior,
+      internalNotes: row.internal_notes ?? null
     }
   });
 
+  return alreadyRedeemed;
+}
+
+async function seedProPrisma(prisma) {
+  const proRow = buildProRow();
+  const alreadyRedeemed = await upsertPromoRowPrisma(prisma, proRow);
   console.log(
     alreadyRedeemed
       ? `Pro promo code ${proRow.public_code} already redeemed — left inactive.`
@@ -237,7 +314,20 @@ async function seedProPrisma(prisma) {
   );
 }
 
-async function seedPrisma(plusRows) {
+async function seedProMonthPrisma(prisma, proMonthRows) {
+  let usedCount = 0;
+  for (const row of proMonthRows) {
+    const alreadyRedeemed = await upsertPromoRowPrisma(prisma, row);
+    if (alreadyRedeemed) usedCount += 1;
+  }
+  console.log(
+    usedCount > 0
+      ? `Seeded ${proMonthRows.length} 1-month Pro promo codes into local Prisma/Postgres (${proMonthRows.length - usedCount} active, ${usedCount} already redeemed).`
+      : `Seeded ${proMonthRows.length} 1-month Pro promo codes into local Prisma/Postgres.`
+  );
+}
+
+async function seedPrisma(plusRows, proMonthRows) {
   const prisma = new PrismaClient({ datasources: { db: { url: databaseUrl() } } });
 
   if (!prisma.promoCode?.upsert) {
@@ -279,6 +369,7 @@ async function seedPrisma(plusRows) {
     }
     console.log(`Seeded ${plusRows.length} single-use Plus promo codes into local Prisma/Postgres.`);
     await seedProPrisma(prisma);
+    await seedProMonthPrisma(prisma, proMonthRows);
     return { seeded: true };
   } finally {
     await prisma.$disconnect();
@@ -302,11 +393,18 @@ function printSetupHelp() {
 
 async function main() {
   const plusRows = buildPlusRows();
-  const supabaseResult = await seedSupabase(plusRows);
-  if (supabaseResult.seeded) return;
+  const proMonthRows = buildProMonthRows();
+  const supabaseResult = await seedSupabase(plusRows, proMonthRows);
+  if (supabaseResult.seeded) {
+    console.log("\n1-month Pro promo codes:");
+    for (const code of PRO_MONTH_CODES) console.log(`  ${code}`);
+    return;
+  }
 
   try {
-    await seedPrisma(plusRows);
+    await seedPrisma(plusRows, proMonthRows);
+    console.log("\n1-month Pro promo codes:");
+    for (const code of PRO_MONTH_CODES) console.log(`  ${code}`);
   } catch (error) {
     if (/Can't reach database server|P1001/i.test(error.message || "")) {
       printSetupHelp();

@@ -4,7 +4,7 @@ export const PROMO_ERROR_MESSAGES = {
   inactive: "We could not recognize that promo code. Check the code and try again.",
   not_started: "This promo code is not active yet.",
   expired: "This promo code has expired and can no longer be used.",
-  already_redeemed: "This promo code has already been redeemed.",
+  already_redeemed: "This promo code has already been used.",
   redemption_limit_reached: "This promotion has reached its maximum number of redemptions.",
   email_ineligible: "This promo code is not available for this account.",
   wrong_plan: "This promo code is not available for this account.",
@@ -32,8 +32,12 @@ export function promoPlanLabel(planId = "basic") {
   return PROMO_PLAN_LABELS[id] || "Basic";
 }
 
-export function promoSuccessSubtitle(planId) {
-  return `Your ${promoPlanLabel(planId)} Plan is complimentary. No payment is required during registration.`;
+export function promoSuccessSubtitle(planId, summary = null) {
+  const plan = promoPlanLabel(planId);
+  if (summary?.accessPeriod && !summary?.permanentAccess) {
+    return `Your ${plan} Plan includes ${String(summary.accessPeriod).toLowerCase()}. After that, payment is required to continue.`;
+  }
+  return `Your ${plan} Plan is complimentary. No payment is required during registration.`;
 }
 
 export function normalizePromoCodeInput(raw = "") {

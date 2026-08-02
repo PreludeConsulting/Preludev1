@@ -56,17 +56,22 @@ async function hashPromoCode(code) {
 
 function buildPromoSummary(validation) {
   const permanent = Boolean(validation.permanentAccess);
+  const days = Number(validation.accessDurationDays) || 0;
   const accessPeriod = permanent
     ? "Complimentary access — no expiration"
-    : validation.accessDurationDays
-      ? `${validation.accessDurationDays} days of complimentary access`
-      : "Limited complimentary access";
+    : days === 30
+      ? "1 month of complimentary access"
+      : days > 0
+        ? `${days} days of complimentary access`
+        : "Limited complimentary access";
 
   const renewalTerms =
     validation.renewalBehavior === "requires_payment"
       ? permanent
         ? "No payment is required unless you upgrade to a paid plan."
-        : "When your promotional access ends, you will need to add a payment method to continue."
+        : days === 30
+          ? "After your free month, a paid Pro subscription is required to continue."
+          : "When your promotional access ends, a paid subscription is required to continue."
       : "See your confirmation email for renewal details.";
 
   const planId = validation.planId || "basic";

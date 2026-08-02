@@ -1,9 +1,118 @@
--- Seed 15 single-use 1-month complimentary Pro Plan promo codes.
--- Prefer: supabase/migrations/20260802000000_pro_month_promo_codes.sql
--- Or from the repo: npm run seed:promo-codes
---
--- Effect: free Pro for 30 days at signup, payment required after access ends.
--- Each code deactivates after first use.
+-- =============================================================================
+-- Seed 15 single-use Pro promo codes: free for 1 month, then requires payment.
+-- Also fix validate_promo_code so already-redeemed (deactivated) codes return
+-- already_redeemed instead of inactive.
+-- Safe to re-run (upserts on code_hash).
+-- =============================================================================
+
+create or replace function public.validate_promo_code(
+  p_code_hash text,
+  p_email text default null,
+  p_user_id uuid default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  promo public.promo_codes%rowtype;
+  email_domain text;
+  user_redemptions int;
+  account_exists boolean;
+begin
+  select * into promo
+  from public.promo_codes
+  where code_hash = p_code_hash
+  limit 1;
+
+  if not found then
+    return jsonb_build_object('valid', false, 'error', 'not_found');
+  end if;
+
+  -- Already used: check redemption count before active/revoked so deactivated
+  -- single-use codes surface a clear "already used" error.
+  if promo.current_redemption_count >= 1 then
+    return jsonb_build_object('valid', false, 'error', 'already_redeemed');
+  end if;
+
+  if not promo.active or promo.revoked_at is not null then
+    return jsonb_build_object('valid', false, 'error', 'inactive');
+  end if;
+
+  if promo.starts_at is not null and promo.starts_at > now() then
+    return jsonb_build_object('valid', false, 'error', 'not_started');
+  end if;
+
+  if promo.expires_at is not null and promo.expires_at <= now() then
+    return jsonb_build_object('valid', false, 'error', 'expired');
+  end if;
+
+  if promo.max_redemptions is not null and promo.current_redemption_count >= promo.max_redemptions then
+    return jsonb_build_object('valid', false, 'error', 'redemption_limit_reached');
+  end if;
+
+  if promo.applicable_plan not in ('basic', 'plus', 'pro') then
+    return jsonb_build_object('valid', false, 'error', 'wrong_plan');
+  end if;
+
+  if p_email is not null and cardinality(promo.eligible_emails) > 0 then
+    if not lower(p_email) = any (select lower(e) from unnest(promo.eligible_emails) as e) then
+      return jsonb_build_object('valid', false, 'error', 'email_ineligible');
+    end if;
+  end if;
+
+  if p_email is not null and cardinality(promo.eligible_email_domains) > 0 then
+    email_domain := split_part(lower(p_email), '@', 2);
+    if email_domain = '' or not email_domain = any (promo.eligible_email_domains) then
+      return jsonb_build_object('valid', false, 'error', 'email_ineligible');
+    end if;
+  end if;
+
+  if promo.new_users_only and p_email is not null then
+    select exists (
+      select 1 from auth.users u where lower(u.email) = lower(p_email)
+    ) into account_exists;
+
+    if account_exists and p_user_id is null then
+      return jsonb_build_object('valid', false, 'error', 'email_ineligible');
+    end if;
+  end if;
+
+  if p_user_id is not null then
+    select count(*) into user_redemptions
+    from public.promo_redemptions
+    where promo_code_id = promo.id and user_id = p_user_id;
+
+    if user_redemptions >= 1 then
+      return jsonb_build_object('valid', false, 'error', 'already_redeemed');
+    end if;
+
+    if to_regclass('public.referrals') is not null then
+      if exists (
+        select 1
+        from public.referrals r
+        where r.referred_user_id = p_user_id
+          and r.status in ('entered', 'pending_account', 'pending_payment', 'confirmed')
+      ) then
+        return jsonb_build_object('valid', false, 'error', 'benefit_already_applied');
+      end if;
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'valid', true,
+    'promoCodeId', promo.id,
+    'publicCode', promo.public_code,
+    'planId', promo.applicable_plan,
+    'campaignName', promo.campaign_name,
+    'discountType', promo.discount_type,
+    'accessDurationDays', promo.access_duration_days,
+    'renewalBehavior', promo.renewal_behavior,
+    'permanentAccess', promo.access_duration_days is null
+  );
+end;
+$$;
 
 insert into public.promo_codes (
   public_code,
@@ -58,3 +167,5 @@ on conflict (code_hash) do update set
     else null
   end,
   updated_at = now();
+
+notify pgrst, 'reload schema';

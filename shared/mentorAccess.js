@@ -113,6 +113,7 @@ export function isActiveSubscriptionStatus(status) {
 /**
  * True when the student has a paid/promotional plan that includes mentor sessions.
  * Demo users with Plus/Pro and no Stripe status are treated as subscribed.
+ * Time-limited promotional access ends at promo_access_ends_at (or period end).
  */
 export function hasActiveMentorSubscription(user = {}) {
   const plan = normalizePlanId(user.plan || user.subscriptionPlan || user.planName);
@@ -120,7 +121,21 @@ export function hasActiveMentorSubscription(user = {}) {
 
   const status = user.subscriptionStatus ?? user.subscription_status ?? null;
   if (status == null || String(status).trim() === "") return true;
-  return isActiveSubscriptionStatus(status);
+  if (!isActiveSubscriptionStatus(status)) return false;
+
+  if (String(status).trim().toLowerCase() === "promotional") {
+    const endsAt =
+      user.promoAccessEndsAt ??
+      user.promo_access_ends_at ??
+      user.subscriptionCurrentPeriodEnd ??
+      user.subscription_current_period_end ??
+      null;
+    if (endsAt) {
+      const end = new Date(endsAt);
+      if (!Number.isNaN(end.getTime()) && end.getTime() <= Date.now()) return false;
+    }
+  }
+  return true;
 }
 
 export function countOneOnOneMeetingsThisMonth(meetings = [], now = new Date()) {

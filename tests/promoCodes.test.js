@@ -36,6 +36,7 @@ describe("promo code helpers", () => {
   it("maps errors to user-safe messages", () => {
     assert.match(publicPromoError("expired"), /expired/i);
     assert.match(publicPromoError("not_found"), /recognize/i);
+    assert.match(publicPromoError("already_redeemed"), /already been used/i);
   });
 
   it("builds complimentary plan summaries", () => {
@@ -58,6 +59,17 @@ describe("promo code helpers", () => {
     );
   });
 
+  it("hashes the 1-month Pro promo codes", () => {
+    assert.equal(
+      hashPromoCode("PRO-MONTH-8K2N"),
+      "ce8af7605cccadda4e513322f9daa2b11528b573cd9c3a2144659cd4d23dc126"
+    );
+    assert.equal(
+      hashPromoCode("PRO-MONTH-7Z9M"),
+      "3de5bb4a20a392aa523160e4428501dcce16498149a97d62c6657b92b8efbcef"
+    );
+  });
+
   it("builds complimentary Pro plan summaries with no payment", () => {
     const summary = buildPromoSummary({
       planId: "pro",
@@ -70,5 +82,18 @@ describe("promo code helpers", () => {
     assert.equal(summary.paymentMethodRequired, false);
     assert.match(summary.accessPeriod, /no expiration/i);
     assert.equal(promoPlanLabel("pro"), "Pro");
+  });
+
+  it("builds 1-month Pro promo summaries that require payment after", () => {
+    const summary = buildPromoSummary({
+      planId: "pro",
+      permanentAccess: false,
+      accessDurationDays: 30,
+      renewalBehavior: "requires_payment"
+    });
+    assert.equal(summary.plan, "Pro");
+    assert.equal(summary.priceToday, "$0.00");
+    assert.match(summary.accessPeriod, /1 month/i);
+    assert.match(summary.renewalTerms, /paid Pro subscription/i);
   });
 });

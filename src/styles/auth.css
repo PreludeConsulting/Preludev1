@@ -294,6 +294,11 @@
   color: #be123c;
 }
 
+.promo-code-field__status .auth-field__message--error {
+  color: #dc2626;
+  font-weight: 600;
+}
+
 .auth-field__message--ok {
   color: #166534;
 }

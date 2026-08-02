@@ -169,7 +169,7 @@ export default function PromoCodeField({
         ) : applied ? (
           <div className="promo-code-field__success" role="status">
             <p className="promo-code-field__success-title">{PROMO_SUCCESS_TITLE}</p>
-            <p className="promo-code-field__success-copy">{promoSuccessSubtitle(summary?.planId)}</p>
+            <p className="promo-code-field__success-copy">{promoSuccessSubtitle(summary?.planId, summary)}</p>
             <dl className="promo-code-field__summary">
               <div><dt>Plan</dt><dd>{summary.plan}</dd></div>
               <div><dt>Price today</dt><dd>{summary.priceToday}</dd></div>
