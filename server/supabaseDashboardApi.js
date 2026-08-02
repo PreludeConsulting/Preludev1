@@ -141,7 +141,7 @@ async function loadAppData(supabase, user) {
   const [profileRes, settingsRes, availabilityRes, walletRes, tasksRes, notificationsRes, eventsRes, messagesRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
     supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle(),
-    supabase.from("mentor_matching_profiles").select("availability_schedule").eq("mentor_user_id", user.id).maybeSingle(),
+    supabase.from("mentor_matching_profiles").select("mentor_user_id,availability_schedule").eq("mentor_user_id", user.id).maybeSingle(),
     supabase.from("reward_wallets").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("reward_task_instances").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("notifications").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),

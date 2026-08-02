@@ -130,7 +130,7 @@ async function loadAppData(context, user, token) {
   const requests = await Promise.allSettled([
     query("profiles", `select=*&id=eq.${uid}&limit=1`),
     query("user_settings", `select=*&user_id=eq.${uid}&limit=1`),
-    query("mentor_matching_profiles", `select=availability_schedule&mentor_user_id=eq.${uid}&limit=1`),
+    query("mentor_matching_profiles", `select=mentor_user_id,availability_schedule&mentor_user_id=eq.${uid}&limit=1`),
     query("reward_wallets", `select=*&user_id=eq.${uid}&limit=1`),
     query("reward_task_instances", `select=*&user_id=eq.${uid}&order=created_at.desc`),
     query("notifications", `select=*&user_id=eq.${uid}&order=created_at.desc`),
