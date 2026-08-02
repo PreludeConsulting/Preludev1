@@ -67,12 +67,28 @@ export async function api(path, options = {}) {
     /text\/html/i.test(contentType) ||
     /^\s*<!DOCTYPE/i.test(rawText) ||
     /^\s*<html[\s>]/i.test(rawText);
-  if (looksLikeHtml || (response.ok && rawText && !/application\/json/i.test(contentType) && !rawText.trim().startsWith("{") && !rawText.trim().startsWith("["))) {
-    const error = new Error(
-      "API route returned non-JSON. This deployment is missing server handlers."
-    );
+  const looksLikeNonJson =
+    looksLikeHtml ||
+    (response.ok &&
+      rawText &&
+      !/application\/json/i.test(contentType) &&
+      !rawText.trim().startsWith("{") &&
+      !rawText.trim().startsWith("["));
+  if (looksLikeNonJson) {
+    if (import.meta.env.DEV) {
+      console.warn("[api] unexpected non-JSON response", {
+        url: path,
+        status: response.status,
+        contentType,
+        preview: String(rawText || "").slice(0, 120)
+      });
+    }
+    const error = new Error("We couldn’t load this information. Please try again.");
     error.status = 502;
-    error.payload = { error: "deployment_misconfigured", message: error.message };
+    error.payload = {
+      error: "deployment_misconfigured",
+      message: error.message
+    };
     throw error;
   }
   let payload = {};
@@ -81,11 +97,20 @@ export async function api(path, options = {}) {
       payload = JSON.parse(rawText);
     } catch {
       if (response.ok) {
-        const error = new Error(
-          "API route returned non-JSON. This deployment is missing server handlers."
-        );
+        if (import.meta.env.DEV) {
+          console.warn("[api] JSON parse failed", {
+            url: path,
+            status: response.status,
+            contentType,
+            preview: String(rawText || "").slice(0, 120)
+          });
+        }
+        const error = new Error("We couldn’t load this information. Please try again.");
         error.status = 502;
-        error.payload = { error: "deployment_misconfigured", message: error.message };
+        error.payload = {
+          error: "deployment_misconfigured",
+          message: error.message
+        };
         throw error;
       }
       payload = {};

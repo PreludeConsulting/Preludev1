@@ -30,7 +30,10 @@ describe("deployed dashboard persistence routes", () => {
     "functions/api/activities/index.js",
     "functions/api/activities/[[path]].js",
     "functions/api/students/[id].js",
-    "functions/api/auth/me.js"
+    "functions/api/auth/me.js",
+    "functions/api/billing/summary.js",
+    "functions/api/billing/history.js",
+    "functions/api/[[path]].js"
   ])("ships Cloudflare handler %s", (file) => {
     expect(fs.existsSync(path.join(root, file))).toBe(true);
   });

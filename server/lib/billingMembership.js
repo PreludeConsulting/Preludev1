@@ -19,6 +19,7 @@ import {
 import { evaluateMentorAccess, sumPackageRemaining } from "../../shared/mentorAccess.js";
 import { ensureHouseholdForUser } from "./referralCodes.js";
 import { listSessionPackagesForStudent } from "./mentorAccess.js";
+import { getReviewCreditBalance } from "./reviewCredits.js";
 import { getSessionCreditSummary } from "./sessionCredits.js";
 import { getSupabaseAdmin } from "./supabaseRequestAuth.js";
 
@@ -151,6 +152,7 @@ export async function getBillingSummary(userId) {
   const packages = await collectSessionPackages(ctx.members);
   const sessionBalance = sumPackageRemaining(packages);
   const creditSummary = await getSessionCreditSummary(sub.id);
+  const reviewCredits = await getReviewCreditBalance(sub.id);
   const access = evaluateMentorAccess({
     user: {
       plan: planId,
@@ -173,6 +175,7 @@ export async function getBillingSummary(userId) {
   };
 
   const subscriptionCreditsRemaining = creditSummary.active ? creditSummary.remaining : 0;
+  const hasCustomer = Boolean(sub.stripe_customer_id || ctx.viewer.stripe_customer_id);
 
   return {
     eligible: true,
@@ -189,7 +192,7 @@ export async function getBillingSummary(userId) {
       currentPeriodEnd: sub.subscription_current_period_end || null,
       canceledAt: sub.subscription_canceled_at || null,
       stripeSubscriptionId: sub.stripe_subscription_id || null,
-      hasCustomer: Boolean(sub.stripe_customer_id || ctx.viewer.stripe_customer_id),
+      hasCustomer,
       explanation: membershipAccessExplanation(statusInfo, {
         sessionBalance,
         subscriptionCreditsRemaining
@@ -199,8 +202,25 @@ export async function getBillingSummary(userId) {
         reactivate: canReactivateMembership(statusInfo) && ctx.canManage,
         purchaseMembership: canPurchaseMembership(statusInfo) && ctx.canManage,
         purchaseSessions: ctx.canManage,
-        managePaymentMethod: Boolean(sub.stripe_customer_id || ctx.viewer.stripe_customer_id) && ctx.canManage
+        managePaymentMethod: hasCustomer && ctx.canManage
       }
+    },
+    subscription: {
+      status: sub.subscription_status || null,
+      stripeCustomerId: sub.stripe_customer_id || ctx.viewer.stripe_customer_id || null,
+      stripeSubscriptionId: sub.stripe_subscription_id || null,
+      currentPeriodStart: sub.subscription_current_period_start || null,
+      currentPeriodEnd: sub.subscription_current_period_end || null,
+      cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end)
+    },
+    essaySupport: {
+      remainingCredits: reviewCredits.remaining,
+      totalPurchasedCredits: reviewCredits.purchased
+    },
+    reviewCredits: {
+      purchased: reviewCredits.purchased,
+      assigned: reviewCredits.assigned,
+      remaining: reviewCredits.remaining
     },
     sessions: {
       available: sessionBalance,
@@ -225,7 +245,8 @@ export async function getBillingSummary(userId) {
       periodEnd: access.periodEnd,
       sessionCreditBalanceLabel: access.sessionCreditBalanceLabel,
       reason: access.reason
-    }
+    },
+    canOpenCustomerPortal: hasCustomer
   };
 }
 

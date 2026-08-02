@@ -57,7 +57,7 @@ export default function BillingMembershipPanel({
         total: historyResult.total || 0
       });
     } catch (err) {
-      setError(err.message || "Could not load billing information.");
+      setError(err.message || "We couldn’t load your billing information. Please try again.");
     } finally {
       setLoading(false);
     }
