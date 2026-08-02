@@ -65,20 +65,38 @@ function validateSignupPassword(password, supabaseAuth) {
 export function friendlyVerificationError(error) {
   const code = error?.payload?.error || "";
   if (code === "cooldown") return error.message || "Please wait before requesting another code.";
-  if (code === "rate_limited") return "Too many codes requested. Please wait and try again.";
+  if (code === "rate_limited") return "Too many attempts. Please wait a moment and try again.";
   if (code === "email_delivery_failed") return "Prelude could not send the verification email. Please try again or contact support.";
   if (code === "login_verification_storage_missing") return error.message || "Prelude login verification storage is not configured yet. Ask an admin to run the Supabase login verification migration.";
-  if (code === "expired_code") return "That code expired. Request a new one to continue.";
-  if (code === "used_code") return "That code has already been used. Request a new one.";
+  if (code === "html_response") {
+    return "We couldn’t verify your email right now. Please try again.";
+  }
+  if (code === "expired_code" || code === "used_code" || code === "incorrect_code") {
+    return "That code is invalid or has expired. Request a new code and use the newest email.";
+  }
   if (code === "missing_challenge") return "This verification request is no longer active. Request a new code.";
   if (code === "locked_challenge") return "Too many incorrect attempts. Request a new code.";
-  if (code === "incorrect_code") return "That code is not correct. Check the email and try again.";
   if (code === "invalid_code" || code === "validation_error") return "Enter the complete six-digit code.";
   if (code === "email_unconfirmed") return "Confirm your email address before completing login verification.";
+  if (code === "missing_email") {
+    return "We could not determine which email is being verified. Please restart sign-in.";
+  }
   if (error?.status === 401) return "Your secure session expired. Sign in again to continue.";
-  if (error instanceof TypeError && /fetch|network|load failed/i.test(error.message)) return "We could not reach Prelude. Check your connection and try again.";
-  if (code === "server_error" || Number(error?.status) >= 500) return "Prelude could not verify the code right now. Please try again.";
-  return "Verification could not be completed. Please try again.";
+  if (error instanceof TypeError && /fetch|network|load failed/i.test(error.message)) {
+    return "We couldn’t verify your email right now. Please try again.";
+  }
+  if (code === "server_error" || Number(error?.status) >= 500) {
+    return "We couldn’t verify your email right now. Please try again.";
+  }
+  if (import.meta.env.DEV && error?.message) {
+    console.error("[prelude-auth] login_verification_unmapped_error", {
+      errorName: error?.name || null,
+      errorCode: code || null,
+      status: error?.status || null,
+      message: error.message
+    });
+  }
+  return "We couldn’t verify your email right now. Please try again.";
 }
 
 export function isEmailUnconfirmedError(message = "") {
@@ -821,67 +839,75 @@ export function VerifyEmailPage() {
     if (window.location.search || window.location.hash) {
       window.history.replaceState({}, "", window.location.pathname);
     }
-    if (supabaseAuth) {
+    if (!supabaseAuth) {
+      if (!verificationToken) {
+        setState({
+          checking: false,
+          processing: false,
+          message: "",
+          error: "This verification link is missing a token. Request a new link from your account settings or sign up again.",
+          alreadyVerified: false
+        });
+        return undefined;
+      }
+
       let cancelled = false;
-      const hasCompatibilityCallback = /(?:code|token_hash|access_token|refresh_token|error)=/.test(
-        `${verificationUrl.search}&${verificationUrl.hash}`
-      );
-      import("../lib/supabaseAuth.js")
-        .then(({ completeEmailVerification }) => completeEmailVerification(verificationUrl.search, verificationUrl.hash))
-        .then(async ({ user: nextUser, error, alreadyVerified }) => {
+      verifyEmail(verificationToken)
+        .then(async (result) => {
           if (cancelled) return;
-          if (error) {
-            setState({
-              checking: false,
-              processing: false,
-              message: "",
-              error: hasCompatibilityCallback ? friendlyAuthError(error, "signup") : "",
-              alreadyVerified: false
-            });
-            return;
-          }
-          const refreshedUser = await refreshUser();
-          if (cancelled) return;
-          const resolvedUser = refreshedUser || nextUser;
-          clearPendingSignupVerification();
-          navigate(postAuthDestination(resolvedUser), { replace: true });
+          await refreshUser();
+          setState({
+            checking: false,
+            processing: false,
+            message: result.message || "Email verified.",
+            error: "",
+            alreadyVerified: Boolean(result.alreadyVerified)
+          });
         })
         .catch((err) => {
           if (!cancelled) setState({ checking: false, processing: false, message: "", error: friendlyAuthError(err.message, "signup"), alreadyVerified: false });
         });
+
       return () => {
         cancelled = true;
       };
     }
 
-    if (!verificationToken) {
-      setState({
-        checking: false,
-        processing: false,
-        message: "",
-        error: "This verification link is missing a token. Request a new link from your account settings or sign up again.",
-        alreadyVerified: false
-      });
+    const hasCompatibilityCallback = /(?:code|token_hash|access_token|refresh_token|error)=/.test(
+      `${verificationUrl.search}&${verificationUrl.hash}`
+    );
+
+    // Manual OTP entry only — do not call Supabase on mount unless a link callback is present.
+    // Auto-running verification without params previously raced with OTP entry and confused errors.
+    if (!hasCompatibilityCallback) {
+      setState({ checking: false, processing: false, message: "", error: "", alreadyVerified: false });
       return undefined;
     }
 
     let cancelled = false;
-    verifyEmail(verificationToken)
-      .then(async (result) => {
+    import("../lib/supabaseAuth.js")
+      .then(({ completeEmailVerification }) => completeEmailVerification(verificationUrl.search, verificationUrl.hash))
+      .then(async ({ user: nextUser, error, alreadyVerified }) => {
         if (cancelled) return;
-        await refreshUser();
-        setState({
-          checking: false,
-          processing: false,
-          message: result.message || "Email verified.",
-          error: "",
-          alreadyVerified: Boolean(result.alreadyVerified)
-        });
+        if (error) {
+          setState({
+            checking: false,
+            processing: false,
+            message: "",
+            error: friendlyAuthError(error, "signup"),
+            alreadyVerified: false
+          });
+          return;
+        }
+        const refreshedUser = await refreshUser();
+        if (cancelled) return;
+        const resolvedUser = refreshedUser || nextUser;
+        clearPendingSignupVerification();
+        navigate(postAuthDestination(resolvedUser), { replace: true });
       })
       .catch((err) => {
         if (!cancelled) setState({ checking: false, processing: false, message: "", error: friendlyAuthError(err.message, "signup"), alreadyVerified: false });
       });
-
     return () => {
       cancelled = true;
     };
@@ -889,8 +915,15 @@ export function VerifyEmailPage() {
 
   async function submitVerification(event) {
     event.preventDefault();
-    if (state.processing || !/^\d{6}$/.test(code)) return;
+    if (state.processing || resending || !/^\d{6}$/.test(code)) return;
     const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setState((current) => ({
+        ...current,
+        error: "We could not determine which email is being verified. Please restart sign-in."
+      }));
+      return;
+    }
     if (!isValidEmail(normalizedEmail)) {
       setState((current) => ({ ...current, error: "Enter the email address used to create your account." }));
       return;
@@ -899,7 +932,7 @@ export function VerifyEmailPage() {
     setState((current) => ({ ...current, processing: true, error: "", message: "" }));
     try {
       const { verifySignupOtp } = await import("../lib/supabaseAuth.js");
-      const { user: verifiedUser, error } = await verifySignupOtp(normalizedEmail, code.trim());
+      const { user: verifiedUser, error } = await verifySignupOtp(normalizedEmail, code);
       if (error) {
         setState((current) => ({ ...current, processing: false, error }));
         return;
@@ -913,7 +946,15 @@ export function VerifyEmailPage() {
   }
 
   async function resendConfirmation() {
+    if (resending || state.processing || resendCooldown > 0) return;
     const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setState((current) => ({
+        ...current,
+        error: "We could not determine which email is being verified. Please restart sign-in."
+      }));
+      return;
+    }
     if (!isValidEmail(normalizedEmail)) {
       setState((current) => ({ ...current, error: "Enter the email address used to create your account." }));
       return;
@@ -923,8 +964,15 @@ export function VerifyEmailPage() {
       const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
       await resendSignupConfirmation(normalizedEmail);
       storePendingSignupVerification(normalizedEmail);
+      setDigits(["", "", "", "", "", ""]);
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
-      setState({ checking: false, processing: false, message: "A new six-digit code was sent. Check your inbox.", error: "", alreadyVerified: false });
+      setState({
+        checking: false,
+        processing: false,
+        message: "A new six-digit code was sent. Use the newest email — older codes no longer work.",
+        error: "",
+        alreadyVerified: false
+      });
     } catch (error) {
       setState((current) => ({ ...current, error: friendlyAuthError(error.message, "signup"), message: "" }));
     } finally {
@@ -1174,6 +1222,7 @@ export function VerifyLoginPage() {
   }, [code, loading, submittedCode]);
 
   async function onResend() {
+    if (loading || cooldown > 0 || verificationInFlightRef.current) return;
     setStatus("sending");
     setError("");
     try {
@@ -1182,7 +1231,11 @@ export function VerifyLoginPage() {
       setDigits(["", "", "", "", "", ""]);
       setSubmittedCode("");
       setCooldown(Number(result.retryAfter || RESEND_COOLDOWN_SECONDS));
-      setMessage(result.emailSent ? "A new verification code was sent." : "Prelude could not confirm email delivery. Please try again.");
+      setMessage(
+        result.emailSent
+          ? "A new verification code was sent. Use the newest email — older codes no longer work."
+          : "Prelude could not confirm email delivery. Please try again."
+      );
       setStatus("waiting");
       focusFirstOtpInput();
     } catch (err) {
@@ -1194,19 +1247,34 @@ export function VerifyLoginPage() {
   async function onSubmit(event) {
     event.preventDefault();
     if (!/^\d{6}$/.test(code) || loading || verificationInFlightRef.current) return;
+    if (!user?.email) {
+      setError("We could not determine which email is being verified. Please restart sign-in.");
+      return;
+    }
     verificationInFlightRef.current = true;
     setStatus("verifying");
     setError("");
     setSubmittedCode(code);
     try {
-      await verifyLoginCode({ challengeId, code, trustDevice });
-      const verification = await refreshLoginVerification();
-      const refreshed = await refreshUser();
-      if (!verification.verified) throw new Error("Login verification could not be confirmed.");
+      const result = await verifyLoginCode({ challengeId, code, trustDevice });
+      if (!result?.verified) {
+        throw Object.assign(new Error("Login verification could not be confirmed."), {
+          payload: { error: "server_error" }
+        });
+      }
+
+      // Cookie propagation can lag one request behind Set-Cookie. Refresh the
+      // user profile first, then force-mark login verified from the successful
+      // verify response so a lagging cookie check cannot bounce the user back.
+      const refreshed = await refreshUser().catch(() => user);
+      await refreshLoginVerification({ forceVerified: true, silent: true });
       setStatus("success");
       setMessage("Verification successful. Opening your dashboard…");
       await new Promise((resolve) => window.setTimeout(resolve, 450));
-      const pendingDestination = resolveJourneyDestination(readPendingJourney(), refreshed);
+      const pendingDestination = resolveJourneyDestination(
+        readPendingJourney() || { next: nextPath || "/dashboard" },
+        refreshed || user
+      );
       navigate(nextPath === "/dashboard" ? pendingDestination : nextPath, { replace: true });
       clearPendingJourney();
     } catch (err) {

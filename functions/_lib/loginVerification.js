@@ -288,6 +288,10 @@ export async function handleLoginVerification(context, action) {
         })
       });
       const challenge = rows?.[0];
+      if (!challenge?.id) {
+        logAuth("verification.challenge.create.failed", { requestId: rid, userId: user.id, reason: "missing_challenge_row" });
+        return json({ error: "server_error", message: "Could not create a verification challenge." }, 500);
+      }
       logAuth("verification.challenge.created", { requestId: rid, userId: user.id, challengeId: challenge.id });
       const delivery = await sendEmail(context, { to: user.email, code, challengeId: challenge.id, requestId: rid });
       await supabaseFetch(context, `/rest/v1/login_verification_challenges?id=eq.${challenge.id}`, {

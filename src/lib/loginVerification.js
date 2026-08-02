@@ -1,4 +1,5 @@
 import { getSupabase } from "./supabase.js";
+import { getSupabaseProjectRef } from "./supabaseConfig.js";
 
 async function getAccessToken() {
   const supabase = getSupabase();
@@ -13,6 +14,19 @@ async function getAccessToken() {
   return session.access_token;
 }
 
+function looksLikeHtml(text = "") {
+  const sample = String(text || "").trim().slice(0, 200).toLowerCase();
+  return sample.startsWith("<!doctype") || sample.startsWith("<html") || sample.includes("<head");
+}
+
+function logVerificationDebug(details = {}) {
+  if (!import.meta.env.DEV) return;
+  console.error("[prelude-auth] login_verification", {
+    ...details,
+    projectRef: getSupabaseProjectRef()
+  });
+}
+
 async function verificationApi(path, options = {}) {
   const token = await getAccessToken();
   const headers = {
@@ -22,19 +36,64 @@ async function verificationApi(path, options = {}) {
   };
   if (options.body && !(options.body instanceof FormData)) headers["Content-Type"] = "application/json";
 
-  const response = await fetch(path, {
-    credentials: "include",
-    ...options,
-    headers
-  });
-  const payload = await response.json().catch(() => ({}));
+  let response;
+  try {
+    response = await fetch(path, {
+      credentials: "include",
+      ...options,
+      headers
+    });
+  } catch (error) {
+    logVerificationDebug({
+      path,
+      errorName: error?.name || null,
+      message: error?.message || null,
+      network: true
+    });
+    throw error;
+  }
+
+  const rawText = await response.text();
+  let payload = {};
+  if (rawText) {
+    try {
+      payload = JSON.parse(rawText);
+    } catch {
+      payload = {};
+    }
+  }
+
+  if (looksLikeHtml(rawText) || (response.ok && rawText && typeof payload !== "object")) {
+    const error = new Error(
+      "Prelude could not reach the verification API. The server returned a web page instead of JSON."
+    );
+    error.status = response.status || 502;
+    error.payload = { error: "html_response", message: error.message };
+    logVerificationDebug({
+      path,
+      status: response.status,
+      errorCode: "html_response",
+      message: error.message,
+      contentType: response.headers.get("content-type")
+    });
+    throw error;
+  }
+
   if (!response.ok) {
     const error = new Error(payload.message || payload.error || "Request failed.");
     error.status = response.status;
-    error.payload = payload;
+    error.payload = payload && typeof payload === "object" ? payload : { error: "request_failed" };
+    logVerificationDebug({
+      path,
+      status: response.status,
+      errorName: error.name,
+      errorCode: payload?.error || null,
+      message: error.message
+    });
     throw error;
   }
-  return payload;
+
+  return payload && typeof payload === "object" ? payload : {};
 }
 
 export async function checkLoginVerification() {
@@ -46,9 +105,15 @@ export async function sendLoginVerificationCode() {
 }
 
 export async function verifyLoginCode({ challengeId = "", code, trustDevice = false, deviceName = "" }) {
+  const normalizedCode = String(code || "").replace(/\D/g, "");
   return verificationApi("/api/auth/verify-login-challenge", {
     method: "POST",
-    body: JSON.stringify({ challengeId: challengeId || undefined, code, trustDevice, deviceName })
+    body: JSON.stringify({
+      challengeId: challengeId || undefined,
+      code: normalizedCode,
+      trustDevice,
+      deviceName
+    })
   });
 }
 

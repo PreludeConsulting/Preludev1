@@ -18,6 +18,17 @@ export function getSupabaseConfigError() {
   return `Supabase is not configured. Missing ${missing.join(" and ")}.`;
 }
 
+/** Public project reference only — never log keys or tokens. */
+export function getSupabaseProjectRef() {
+  try {
+    const host = new URL(String(import.meta.env.VITE_SUPABASE_URL || "").trim()).hostname;
+    const match = /^([a-z0-9-]+)\.supabase\.co$/i.exec(host);
+    return match?.[1] || host || "";
+  } catch {
+    return "";
+  }
+}
+
 /** Public site origin for auth email redirects (no trailing slash). */
 export function getPublicAppUrl() {
   const fromEnv = import.meta.env.VITE_PUBLIC_APP_URL?.trim();

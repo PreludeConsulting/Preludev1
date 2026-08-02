@@ -95,6 +95,10 @@ export function AuthProvider({ children }) {
       setLoginVerified(true);
       return { verified: true };
     }
+    if (options.forceVerified) {
+      setLoginVerified(true);
+      return { verified: true };
+    }
     if (verificationRequestRef.current) return verificationRequestRef.current;
 
     if (!silent) setLoginVerificationLoading(true);

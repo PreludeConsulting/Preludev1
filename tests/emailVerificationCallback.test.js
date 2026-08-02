@@ -18,7 +18,10 @@ function authClient({ user = confirmedUser(), exchangeError = null, otpError = n
   return {
     auth: {
       exchangeCodeForSession: vi.fn().mockResolvedValue({ data: { session: { user } }, error: exchangeError }),
-      verifyOtp: vi.fn().mockResolvedValue({ data: { user }, error: otpError }),
+      verifyOtp: vi.fn().mockResolvedValue({
+        data: otpError ? {} : { session: { user }, user },
+        error: otpError
+      }),
       resend: vi.fn().mockResolvedValue({ error: otpError }),
       setSession: vi.fn().mockResolvedValue({ error: null }),
       getUser: vi.fn().mockResolvedValue({ data: { user }, error: null })
@@ -102,7 +105,7 @@ describe("Supabase manual signup OTP", () => {
       token: "123456",
       type: "email"
     });
-    expect(supabase.auth.getUser).toHaveBeenCalledOnce();
+    expect(supabase.auth.verifyOtp.mock.calls[0][0]).not.toHaveProperty("token_hash");
   });
 
   it("rejects an incomplete or non-numeric code without calling Supabase", async () => {
@@ -113,18 +116,28 @@ describe("Supabase manual signup OTP", () => {
     expect(supabase.auth.verifyOtp).not.toHaveBeenCalled();
   });
 
+  it("preserves a leading zero in the six-digit token", async () => {
+    const supabase = authClient();
+    await establishSignupOtpSession(supabase, "student@example.edu", "012345");
+    expect(supabase.auth.verifyOtp).toHaveBeenCalledWith({
+      email: "student@example.edu",
+      token: "012345",
+      type: "email"
+    });
+  });
+
   it("shows a clear incorrect-code error", async () => {
     const supabase = authClient({ otpError: new Error("Token is invalid") });
     const result = await establishSignupOtpSession(supabase, "student@example.edu", "111111");
 
-    expect(result.error).toBe("That verification code is incorrect. Check the email and try again.");
+    expect(result.error).toMatch(/invalid or has expired/i);
   });
 
   it("shows a clear expired-code error", async () => {
     const supabase = authClient({ otpError: new Error("OTP has expired") });
     const result = await establishSignupOtpSession(supabase, "student@example.edu", "111111");
 
-    expect(result.error).toBe("That verification code expired. Request a new code and try again.");
+    expect(result.error).toMatch(/invalid or has expired/i);
   });
 
   it("resends a signup code through Supabase Auth", async () => {

@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabase } from "./supabase.js";
 import { appPath } from "./appPaths.js";
 import { sanitizeAuthRedirect } from "./authRedirects.js";
-import { getPublicAppUrl, getSupabaseConfigError, isSupabaseConfigured } from "./supabaseConfig.js";
+import { getPublicAppUrl, getSupabaseConfigError, getSupabaseProjectRef, isSupabaseConfigured } from "./supabaseConfig.js";
 import { isSupabaseUserConfirmed, mapSupabaseUser } from "./supabaseSession.js";
 import { clearPendingSignupVerification } from "./signupVerificationState.js";
 import { captchaOptions, requireTurnstileToken } from "./turnstile.js";
@@ -505,37 +505,96 @@ export async function resendSignupConfirmationWithClient(supabase, email) {
 
 function friendlySignupOtpError(error) {
   const message = String(error?.message || "").toLowerCase();
-  if (message.includes("expired")) return "That verification code expired. Request a new code and try again.";
-  if (message.includes("invalid") || message.includes("otp") || message.includes("token")) {
-    return "That verification code is incorrect. Check the email and try again.";
+  const status = Number(error?.status || error?.statusCode || 0);
+  if (status === 429 || message.includes("rate limit") || message.includes("for security purposes")) {
+    return "Too many attempts. Please wait a moment and try again.";
   }
-  return friendlyError(error);
+  if (message.includes("expired")) {
+    return "That code is invalid or has expired. Request a new code and use the newest email.";
+  }
+  if (
+    message.includes("invalid") ||
+    message.includes("otp") ||
+    message.includes("token") ||
+    message.includes("confirm")
+  ) {
+    return "That code is invalid or has expired. Request a new code and use the newest email.";
+  }
+  if (message.includes("failed to fetch") || message.includes("network")) {
+    return "We couldn’t verify your email right now. Please try again.";
+  }
+  return friendlyError(error) || "We couldn’t verify your email right now. Please try again.";
+}
+
+function logSignupOtpDebug(details = {}) {
+  if (!import.meta.env.DEV) return;
+  console.error("[prelude-auth] signup_otp_verify", {
+    ...details,
+    projectRef: getSupabaseProjectRef()
+  });
 }
 
 export async function establishSignupOtpSession(supabase, email, verificationCode) {
   const normalizedEmail = normalizeEmail(email);
-  const token = String(verificationCode || "").replace(/\s/g, "");
-  if (!normalizedEmail) return { user: null, error: "Enter the email address used to create your account." };
-  if (!/^\d{6}$/.test(token)) return { user: null, error: "Enter the complete six-digit code." };
+  const normalizedToken = String(verificationCode || "").replace(/\D/g, "");
+  if (!normalizedEmail) {
+    return { user: null, error: "We could not determine which email is being verified. Please restart sign-in." };
+  }
+  if (!/^\d{6}$/.test(normalizedToken)) {
+    return { user: null, error: "Enter the complete six-digit code." };
+  }
 
-  const { error } = await supabase.auth.verifyOtp({
+  // Six-digit Supabase {{ .Token }} must use `token` (never token_hash) with type "email".
+  const { data, error } = await supabase.auth.verifyOtp({
     email: normalizedEmail,
-    token,
+    token: normalizedToken,
     type: "email"
   });
-  if (error) return { user: null, error: friendlySignupOtpError(error) };
 
-  const {
-    data: { user },
-    error: userError
-  } = await supabase.auth.getUser();
-  if (userError || !user) {
-    return { user: null, error: friendlyError(userError) || "Verification succeeded, but no authenticated session was created." };
+  if (error) {
+    logSignupOtpDebug({
+      path: "verifyOtp",
+      errorName: error?.name || null,
+      errorCode: error?.code || null,
+      status: error?.status || null,
+      message: error?.message || null,
+      hasEmail: Boolean(normalizedEmail),
+      hasToken: true,
+      tokenLength: normalizedToken.length
+    });
+    return { user: null, error: friendlySignupOtpError(error) };
   }
-  if (!user.email_confirmed_at && !user.confirmed_at) {
+
+  const sessionUser = data?.session?.user || data?.user || null;
+  if (!sessionUser) {
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser();
+    if (userError || !user) {
+      logSignupOtpDebug({
+        path: "verifyOtp_missing_session",
+        errorName: userError?.name || null,
+        errorCode: userError?.code || null,
+        message: userError?.message || "missing_session",
+        hasEmail: Boolean(normalizedEmail),
+        hasToken: true
+      });
+      return {
+        user: null,
+        error: friendlyError(userError) || "Verification succeeded, but no authenticated session was created."
+      };
+    }
+    if (!user.email_confirmed_at && !user.confirmed_at) {
+      return { user: null, error: "Supabase did not confirm this email. Request a new code and try again." };
+    }
+    return { user, error: null, session: data?.session || null };
+  }
+
+  if (!sessionUser.email_confirmed_at && !sessionUser.confirmed_at) {
     return { user: null, error: "Supabase did not confirm this email. Request a new code and try again." };
   }
-  return { user, error: null };
+  return { user: sessionUser, error: null, session: data?.session || null };
 }
 
 export async function verifySignupOtp(email, verificationCode) {
