@@ -507,7 +507,8 @@ export function RegisterPage() {
               email: userEmail,
               summary: promoRedemption.summary,
               campaignName: promoRedemption.summary?.campaignName,
-              promotionEndsAt: promoRedemption.promotionEndsAt
+              promotionEndsAt: promoRedemption.promotionEndsAt,
+              loginVerificationError: result?.loginVerificationError || ""
             }
           });
           return;
@@ -515,7 +516,13 @@ export function RegisterPage() {
         if (result?.requiresLoginVerification) {
           const challenge = result.challengeId ? `&challenge=${encodeURIComponent(result.challengeId)}` : "";
           const verificationDestination = resolveJourneyDestination(readPendingJourney() || { next: destination }, result);
-          navigate(`/verify-login?next=${encodeURIComponent(verificationDestination || "/dashboard")}${challenge}`, { replace: true });
+          const verifyQuery = `/verify-login?next=${encodeURIComponent(verificationDestination || "/dashboard")}${challenge}`;
+          navigate(verifyQuery, {
+            replace: true,
+            state: result?.loginVerificationError
+              ? { loginVerificationError: result.loginVerificationError }
+              : undefined
+          });
           return;
         }
         const requestedDestination = resolveJourneyDestination(readPendingJourney() || { next: destination }, result);
@@ -525,6 +532,7 @@ export function RegisterPage() {
       }
       setMessage(result?.message || "Account created.");
     } catch (err) {
+      console.error("[prelude-auth] signup_failed", err?.message || err, err);
       const duplicate = /already exists|already registered|try logging in/i.test(err.message || "");
       if (supabaseAuth && duplicate) {
         storePendingSignupVerification(form.email);

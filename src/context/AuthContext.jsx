@@ -178,6 +178,18 @@ export function AuthProvider({ children }) {
         setLoginVerified(false);
         return { verified: false, emailUnconfirmed: true, error: error.message };
       }
+      if (
+        error?.payload?.error === "email_delivery_failed" ||
+        error?.payload?.error === "login_verification_storage_missing" ||
+        error?.status === 503
+      ) {
+        setLoginVerified(false);
+        return {
+          verified: false,
+          codeSent: false,
+          error: error.message || "Verification code could not be sent."
+        };
+      }
       throw error;
     }
   }, [refreshLoginVerification, useSupabase]);
@@ -441,11 +453,30 @@ export function AuthProvider({ children }) {
           });
         }
         if (next) {
-          const verification = await beginLoginVerification();
-          next.requiresLoginVerification = !verification.verified;
-          next.challengeId = verification.challengeId || "";
-          setUser(next);
-          setLoginVerified(Boolean(verification.verified));
+          // Account already exists at this point — never fail signup because
+          // the follow-up login-verification email/challenge could not be sent.
+          try {
+            const verification = await beginLoginVerification();
+            next.requiresLoginVerification = !verification.verified;
+            next.challengeId = verification.challengeId || "";
+            if (verification.error && !verification.verified) {
+              next.loginVerificationError = verification.error;
+            }
+            setUser(next);
+            setLoginVerified(Boolean(verification.verified));
+          } catch (verificationError) {
+            console.warn(
+              "[prelude-auth] Signup succeeded but login verification could not start:",
+              verificationError?.message || verificationError
+            );
+            next.requiresLoginVerification = true;
+            next.challengeId = "";
+            next.loginVerificationError =
+              verificationError?.message ||
+              "Account created, but we could not send the login verification code. You can resend it on the next screen.";
+            setUser(next);
+            setLoginVerified(false);
+          }
           setSignInOpen(false);
         }
         return {
@@ -455,7 +486,8 @@ export function AuthProvider({ children }) {
           emailVerified: Boolean(next?.emailVerified),
           needsEmailConfirmation,
           requiresLoginVerification: Boolean(next?.requiresLoginVerification),
-          challengeId: next?.challengeId || ""
+          challengeId: next?.challengeId || "",
+          loginVerificationError: next?.loginVerificationError || ""
         };
       }
       const next = await authSignUp(payload);

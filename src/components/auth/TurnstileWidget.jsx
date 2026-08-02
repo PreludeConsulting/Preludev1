@@ -64,6 +64,7 @@ const TurnstileWidget = forwardRef(function TurnstileWidget({ onTokenChange, onS
           size: "flexible",
           callback: (token) => {
             setError("");
+            reportStatus("ready");
             callbackRef.current?.(token);
           },
           "expired-callback": () => {

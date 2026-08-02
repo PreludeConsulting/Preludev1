@@ -148,6 +148,17 @@ export function friendlyAuthError(error) {
   if (message.includes("inactive recipient") || message.includes("smtp") || message.includes("email rate limit exceeded")) {
     return "We couldn't send that email right now. Please wait a moment and try again.";
   }
+  if (
+    message.includes("error sending confirmation") ||
+    message.includes("error sending magic link") ||
+    message.includes("unable to send email") ||
+    message.includes("confirmation email")
+  ) {
+    return "We couldn't send the confirmation email. Wait a moment and try again, or use a different email address.";
+  }
+  if (message.includes("database error saving new user") || message.includes("database error creating new user")) {
+    return "We couldn't finish creating your account due to a profile setup error. Please try again in a moment.";
+  }
   if (message.includes("redirect") || message.includes("not allowed")) {
     return "This auth redirect is not allowed yet. Check the Supabase redirect URL allow list.";
   }
@@ -171,6 +182,9 @@ export function friendlyAuthError(error) {
   }
   if (message.includes("profile") && message.includes("permission")) {
     return "We couldn't create your profile. Please refresh or try again.";
+  }
+  if (message.includes("login verification storage") || message.includes("login_verification")) {
+    return "Account security checks are not fully configured yet. Please try signing in again in a few minutes.";
   }
   const fallback = error.message || "Something went wrong. Please try again.";
   if (import.meta.env.PROD) return "Something went wrong. Please try again.";

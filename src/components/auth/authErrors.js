@@ -39,6 +39,15 @@ export function friendlyAuthError(message = "", context = "signin") {
   if (/captcha|turnstile|security check/i.test(lower)) {
     return "Complete the security check and try again.";
   }
+  if (/database error saving new user|database error creating new user/i.test(raw)) {
+    return "We couldn't finish creating your account due to a profile setup error. Please try again in a moment.";
+  }
+  if (/error sending confirmation|unable to send email|confirmation email/i.test(raw)) {
+    return "We couldn't send the confirmation email. Wait a moment and try again, or use a different email address.";
+  }
+  if (/login verification storage|login_verification/i.test(raw)) {
+    return "Account security checks are not fully configured yet. Please try signing in again in a few minutes.";
+  }
   if (/password should be at least|password must be at least|passwords don't match/i.test(raw)) {
     return raw;
   }
