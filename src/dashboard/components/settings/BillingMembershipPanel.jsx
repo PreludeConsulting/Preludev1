@@ -1,23 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { CreditCard, Loader2, Package, RefreshCw, Sparkles } from "lucide-react";
 import { useLanguage } from "../../../context/LanguageContext.jsx";
 import { getPlanBadgeLabel } from "../../../lib/planBadges.js";
-import {
-  cancelMembership,
-  fetchBillingHistory,
-  fetchBillingSummary,
-  reactivateMembership
-} from "../../../lib/billingMembership.js";
-import { openBillingPortal, startBillingCheckout } from "../../../lib/auth.js";
+import { fetchBillingHistory, fetchBillingSummary, reactivateMembership } from "../../../lib/billingMembership.js";
 import { buildEssaySupportPath } from "../../../../shared/mentorAccess.js";
+import {
+  STUDENT_BILLING_PLANS_PATH,
+  openStripeCustomerPortal
+} from "../../../../shared/stripePaymentLinks.js";
 import EssaySupportCreditsSummary from "../../../components/EssaySupportCreditsSummary.jsx";
 import {
   formatBillingDate,
   formatBillingDateTime,
   formatMoneyCents
 } from "../../../../shared/billingMembership.js";
-import { Modal, PrimaryButton, SecondaryButton, SectionCard, EmptyState, DashBadge } from "../ui/index.jsx";
+import { PrimaryButton, SecondaryButton, SectionCard, EmptyState, DashBadge } from "../ui/index.jsx";
 
 function statusBadgeVariant(key) {
   if (key === "active" || key === "trial") return "soft";
@@ -31,6 +29,7 @@ export default function BillingMembershipPanel({
   settingsBasePath = "/dashboard/student/settings"
 }) {
   const { preferredLanguage } = useLanguage();
+  const location = useLocation();
   const [summary, setSummary] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyMeta, setHistoryMeta] = useState({ hasMore: false, offset: 0, total: 0 });
@@ -39,7 +38,6 @@ export default function BillingMembershipPanel({
   const [error, setError] = useState("");
   const [actionMessage, setActionMessage] = useState("");
   const [actionLoading, setActionLoading] = useState("");
-  const [cancelOpen, setCancelOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,7 +55,7 @@ export default function BillingMembershipPanel({
         total: historyResult.total || 0
       });
     } catch (err) {
-      setError(err.message || "We couldn’t load your billing information. Please try again.");
+      setError(err.message || "We couldn’t refresh your billing information. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -66,6 +64,19 @@ export default function BillingMembershipPanel({
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      load();
+    }
+  }, [load]);
+
+  useEffect(() => {
+    if (location.state?.planChangeProcessing) {
+      setActionMessage("Your plan change is processing. Refresh in a moment.");
+    }
+  }, [location.state]);
 
   async function loadMoreHistory() {
     setHistoryLoading(true);
@@ -91,12 +102,20 @@ export default function BillingMembershipPanel({
     try {
       const result = await fn();
       setActionMessage(result.message || "Updated.");
-      setCancelOpen(false);
       await load();
     } catch (err) {
       setActionMessage(err.payload?.message || err.message || "That billing action failed.");
     } finally {
       setActionLoading("");
+    }
+  }
+
+  function handleManageBilling() {
+    setActionMessage("");
+    try {
+      openStripeCustomerPortal();
+    } catch {
+      setActionMessage("We couldn’t open your billing settings. Please try again.");
     }
   }
 
@@ -139,8 +158,14 @@ export default function BillingMembershipPanel({
   const planBadgeLabel = getPlanBadgeLabel(summary.plan?.id, preferredLanguage);
   const actions = membership.actions || {};
   const essaySupportHref = buildEssaySupportPath();
-  const plansHref = "/plans";
+  const plansHref = STUDENT_BILLING_PLANS_PATH;
   const isEssaySupport = summary.plan?.id === "basic";
+  const canManageBilling = Boolean(
+    membership.hasCustomer ||
+      summary.canOpenCustomerPortal ||
+      membership.stripeSubscriptionId ||
+      actions.managePaymentMethod
+  );
 
   return (
     <>
@@ -209,14 +234,14 @@ export default function BillingMembershipPanel({
           ) : null}
 
           <div className="dash-billing-membership__actions">
-            {!isEssaySupport && actions.cancel ? (
+            {canManageBilling ? (
               <SecondaryButton
                 type="button"
                 className="dash-btn--sm"
-                onClick={() => setCancelOpen(true)}
                 disabled={Boolean(actionLoading)}
+                onClick={handleManageBilling}
               >
-                Cancel membership
+                Manage billing
               </SecondaryButton>
             ) : null}
             {!isEssaySupport && actions.reactivate ? (
@@ -229,43 +254,10 @@ export default function BillingMembershipPanel({
                 Keep membership
               </PrimaryButton>
             ) : null}
-            {!isEssaySupport && actions.purchaseMembership ? (
-              <PrimaryButton
-                type="button"
-                className="dash-btn--sm"
-                loading={actionLoading === "checkout"}
-                onClick={() =>
-                  runAction("checkout", async () => {
-                    const planId = summary.plan?.id === "basic" ? "plus" : summary.plan?.id || "plus";
-                    const result = await startBillingCheckout(planId, { context: "public" });
-                    if (result.url) window.location.href = result.url;
-                    return { message: "Redirecting to checkout…" };
-                  })
-                }
-              >
-                Purchase monthly membership
-              </PrimaryButton>
-            ) : null}
             {actions.purchaseSessions ? (
               <SecondaryButton as={Link} to={essaySupportHref} className="dash-btn--sm">
                 <Package className="h-4 w-4" aria-hidden="true" />
                 Purchase Essay Support
-              </SecondaryButton>
-            ) : null}
-            {actions.managePaymentMethod ? (
-              <SecondaryButton
-                type="button"
-                className="dash-btn--sm"
-                loading={actionLoading === "portal"}
-                onClick={() =>
-                  runAction("portal", async () => {
-                    const result = await openBillingPortal();
-                    if (result.url) window.location.href = result.url;
-                    return { message: "Opening billing portal…" };
-                  })
-                }
-              >
-                Update payment method
               </SecondaryButton>
             ) : null}
             <SecondaryButton as={Link} to={plansHref} className="dash-btn--sm">
@@ -344,36 +336,6 @@ export default function BillingMembershipPanel({
           <Link to={`${settingsBasePath}#billing`}>Settings → Billing</Link>.
         </p>
       </SectionCard>
-
-      <Modal
-        open={cancelOpen}
-        onClose={() => setCancelOpen(false)}
-        title="Cancel membership?"
-        belowHeader
-        footer={
-          <>
-            <SecondaryButton type="button" onClick={() => setCancelOpen(false)} disabled={actionLoading === "cancel"}>
-              Keep membership
-            </SecondaryButton>
-            <PrimaryButton
-              type="button"
-              loading={actionLoading === "cancel"}
-              onClick={() => runAction("cancel", cancelMembership)}
-            >
-              Confirm cancellation
-            </PrimaryButton>
-          </>
-        }
-      >
-        <p>
-          Your subscription is scheduled to end on{" "}
-          <strong>{formatBillingDateTime(membership.currentPeriodEnd || membership.endsAt) || "the end of the current billing period"}</strong>.
-          You may continue using your remaining session credits until then. You will not be charged again unless you renew or reactivate.
-        </p>
-        <p className="dash-muted">
-          Purchased one-time session packages remain available according to their existing rules. Subscription session credits expire when this paid period ends.
-        </p>
-      </Modal>
     </>
   );
 }

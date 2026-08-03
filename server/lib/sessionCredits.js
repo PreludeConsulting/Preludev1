@@ -157,6 +157,61 @@ export async function getSessionCreditSummary(studentUserId, { now = new Date() 
 }
 
 /**
+ * Mid-cycle Plus↔Pro switch: set allowance to the target plan and keep usage.
+ * remaining = max(0, targetAllowance - usedInCurrentCycle).
+ * Does not touch Essay Support / review credits.
+ */
+export async function reconcileActiveSessionPeriodForPlanChange(studentUserId, planId, { now = new Date() } = {}) {
+  const normalizedPlan = normalizePlanId(planId);
+  const newAllowance = getPlanSessionAllowance(normalizedPlan);
+  if (!studentUserId || !newAllowance) return null;
+
+  const period = await getActiveSessionPeriod(studentUserId, { now });
+  if (!period?.id) return null;
+
+  const used = Math.max(0, (Number(period.allowance) || 0) - (Number(period.remaining) || 0));
+  const remaining = Math.max(0, newAllowance - used);
+  const updatedAt = new Date().toISOString();
+
+  if (canUsePrisma()) {
+    try {
+      await prismaClient().$executeRawUnsafe(
+        `UPDATE subscription_session_periods
+         SET plan_id = $2, allowance = $3, remaining = $4, updated_at = $5::timestamptz
+         WHERE id = $1::uuid AND status = 'active'`,
+        period.id,
+        normalizedPlan,
+        newAllowance,
+        remaining,
+        updatedAt
+      );
+      return {
+        ...period,
+        planId: normalizedPlan,
+        allowance: newAllowance,
+        remaining,
+        updatedAt
+      };
+    } catch (error) {
+      if (!isDatabaseUnavailableError(error) && !/subscription_session_periods/i.test(String(error?.message || ""))) {
+        throw error;
+      }
+    }
+  }
+
+  assertDurableStoreAvailable(process.env, "subscription session periods");
+  const store = readStore();
+  const row = store.periods.find((entry) => entry.id === period.id);
+  if (!row) return null;
+  row.planId = normalizedPlan;
+  row.allowance = newAllowance;
+  row.remaining = remaining;
+  row.updatedAt = updatedAt;
+  writeStore(store);
+  return mapPeriod(row);
+}
+
+/**
  * Bootstrap a period for an already-active Plus/Pro subscription that has no ledger row yet
  * (migration / demo / promo). Does not invent a new allowance after a prior period expires
  * without a successful payment — only opens a window when none exists for these bounds.

@@ -24,6 +24,11 @@ import {
   startOnboardingBundleCheckout
 } from "../lib/onboardingPayment.js";
 import {
+  changeMembershipPlan,
+  fetchBillingSummary
+} from "../lib/billingMembership.js";
+import { STUDENT_BILLING_PATH } from "../../shared/stripePaymentLinks.js";
+import {
   WALLET_STATES,
   cardsSelectable,
   createWalletState,
@@ -115,10 +120,11 @@ export function WalletPlanCard({
   onSelect,
   buttonRef,
   style,
-  displayOnly = false
+  displayOnly = false,
+  isCurrentPlan = false
 }) {
   const badgeLabel = getPlanBadgeLabel(plan.id, language);
-  const className = `pw-card pw-card--${plan.id} ${selected ? "pw-card--selected" : ""}`;
+  const className = `pw-card pw-card--${plan.id} ${selected ? "pw-card--selected" : ""} ${isCurrentPlan ? "pw-card--current" : ""}`;
   const cardStyle = { "--pw-i": index, ...style };
 
   const content = (
@@ -128,6 +134,7 @@ export function WalletPlanCard({
       <span className="pw-card__top">
         <span className="pw-card__name">{plan.name}</span>
         {badgeLabel ? <span className="pw-card__badge">{badgeLabel}</span> : null}
+        {isCurrentPlan ? <span className="pw-card__current-badge">Current plan</span> : null}
         <span className="pw-card__payment-type">Monthly subscription</span>
         <span className="pw-card__price">
           {plan.price}
@@ -138,10 +145,16 @@ export function WalletPlanCard({
       {plan.flexibleSessionCallout ? (
         <span className="pw-card__session-note">{plan.flexibleSessionCallout}</span>
       ) : null}
-      {selected ? (
+      {selected && !isCurrentPlan ? (
         <span className="pw-card__selected-mark">
           <Check aria-hidden="true" />
           Selected
+        </span>
+      ) : null}
+      {isCurrentPlan ? (
+        <span className="pw-card__selected-mark">
+          <Check aria-hidden="true" />
+          Current plan
         </span>
       ) : null}
     </>
@@ -152,7 +165,7 @@ export function WalletPlanCard({
       <article
         className={className}
         style={cardStyle}
-        aria-label={`${plan.name} plan, ${plan.price} / month${badgeLabel ? `, ${badgeLabel}` : ""}${selected ? ", current plan" : ""}`}
+        aria-label={`${plan.name} plan, ${plan.price} / month${badgeLabel ? `, ${badgeLabel}` : ""}${isCurrentPlan ? ", current plan" : selected ? ", selected" : ""}`}
       >
         {content}
       </article>
@@ -169,7 +182,7 @@ export function WalletPlanCard({
       disabled={!selectable}
       aria-haspopup="dialog"
       aria-pressed={selected}
-      aria-label={`${plan.name} plan, ${plan.price} / month${badgeLabel ? `, ${badgeLabel}` : ""}${selected ? ", selected" : ""}`}
+      aria-label={`${plan.name} plan, ${plan.price} / month${badgeLabel ? `, ${badgeLabel}` : ""}${isCurrentPlan ? ", current plan" : selected ? ", selected" : ""}`}
       tabIndex={selectable ? 0 : -1}
     >
       {content}
@@ -287,6 +300,7 @@ export function PlanPopup({
   busy,
   notice,
   context = "public",
+  currentPlanId = null,
   dialogRef,
   backdropRef,
   onSelectPlan,
@@ -294,9 +308,17 @@ export function PlanPopup({
   onRequestClose
 }) {
   const badgeLabel = getPlanBadgeLabel(plan.id, language);
-  const isPayment = context === "payment";
+  const isPayment = context === "payment" || context === "dashboard";
   const isBilling = context === "billing";
-  const isBillingCurrent = context === "billing-current";
+  const isDashboard = context === "dashboard";
+  const isBillingCurrent =
+    context === "billing-current" ||
+    (isDashboard && currentPlanId && currentPlanId === plan.id);
+  const isPlanSwitch =
+    isDashboard &&
+    currentPlanId &&
+    (currentPlanId === "plus" || currentPlanId === "pro") &&
+    plan.id !== currentPlanId;
   const bodyRef = useRef(null);
   const priceRef = useRef(null);
   const firstActionRef = useRef(null);
@@ -351,6 +373,28 @@ export function PlanPopup({
     setPriceFlash(true);
   }
 
+  const primaryLabel = busy
+    ? "Processing…"
+    : isBillingCurrent
+      ? "Current plan"
+      : isPlanSwitch
+        ? `Switch to ${plan.name}`
+        : isPayment
+          ? "Continue to checkout"
+          : isBilling
+            ? "Switch to this plan"
+            : "Select this plan";
+
+  const supportingText = isBillingCurrent
+    ? "This is your active Prelude mentorship tier. Use Compare plans below to review other tiers."
+    : isPlanSwitch
+      ? `You'll switch from ${currentPlanId === "plus" ? "Plus" : "Pro"} to ${plan.name} on your existing subscription. Stripe may apply a prorated charge or credit. Your billing cycle date stays the same.`
+      : context === "payment" || (isDashboard && !currentPlanId)
+        ? "You'll be redirected to Stripe's secure payment portal. Your account activates after payment is confirmed."
+        : isBilling
+          ? "You'll be redirected to Stripe to confirm your plan change. Your new rate applies on your next billing cycle."
+          : "Billing is not charged during this step.";
+
   return (
     <div className="pw-popup-layer" onKeyDown={handleKeyDown}>
       <div
@@ -370,6 +414,7 @@ export function PlanPopup({
           <div className="pw-popup__head-row">
             <h2 id={`pw-popup-title-${plan.id}`}>{plan.name}</h2>
             {badgeLabel ? <span className="pw-popup__badge">{badgeLabel}</span> : null}
+            {isBillingCurrent ? <span className="pw-popup__badge">Current plan</span> : null}
           </div>
           <p className="pw-popup__head-sub">{plan.tagline}</p>
         </header>
@@ -406,15 +451,7 @@ export function PlanPopup({
             </ul>
           </section>
 
-          <p className="pw-popup__supporting">
-            {isPayment
-              ? "You'll be redirected to Stripe's secure payment portal. Your account activates after payment is confirmed."
-              : isBillingCurrent
-                ? "This is your active Prelude mentorship tier. Use Compare plans below to review other tiers."
-              : isBilling
-                ? "You'll be redirected to Stripe to confirm your plan change. Your new rate applies on your next billing cycle."
-                : "Billing is not charged during this step."}
-          </p>
+          <p className="pw-popup__supporting">{supportingText}</p>
 
           {notice ? (
             <p className="pw-popup__notice" role="status">
@@ -432,15 +469,7 @@ export function PlanPopup({
             disabled={busy || isBillingCurrent}
             aria-busy={busy}
           >
-            {busy
-              ? "Processing…"
-              : isPayment
-                ? "Continue to checkout"
-                : isBillingCurrent
-                  ? "Current plan"
-                  : isBilling
-                    ? "Switch to this plan"
-                    : "Select this plan"}
+            {primaryLabel}
           </button>
           <div className="pw-popup__actions-row">
             <button type="button" className="pw-popup__action" onClick={handleViewPrice} disabled={busy}>
@@ -478,8 +507,36 @@ export function PlanWalletExperience({
   const plans = plansProp ?? getPricingPlans();
   const { isAuthenticated, openRegister, saveUserPlan, refreshUser } = useAuth();
   const isBillingContext = context === "billing" || context === "billing-current";
+  const isDashboardContext = context === "dashboard";
   // billing / billing-current: monthly plans only (plus/pro). Otherwise: essay_support + plus + pro.
   const includeEssayBundle = !isBillingContext;
+
+  const [activePaidPlanId, setActivePaidPlanId] = useState(() => {
+    if (!isDashboardContext) return null;
+    const planId = String(user?.plan || "").toLowerCase();
+    return planId === "plus" || planId === "pro" ? planId : null;
+  });
+
+  useEffect(() => {
+    if (!isDashboardContext || !user?.id) return undefined;
+    let cancelled = false;
+    fetchBillingSummary()
+      .then((summary) => {
+        if (cancelled) return;
+        const planId = String(summary?.plan?.id || user?.plan || "").toLowerCase();
+        const accessActive = Boolean(summary?.membership?.accessActive);
+        const paid = (planId === "plus" || planId === "pro") && accessActive;
+        setActivePaidPlanId(paid ? planId : null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const planId = String(user?.plan || "").toLowerCase();
+        setActivePaidPlanId(planId === "plus" || planId === "pro" ? planId : null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDashboardContext, user?.id, user?.plan]);
 
   const restored = useMemo(() => restoreFromLocation(location), [location]);
   const draft = useMemo(
@@ -498,6 +555,15 @@ export function PlanWalletExperience({
     if (isBillingContext) {
       return isValidPlanId(initialSelectedPlanId) ? initialSelectedPlanId : null;
     }
+    if (
+      isDashboardContext &&
+      initialSelectedPlanId &&
+      (isPurchasablePlanId(initialSelectedPlanId) || isValidBundleId(initialSelectedPlanId))
+    ) {
+      return isValidBundleId(initialSelectedPlanId)
+        ? resolveBundleId(initialSelectedPlanId)
+        : initialSelectedPlanId;
+    }
     if (isPurchasablePlanId(restored.selectedPlanId)) return restored.selectedPlanId;
     if (restored.bundleId) return restored.bundleId;
     if (isPurchasablePlanId(draft.selectedPlanId)) return draft.selectedPlanId;
@@ -508,12 +574,12 @@ export function PlanWalletExperience({
 
   const initialOpen = isBillingContext
     ? initialWalletOpen
-    : restored.walletOpen || Boolean(draft.walletOpen) || Boolean(restored.bundleId);
+    : restored.walletOpen || Boolean(draft.walletOpen) || Boolean(restored.bundleId) || initialWalletOpen;
   const initialStatus = isBillingContext
     ? initialOpen
       ? WALLET_STATES.OPEN
       : WALLET_STATES.CLOSED
-    : restored.detailsOpen && initialPlanId
+    : (restored.detailsOpen || (isDashboardContext && initialWalletOpen && initialPlanId)) && initialPlanId
       ? WALLET_STATES.POPUP_OPEN
       : initialOpen
         ? WALLET_STATES.OPEN
@@ -729,13 +795,14 @@ export function PlanWalletExperience({
     setBusyPlan(selection.bundleId);
     let redirected = false;
     try {
-      if (context === "payment") {
+      if (context === "payment" || context === "dashboard") {
         const result = startOnboardingBundleCheckout(selection, user);
         if (import.meta.env.DEV) {
           console.debug("[prelude-checkout] essay payment link redirect", {
             bundleId: selection.bundleId,
             credits: selection.quantities?.essayReviews,
-            paymentLinkId: result.paymentLinkId
+            paymentLinkId: result.paymentLinkId,
+            context
           });
         }
         window.location.assign(result.url);
@@ -793,7 +860,7 @@ export function PlanWalletExperience({
         } else if (failure?.type === "authorization_error") {
           setNotice(failure.message);
         } else {
-          setNotice(error.message || "Bundle checkout is unavailable right now. Please try again.");
+          setNotice(error.message || "We couldn’t open checkout. Please try again.");
         }
       }
     } finally {
@@ -860,10 +927,63 @@ export function PlanWalletExperience({
       if (error.payload?.error === "billing_not_configured") {
         setNotice("Plan checkout will turn on after billing is connected.");
       } else {
-        setNotice(error.message || "Checkout is unavailable right now. Please try again.");
+        setNotice(error.message || "We couldn’t open checkout. Please try again.");
       }
     } finally {
       setBusyPlan(null);
+    }
+  }
+
+  async function handleChooseDashboard(plan) {
+    setNotice("");
+    if (busyPlan) return;
+    if (activePaidPlanId && plan.id === activePaidPlanId) {
+      setNotice("This is already your current plan.");
+      return;
+    }
+
+    setBusyPlan(plan.id);
+    let redirected = false;
+    try {
+      if (activePaidPlanId && activePaidPlanId !== plan.id) {
+        // Update the existing Stripe subscription item — never open a second Payment Link.
+        const result = await changeMembershipPlan(plan.id);
+        setNotice(
+          result?.message || "Your plan change is processing. Refresh in a moment."
+        );
+        await refreshUser?.();
+        navigate(STUDENT_BILLING_PATH, {
+          replace: true,
+          state: { planChangeProcessing: true, targetPlan: plan.id }
+        });
+        return;
+      }
+
+      const result = startOnboardingBillingCheckout(plan.id, user);
+      if (import.meta.env.DEV) {
+        console.debug("[prelude-checkout] dashboard subscription payment link", {
+          planId: plan.id,
+          paymentLinkId: result.paymentLinkId
+        });
+      }
+      window.location.assign(result.url);
+      redirected = true;
+    } catch (error) {
+      if (error.code === "missing_checkout_identity") {
+        setNotice(error.message);
+      } else if (error.payload?.error === "same_plan") {
+        setNotice("This is already your current plan.");
+      } else if (error.payload?.error === "billing_not_configured") {
+        setNotice("Checkout is not connected yet. Please try again once billing is configured.");
+      } else {
+        setNotice(
+          error.payload?.message ||
+            error.message ||
+            "We couldn’t change your plan. Your current plan has not been changed."
+        );
+      }
+    } finally {
+      if (!redirected) setBusyPlan(null);
     }
   }
 
@@ -906,6 +1026,8 @@ export function PlanWalletExperience({
       handleChooseOnboarding(popupPlan);
     } else if (context === "billing") {
       handleChooseBilling(popupPlan);
+    } else if (context === "dashboard") {
+      handleChooseDashboard(popupPlan);
     } else {
       handleChoosePublic(popupPlan);
     }
@@ -955,6 +1077,7 @@ export function PlanWalletExperience({
               language={preferredLanguage}
               index={includeEssayBundle ? index + 1 : index}
               selected={state.selectedPlanId === plan.id}
+              isCurrentPlan={isDashboardContext && activePaidPlanId === plan.id}
               selectable={selectable}
               onSelect={handleSelectCard}
               buttonRef={(node) => {
@@ -1017,6 +1140,7 @@ export function PlanWalletExperience({
           busy={busyPlan === popupPlan.id}
           notice={notice}
           context={context}
+          currentPlanId={isDashboardContext ? activePaidPlanId : null}
           dialogRef={popupRef}
           backdropRef={backdropRef}
           onSelectPlan={handleSelectPlanAction}

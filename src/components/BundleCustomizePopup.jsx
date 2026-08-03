@@ -225,7 +225,7 @@ export default function BundleCustomizePopup({
   }
 
   const totals = quote.ok ? quote : null;
-  const isPayment = context === "payment";
+  const isPayment = context === "payment" || context === "dashboard";
   const isBilling = context === "billing";
 
   return (

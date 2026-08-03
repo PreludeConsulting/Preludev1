@@ -48,6 +48,7 @@ import {
   StudentHelp,
   StudentNotifications
 } from "./pages/shared/FeaturePages.jsx";
+import StudentBillingPlansPage from "./components/product/StudentBillingPlansPage.jsx";
 import { PreludeMatchBrowsePage } from "./pages/shared/PreludeMatchPages.jsx";
 import MatchingTeamPage from "./pages/admin/AdminPages.jsx";
 import PromoCodesAdminPage from "./pages/admin/PromoCodesAdminPage.jsx";
@@ -120,6 +121,7 @@ function StudentRoutes() {
             <Route path="messages" element={<StudentMessages />} />
             <Route path="notifications" element={<StudentNotifications />} />
             <Route path="resources" element={<LegacyDashboardRedirect role="student" alias="resources" />} />
+            <Route path="billing/plans" element={<StudentBillingPlansPage />} />
             <Route path="billing" element={<StudentBilling />} />
             <Route path="help" element={<StudentHelp />} />
             <Route path="settings" element={<StudentSettingsPage />} />

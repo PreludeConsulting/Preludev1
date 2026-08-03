@@ -52,6 +52,18 @@ test("billing reactivate requires auth", async () => {
   assert.equal(res.statusCode, 401);
 });
 
+test("billing change-plan requires auth", async () => {
+  const middleware = createBillingApiMiddleware();
+  const { req, res, body } = mockReqRes({
+    method: "POST",
+    pathname: "/api/billing/change-plan",
+    body: { targetPlan: "PLUS", stripeCustomerId: "cus_x", stripeSubscriptionId: "sub_x" }
+  });
+  await middleware(req, res, () => {});
+  assert.equal(res.statusCode, 401);
+  assert.ok(body().error);
+});
+
 test("billing history requires auth", async () => {
   const middleware = createBillingApiMiddleware();
   const { req, res } = mockReqRes({ pathname: "/api/billing/history" });

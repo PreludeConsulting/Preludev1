@@ -283,6 +283,39 @@ async function syncSubscription(context, subscription) {
     stripeSubscriptionId: subscription.id,
     subscriptionStatus: subscription.status || null
   });
+
+  // Mid-cycle Plus↔Pro: keep usage, set remaining = max(0, newAllowance - used).
+  if (active && (planId === "plus" || planId === "pro")) {
+    try {
+      const allowance = String(planId).toLowerCase() === "pro" ? 4 : 2;
+      const rows = await supabaseRest(
+        context,
+        `subscription_session_periods?student_user_id=eq.${encodeURIComponent(userId)}&status=eq.active&select=id,allowance,remaining&order=period_start.desc&limit=1`,
+        { method: "GET", prefer: "return=representation" }
+      );
+      const period = Array.isArray(rows) && rows[0] ? rows[0] : null;
+      if (period?.id) {
+        const used = Math.max(0, (Number(period.allowance) || 0) - (Number(period.remaining) || 0));
+        const remaining = Math.max(0, allowance - used);
+        await supabaseRest(
+          context,
+          `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}`,
+          {
+            method: "PATCH",
+            prefer: "return=minimal",
+            body: {
+              plan_id: String(planId).toLowerCase(),
+              allowance,
+              remaining,
+              updated_at: new Date().toISOString()
+            }
+          }
+        );
+      }
+    } catch (creditError) {
+      console.error("[stripe-billing] session credit reconcile failed", creditError?.message || creditError);
+    }
+  }
 }
 
 async function syncCheckoutSession(context, session) {

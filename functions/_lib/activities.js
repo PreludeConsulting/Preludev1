@@ -988,7 +988,7 @@ async function saveSubmission(context, caller, activityId, body, idempotencyKeyH
     updated_at: now
   };
 
-  let resultRow = null;
+  let resultRow;
   try {
     if (draft) {
       const rows = await adminRest(context, `activity_submissions?id=eq.${encodeURIComponent(draft.id)}&is_draft=eq.true`, {

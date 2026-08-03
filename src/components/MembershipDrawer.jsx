@@ -12,7 +12,7 @@ import {
 import { Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../context/AuthContext.jsx";
-import { openBillingPortal } from "../lib/auth.js";
+import { openStripeCustomerPortal } from "../../shared/stripePaymentLinks.js";
 import { dashboardHomeForRole, roleFromUser } from "../lib/dashboardRoutes.js";
 import { settingsPathForRole } from "../lib/onboardingRoutes.js";
 import { PRELUDE_AI_NAME } from "../lib/preludeAi.js";
@@ -63,11 +63,9 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
     setBillingLoading(true);
     setBillingMessage("");
     try {
-      const result = await openBillingPortal();
-      if (result.url) window.location.href = result.url;
-    } catch (error) {
-      setBillingMessage(error.payload?.message || error.message || "Billing is not available yet.");
-    } finally {
+      openStripeCustomerPortal();
+    } catch {
+      setBillingMessage("We couldn’t open your billing settings. Please try again.");
       setBillingLoading(false);
     }
   }

@@ -46,15 +46,35 @@ export const ESSAY_SUPPORT_OPTIONS = Object.freeze({
 
 export const SUBSCRIPTION_PAYMENT_LINKS = Object.freeze({
   plus: {
+    price: 149.99,
     paymentLinkId: "plink_1U07ivGRpwYd0PZQFhZs1ERC",
     url: "https://buy.stripe.com/cNi28r78C8QY2wHawS9Zm01"
   },
   pro: {
+    price: 249.99,
     paymentLinkId: "plink_1U07i3GRpwYd0PZQn4S9M98R",
     url: "https://buy.stripe.com/9B69AT0Kec3a6MX5cy9Zm00"
   }
 });
 
+/** Stripe-hosted Customer Portal login (manage payment method, cancel, invoices). */
+export const STRIPE_CUSTOMER_PORTAL_URL =
+  "https://billing.stripe.com/p/login/9B69AT0Kec3a6MX5cy9Zm00";
+
+export const STUDENT_BILLING_PATH = "/dashboard/student/billing";
+export const STUDENT_BILLING_PLANS_PATH = "/dashboard/student/billing/plans";
+
+export function buildStudentBillingPlansPath({ selection } = {}) {
+  if (selection === "essay-support" || selection === "essay_support") {
+    return `${STUDENT_BILLING_PLANS_PATH}?selection=essay-support&wallet=open&bundle=essay_support&details=open`;
+  }
+  return STUDENT_BILLING_PLANS_PATH;
+}
+
+export function openStripeCustomerPortal() {
+  if (typeof globalThis === "undefined" || !globalThis.window) return;
+  globalThis.window.location.assign(STRIPE_CUSTOMER_PORTAL_URL);
+}
 /** Price cents derived from ESSAY_SUPPORT_OPTIONS — single source of truth. */
 export const ESSAY_SUPPORT_PRICE_CENTS_FROM_LINKS = Object.freeze(
   Object.fromEntries(

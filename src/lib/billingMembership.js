@@ -58,3 +58,28 @@ export async function cancelMembership() {
 export async function reactivateMembership() {
   return billingRequest("/api/billing/reactivate", { method: "POST", body: "{}" });
 }
+
+/**
+ * Switch Plus↔Pro on the existing Stripe subscription (server derives Stripe IDs).
+ * @param {"plus"|"pro"|"PLUS"|"PRO"} targetPlan
+ */
+export async function changeMembershipPlan(targetPlan) {
+  try {
+    return await billingRequest("/api/billing/change-plan", {
+      method: "POST",
+      body: JSON.stringify({ targetPlan })
+    });
+  } catch (error) {
+    const mapped = new Error(
+      error?.payload?.message ||
+        error?.message ||
+        "We couldn’t change your plan. Your current plan has not been changed."
+    );
+    mapped.status = error?.status || 500;
+    mapped.payload = {
+      ...(error?.payload || {}),
+      message: mapped.message
+    };
+    throw mapped;
+  }
+}

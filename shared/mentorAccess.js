@@ -1,5 +1,7 @@
 /** Shared mentor-request access helpers (client + server). */
 
+import { buildStudentBillingPlansPath, STUDENT_BILLING_PATH } from "./stripePaymentLinks.js";
+
 export const NO_MENTOR_ACCESS_CODE = "NO_MENTOR_ACCESS";
 
 export const ACTIVE_SUBSCRIPTION_STATUSES = new Set([
@@ -343,14 +345,9 @@ export function buildPurchaseSessionsPath({ mentorId, mentorUserId } = {}) {
 }
 
 export function buildEssaySupportPath() {
-  const params = new URLSearchParams({
-    wallet: "open",
-    bundle: "essay_support",
-    details: "open"
-  });
-  return `/plans?${params.toString()}`;
+  return buildStudentBillingPlansPath({ selection: "essay-support" });
 }
 
 export function buildSubscriptionPath() {
-  return "/dashboard/student/billing";
+  return STUDENT_BILLING_PATH;
 }

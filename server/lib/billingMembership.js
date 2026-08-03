@@ -485,6 +485,130 @@ export async function reactivateMembershipRenewal(userId, { stripe }) {
   };
 }
 
+/**
+ * Switch an existing Plus/Pro subscription item to the other plan price.
+ * Does not trust browser-supplied Stripe IDs. Prelude plan state updates via webhooks.
+ *
+ * @param {string} userId
+ * @param {string} targetPlanRaw - "plus" | "pro" | "PLUS" | "PRO"
+ * @param {{ stripe: import("stripe").default, getPlanPriceId: (planId: string) => string | null }} deps
+ */
+export async function changeMembershipPlan(userId, targetPlanRaw, { stripe, getPlanPriceId }) {
+  const targetPlan = String(targetPlanRaw || "")
+    .trim()
+    .toLowerCase();
+  if (targetPlan !== "plus" && targetPlan !== "pro") {
+    const err = new Error("Choose Plus or Pro.");
+    err.statusCode = 400;
+    err.code = "invalid_plan";
+    throw err;
+  }
+
+  const targetPriceId = typeof getPlanPriceId === "function" ? getPlanPriceId(targetPlan) : null;
+  if (!targetPriceId) {
+    const err = new Error("That plan is not configured.");
+    err.statusCode = 503;
+    err.code = "billing_not_configured";
+    throw err;
+  }
+
+  const ctx = await resolveBillingContext(userId);
+  if (!ctx.eligible || !ctx.canManage) {
+    const err = new Error("You cannot manage billing for this account.");
+    err.statusCode = 403;
+    err.code = "forbidden";
+    throw err;
+  }
+
+  const subscriber = ctx.subscriber;
+  const customerId = subscriber.stripe_customer_id || ctx.viewer.stripe_customer_id || null;
+  const subscriptionId = subscriber.stripe_subscription_id || null;
+  if (!customerId || !subscriptionId) {
+    const err = new Error("No active subscription was found to change. Use checkout to start a plan.");
+    err.statusCode = 409;
+    err.code = "subscription_missing";
+    throw err;
+  }
+
+  const currentPlan = String(subscriber.plan_id || "").toLowerCase();
+  const statusInfo = deriveMembershipStatus({
+    planId: currentPlan,
+    subscriptionStatus: subscriber.subscription_status,
+    cancelAtPeriodEnd: Boolean(subscriber.subscription_cancel_at_period_end),
+    currentPeriodEnd: subscriber.subscription_current_period_end
+  });
+  if (!statusInfo.accessActive || (currentPlan !== "plus" && currentPlan !== "pro")) {
+    const err = new Error("No active subscription was found to change. Use checkout to start a plan.");
+    err.statusCode = 409;
+    err.code = "subscription_missing";
+    throw err;
+  }
+  if (currentPlan === targetPlan) {
+    const err = new Error("You are already on this plan.");
+    err.statusCode = 409;
+    err.code = "same_plan";
+    throw err;
+  }
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ["items.data.price"]
+  });
+  const subscriptionCustomerId =
+    typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
+  if (!subscriptionCustomerId || subscriptionCustomerId !== customerId) {
+    const err = new Error("We couldn’t change your plan. Your current plan has not been changed.");
+    err.statusCode = 403;
+    err.code = "subscription_mismatch";
+    throw err;
+  }
+
+  const items = subscription.items?.data || [];
+  const recurringItem =
+    items.find((item) => item.price?.type === "recurring" || item.price?.recurring) || items[0];
+  if (!recurringItem?.id) {
+    const err = new Error("We couldn’t change your plan. Your current plan has not been changed.");
+    err.statusCode = 400;
+    err.code = "subscription_item_missing";
+    throw err;
+  }
+
+  const currentPriceId =
+    typeof recurringItem.price === "string" ? recurringItem.price : recurringItem.price?.id;
+  if (currentPriceId && currentPriceId === targetPriceId) {
+    const err = new Error("You are already on this plan.");
+    err.statusCode = 409;
+    err.code = "same_plan";
+    throw err;
+  }
+
+  await stripe.subscriptions.update(subscriptionId, {
+    items: [{ id: recurringItem.id, price: targetPriceId, quantity: 1 }],
+    proration_behavior: "create_prorations",
+    metadata: {
+      ...(subscription.metadata || {}),
+      planId: targetPlan,
+      userId: subscriber.id
+    }
+  });
+
+  logBillingEvent("plan_change_requested", {
+    userId,
+    subscriberUserId: subscriber.id,
+    subscriptionId,
+    fromPlan: currentPlan,
+    toPlan: targetPlan
+  });
+
+  return {
+    ok: true,
+    processing: true,
+    fromPlan: currentPlan,
+    targetPlan,
+    message:
+      "Your plan change is processing. Refresh in a moment."
+  };
+}
+
 export async function persistSubscriptionFields(userId, subscription, planId = null) {
   const supabase = admin();
   const periodEnd = subscription.current_period_end

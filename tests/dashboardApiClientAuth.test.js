@@ -66,7 +66,7 @@ describe("dashboard API client auth and JSON safety", () => {
       )
     );
     const { api } = await import("../src/lib/auth.js");
-    await expect(api("/api/meetings")).rejects.toThrow(/non-JSON|missing server handlers/i);
+    await expect(api("/api/meetings")).rejects.toThrow(/couldn’t load this information|non-JSON|missing server handlers/i);
   });
 
   it("refreshes the Supabase session once on 401 for dashboard paths", async () => {

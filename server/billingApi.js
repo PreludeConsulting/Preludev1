@@ -36,7 +36,8 @@ import { creditSessionPackagePurchase, consumeEssayReviewCredit } from "./lib/me
 import { grantEssaySupportPurchase } from "./lib/reviewCredits.js";
 import {
   expireSessionPeriodsAtPeriodEnd,
-  grantSessionCreditsFromPaidInvoice
+  grantSessionCreditsFromPaidInvoice,
+  reconcileActiveSessionPeriodForPlanChange
 } from "./lib/sessionCredits.js";
 import {
   fulfillFlexibleSessionCheckout,
@@ -50,6 +51,7 @@ import {
 } from "../shared/stripePaymentLinks.js";
 import {
   cancelMembershipAtPeriodEnd,
+  changeMembershipPlan,
   claimBillingWebhookEvent,
   getBillingSummary,
   listBillingPurchases,
@@ -93,6 +95,12 @@ const historyQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   offset: z.coerce.number().int().min(0).optional()
 });
+
+const changePlanSchema = z
+  .object({
+    targetPlan: z.enum(["plus", "pro", "PLUS", "PRO"])
+  })
+  .strict();
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 
@@ -155,6 +163,7 @@ function isBillingPath(pathname) {
     pathname === "/api/billing/history" ||
     pathname === "/api/billing/cancel" ||
     pathname === "/api/billing/reactivate" ||
+    pathname === "/api/billing/change-plan" ||
     pathname === "/api/billing/consume-essay-review"
   );
 }
@@ -559,6 +568,34 @@ async function handleReactivate(req, res) {
   return sendJson(res, 200, result);
 }
 
+async function handleChangePlan(req, res) {
+  const { user } = await requireSupabaseUser(req);
+  const config = getBillingConfig();
+  if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
+  const body = changePlanSchema.parse(await readJsonBody(req));
+  // Ignore any browser-supplied Stripe IDs — only targetPlan is accepted.
+  const stripe = getStripeClient(config);
+  try {
+    const result = await changeMembershipPlan(user.id, body.targetPlan, {
+      stripe,
+      getPlanPriceId: (planId) => getPlanPriceId(planId, config)
+    });
+    return sendJson(res, 200, result);
+  } catch (error) {
+    const status = error.statusCode || error.status || 500;
+    if (status >= 500) {
+      console.error("[prelude-billing] change-plan failed", error.code || error.message);
+    }
+    return sendJson(res, status, {
+      error: error.code || "plan_change_failed",
+      message:
+        status >= 500
+          ? "We couldn’t change your plan. Your current plan has not been changed."
+          : error.message || "We couldn’t change your plan. Your current plan has not been changed."
+    });
+  }
+}
+
 async function readRawBody(req) {
   if (typeof req.body === "string") return req.body;
   if (Buffer.isBuffer(req.body)) return req.body.toString("utf8");
@@ -635,6 +672,14 @@ async function syncSubscription(subscription) {
       subscriptionCurrentPeriodEnd: periodEnd
     }
   });
+
+  if (active && planId && (planId === "plus" || planId === "pro")) {
+    try {
+      await reconcileActiveSessionPeriodForPlanChange(user.id, planId);
+    } catch (error) {
+      console.error("[prelude-billing] session credit reconcile failed", error.message);
+    }
+  }
 }
 
 async function recordWebhookEvent(event) {
@@ -854,6 +899,7 @@ export function createBillingApiMiddleware(deps = {}) {
       if (url.pathname === "/api/billing/history" && req.method === "GET") return await handleHistory(req, res);
       if (url.pathname === "/api/billing/cancel" && req.method === "POST") return await handleCancel(req, res);
       if (url.pathname === "/api/billing/reactivate" && req.method === "POST") return await handleReactivate(req, res);
+      if (url.pathname === "/api/billing/change-plan" && req.method === "POST") return await handleChangePlan(req, res);
       if (url.pathname === "/api/billing/webhook" && req.method === "POST") return await handleWebhook(req, res);
       return sendJson(res, 404, { error: "not_found" });
     } catch (error) {

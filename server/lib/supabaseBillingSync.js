@@ -4,6 +4,7 @@ import {
 } from "../../shared/stripePaymentLinks.js";
 import { getSupabaseAdmin } from "./supabaseRequestAuth.js";
 import { persistSubscriptionFields, recordPurchaseFromCheckoutSession } from "./billingMembership.js";
+import { reconcileActiveSessionPeriodForPlanChange } from "./sessionCredits.js";
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
 
@@ -89,6 +90,11 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
         ? new Date(subscription.canceled_at * 1000).toISOString()
         : null
     });
+    try {
+      await reconcileActiveSessionPeriodForPlanChange(userId, planId);
+    } catch (error) {
+      console.error("[prelude-billing] session credit reconcile failed", error.message);
+    }
   } else if (userId) {
     // Still persist status/period when canceled or past_due without forcing plan_id to basic mid-period.
     await persistSubscriptionFields(userId, subscription, planId);

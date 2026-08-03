@@ -25,9 +25,14 @@ function getEnv(context, name) {
 function getBillingConfig(context) {
   const provider = (getEnv(context, "BILLING_PROVIDER") || "disabled").toLowerCase();
   const stripeSecretKey = getEnv(context, "STRIPE_SECRET_KEY").trim();
+  const prices = {
+    plus: getEnv(context, "STRIPE_PRICE_ID_PLUS") || getEnv(context, "STRIPE_PRICE_PLUS_MONTHLY"),
+    pro: getEnv(context, "STRIPE_PRICE_ID_PRO") || getEnv(context, "STRIPE_PRICE_PRO_MONTHLY")
+  };
   return {
     enabled: provider === "stripe" && Boolean(stripeSecretKey),
     stripeSecretKey,
+    prices,
     appBaseUrl: (
       getEnv(context, "PUBLIC_APP_URL") ||
       getEnv(context, "VITE_PUBLIC_APP_URL") ||
@@ -659,6 +664,157 @@ export async function handleBillingPortal(context) {
     const session = await stripeRequest(context, "POST", "/v1/billing_portal/sessions", params);
     return json({ url: session.url });
   } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+function configuredPriceId(value) {
+  const priceId = String(value || "").trim();
+  return /^price_[A-Za-z0-9]+$/.test(priceId) ? priceId : null;
+}
+
+export async function handleBillingChangePlan(context) {
+  try {
+    if (context.request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        }
+      });
+    }
+    if (context.request.method !== "POST") {
+      return json({ error: "method_not_allowed", message: "Use POST." }, 405);
+    }
+    const config = getBillingConfig(context);
+    if (!config.enabled) return json(billingNotConfiguredPayload(), 503);
+
+    const { user } = await requireUser(context);
+    let body = {};
+    try {
+      body = await context.request.json();
+    } catch {
+      body = {};
+    }
+    // Only targetPlan is accepted — ignore browser Stripe IDs.
+    const targetPlan = String(body?.targetPlan || "")
+      .trim()
+      .toLowerCase();
+    if (targetPlan !== "plus" && targetPlan !== "pro") {
+      return json({ error: "invalid_plan", message: "Choose Plus or Pro." }, 400);
+    }
+    const targetPriceId = configuredPriceId(config.prices?.[targetPlan]);
+    if (!targetPriceId) {
+      return json(billingNotConfiguredPayload(), 503);
+    }
+
+    const ctx = await resolveBillingContext(context, user.id);
+    if (!ctx.eligible || !ctx.canManage) {
+      throw httpError("You cannot manage billing for this account.", 403, "forbidden");
+    }
+
+    const customerId = ctx.subscriber?.stripe_customer_id || ctx.viewer?.stripe_customer_id || null;
+    const subscriptionId = ctx.subscriber?.stripe_subscription_id || null;
+    if (!customerId || !subscriptionId) {
+      return json(
+        {
+          error: "subscription_missing",
+          message: "No active subscription was found to change. Use checkout to start a plan."
+        },
+        409
+      );
+    }
+
+    const currentPlan = String(ctx.subscriber.plan_id || "").toLowerCase();
+    const statusInfo = deriveMembershipStatus({
+      planId: currentPlan,
+      subscriptionStatus: ctx.subscriber.subscription_status,
+      cancelAtPeriodEnd: Boolean(ctx.subscriber.subscription_cancel_at_period_end),
+      currentPeriodEnd: ctx.subscriber.subscription_current_period_end
+    });
+    if (!statusInfo.accessActive || (currentPlan !== "plus" && currentPlan !== "pro")) {
+      return json(
+        {
+          error: "subscription_missing",
+          message: "No active subscription was found to change. Use checkout to start a plan."
+        },
+        409
+      );
+    }
+    if (currentPlan === targetPlan) {
+      return json({ error: "same_plan", message: "You are already on this plan." }, 409);
+    }
+
+    const subscription = await stripeRequest(
+      context,
+      "GET",
+      `/v1/subscriptions/${encodeURIComponent(subscriptionId)}?expand[]=items.data.price`
+    );
+    const subscriptionCustomerId =
+      typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
+    if (!subscriptionCustomerId || subscriptionCustomerId !== customerId) {
+      return json(
+        {
+          error: "subscription_mismatch",
+          message: "We couldn’t change your plan. Your current plan has not been changed."
+        },
+        403
+      );
+    }
+
+    const items = subscription.items?.data || [];
+    const recurringItem =
+      items.find((item) => item.price?.type === "recurring" || item.price?.recurring) || items[0];
+    if (!recurringItem?.id) {
+      return json(
+        {
+          error: "subscription_item_missing",
+          message: "We couldn’t change your plan. Your current plan has not been changed."
+        },
+        400
+      );
+    }
+
+    const currentPriceId =
+      typeof recurringItem.price === "string" ? recurringItem.price : recurringItem.price?.id;
+    if (currentPriceId && currentPriceId === targetPriceId) {
+      return json({ error: "same_plan", message: "You are already on this plan." }, 409);
+    }
+
+    const params = new URLSearchParams();
+    params.set("items[0][id]", recurringItem.id);
+    params.set("items[0][price]", targetPriceId);
+    params.set("items[0][quantity]", "1");
+    params.set("proration_behavior", "create_prorations");
+    params.set("metadata[planId]", targetPlan);
+    params.set("metadata[userId]", ctx.subscriber.id);
+
+    await stripeRequest(
+      context,
+      "POST",
+      `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+      params
+    );
+
+    return json({
+      ok: true,
+      processing: true,
+      fromPlan: currentPlan,
+      targetPlan,
+      message: "Your plan change is processing. Refresh in a moment."
+    });
+  } catch (error) {
+    if (!error.status && !error.statusCode) {
+      console.error("[prelude-billing] change-plan failed", error.message || error);
+      return json(
+        {
+          error: "plan_change_failed",
+          message: "We couldn’t change your plan. Your current plan has not been changed."
+        },
+        500
+      );
+    }
     return errorResponse(error);
   }
 }

@@ -309,6 +309,23 @@
   color: rgb(80 68 200);
 }
 
+.pw-card__current-badge {
+  padding: 0.22rem 0.5rem;
+  border-radius: 999px;
+  background: rgb(32 120 72 / 0.12);
+  color: rgb(24 96 56);
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transform: translateY(-0.1rem);
+}
+
+.pw-card--current {
+  outline: 2px solid rgb(32 120 72 / 0.45);
+  outline-offset: 2px;
+}
+
 .pw-card__payment-type {
   display: inline-flex;
   align-items: center;
