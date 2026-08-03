@@ -640,33 +640,31 @@ export async function changeMembershipPlan(userId, targetPlanRaw, { stripe, getP
       previousPlanId: currentPlan,
       pendingPlanId: isDowngrade ? targetPlan : "",
       deferDowngrade: isDowngrade ? "true" : "false",
-      deferUntil: isDowngrade && periodEndIso ? periodEndIso : ""
+      deferUntil: isDowngrade && periodEndIso ? periodEndIso : "",
+      // Upgrades must not unlock Prelude access until invoice.paid webhook.
+      pendingUpgrade: isUpgrade ? "true" : ""
     }
   });
 
-  // Persist Prelude entitlement immediately for upgrades; defer active plan for Pro→Plus.
+  // Never grant Pro/Plus entitlement or reset credits here.
+  // Webhooks are the only authority for activePlan / session credits.
   const supabase = admin();
-  if (isUpgrade) {
-    await supabase
-      .from("profiles")
-      .update({
-        plan_id: targetPlan,
-        pending_plan_id: null,
-        stripe_price_id: targetPriceId,
-        entitlement_ends_at: periodEndIso
-      })
-      .eq("id", subscriber.id);
-    try {
-      const { reconcileActiveSessionPeriodForPlanChange } = await import("./sessionCredits.js");
-      await reconcileActiveSessionPeriodForPlanChange(subscriber.id, targetPlan, { resetRemaining: true });
-    } catch (creditError) {
-      console.error("[prelude-billing] upgrade credit reset failed", creditError?.message || creditError);
-    }
-  } else if (isDowngrade) {
+  if (isDowngrade) {
     await supabase
       .from("profiles")
       .update({
         // Keep Pro active through the paid period.
+        plan_id: currentPlan,
+        pending_plan_id: targetPlan,
+        stripe_price_id: targetPriceId,
+        entitlement_ends_at: periodEndIso
+      })
+      .eq("id", subscriber.id);
+  } else if (isUpgrade) {
+    await supabase
+      .from("profiles")
+      .update({
+        // Keep Plus until Stripe confirms the paid upgrade.
         plan_id: currentPlan,
         pending_plan_id: targetPlan,
         stripe_price_id: targetPriceId,
@@ -681,7 +679,8 @@ export async function changeMembershipPlan(userId, targetPlanRaw, { stripe, getP
     subscriptionId,
     fromPlan: currentPlan,
     toPlan: targetPlan,
-    deferred: isDowngrade
+    deferred: isDowngrade,
+    entitlementDeferred: true
   });
 
   return {
@@ -689,10 +688,10 @@ export async function changeMembershipPlan(userId, targetPlanRaw, { stripe, getP
     processing: true,
     fromPlan: currentPlan,
     targetPlan,
-    deferred: isDowngrade,
+    deferred: isDowngrade || isUpgrade,
     message: isDowngrade
       ? "Your downgrade is scheduled for the end of the current billing period. Pro access remains active until then."
-      : "Your plan change is processing. Refresh in a moment."
+      : "Confirm the upgrade in Stripe. Your Prelude plan stays unchanged until payment succeeds."
   };
 }
 

@@ -15,7 +15,7 @@ import { readCachedPlan } from "../lib/supabaseAuth.js";
 import { getPlan, getPricingPlans, isPurchasablePlanId } from "../lib/plans.js";
 import { getPlanBadgeLabel } from "../lib/planBadges.js";
 import { readOnboardingDraft, writeOnboardingDraft } from "../lib/onboardingFlow.js";
-import { startBillingCheckout, startBundleCheckout } from "../lib/auth.js";
+import { startBillingCheckout, startBundleCheckout, openBillingPortal } from "../lib/auth.js";
 import { essayPackageKey } from "../../shared/supportBundles.js";
 import {
   markPendingCheckoutPlan,
@@ -23,11 +23,8 @@ import {
   startOnboardingBillingCheckout,
   startOnboardingBundleCheckout
 } from "../lib/onboardingPayment.js";
-import {
-  changeMembershipPlan,
-  fetchBillingSummary
-} from "../lib/billingMembership.js";
-import { STUDENT_BILLING_PATH } from "../../shared/stripePaymentLinks.js";
+import { fetchBillingSummary } from "../lib/billingMembership.js";
+import { useSubscription } from "../context/SubscriptionContext.jsx";
 import {
   WALLET_STATES,
   cardsSelectable,
@@ -373,7 +370,7 @@ export function PlanPopup({
   const primaryLabel = busy
     ? "Processing…"
     : isPlanSwitch
-      ? `Switch to ${plan.name}`
+      ? "Continue to checkout"
       : isPayment
         ? "Continue to checkout"
         : isBilling
@@ -383,7 +380,7 @@ export function PlanPopup({
   const supportingText = isBillingCurrent
     ? null
     : isPlanSwitch
-      ? `You'll switch from ${currentPlanId === "plus" ? "Plus" : "Pro"} to ${plan.name} on your existing subscription. Stripe may apply a prorated charge or credit. Your billing cycle date stays the same.`
+      ? `You'll be redirected to Stripe's billing portal to confirm switching from ${currentPlanId === "plus" ? "Plus" : "Pro"} to ${plan.name}. Your Prelude account stays on ${currentPlanId === "plus" ? "Plus" : "Pro"} until Stripe confirms the change.`
       : context === "payment" || (isDashboard && !currentPlanId)
         ? "You'll be redirected to Stripe's secure payment portal. Your account activates after payment is confirmed."
         : isBilling
@@ -515,6 +512,7 @@ export function PlanWalletExperience({
   const { preferredLanguage } = useLanguage();
   const plans = plansProp ?? getPricingPlans();
   const { isAuthenticated, openRegister, saveUserPlan, refreshUser } = useAuth();
+  const { syncAfterStripe } = useSubscription();
   const isBillingContext = context === "billing" || context === "billing-current";
   const isDashboardContext = context === "dashboard";
   // billing / billing-current: monthly plans only (plus/pro). Otherwise: essay_support + plus + pro.
@@ -546,6 +544,18 @@ export function PlanWalletExperience({
       cancelled = true;
     };
   }, [isDashboardContext, user?.id, user?.plan]);
+
+  useEffect(() => {
+    if (!isDashboardContext) return undefined;
+    const params = new URLSearchParams(location.search);
+    if (params.get("portal") === "return" || params.get("checkout") === "success") {
+      syncAfterStripe?.().then((sub) => {
+        const planId = String(sub?.activePlanId || "").toLowerCase();
+        if (planId === "plus" || planId === "pro") setActivePaidPlanId(planId);
+      });
+    }
+    return undefined;
+  }, [isDashboardContext, location.search, syncAfterStripe]);
 
   const restored = useMemo(() => restoreFromLocation(location), [location]);
   const draft = useMemo(
@@ -955,19 +965,20 @@ export function PlanWalletExperience({
     let redirected = false;
     try {
       if (activePaidPlanId && activePaidPlanId !== plan.id) {
-        // Update the existing Stripe subscription item — never open a second Payment Link.
-        const result = await changeMembershipPlan(plan.id);
-        setNotice(
-          result?.message || "Your plan change is processing. Refresh in a moment."
-        );
-        await refreshUser?.();
-        navigate(STUDENT_BILLING_PATH, {
-          replace: true,
-          state: { planChangeProcessing: true, targetPlan: plan.id }
-        });
+        // Existing Plus/Pro subscribers must confirm changes in Stripe.
+        // Never mutate Prelude plan_id / credits / features before payment webhooks.
+        const result = await openBillingPortal();
+        const url = result?.url;
+        if (!url) {
+          setNotice(result?.message || "No billing profile exists for this account yet.");
+          return;
+        }
+        window.location.assign(url);
+        redirected = true;
         return;
       }
 
+      // First-time Plus/Pro purchase — Payment Link only; entitlement waits for webhook.
       const result = startOnboardingBillingCheckout(plan.id, user);
       if (import.meta.env.DEV) {
         console.debug("[prelude-checkout] dashboard subscription payment link", {
@@ -980,15 +991,15 @@ export function PlanWalletExperience({
     } catch (error) {
       if (error.code === "missing_checkout_identity") {
         setNotice(error.message);
-      } else if (error.payload?.error === "same_plan") {
-        setNotice("This is already your current plan.");
+      } else if (error.payload?.error === "billing_customer_missing") {
+        setNotice(error.payload?.message || "No billing profile exists for this account yet.");
       } else if (error.payload?.error === "billing_not_configured") {
         setNotice("Checkout is not connected yet. Please try again once billing is configured.");
       } else {
         setNotice(
           error.payload?.message ||
             error.message ||
-            "We couldn’t change your plan. Your current plan has not been changed."
+            "We couldn’t open checkout. Your current plan has not been changed."
         );
       }
     } finally {

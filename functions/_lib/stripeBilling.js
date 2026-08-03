@@ -320,8 +320,9 @@ function resolveSubscriptionPriceId(subscription) {
   return stripeObjectId(recurring?.price);
 }
 
-async function syncSubscription(context, subscription) {
+async function syncSubscription(context, subscription, { paymentConfirmed = false } = {}) {
   let userId = subscription.metadata?.userId || null;
+  let priorPlanId = null;
   if (!userId) {
     const customerId = stripeObjectId(subscription.customer);
     if (customerId) {
@@ -332,9 +333,21 @@ async function syncSubscription(context, subscription) {
           { method: "GET", prefer: "return=representation" }
         );
         userId = Array.isArray(rows) && rows[0]?.id ? rows[0].id : null;
+        priorPlanId = Array.isArray(rows) && rows[0]?.plan_id ? String(rows[0].plan_id).toLowerCase() : null;
       } catch {
         userId = null;
       }
+    }
+  } else {
+    try {
+      const rows = await supabaseRest(
+        context,
+        `profiles?id=eq.${encodeURIComponent(userId)}&select=plan_id,pending_plan_id&limit=1`,
+        { method: "GET", prefer: "return=representation" }
+      );
+      priorPlanId = Array.isArray(rows) && rows[0]?.plan_id ? String(rows[0].plan_id).toLowerCase() : null;
+    } catch {
+      priorPlanId = null;
     }
   }
   const config = getBillingConfig(context);
@@ -379,6 +392,19 @@ async function syncSubscription(context, subscription) {
     }
   }
 
+  // Plus→Pro price change must not unlock Pro until a paid invoice confirms it.
+  const pendingUpgrade =
+    String(subscription.metadata?.pendingUpgrade || "").toLowerCase() === "true" ||
+    (priorPlanId === "plus" && planId === "pro" && !paymentConfirmed);
+  if (active && pendingUpgrade && !paymentConfirmed) {
+    activePlanId = "plus";
+    pendingPlanId = "pro";
+  }
+  if (active && planId === "pro" && paymentConfirmed) {
+    activePlanId = "pro";
+    pendingPlanId = null;
+  }
+
   await syncSupabasePaymentComplete(context, userId, {
     planId: activePlanId || undefined,
     stripeCustomerId: stripeObjectId(subscription.customer),
@@ -397,44 +423,30 @@ async function syncSubscription(context, subscription) {
     entitlementEndsAt: periodEnd
   });
 
-  // Plus→Pro upgrade: reset remaining credits to the full Pro allowance once.
-  // Pro→Plus mid-cycle: do not cut credits while Pro entitlement remains active.
-  if (active && (planId === "plus" || planId === "pro") && activePlanId === planId) {
+  // Credits only reset after a confirmed paid upgrade/period — never on unpaid subscription.updated.
+  if (active && paymentConfirmed && activePlanId === "pro" && (priorPlanId === "plus" || priorPlanId === "pro")) {
     try {
-      const deferDowngrade =
-        String(subscription.metadata?.deferDowngrade || "").toLowerCase() === "true";
-      if (deferDowngrade) {
-        // Scheduled downgrade — keep current Pro credits until entitlement ends.
-      } else {
-      const allowance = String(planId).toLowerCase() === "pro" ? 4 : 2;
       const rows = await supabaseRest(
         context,
         `subscription_session_periods?student_user_id=eq.${encodeURIComponent(userId)}&status=eq.active&select=id,allowance,remaining,plan_id&order=period_start.desc&limit=1`,
         { method: "GET", prefer: "return=representation" }
       );
       const period = Array.isArray(rows) && rows[0] ? rows[0] : null;
-      if (period?.id) {
-        const priorAllowance = Number(period.allowance) || 0;
-        const isUpgrade = allowance > priorAllowance;
-        const used = Math.max(0, priorAllowance - (Number(period.remaining) || 0));
-        const remaining = isUpgrade ? allowance : Math.max(0, allowance - used);
-        if (isUpgrade || String(period.plan_id || "") !== String(planId).toLowerCase() || priorAllowance !== allowance) {
-          await supabaseRest(
-            context,
-            `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}`,
-            {
-              method: "PATCH",
-              prefer: "return=minimal",
-              body: {
-                plan_id: String(planId).toLowerCase(),
-                allowance,
-                remaining,
-                updated_at: new Date().toISOString()
-              }
+      if (period?.id && (priorPlanId === "plus" || Number(period.allowance) !== 4)) {
+        await supabaseRest(
+          context,
+          `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}`,
+          {
+            method: "PATCH",
+            prefer: "return=minimal",
+            body: {
+              plan_id: "pro",
+              allowance: 4,
+              remaining: 4,
+              updated_at: new Date().toISOString()
             }
-          );
-        }
-      }
+          }
+        );
       }
     } catch (creditError) {
       console.error("[stripe-billing] session credit reconcile failed", creditError?.message || creditError);
@@ -818,7 +830,7 @@ async function processWebhookEvent(context, event) {
     const subscriptionId = invoiceSubscriptionId;
     if (subscriptionId) {
       const subscription = await stripeRequest(context, "GET", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
-      await syncSubscription(context, subscription);
+      await syncSubscription(context, subscription, { paymentConfirmed: true });
       const userId = subscription.metadata?.userId;
       const planId =
         (PAID_PLAN_IDS.includes(subscription.metadata?.planId) && subscription.metadata.planId) ||

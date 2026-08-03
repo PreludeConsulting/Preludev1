@@ -657,15 +657,23 @@ function subscriptionPeriodEnd(subscription) {
   return periodEnds.length ? Math.max(...periodEnds) : null;
 }
 
-async function syncSubscription(subscription) {
+async function syncSubscription(subscription, { paymentConfirmed = false } = {}) {
   const config = getBillingConfig();
-  const planId = resolvePlanIdFromSubscription(subscription, config);
-  await syncSupabaseSubscription(subscription, planId);
+  let planId = resolvePlanIdFromSubscription(subscription, config);
+  await syncSupabaseSubscription(subscription, planId, { paymentConfirmed });
 
   const user = await findUserForSubscription(subscription);
   if (!user) return;
 
   const active = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status);
+  const priorPlan = String(user.plan || "").toLowerCase();
+  const pendingUpgrade =
+    String(subscription.metadata?.pendingUpgrade || "").toLowerCase() === "true" ||
+    (priorPlan === "plus" && String(planId || "").toLowerCase() === "pro" && !paymentConfirmed);
+  if (active && pendingUpgrade && !paymentConfirmed) {
+    planId = "plus";
+  }
+
   const periodEndTimestamp = subscriptionPeriodEnd(subscription);
   const periodEnd = periodEndTimestamp ? new Date(periodEndTimestamp * 1000) : null;
 
@@ -680,7 +688,8 @@ async function syncSubscription(subscription) {
     }
   });
 
-  if (active && planId && (planId === "plus" || planId === "pro")) {
+  // Credits only after paid confirmation — never on unpaid subscription.updated.
+  if (paymentConfirmed && active && planId && (planId === "plus" || planId === "pro")) {
     try {
       await reconcileActiveSessionPeriodForPlanChange(user.id, planId);
     } catch (error) {
@@ -780,7 +789,7 @@ async function processWebhookEvent(event) {
     const stripe = getStripeClient();
     const subscriptionId = invoiceSubscriptionId;
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-    await syncSubscription(subscription);
+    await syncSubscription(subscription, { paymentConfirmed: true });
     try {
       await recordPurchaseFromInvoice(object, subscription);
     } catch (error) {

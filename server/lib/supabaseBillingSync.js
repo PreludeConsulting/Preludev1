@@ -60,18 +60,36 @@ async function findProfileIdByStripeCustomer(customerId) {
   return data?.id || null;
 }
 
-export async function syncSupabaseSubscription(subscription, resolvedPlanId = null) {
+export async function syncSupabaseSubscription(subscription, resolvedPlanId = null, { paymentConfirmed = false } = {}) {
   let userId = subscription.metadata?.userId || null;
+  let priorPlanId = null;
   if (!userId) {
     const customerId =
       typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
     userId = await findProfileIdByStripeCustomer(customerId);
   }
-  const planId = resolvedPlanId || subscription.metadata?.planId;
+  if (userId) {
+    const supabase = getSupabaseAdmin();
+    const { data } = await supabase.from("profiles").select("plan_id").eq("id", userId).maybeSingle();
+    priorPlanId = data?.plan_id ? String(data.plan_id).toLowerCase() : null;
+  }
+  let planId = resolvedPlanId || subscription.metadata?.planId;
   if (!userId) return;
 
   const active = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status);
-  await persistSubscriptionFields(userId, subscription, active ? planId : planId || null);
+  const pendingUpgrade =
+    String(subscription.metadata?.pendingUpgrade || "").toLowerCase() === "true" ||
+    (priorPlanId === "plus" && String(planId || "").toLowerCase() === "pro" && !paymentConfirmed);
+  if (active && pendingUpgrade && !paymentConfirmed) {
+    planId = "plus";
+  }
+
+  await persistSubscriptionFields(userId, subscription, active ? planId : planId || null, {
+    pendingPlanId:
+      active && pendingUpgrade && !paymentConfirmed
+        ? "pro"
+        : subscription.metadata?.pendingPlanId || null
+  });
 
   if (planId && active) {
     await syncSupabasePaymentComplete(userId, {
@@ -93,7 +111,8 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
     try {
       const deferDowngrade =
         String(subscription.metadata?.deferDowngrade || "").toLowerCase() === "true";
-      if (!deferDowngrade) {
+      // Only reconcile credits after a paid confirmation (invoice.paid) or non-upgrade updates.
+      if (!deferDowngrade && paymentConfirmed) {
         await reconcileActiveSessionPeriodForPlanChange(userId, planId);
       }
     } catch (error) {

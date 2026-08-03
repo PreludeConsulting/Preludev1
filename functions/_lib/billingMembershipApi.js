@@ -875,6 +875,7 @@ export async function handleBillingChangePlan(context) {
     } else {
       params.set("metadata[deferUntil]", "");
     }
+    params.set("metadata[pendingUpgrade]", isUpgrade ? "true" : "");
 
     await stripeRequest(
       context,
@@ -883,39 +884,19 @@ export async function handleBillingChangePlan(context) {
       params
     );
 
-    if (isUpgrade) {
+    // Never grant Pro/Plus entitlement or reset credits here — webhooks only.
+    if (isDowngrade) {
       await adminRest(context, `profiles?id=eq.${encodeURIComponent(ctx.subscriber.id)}`, {
         method: "PATCH",
         body: JSON.stringify({
-          plan_id: targetPlan,
-          pending_plan_id: null,
+          plan_id: currentPlan,
+          pending_plan_id: targetPlan,
           stripe_price_id: targetPriceId,
           entitlement_ends_at: periodEndIso
         }),
         headers: { Prefer: "return=minimal" }
       });
-      try {
-        const rows = await adminRest(
-          context,
-          `subscription_session_periods?student_user_id=eq.${encodeURIComponent(ctx.subscriber.id)}&status=eq.active&select=id&order=period_start.desc&limit=1`
-        );
-        const period = Array.isArray(rows) && rows[0] ? rows[0] : null;
-        if (period?.id) {
-          await adminRest(context, `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}`, {
-            method: "PATCH",
-            body: JSON.stringify({
-              plan_id: "pro",
-              allowance: 4,
-              remaining: 4,
-              updated_at: new Date().toISOString()
-            }),
-            headers: { Prefer: "return=minimal" }
-          });
-        }
-      } catch (creditError) {
-        console.error("[stripe-billing] upgrade credit reset failed", creditError?.message || creditError);
-      }
-    } else if (isDowngrade) {
+    } else if (isUpgrade) {
       await adminRest(context, `profiles?id=eq.${encodeURIComponent(ctx.subscriber.id)}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -933,10 +914,10 @@ export async function handleBillingChangePlan(context) {
       processing: true,
       fromPlan: currentPlan,
       targetPlan,
-      deferred: isDowngrade,
+      deferred: isDowngrade || isUpgrade,
       message: isDowngrade
         ? "Your downgrade is scheduled for the end of the current billing period. Pro access remains active until then."
-        : "Your plan change is processing. Refresh in a moment."
+        : "Confirm the upgrade in Stripe. Your Prelude plan stays unchanged until payment succeeds."
     });
   } catch (error) {
     if (!error.status && !error.statusCode) {

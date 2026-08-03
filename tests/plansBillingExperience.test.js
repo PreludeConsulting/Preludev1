@@ -74,13 +74,26 @@ describe("StudentBillingPlansPage back link", () => {
   });
 });
 
-describe("Dashboard plan switch avoids Payment Link for active subscribers", () => {
-  it("uses changeMembershipPlan for Plus↔Pro switches", () => {
+describe("Dashboard plan switch opens Stripe without optimistic entitlement", () => {
+  it("redirects existing subscribers to Billing Portal instead of mutating plan", () => {
     const source = readPlanSelection();
     expect(source).toContain("handleChooseDashboard");
-    expect(source).toContain("changeMembershipPlan");
+    expect(source).toContain("openBillingPortal");
     expect(source).toContain("activePaidPlanId");
-    expect(source).toMatch(/never open a second Payment Link/);
+    expect(source).not.toContain("changeMembershipPlan");
+    expect(source).toMatch(/Never mutate Prelude plan_id/);
+    expect(source).toContain("window.location.assign(url)");
+  });
+
+  it("does not call saveUserPlan from dashboard checkout", () => {
+    const source = readPlanSelection();
+    const dashboardFn = source.slice(source.indexOf("async function handleChooseDashboard"));
+    const end = dashboardFn.indexOf("async function handleChoosePublic");
+    const body = dashboardFn.slice(0, end > 0 ? end : undefined);
+    expect(body).not.toContain("saveUserPlan");
+    expect(body).not.toContain("refreshUser");
+    expect(body).toContain("openBillingPortal");
+    expect(body).toContain("startOnboardingBillingCheckout");
   });
 });
 
