@@ -69,10 +69,15 @@ export default function MentorAvailabilityProduct() {
       <div className="dash-mentor-avail-setup-card-wrap">
         {syncStatus === "loading" ? <p className="dash-muted" role="status">Loading availability…</p> : null}
         {syncStatus === "offline" ? <p className="dash-mentor-avail-setup__error" role="alert">You are offline. Reconnect and retry your save.</p> : null}
-        {syncStatus === "sync-failed" ? <p className="dash-mentor-avail-setup__error" role="alert">Availability sync failed. Retry your save.</p> : null}
+        {error ? <p className="dash-mentor-avail-setup__error" role="alert">{error}</p> : null}
+        {success ? (
+          <p className="dash-mentor-avail-setup__success" role="status">
+            Availability saved. Assigned students can book these times immediately.
+          </p>
+        ) : null}
         <MentorAvailabilitySetupCard
           form={form}
-          error={error}
+          error=""
           success={success}
           saving={saving}
           onChange={(next) => {

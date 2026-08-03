@@ -10,6 +10,8 @@ import {
   reserveEssayReviewCredit,
   restoreEssayReviewCreditOnCancel
 } from "./lib/reviewCredits.js";
+import { getSessionCreditSummary } from "./lib/sessionCredits.js";
+import { buildMentorStudentPlanCredits } from "../shared/mentorStudentRoster.js";
 
 export const ACTIVITY_TYPES = [
   "personal_statement",
@@ -313,26 +315,37 @@ async function listAssignedStudents(admin, caller) {
   if (!studentIds.length) return [];
   const { data: profiles, error: profilesError } = await admin
     .from("profiles")
-    .select("id, full_name, preferred_name, grade_level, college_interests, plan_id, subscription_status")
+    .select("id, full_name, preferred_name, grade_level, college_interests, plan_id, subscription_status, subscription_cancel_at_period_end, subscription_current_period_end")
     .in("id", studentIds);
   throwForQuery(profilesError, "Could not load assigned student profiles.");
   const students = await Promise.all((profiles || []).map(async (profile) => {
-    const balance = await getReviewCreditBalance(profile.id);
+    const [reviewBalance, sessionCredits] = await Promise.all([
+      getReviewCreditBalance(profile.id),
+      getSessionCreditSummary(profile.id).catch(() => ({ active: false, remaining: 0, allowance: 0 }))
+    ]);
+    const planCredits = buildMentorStudentPlanCredits({
+      planId: profile.plan_id,
+      subscriptionStatus: profile.subscription_status,
+      subscriptionCancelAtPeriodEnd: profile.subscription_cancel_at_period_end,
+      subscriptionCurrentPeriodEnd: profile.subscription_current_period_end,
+      reviewCredits: reviewBalance,
+      sessionCredits
+    });
     return {
       id: profile.id,
       name: profile.preferred_name || profile.full_name || "Student",
       grade: profile.grade_level || "",
       colleges: Array.isArray(profile.college_interests) ? profile.college_interests : [],
-      plan: profile.plan_id || "basic",
-      essaySupportOnly: isEssaySupportOnlyStudent({
-        plan: profile.plan_id,
-        subscriptionStatus: profile.subscription_status
-      }),
-      reviewCredits: {
-        purchased: balance.purchased,
-        assigned: balance.assigned,
-        remaining: balance.remaining
-      }
+      plan: planCredits.plan,
+      planLabel: planCredits.planLabel,
+      paymentType: planCredits.paymentType,
+      creditType: planCredits.creditType,
+      usageSummary: planCredits.usageSummary,
+      essaySupportOnly: planCredits.essaySupportOnly,
+      reviewCredits: planCredits.reviewCredits,
+      sessionAllowance: planCredits.sessionAllowance,
+      subscriptionStatus: planCredits.subscriptionStatus,
+      cancelAtPeriodEnd: planCredits.cancelAtPeriodEnd
     };
   }));
   return students.sort((a, b) => a.name.localeCompare(b.name));

@@ -13,6 +13,10 @@ import {
 } from "../shared/matchingQueueEligibility.js";
 import { readJsonBody, sendJson } from "./http.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
+import {
+  deactivateStudentMentorChats,
+  syncAssignedMentorStudentChat
+} from "./lib/mentorAssignmentChat.js";
 
 function initialsFor(name) {
   return (
@@ -446,6 +450,31 @@ async function handleAdminAssign(req, res, studentId, env) {
     notes: "Assigned by Prelude Matching Team after questionnaire review."
   });
 
+  try {
+    await syncAssignedMentorStudentChat(supabase, {
+      studentId,
+      mentorId: payload.mentorId
+    });
+  } catch (chatError) {
+    console.error("[mentor-selection] chat sync failed after assign", chatError?.message || chatError);
+    await supabase.from("mentor_matches").delete().eq("user_id", studentId).in("status", ["assigned", "saved", "pending"]);
+    await supabase
+      .from("onboarding_progress")
+      .update({
+        selected_mentor_id: null,
+        suggested_mentor_id: null,
+        mentor_assignment_status: null,
+        admin_review_required: true,
+        match_decision: null,
+        updated_at: now
+      })
+      .eq("user_id", studentId);
+    return sendJson(res, 500, {
+      error: "chat_sync_failed",
+      message: "Mentor was assigned but messaging could not be set up. Retry the assignment."
+    });
+  }
+
   return sendJson(res, 200, {
     studentId,
     selectedMentorId: payload.mentorId,
@@ -486,6 +515,8 @@ async function handleAdminRemoveAssign(req, res, studentId, env) {
     .eq("user_id", studentId)
     .in("status", ["assigned", "saved", "pending"]);
   if (deleteError) return sendJson(res, 500, { error: "delete_failed", message: "Could not remove mentor match." });
+
+  await deactivateStudentMentorChats(supabase, { studentId });
 
   return sendJson(res, 200, {
     studentId,

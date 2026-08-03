@@ -1,5 +1,5 @@
 import { formatAvailabilitySummary } from "../../shared/mentorAvailabilitySync.js";
-import { first, httpError, json, requireUser, rest } from "./http.js";
+import { adminRest, first, httpError, json, requireUser, rest } from "./http.js";
 import { loadMeetingsForUser, sanitizeMeetingForRole } from "./meetings.js";
 import { DEFAULT_INTEGRATIONS, normalizeIntegrations } from "./integrations.js";
 
@@ -168,11 +168,26 @@ async function loadAppData(context, user, token) {
 }
 
 function validateAvailability(value) {
-  if (!value || typeof value.timezone !== "string" || !Array.isArray(value.days) || value.days.length > 7) return false;
-  return value.days.every((day) =>
-    typeof day.dayOfWeek === "string" && typeof day.enabled === "boolean" &&
-    /^\d{2}:\d{2}$/.test(day.startTime) && /^\d{2}:\d{2}$/.test(day.endTime)
-  );
+  if (!value || typeof value.timezone !== "string" || !Array.isArray(value.days) || value.days.length > 7) {
+    return { ok: false, message: "Check the availability times and retry." };
+  }
+  for (const day of value.days) {
+    if (
+      typeof day.dayOfWeek !== "string" ||
+      typeof day.enabled !== "boolean" ||
+      !/^\d{2}:\d{2}$/.test(day.startTime) ||
+      !/^\d{2}:\d{2}$/.test(day.endTime)
+    ) {
+      return { ok: false, message: "Check the availability times and retry." };
+    }
+    if (!day.enabled) continue;
+    const [sh, sm] = day.startTime.split(":").map(Number);
+    const [eh, em] = day.endTime.split(":").map(Number);
+    if (eh * 60 + em <= sh * 60 + sm) {
+      return { ok: false, message: `${day.dayOfWeek}: end time must be after start time.` };
+    }
+  }
+  return { ok: true };
 }
 
 async function requireMentorProfile(context, user, token) {
@@ -215,10 +230,11 @@ export async function handleDashboard(context, action) {
       return json({ settings: mapSettings(row) });
     }
     if (action === "availability" && context.request.method === "PUT") {
-      if (!validateAvailability(body)) return json({ error: "validation_error", message: "Check the availability times and retry." }, 400);
+      const validation = validateAvailability(body);
+      if (!validation.ok) return json({ error: "validation_error", message: validation.message }, 400);
       await requireMentorProfile(context, user, token);
       const availabilitySummary = formatAvailabilitySummary(body);
-      const rows = await rest(context, token, "mentor_matching_profiles?on_conflict=mentor_user_id", {
+      const rows = await adminRest(context, "mentor_matching_profiles?on_conflict=mentor_user_id", {
         method: "POST",
         headers: { Prefer: "resolution=merge-duplicates,return=representation" },
         body: JSON.stringify({
@@ -233,9 +249,8 @@ export async function handleDashboard(context, action) {
 
       // Best-effort: keep student match cards / summaries aligned with the live schedule.
       try {
-        await rest(
+        await adminRest(
           context,
-          token,
           `mentor_matches?mentor_id=eq.${encodeURIComponent(user.id)}`,
           {
             method: "PATCH",
@@ -261,7 +276,7 @@ export async function handleDashboard(context, action) {
         ? "Sign in again to continue."
         : status === 403
           ? error.message || "You do not have access to this dashboard data."
-          : "Dashboard data is temporarily unavailable. Retry in a moment."
+          : error.message || "Dashboard data is temporarily unavailable. Retry in a moment."
     }, status);
   }
 }

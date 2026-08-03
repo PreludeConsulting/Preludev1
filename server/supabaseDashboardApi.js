@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { readJsonBody, sendJson } from "./http.js";
 import { assertDashboardAppDataOwnership } from "./lib/dataOwnership.js";
-import { requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
+import { getSupabaseAdmin, requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 import {
   formatAvailabilitySummary,
   syncMentorAvailabilityToStudentMatches
@@ -39,6 +39,16 @@ const availabilitySchema = z.object({
     enabled: z.boolean(),
     startTime: z.string().regex(/^\d{2}:\d{2}$/),
     endTime: z.string().regex(/^\d{2}:\d{2}$/)
+  }).superRefine((day, ctx) => {
+    if (!day.enabled) return;
+    const [sh, sm] = day.startTime.split(":").map(Number);
+    const [eh, em] = day.endTime.split(":").map(Number);
+    if (eh * 60 + em <= sh * 60 + sm) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${day.dayOfWeek}: end time must be after start time.`
+      });
+    }
   })).max(7)
 });
 
@@ -232,7 +242,16 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
       await requireMentorProfile(supabase, user.id);
       const availability = availabilitySchema.parse(body);
       const availabilitySummary = formatAvailabilitySummary(availability);
-      const { data, error } = await supabase
+      const admin = getSupabaseAdmin();
+      if (!admin) {
+        const unavailable = new Error("Availability sync requires service role configuration.");
+        unavailable.statusCode = 503;
+        throw unavailable;
+      }
+
+      // Persist with the service-role client after authz so RLS RETURNING quirks
+      // cannot report a false "nothing was saved" failure for valid mentor saves.
+      const { data, error } = await admin
         .from("mentor_matching_profiles")
         .upsert(
           {
@@ -253,7 +272,7 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
       }
 
       if (availabilitySummary) {
-        const { data: questionnaire } = await supabase
+        const { data: questionnaire } = await admin
           .from("mentor_questionnaires")
           .select("answers")
           .eq("user_id", user.id)
@@ -263,18 +282,25 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
             ...(questionnaire.answers && typeof questionnaire.answers === "object" ? questionnaire.answers : {}),
             availability: availabilitySummary
           };
-          await supabase
+          await admin
             .from("mentor_questionnaires")
             .update({ answers, updated_at: new Date().toISOString() })
             .eq("user_id", user.id);
         }
       }
 
-      await syncMentorAvailabilityToStudentMatches(supabase, user.id, availabilitySummary);
+      await syncMentorAvailabilityToStudentMatches(admin, user.id, availabilitySummary);
 
       return sendJson(res, 200, { availability: mapAvailability(data) });
     } catch (error) {
-      if (error instanceof z.ZodError) return sendJson(res, 400, { error: "validation_error", message: "Invalid dashboard data.", issues: error.issues });
+      if (error instanceof z.ZodError) {
+        const firstIssue = error.issues?.[0]?.message;
+        return sendJson(res, 400, {
+          error: "validation_error",
+          message: firstIssue || "Invalid availability times.",
+          issues: error.issues
+        });
+      }
       const status = Number(error?.statusCode) || 500;
       if (status >= 500) console.error("[prelude-dashboard-sync]", error);
       return sendJson(res, status, {
@@ -283,7 +309,7 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
           ? "Sign in again to continue."
           : status === 403
             ? error.message || "You do not have access to this dashboard data."
-            : "Dashboard data is temporarily unavailable. Retry in a moment."
+            : error.message || "Dashboard data is temporarily unavailable. Retry in a moment."
       });
     }
   };

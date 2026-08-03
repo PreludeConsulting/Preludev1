@@ -161,10 +161,17 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
     unreadByThread,
     markThreadRead
   } = usePreludeChatContext();
-  const { meetings } = useDashboardData();
+  const { meetings, mentor } = useDashboardData();
   const { canAccess } = usePlanAccess();
   const canMessageNetwork = canAccess("fullMentorNetworkMessaging");
   const isMentor = roleFromUser(user) === "mentor";
+  const hasAssignedMentor = Boolean(
+    mentor?.status === "assigned" ||
+      mentor?.userId ||
+      mentor?.mentorUserId ||
+      mentor?.id
+  );
+  const showMentorNetworkBrowse = !isMentor && !hasAssignedMentor;
 
   const [q, setQ] = useState("");
   const [panel, setPanel] = useState("inbox");
@@ -284,7 +291,9 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
           <h2 className="msg-sidebar__title">Messages</h2>
         </div>
 
-        <SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search conversations…" />
+        <div className="msg-sidebar__search">
+          <SearchInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search conversations…" />
+        </div>
 
         <div className="msg-sidebar__threads">
           {loadingThreads ? (
@@ -302,9 +311,11 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
               <p className="msg-empty-threads__desc">
                 {isMentor
                   ? "Messages with your assigned students will appear here."
-                  : "Messages will appear after you connect with a mentor."}
+                  : hasAssignedMentor
+                    ? "Your assigned mentor conversation will appear here once messaging is ready."
+                    : "Messages will appear after you connect with a mentor."}
               </p>
-              {!isMentor ? (
+              {showMentorNetworkBrowse ? (
                 <button
                   type="button"
                   className="msg-empty-threads__action"
@@ -329,7 +340,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
           )}
         </div>
 
-        {!isMentor ? (
+        {showMentorNetworkBrowse ? (
           <button
             type="button"
             className={"msg-sidebar__network" + (panel === "network" ? " msg-sidebar__network--active" : "")}

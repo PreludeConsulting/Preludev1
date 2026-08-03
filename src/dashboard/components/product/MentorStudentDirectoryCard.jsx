@@ -9,11 +9,17 @@ export default function MentorStudentDirectoryCard({ student, basePath, onAssign
   const nextDeadline = student.nextMeeting || student.nextDeadline || "TBD";
   const deadlineCount = student.upcomingDeadlines ?? 0;
   const planLabel = student.planLabel || null;
+  const paymentTypeLabel =
+    student.paymentType === "one_time"
+      ? "One-time"
+      : student.paymentType === "recurring"
+        ? "Recurring"
+        : null;
   const usageSummary = student.usageSummary
     || (student.reviewCredits
-      ? `${student.reviewCredits.remaining} review credits remaining`
+      ? `${student.reviewCredits.remaining} of ${student.reviewCredits.purchased || student.reviewCredits.remaining} review credits remaining`
       : student.sessionAllowance
-        ? `${student.sessionAllowance.remaining} of ${student.sessionAllowance.included} sessions remaining`
+        ? `${student.sessionAllowance.remaining} of ${student.sessionAllowance.included} session credits remaining`
         : null);
 
   return (
@@ -25,10 +31,12 @@ export default function MentorStudentDirectoryCard({ student, basePath, onAssign
           <p className="dash-mentor-directory-card__meta">
             {student.grade} Grade
             {planLabel ? ` · ${planLabel}` : ""}
+            {paymentTypeLabel ? ` · ${paymentTypeLabel}` : ""}
           </p>
           {planLabel ? (
             <span className={`dash-mentor-directory-card__plan dash-mentor-directory-card__plan--${String(student.plan || "basic").toLowerCase()}`}>
               {planLabel}
+              {paymentTypeLabel ? ` · ${paymentTypeLabel}` : ""}
             </span>
           ) : null}
           {usageSummary ? (

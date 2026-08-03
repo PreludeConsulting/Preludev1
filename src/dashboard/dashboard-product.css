@@ -3701,6 +3701,15 @@
   color: #374151;
 }
 
+.dash-mentor-viewing-banner__plan {
+  margin: 0.35rem 0 0;
+  font-family: var(--dash-font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #111827;
+}
+
 .dash-mentor-viewing-banner__status {
   display: inline-flex;
   align-items: center;

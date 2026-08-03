@@ -15,6 +15,7 @@
  */
 
 import { adminRest, first, httpError, json, readJsonBody, runAuthenticated, runtimeFetch, supabaseConfig } from "./http.js";
+import { buildMentorStudentPlanCredits } from "../../shared/mentorStudentRoster.js";
 
 export const ACTIVITY_TYPES = [
   "personal_statement",
@@ -761,6 +762,27 @@ async function hydrateActivities(context, rows) {
     .sort(activitySort);
 }
 
+async function getSessionCreditSummary(context, studentUserId) {
+  const nowIso = new Date().toISOString();
+  try {
+    const rows = await adminRest(
+      context,
+      `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
+    );
+    const period = first(rows);
+    if (!period) return { allowance: 0, remaining: 0, active: false };
+    return {
+      allowance: Math.max(0, Number(period.allowance) || 0),
+      remaining: Math.max(0, Number(period.remaining) || 0),
+      active: true,
+      periodEnd: period.period_end || null,
+      planId: period.plan_id || null
+    };
+  } catch {
+    return { allowance: 0, remaining: 0, active: false };
+  }
+}
+
 async function listAssignedStudents(context, caller) {
   if (!["mentor", "admin"].includes(caller.role)) return [];
   const mentorFilter = caller.role === "mentor" ? `&mentor_id=eq.${encodeURIComponent(caller.id)}` : "";
@@ -772,19 +794,37 @@ async function listAssignedStudents(context, caller) {
   if (!studentIds.length) return [];
   const profiles = await adminRest(
     context,
-    `profiles?select=id,full_name,preferred_name,grade_level,college_interests,plan_id,subscription_status&id=in.(${studentIds.join(",")})`
+    `profiles?select=id,full_name,preferred_name,grade_level,college_interests,plan_id,subscription_status,subscription_cancel_at_period_end,subscription_current_period_end&id=in.(${studentIds.join(",")})`
   );
   const students = await Promise.all(
     (profiles || []).map(async (profile) => {
-      const balance = await getReviewCreditBalance(context, profile.id);
+      const [balance, sessionCredits] = await Promise.all([
+        getReviewCreditBalance(context, profile.id),
+        getSessionCreditSummary(context, profile.id)
+      ]);
+      const planCredits = buildMentorStudentPlanCredits({
+        planId: profile.plan_id,
+        subscriptionStatus: profile.subscription_status,
+        subscriptionCancelAtPeriodEnd: profile.subscription_cancel_at_period_end,
+        subscriptionCurrentPeriodEnd: profile.subscription_current_period_end,
+        reviewCredits: balance,
+        sessionCredits
+      });
       return {
         id: profile.id,
         name: profile.preferred_name || profile.full_name || "Student",
         grade: profile.grade_level || "",
         colleges: Array.isArray(profile.college_interests) ? profile.college_interests : [],
-        plan: profile.plan_id || "basic",
-        essaySupportOnly: isEssaySupportOnlyStudent({ plan: profile.plan_id, subscriptionStatus: profile.subscription_status }),
-        reviewCredits: { purchased: balance.purchased, assigned: balance.assigned, remaining: balance.remaining }
+        plan: planCredits.plan,
+        planLabel: planCredits.planLabel,
+        paymentType: planCredits.paymentType,
+        creditType: planCredits.creditType,
+        usageSummary: planCredits.usageSummary,
+        essaySupportOnly: planCredits.essaySupportOnly,
+        reviewCredits: planCredits.reviewCredits,
+        sessionAllowance: planCredits.sessionAllowance,
+        subscriptionStatus: planCredits.subscriptionStatus,
+        cancelAtPeriodEnd: planCredits.cancelAtPeriodEnd
       };
     })
   );

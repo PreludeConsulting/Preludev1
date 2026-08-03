@@ -307,23 +307,10 @@ async function resolveMentorThreads(mentorId) {
     .in("status", ["assigned", "accepted", "active"]);
 
   const assignedStudentIds = new Set((matches || []).map((match) => match.student_id).filter(Boolean));
-  const discoveredStudentIds = new Set();
-
-  const { data: mentorStudentThreads } = await db()
-    .from("chat_threads")
-    .select("id, mentor_id, student_id, parent_id, chat_type")
-    .eq("mentor_id", mentorId)
-    .eq("chat_type", CHAT_TYPE.MENTOR_STUDENT);
-
-  for (const row of mentorStudentThreads || []) {
-    if (row.student_id) discoveredStudentIds.add(row.student_id);
-  }
-
-  const studentIds = Array.from(new Set([...assignedStudentIds, ...discoveredStudentIds]));
-  if (!studentIds.length) return [];
+  if (!assignedStudentIds.size) return [];
 
   const threads = [];
-  for (const studentId of studentIds) {
+  for (const studentId of assignedStudentIds) {
     const studentProfile = await fetchProfileSummary(studentId);
     const studentThread = await ensureThread({
       chatType: CHAT_TYPE.MENTOR_STUDENT,
@@ -334,7 +321,7 @@ async function resolveMentorThreads(mentorId) {
     threads.push({
       ...studentThread,
       label: studentProfile.name || "Student",
-      sublabel: assignedStudentIds.has(studentId) ? "Assigned student" : "Student",
+      sublabel: "Assigned student",
       participantRole: "Student",
       avatarUrl: studentProfile.avatarUrl || null
     });
@@ -345,7 +332,29 @@ async function resolveMentorThreads(mentorId) {
 
 async function ensureThread({ chatType, mentorId, studentId, parentId }) {
   const supabase = db();
-  let query = supabase.from("chat_threads").select("*").eq("chat_type", chatType).eq("mentor_id", mentorId);
+
+  if (chatType === CHAT_TYPE.MENTOR_STUDENT) {
+    const { data, error } = await supabase.rpc("ensure_mentor_student_chat_thread", {
+      p_mentor_id: mentorId,
+      p_student_id: studentId
+    });
+    if (!error && data) {
+      return withStorageKey({
+        id: data.id,
+        chatType: data.chat_type,
+        mentorId: data.mentor_id,
+        studentId: data.student_id,
+        parentId: data.parent_id
+      });
+    }
+  }
+
+  let query = supabase
+    .from("chat_threads")
+    .select("*")
+    .eq("chat_type", chatType)
+    .eq("mentor_id", mentorId)
+    .is("deactivated_at", null);
 
   if (chatType === CHAT_TYPE.MENTOR_STUDENT) {
     query = query.eq("student_id", studentId);

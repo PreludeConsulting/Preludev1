@@ -688,6 +688,10 @@ img.dash-avatar {
   .msg-page {
     grid-template-columns: 20rem 1fr;
   }
+
+  .msg-page > * {
+    min-width: 0;
+  }
 }
 
 .dash-loading {
@@ -3230,6 +3234,8 @@ img.dash-avatar {
 .msg-sidebar {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  box-sizing: border-box;
   border-right: 1px solid hsl(var(--foreground) / 0.07);
   background: #faf9ff;
   gap: 0;
@@ -3238,6 +3244,7 @@ img.dash-avatar {
 
 .msg-sidebar__header {
   padding: 1rem 1rem 0.5rem;
+  min-width: 0;
 }
 
 .msg-sidebar__title {
@@ -3248,8 +3255,21 @@ img.dash-avatar {
   color: hsl(var(--foreground));
 }
 
+.msg-sidebar__search {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 0.75rem 0.5rem;
+}
+
 .msg-sidebar .dash-search-input {
-  margin: 0 0.75rem 0.5rem;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
   border-radius: 0.65rem;
   font-size: 0.82rem;
   padding: 0.5rem 0.75rem;
@@ -3259,11 +3279,13 @@ img.dash-avatar {
 
 .msg-sidebar__threads {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
   padding: 0 0.5rem 0.5rem;
+  box-sizing: border-box;
 }
 
 .msg-sidebar__status {
@@ -3487,6 +3509,7 @@ img.dash-avatar {
 .msg-main {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   background: #fff;

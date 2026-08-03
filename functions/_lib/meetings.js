@@ -1,4 +1,5 @@
 import {
+  adminRest,
   first,
   httpError,
   json,
@@ -164,19 +165,19 @@ async function getMeetingById(context, token, id) {
   return rowToMeeting(first(rows));
 }
 
-async function loadMentorSchedule(context, token, mentorUserId) {
-  const rows = await rest(
+async function loadMentorSchedule(context, _token, mentorUserId) {
+  // Service-role read so assigned students always see the same schedule the mentor saved,
+  // even when the mentor profile is not yet publicly approved for network browsing.
+  const rows = await adminRest(
     context,
-    token,
     `mentor_matching_profiles?select=availability_schedule&mentor_user_id=eq.${encodeURIComponent(mentorUserId)}&limit=1`
   );
   return normalizeAvailabilitySchedule(first(rows)?.availability_schedule || null);
 }
 
-async function loadMentorBusyMeetings(context, token, mentorUserId) {
-  const rows = await rest(
+async function loadMentorBusyMeetings(context, _token, mentorUserId) {
+  const rows = await adminRest(
     context,
-    token,
     `meetings?select=*&mentor_user_id=eq.${encodeURIComponent(mentorUserId)}&status=not.in.(canceled,declined)&order=start_time.asc`
   );
   return (rows || []).map(rowToMeeting);

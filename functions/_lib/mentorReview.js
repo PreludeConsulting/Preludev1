@@ -1,5 +1,6 @@
 import { hasMatchingTeamAccess } from "../../shared/matchingTeamAccess.js";
 import { isStudentEligibleForMatchingQueue } from "../../shared/matchingQueueEligibility.js";
+import { deactivateStudentMentorChats, syncAssignedMentorStudentChat } from "./mentorAssignmentChat.js";
 
 const FINAL_MATCH_STATUSES = ["assigned", "accepted", "active"];
 
@@ -264,6 +265,35 @@ async function assignMentor(context, studentId) {
       notes: "Assigned by Prelude Matching Team after questionnaire review."
     }
   });
+
+  try {
+    await syncAssignedMentorStudentChat(context, { studentId, mentorId });
+  } catch (chatError) {
+    // Roll back the assignment if messaging setup fails so the pair stays consistent.
+    console.error("[mentor-review] chat sync failed after assign", chatError?.message || chatError);
+    await adminRest(
+      context,
+      `mentor_matches?user_id=eq.${encodeURIComponent(studentId)}&status=in.(assigned,saved,pending)`,
+      { method: "DELETE", prefer: "return=minimal" }
+    );
+    await adminRest(context, `onboarding_progress?user_id=eq.${encodeURIComponent(studentId)}`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: {
+        selected_mentor_id: null,
+        suggested_mentor_id: null,
+        mentor_assignment_status: null,
+        admin_review_required: true,
+        match_decision: null,
+        updated_at: now
+      }
+    });
+    throw Object.assign(new Error("Mentor was assigned but messaging could not be set up. Retry the assignment."), {
+      status: 500,
+      code: "chat_sync_failed"
+    });
+  }
+
   return { studentId, selectedMentorId: mentorId, mentorAssignmentStatus: "admin_assigned" };
 }
 
@@ -287,6 +317,7 @@ async function removeAssignment(context, studentId) {
     `mentor_matches?user_id=eq.${encodeURIComponent(studentId)}&status=in.(assigned,saved,pending)`,
     { method: "DELETE", prefer: "return=minimal" }
   );
+  await deactivateStudentMentorChats(context, { studentId });
   return { studentId, selectedMentorId: null, mentorAssignmentStatus: null, matchStatus: "needs_review" };
 }
 

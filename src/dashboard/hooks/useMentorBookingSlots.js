@@ -102,15 +102,10 @@ export function useMentorBookingSlots({
         if (mentorUserId) {
           const payload = await getAvailableMentorSlots(mentorUserId);
           if (requestId !== requestIdRef.current) return;
-          const hasOpenDays = (payload.schedule?.days || []).some((day) => day.enabled);
-          if (hasOpenDays || (payload.dates || []).length) {
-            setTimezone(payload.timezone || payload.schedule?.timezone || "ET");
-            setDates(payload.dates || []);
-            setError("");
-            return;
-          }
-          if (applyLocalSchedule(resolveFallbackSchedule(), requestId)) return;
-          setDates([]);
+          // Trust the API response even when there are currently no open days —
+          // do not fall back to stale localStorage after a successful load.
+          setTimezone(payload.timezone || payload.schedule?.timezone || "ET");
+          setDates(payload.dates || []);
           setError("");
           return;
         }
@@ -122,7 +117,8 @@ export function useMentorBookingSlots({
         setError("Mentor availability is not available yet.");
       } catch (err) {
         if (requestId !== requestIdRef.current) return;
-        if (applyLocalSchedule(resolveFallbackSchedule(), requestId)) return;
+        // Network/API failure only: fall back to the schedule prop (from assigned mentor enrichment).
+        if (applyLocalSchedule(scheduleRef.current, requestId)) return;
         setDates([]);
         setError(err?.message || "Could not load mentor availability.");
       } finally {
