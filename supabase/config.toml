@@ -1,0 +1,5 @@
+# Edge Functions configuration for Prelude's linked Supabase project.
+project_id = "xvktmnxtjukmbarlzssm"
+
+[functions.send-prelude-match]
+verify_jwt = true

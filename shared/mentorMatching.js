@@ -14,6 +14,11 @@ function asArray(value) {
 }
 
 function normalize(value) {
+  if (value && typeof value === "object") {
+    return String(value.name || value.id || "")
+      .trim()
+      .toLowerCase();
+  }
   return String(value || "")
     .trim()
     .toLowerCase();

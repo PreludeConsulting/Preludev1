@@ -1,4 +1,5 @@
 import { getCollegeCampusImage } from "./collegeCampusImages.js";
+import { EXPLORE_COLLEGE_CATALOG } from "../../../shared/exploreCollegesCatalog.js";
 
 const mediaBase = import.meta.env.BASE_URL;
 
@@ -519,6 +520,13 @@ export const EXPLORE_COLLEGES = [
   })
 ];
 
+if (
+  EXPLORE_COLLEGES.length !== EXPLORE_COLLEGE_CATALOG.length ||
+  EXPLORE_COLLEGES.some((college, index) => college.id !== EXPLORE_COLLEGE_CATALOG[index]?.id)
+) {
+  throw new Error("EXPLORE_COLLEGES is out of sync with shared/exploreCollegesCatalog.js");
+}
+
 export const INITIAL_SAVED_COLLEGES = [
   { collegeId: "stanford" },
   { collegeId: "georgia-tech" },
@@ -591,10 +599,126 @@ export function collegeById(id) {
   return EXPLORE_COLLEGES.find((c) => c.id === id);
 }
 
+/** Sentinel answer for Prelude Match when the student has no schools yet. */
+export const STILL_EXPLORING_LABEL = "Still exploring";
+
+export function formatExploreCollegeLocation(school) {
+  if (!school) return "";
+  if (school.city && school.state) return `${school.city}, ${school.state}`;
+  return school.city || school.state || "";
+}
+
+/** Case-insensitive match on name, city, state, and shortName/abbreviation. */
+export function collegeMatchesQuery(school, searchQuery) {
+  const query = String(searchQuery || "").trim().toLowerCase();
+  if (!query) return true;
+  const haystacks = [
+    school.name,
+    school.shortName,
+    school.city,
+    school.state,
+    formatExploreCollegeLocation(school),
+    school.location
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).toLowerCase());
+  return haystacks.some((value) => value.includes(query));
+}
+
+/**
+ * Autocomplete search over the shared Explore Colleges list (same 85 schools as the dashboard).
+ */
+export function searchExploreColleges(searchQuery, { limit = 20, excludeIds = [] } = {}) {
+  const query = String(searchQuery || "").trim();
+  if (!query) return [];
+  const excluded = new Set(excludeIds.filter(Boolean));
+  return EXPLORE_COLLEGES.filter(
+    (school) => !excluded.has(school.id) && collegeMatchesQuery(school, query)
+  ).slice(0, Math.max(1, Number(limit) || 20));
+}
+
+export function toMatchCollegeSelection(school) {
+  if (!school?.id) return null;
+  return {
+    id: school.id,
+    name: school.name,
+    city: school.city,
+    state: school.state
+  };
+}
+
+export function isStillExploringSelection(selected) {
+  return (
+    Array.isArray(selected) &&
+    selected.length === 1 &&
+    (selected[0] === STILL_EXPLORING_LABEL ||
+      (typeof selected[0] === "object" && selected[0]?.name === STILL_EXPLORING_LABEL))
+  );
+}
+
+/** Resolve a saved Match answer item to an Explore Colleges selection, or null if invalid/custom. */
+export function resolveExploreCollege(item) {
+  if (item == null || item === STILL_EXPLORING_LABEL) return null;
+  if (typeof item === "string") {
+    const trimmed = item.trim();
+    if (!trimmed || trimmed === STILL_EXPLORING_LABEL) return null;
+    const byId = collegeById(trimmed);
+    if (byId) return toMatchCollegeSelection(byId);
+    const byName = EXPLORE_COLLEGES.find((school) => school.name.toLowerCase() === trimmed.toLowerCase());
+    return byName ? toMatchCollegeSelection(byName) : null;
+  }
+  if (typeof item === "object") {
+    if (item.name === STILL_EXPLORING_LABEL) return null;
+    if (item.id) {
+      const byId = collegeById(String(item.id));
+      if (byId) return toMatchCollegeSelection(byId);
+    }
+    if (item.name) {
+      const byName = EXPLORE_COLLEGES.find(
+        (school) => school.name.toLowerCase() === String(item.name).toLowerCase()
+      );
+      if (byName) return toMatchCollegeSelection(byName);
+    }
+  }
+  return null;
+}
+
+/** Drop custom/malformed schools; keep Still exploring or resolved Explore Colleges entries. */
+export function normalizeMatchCollegeAnswers(selected) {
+  if (!Array.isArray(selected) || selected.length === 0) return [];
+  if (isStillExploringSelection(selected)) return [STILL_EXPLORING_LABEL];
+  const seen = new Set();
+  const next = [];
+  for (const item of selected) {
+    if (item === STILL_EXPLORING_LABEL || item?.name === STILL_EXPLORING_LABEL) continue;
+    const resolved = resolveExploreCollege(item);
+    if (!resolved || seen.has(resolved.id)) continue;
+    seen.add(resolved.id);
+    next.push(resolved);
+  }
+  return next;
+}
+
+export function matchCollegeSelectionsEqual(left, right) {
+  if (isStillExploringSelection(left) && isStillExploringSelection(right)) return true;
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+  return left.every((item, index) => {
+    const a = resolveExploreCollege(item);
+    const b = resolveExploreCollege(right[index]);
+    return Boolean(a && b && a.id === b.id);
+  });
+}
+
+export function isValidMatchCollegeAnswer(answer) {
+  if (!Array.isArray(answer) || answer.length === 0) return false;
+  if (isStillExploringSelection(answer)) return true;
+  return normalizeMatchCollegeAnswers(answer).length > 0;
+}
+
 export function filterColleges(colleges, filters, searchQuery) {
-  const query = searchQuery.trim().toLowerCase();
+  const query = searchQuery.trim();
   return colleges.filter((school) => {
-    if (query && !school.name.toLowerCase().includes(query) && !school.city.toLowerCase().includes(query)) {
+    if (query && !collegeMatchesQuery(school, query)) {
       return false;
     }
 

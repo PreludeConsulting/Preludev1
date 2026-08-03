@@ -12,8 +12,8 @@ describe("MatchPendingPanel", () => {
       })
     );
 
-    expect(html).toContain("Your mentor match is being processed");
-    expect(html).toContain("Thanks for completing the PreludeMatch questionnaire");
+    expect(html).toContain("Prelude Match submitted");
+    expect(html).toContain("Your responses have been sent to our team");
     expect(html).toContain("reach out as soon as your match is ready");
     expect(html).toContain("pm-match-pending__status");
     expect(html).toContain("Continue to parent invite");
@@ -21,6 +21,7 @@ describe("MatchPendingPanel", () => {
     expect(html).not.toContain("Your mentor matches");
     expect(html).not.toContain("matchPercent");
     expect(html).not.toContain("pm-mentor-card");
+    expect(html).not.toContain("questionnaire_answers");
   });
 
   it("hides the update answers action when onEdit is not provided", () => {

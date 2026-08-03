@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import PreludePigAvatar from "./PreludePigAvatar.jsx";
 import PreludeMatchQuestionCard from "./PreludeMatchQuestionCard.jsx";
+import { canAdvanceQuestion } from "../../lib/preludeMatchLogic.js";
 
 export default function PreludeMatchQuestionFlow({
   question,
@@ -13,19 +14,11 @@ export default function PreludeMatchQuestionFlow({
   pigMotion,
   reducedMotion,
   canGoBack,
-  isLast
+  isLast,
+  submitting = false
 }) {
   const currentAnswer = answers[question.id];
-  const canContinue =
-    question.required === false ||
-    (question.type === "multi-select" || question.type === "college-search"
-      ? Array.isArray(currentAnswer) && currentAnswer.length > 0
-      : question.type === "open-response"
-        ? typeof currentAnswer === "string" && currentAnswer.trim().length > 0
-        : question.type === "scale"
-          ? typeof currentAnswer === "number"
-          : currentAnswer !== undefined && currentAnswer !== null && currentAnswer !== "");
-
+  const canContinue = canAdvanceQuestion(question, currentAnswer);
   const canSkip = !question.required;
 
   return (
@@ -64,24 +57,24 @@ export default function PreludeMatchQuestionFlow({
 
       <div className="pm-flow__actions">
         {canGoBack ? (
-          <button type="button" className="pm-btn pm-btn--ghost" onClick={onBack}>
+          <button type="button" className="pm-btn pm-btn--ghost" onClick={onBack} disabled={submitting}>
             Back
           </button>
         ) : (
           <span />
         )}
         {canSkip ? (
-          <button type="button" className="pm-btn pm-btn--ghost" onClick={onSkip}>
+          <button type="button" className="pm-btn pm-btn--ghost" onClick={onSkip} disabled={submitting}>
             Skip
           </button>
         ) : null}
         <button
           type="button"
           className="pm-btn pm-btn--primary"
-          disabled={!canContinue && !canSkip}
+          disabled={submitting || (!canContinue && !canSkip)}
           onClick={onContinue}
         >
-          {isLast ? "See my matches" : "Continue"}
+          {submitting ? "Submitting..." : isLast ? "See my matches" : "Continue"}
         </button>
       </div>
     </div>

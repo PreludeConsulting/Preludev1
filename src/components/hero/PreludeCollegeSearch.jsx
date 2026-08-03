@@ -1,206 +1,224 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import AnswerChip from "./AnswerChip.jsx";
 import {
-  collegeKey,
-  formatCollegeLocation,
-  isCollegeSelected,
-  searchColleges
-} from "../../lib/collegeSearch.js";
+  EXPLORE_COLLEGES,
+  STILL_EXPLORING_LABEL,
+  formatExploreCollegeLocation,
+  isStillExploringSelection,
+  matchCollegeSelectionsEqual,
+  normalizeMatchCollegeAnswers,
+  searchExploreColleges,
+  toMatchCollegeSelection
+} from "../../dashboard/data/collegeExploreData.js";
+
+const MAX_VISIBLE_RESULTS = 8;
 
 export default function PreludeCollegeSearch({ selected, onChange, reducedMotion }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [focusIndex, setFocusIndex] = useState(-1);
-  const debounceRef = useRef(null);
-  const listId = "pm-college-results";
-  const customCollegeName = query.trim().replace(/\s+/g, " ");
-  const canAddCustomCollege =
-    customCollegeName.length >= 2 &&
-    !selected.some((item) => {
-      const label = typeof item === "string" ? item : item.name;
-      return label?.trim().toLowerCase() === customCollegeName.toLowerCase();
-    }) &&
-    !results.some((college) => college.name?.trim().toLowerCase() === customCollegeName.toLowerCase());
+  const rootRef = useRef(null);
+  const inputRef = useRef(null);
+  const listId = useId();
+  const inputId = useId();
 
-  const runSearch = useCallback(
-    async (term, signal) => {
-      if (term.trim().length < 2) {
-        setResults([]);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      const rows = await searchColleges(term, { limit: 20, signal });
-      setResults(rows.filter((c) => !isCollegeSelected(selected, c)));
-      setLoading(false);
-    },
-    [selected]
+  const stillExploring = isStillExploringSelection(selected);
+  const colleges = useMemo(
+    () => (stillExploring ? [] : normalizeMatchCollegeAnswers(selected)),
+    [selected, stillExploring]
   );
+  const selectedIds = useMemo(() => colleges.map((college) => college.id), [colleges]);
+
+  const results = useMemo(() => {
+    if (!query.trim()) return [];
+    return searchExploreColleges(query, {
+      limit: 20,
+      excludeIds: selectedIds
+    });
+  }, [query, selectedIds]);
+
+  const showDropdown = open && query.trim().length > 0;
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    const controller = new AbortController();
-    debounceRef.current = setTimeout(() => {
-      runSearch(query, controller.signal);
-    }, 250);
-    return () => {
-      clearTimeout(debounceRef.current);
-      controller.abort();
-    };
-  }, [query, runSearch]);
+    if (!Array.isArray(selected) || selected.length === 0) return;
+    if (stillExploring) {
+      if (selected[0] !== STILL_EXPLORING_LABEL) onChange([STILL_EXPLORING_LABEL]);
+      return;
+    }
+    const normalized = normalizeMatchCollegeAnswers(selected);
+    if (!matchCollegeSelectionsEqual(selected, normalized)) {
+      onChange(normalized);
+    }
+  }, [selected, stillExploring, onChange]);
 
-  function addCollege(college) {
-    if (isCollegeSelected(selected, college)) return;
-    const cleaned = selected.filter((s) =>
-      typeof s === "string" ? s !== "Still exploring" : s.name !== "Still exploring"
-    );
-    onChange([...cleaned, college]);
+  useEffect(() => {
+    if (!showDropdown) return undefined;
+    function handlePointerDown(event) {
+      if (!rootRef.current?.contains(event.target)) {
+        setOpen(false);
+        setFocusIndex(-1);
+      }
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [showDropdown]);
+
+  function addCollege(school) {
+    const selection = toMatchCollegeSelection(school);
+    if (!selection) return;
+    if (selectedIds.includes(selection.id)) return;
+    onChange([...colleges, selection]);
+    setQuery("");
+    setOpen(false);
+    setFocusIndex(-1);
+    inputRef.current?.focus();
+  }
+
+  function removeCollege(college) {
+    onChange(colleges.filter((item) => item.id !== college.id));
+    inputRef.current?.focus();
+  }
+
+  function selectStillExploring() {
+    onChange([STILL_EXPLORING_LABEL]);
     setQuery("");
     setOpen(false);
     setFocusIndex(-1);
   }
 
-  function addCustomCollege() {
-    if (!canAddCustomCollege) return;
-    addCollege(customCollegeName);
-  }
-
-  function removeCollege(item) {
-    const key = typeof item === "string" ? item : collegeKey(item);
-    onChange(
-      selected.filter((s) => {
-        if (typeof s === "string") return s !== key && s !== item;
-        return collegeKey(s) !== key;
-      })
-    );
-  }
-
-  function selectStillExploring() {
-    onChange(["Still exploring"]);
-    setQuery("");
-    setOpen(false);
-  }
-
-  function onKeyDown(e) {
-    if (e.key === "Escape") {
+  function onKeyDown(event) {
+    if (event.key === "Escape") {
       setOpen(false);
       setFocusIndex(-1);
       return;
     }
-    if (!open) return;
-    if (e.key === "ArrowDown") {
+
+    if (!showDropdown) {
+      if (event.key === "ArrowDown" && query.trim()) {
+        setOpen(true);
+      }
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
       if (results.length === 0) return;
-      e.preventDefault();
-      setFocusIndex((i) => Math.min(i + 1, results.length - 1));
-    } else if (e.key === "ArrowUp") {
+      event.preventDefault();
+      setFocusIndex((index) => Math.min(index + 1, results.length - 1));
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
       if (results.length === 0) return;
-      e.preventDefault();
-      setFocusIndex((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter" && focusIndex >= 0) {
-      e.preventDefault();
-      addCollege(results[focusIndex]);
-    } else if (e.key === "Enter" && canAddCustomCollege) {
-      e.preventDefault();
-      addCustomCollege();
+      event.preventDefault();
+      setFocusIndex((index) => Math.max(index - 1, 0));
+      return;
+    }
+
+    if (event.key === "Enter") {
+      if (focusIndex >= 0 && results[focusIndex]) {
+        event.preventDefault();
+        addCollege(results[focusIndex]);
+      }
     }
   }
 
   return (
-    <div className="pm-colleges">
-      <label className="pm-colleges__label" htmlFor="pm-college-search">
+    <div className="pm-colleges" ref={rootRef}>
+      <label className="pm-colleges__label" htmlFor={inputId}>
         Search U.S. colleges and universities
       </label>
-      <input
-        id="pm-college-search"
-        type="search"
-        className="pm-colleges__input"
-        placeholder="Start typing a school name…"
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-          setFocusIndex(-1);
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={onKeyDown}
-        role="combobox"
-        aria-expanded={open && query.trim().length >= 2}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        autoComplete="off"
-      />
 
-      <p className="sr-only" aria-live="polite">
-        {loading ? "Searching colleges and universities…" : results.length ? `${results.length} schools found` : ""}
-      </p>
+      <div className="pm-colleges__field">
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="search"
+          className="pm-colleges__input"
+          placeholder="Search colleges..."
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setOpen(true);
+            setFocusIndex(-1);
+          }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={onKeyDown}
+          role="combobox"
+          aria-expanded={showDropdown}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={
+            focusIndex >= 0 && results[focusIndex] ? `${listId}-option-${results[focusIndex].id}` : undefined
+          }
+          autoComplete="off"
+        />
 
-      {open && query.trim().length >= 2 ? (
-        <ul id={listId} className="pm-colleges__dropdown" role="listbox">
-          {loading ? (
-            <li className="pm-colleges__empty">Searching…</li>
-          ) : results.length === 0 && !canAddCustomCollege ? (
-            <li className="pm-colleges__empty">No schools found. Try a different name.</li>
-          ) : (
-            <>
-              {results.map((college, i) => (
-                <li key={collegeKey(college)} role="presentation">
+        {showDropdown ? (
+          <ul id={listId} className="pm-colleges__dropdown" role="listbox" aria-label="College search results">
+            {results.length === 0 ? (
+              <li className="pm-colleges__empty" role="presentation">
+                No colleges found.
+              </li>
+            ) : (
+              results.map((college, index) => (
+                <li key={college.id} role="presentation">
                   <button
                     type="button"
+                    id={`${listId}-option-${college.id}`}
                     role="option"
-                    aria-selected={focusIndex === i}
-                    className={`pm-colleges__option${focusIndex === i ? " pm-colleges__option--active" : ""}`}
-                    onMouseEnter={() => setFocusIndex(i)}
+                    aria-selected={focusIndex === index}
+                    className={`pm-colleges__option${focusIndex === index ? " pm-colleges__option--active" : ""}`}
+                    onMouseEnter={() => setFocusIndex(index)}
                     onClick={() => addCollege(college)}
                   >
                     <span className="pm-colleges__name">{college.name}</span>
-                    <span className="pm-colleges__location">{formatCollegeLocation(college)}</span>
+                    <span className="pm-colleges__location">{formatExploreCollegeLocation(college)}</span>
                   </button>
                 </li>
-              ))}
-              {canAddCustomCollege ? (
-                <li role="presentation">
-                  <button type="button" role="option" className="pm-colleges__option" onClick={addCustomCollege}>
-                    <span className="pm-colleges__name">Add "{customCollegeName}"</span>
-                    <span className="pm-colleges__location">Use a school that is not in the list</span>
-                  </button>
-                </li>
-              ) : null}
-            </>
-          )}
+              ))
+            )}
+          </ul>
+        ) : null}
+      </div>
+
+      <p className="sr-only" aria-live="polite">
+        {showDropdown
+          ? results.length
+            ? `${results.length} colleges found`
+            : "No colleges found."
+          : ""}
+      </p>
+
+      {colleges.length > 0 ? (
+        <ul className="pm-colleges__chips" aria-label="Selected colleges">
+          {colleges.map((college) => (
+            <li key={college.id} className="pm-colleges__chip">
+              <span className="pm-colleges__chip-label">{college.name}</span>
+              <button
+                type="button"
+                className="pm-colleges__remove"
+                onClick={() => removeCollege(college)}
+                aria-label={`Remove ${college.name}`}
+              >
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
         </ul>
       ) : null}
 
-      {selected.length > 0 ? (
-        <div className="pm-colleges__chips">
-          {selected.map((item) => {
-            const label = typeof item === "string" ? item : item.name;
-            const key = typeof item === "string" ? item : collegeKey(item);
-            return (
-              <span key={key} className="pm-colleges__chip">
-                {label}
-                <button
-                  type="button"
-                  className="pm-colleges__remove"
-                  onClick={() => removeCollege(item)}
-                  aria-label={`Remove ${label}`}
-                >
-                  <X className="h-3.5 w-3.5" aria-hidden="true" />
-                </button>
-              </span>
-            );
-          })}
-        </div>
-      ) : null}
-
       <AnswerChip
-        label="Still exploring"
-        selected={selected.length === 1 && selected[0] === "Still exploring"}
+        label={STILL_EXPLORING_LABEL}
+        selected={stillExploring}
         onSelect={selectStillExploring}
         reducedMotion={reducedMotion}
       />
+
+      <span className="sr-only">
+        Searching {EXPLORE_COLLEGES.length} colleges from the shared Explore Colleges list.
+        Showing up to {MAX_VISIBLE_RESULTS} results before scrolling.
+      </span>
     </div>
   );
 }

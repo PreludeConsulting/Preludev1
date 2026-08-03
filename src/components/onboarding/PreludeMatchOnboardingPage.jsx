@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -15,8 +15,9 @@ import {
 } from "../../lib/onboardingRoutes.js";
 import { getOnboardingProgress, getOnboardingStepNavigation } from "../../lib/onboardingFlow.js";
 import {
-  saveMatchQuestionnaire
+  markMatchQuestionnaireComplete
 } from "../../lib/preludeMatchService.js";
+import { submitPreludeMatchByEmail } from "../../lib/preludeMatchSubmit.js";
 import {
   computeQuestionProgress,
   getQuestionIndex,
@@ -38,14 +39,11 @@ export function MatchPendingPanel({ loading = false, onContinue, showAction = tr
     <div className="pm-match-pending">
       <PreludePigAvatar size="lg" variant="intro" animate className="pm-match-pending__mascot" />
       <div className="pm-match-pending__body">
-        <p className="pm-match-pending__eyebrow">Questionnaire submitted</p>
-        <h2 className="pm-match-pending__title">Your mentor match is being processed</h2>
+        <p className="pm-match-pending__eyebrow">Prelude Match submitted</p>
+        <h2 className="pm-match-pending__title">Prelude Match submitted</h2>
         <p className="pm-match-pending__lead">
-          Thanks for completing the PreludeMatch questionnaire. Our team is reviewing your goals and preferences so we
-          can find the best mentor for you.
-        </p>
-        <p className="pm-match-pending__lead">
-          You&apos;ll receive an email soon with your recommended match.
+          Your responses have been sent to our team. We&apos;ll review your profile and follow up with your mentor
+          match.
         </p>
         <p className="pm-match-pending__status">We&apos;ll reach out as soon as your match is ready.</p>
       </div>
@@ -75,7 +73,7 @@ function MatchCompletePanel({ onEdit }) {
         <p className="pm-match-pending__eyebrow">Step complete</p>
         <h2 className="pm-match-pending__title">Prelude Match is complete</h2>
         <p className="pm-match-pending__lead">
-          Your questionnaire responses are saved. Continue to meet your match, or update your answers before moving on.
+          Your responses were sent to our team. Continue to meet your match, or update your answers before moving on.
         </p>
       </div>
       <div className="pm-match-pending__actions">
@@ -96,13 +94,14 @@ export default function PreludeMatchOnboardingPage() {
   const forceResult = searchParams.get("step") === "result";
 
   const [phase, setPhase] = useState(forceResult ? "result" : "intro");
-  const [answers, setAnswers] = useState(user?.questionnaireAnswers || {});
+  const [answers, setAnswers] = useState({});
   const [editingAnswers, setEditingAnswers] = useState(false);
   const [currentQuestionId, setCurrentQuestionId] = useState(null);
   const [pigMotion, setPigMotion] = useState("none");
   const [progress, setProgress] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const submissionLockRef = useRef(false);
 
   const visibleQuestions = useMemo(
     () => getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, answers),
@@ -116,12 +115,6 @@ export default function PreludeMatchOnboardingPage() {
   }, [visibleQuestions, currentQuestionId]);
 
   const currentQuestion = visibleQuestions[currentIndex] ?? visibleQuestions[0];
-
-  useEffect(() => {
-    if (user?.questionnaireAnswers && Object.keys(user.questionnaireAnswers).length) {
-      setAnswers(user.questionnaireAnswers);
-    }
-  }, [user?.questionnaireAnswers]);
 
   useEffect(() => {
     if (forceResult) {
@@ -169,7 +162,7 @@ export default function PreludeMatchOnboardingPage() {
   const stepProgress = getOnboardingProgress(user, location.pathname, new URLSearchParams(location.search));
 
   function handleStart() {
-    setAnswers(user?.questionnaireAnswers || {});
+    setAnswers({});
     setProgress(0);
     setPhase(reducedMotion ? "questions" : "boot");
     setCurrentQuestionId(PRELUDE_MATCH_QUESTIONS[0].id);
@@ -190,29 +183,42 @@ export default function PreludeMatchOnboardingPage() {
   }
 
   async function finishQuestionnaire(finalAnswers) {
+    if (submissionLockRef.current || saving) return;
+    submissionLockRef.current = true;
     setPhase("loading");
     setProgress(90);
     setSaving(true);
     setError("");
     try {
       if (user.authProvider === "supabase") {
-        const { error: err } = await saveMatchQuestionnaire(user.id, finalAnswers);
+        await submitPreludeMatchByEmail(finalAnswers, {
+          studentDisplayName: user.name || user.firstName || ""
+        });
+        const { error: err } = await markMatchQuestionnaireComplete(user.id);
         if (err) throw new Error(err);
+      } else {
+        throw new Error("Sign in with Supabase to submit Prelude Match.");
       }
       await refreshUser();
       setProgress(100);
       setEditingAnswers(false);
+      setAnswers({});
       setPhase("result");
       navigate(`${MATCH_ONBOARDING_PATH}?step=result`, { replace: true });
     } catch (err) {
-      setError(err.message || "Could not save your responses.");
+      setError(
+        err.message ||
+          "We couldn’t submit your Prelude Match responses. Your answers are still here—please try again."
+      );
       setPhase("questions");
     } finally {
       setSaving(false);
+      submissionLockRef.current = false;
     }
   }
 
   function handleContinueQuestion() {
+    if (saving || submissionLockRef.current) return;
     const visible = getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, answers);
     const idx = getQuestionIndex(visible, currentQuestionId);
     if (idx >= visible.length - 1) {
@@ -226,6 +232,7 @@ export default function PreludeMatchOnboardingPage() {
   }
 
   function handleBack() {
+    if (saving) return;
     const visible = getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, answers);
     const idx = getQuestionIndex(visible, currentQuestionId);
     if (idx <= 0) return;
@@ -251,14 +258,12 @@ export default function PreludeMatchOnboardingPage() {
   const nextHint = navigation.nextDisabled ? navigation.nextReason : "";
 
   function beginEditingAnswers() {
-    const savedAnswers = user?.questionnaireAnswers || answers;
-    const visible = getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, savedAnswers);
-    setAnswers(savedAnswers);
+    setAnswers({});
     setEditingAnswers(true);
     setError("");
     setPhase("questions");
-    setCurrentQuestionId(visible[0]?.id || PRELUDE_MATCH_QUESTIONS[0].id);
-    setProgress(computeQuestionProgress(0, visible.length));
+    setCurrentQuestionId(PRELUDE_MATCH_QUESTIONS[0].id);
+    setProgress(computeQuestionProgress(0, getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, {}).length));
     bumpPig();
   }
 
@@ -325,6 +330,7 @@ export default function PreludeMatchOnboardingPage() {
                     reducedMotion={reducedMotion}
                     canGoBack={currentIndex > 0}
                     isLast={isLastQuestion}
+                    submitting={saving}
                   />
                 </motion.div>
               ) : null}

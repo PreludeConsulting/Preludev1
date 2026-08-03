@@ -112,10 +112,14 @@ export async function loadOnboardingProgress(userId) {
   return { onboarding: data, error: null };
 }
 
-export async function saveMatchQuestionnaire(userId, answers) {
+/**
+ * Mark Prelude Match onboarding complete without storing questionnaire answers.
+ * Answers are emailed only (send-prelude-match Edge Function) and must not be persisted.
+ */
+export async function markMatchQuestionnaireComplete(userId) {
   const payload = {
     user_id: userId,
-    questionnaire_answers: answers,
+    questionnaire_answers: {},
     mentor_matching_started: true,
     mentor_matching_complete: true,
     prelude_match_completed: true,
@@ -143,6 +147,11 @@ export async function saveMatchQuestionnaire(userId, answers) {
     matchedMentorIds: [],
     error: error?.message || null
   };
+}
+
+/** @deprecated Prefer markMatchQuestionnaireComplete — answers must not be stored. */
+export async function saveMatchQuestionnaire(userId, _answers) {
+  return markMatchQuestionnaireComplete(userId);
 }
 
 export async function saveMatchDecision(userId, { decision, mentorId, declinedIds = [] }) {

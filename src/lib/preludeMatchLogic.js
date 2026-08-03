@@ -1,4 +1,9 @@
 import { PRELUDE_MATCH_QUESTIONS } from "../data/preludeMatchQuestions.js";
+import {
+  isStillExploringSelection,
+  isValidMatchCollegeAnswer,
+  normalizeMatchCollegeAnswers
+} from "../dashboard/data/collegeExploreData.js";
 
 function answerIncludesAny(answer, values) {
   if (!Array.isArray(answer)) return values.includes(answer);
@@ -6,11 +11,8 @@ function answerIncludesAny(answer, values) {
 }
 
 function hasRealCollegeSelection(answer) {
-  if (!Array.isArray(answer) || answer.length === 0) return false;
-  return answer.some((item) => {
-    if (typeof item === "string") return item !== "Still exploring";
-    return item?.name && item.name !== "Still exploring";
-  });
+  if (isStillExploringSelection(answer)) return false;
+  return normalizeMatchCollegeAnswers(answer).length > 0;
 }
 
 function ruleMatches(rule, answers) {
@@ -85,8 +87,9 @@ export function canAdvanceQuestion(question, answer) {
 
   switch (question.type) {
     case "multi-select":
-    case "college-search":
       return Array.isArray(answer) && answer.length > 0;
+    case "college-search":
+      return isValidMatchCollegeAnswer(answer);
     case "open-response":
       return typeof answer === "string" && answer.trim().length > 0;
     case "scale":
