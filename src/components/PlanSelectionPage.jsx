@@ -124,7 +124,7 @@ export function WalletPlanCard({
   isCurrentPlan = false
 }) {
   const badgeLabel = getPlanBadgeLabel(plan.id, language);
-  const className = `pw-card pw-card--${plan.id} ${selected ? "pw-card--selected" : ""} ${isCurrentPlan ? "pw-card--current" : ""}`;
+  const className = `pw-card pw-card--${plan.id} ${selected ? "pw-card--selected" : ""}`;
   const cardStyle = { "--pw-i": index, ...style };
 
   const content = (
@@ -134,7 +134,6 @@ export function WalletPlanCard({
       <span className="pw-card__top">
         <span className="pw-card__name">{plan.name}</span>
         {badgeLabel ? <span className="pw-card__badge">{badgeLabel}</span> : null}
-        {isCurrentPlan ? <span className="pw-card__current-badge">Current plan</span> : null}
         <span className="pw-card__payment-type">Monthly subscription</span>
         <span className="pw-card__price">
           {plan.price}
@@ -145,16 +144,10 @@ export function WalletPlanCard({
       {plan.flexibleSessionCallout ? (
         <span className="pw-card__session-note">{plan.flexibleSessionCallout}</span>
       ) : null}
-      {selected && !isCurrentPlan ? (
+      {selected ? (
         <span className="pw-card__selected-mark">
           <Check aria-hidden="true" />
           Selected
-        </span>
-      ) : null}
-      {isCurrentPlan ? (
-        <span className="pw-card__selected-mark">
-          <Check aria-hidden="true" />
-          Current plan
         </span>
       ) : null}
     </>
@@ -165,7 +158,7 @@ export function WalletPlanCard({
       <article
         className={className}
         style={cardStyle}
-        aria-label={`${plan.name} plan, ${plan.price} / month${badgeLabel ? `, ${badgeLabel}` : ""}${isCurrentPlan ? ", current plan" : selected ? ", selected" : ""}`}
+        aria-label={`${plan.name} plan, ${plan.price} / month${badgeLabel ? `, ${badgeLabel}` : ""}${isCurrentPlan ? ", your current plan" : selected ? ", selected" : ""}`}
       >
         {content}
       </article>
@@ -182,7 +175,7 @@ export function WalletPlanCard({
       disabled={!selectable}
       aria-haspopup="dialog"
       aria-pressed={selected}
-      aria-label={`${plan.name} plan, ${plan.price} / month${badgeLabel ? `, ${badgeLabel}` : ""}${isCurrentPlan ? ", current plan" : selected ? ", selected" : ""}`}
+      aria-label={`${plan.name} plan, ${plan.price} / month${badgeLabel ? `, ${badgeLabel}` : ""}${isCurrentPlan ? ", your current plan" : selected ? ", selected" : ""}`}
       tabIndex={selectable ? 0 : -1}
     >
       {content}
@@ -322,6 +315,7 @@ export function PlanPopup({
   const bodyRef = useRef(null);
   const priceRef = useRef(null);
   const firstActionRef = useRef(null);
+  const viewOtherPlansRef = useRef(null);
   const [priceFlash, setPriceFlash] = useState(false);
   // Lock background scrolling for the popup's whole lifetime.
   useEffect(() => {
@@ -334,10 +328,13 @@ export function PlanPopup({
 
   // Move focus into the dialog once it is interactive.
   useEffect(() => {
-    if (status === WALLET_STATES.POPUP_OPEN) {
+    if (status !== WALLET_STATES.POPUP_OPEN) return;
+    if (isBillingCurrent) {
+      viewOtherPlansRef.current?.focus();
+    } else {
       firstActionRef.current?.focus();
     }
-  }, [status]);
+  }, [status, isBillingCurrent]);
 
   useEffect(() => {
     if (!priceFlash) return undefined;
@@ -375,18 +372,16 @@ export function PlanPopup({
 
   const primaryLabel = busy
     ? "Processing…"
-    : isBillingCurrent
-      ? "Current plan"
-      : isPlanSwitch
-        ? `Switch to ${plan.name}`
-        : isPayment
-          ? "Continue to checkout"
-          : isBilling
-            ? "Switch to this plan"
-            : "Select this plan";
+    : isPlanSwitch
+      ? `Switch to ${plan.name}`
+      : isPayment
+        ? "Continue to checkout"
+        : isBilling
+          ? "Switch to this plan"
+          : "Select this plan";
 
   const supportingText = isBillingCurrent
-    ? "This is your active Prelude mentorship tier. Use Compare plans below to review other tiers."
+    ? null
     : isPlanSwitch
       ? `You'll switch from ${currentPlanId === "plus" ? "Plus" : "Pro"} to ${plan.name} on your existing subscription. Stripe may apply a prorated charge or credit. Your billing cycle date stays the same.`
       : context === "payment" || (isDashboard && !currentPlanId)
@@ -414,7 +409,9 @@ export function PlanPopup({
           <div className="pw-popup__head-row">
             <h2 id={`pw-popup-title-${plan.id}`}>{plan.name}</h2>
             {badgeLabel ? <span className="pw-popup__badge">{badgeLabel}</span> : null}
-            {isBillingCurrent ? <span className="pw-popup__badge">Current plan</span> : null}
+            {isBillingCurrent ? (
+              <span className="pw-popup__badge pw-popup__badge--current">Current plan</span>
+            ) : null}
           </div>
           <p className="pw-popup__head-sub">{plan.tagline}</p>
         </header>
@@ -451,7 +448,7 @@ export function PlanPopup({
             </ul>
           </section>
 
-          <p className="pw-popup__supporting">{supportingText}</p>
+          {supportingText ? <p className="pw-popup__supporting">{supportingText}</p> : null}
 
           {notice ? (
             <p className="pw-popup__notice" role="status">
@@ -461,21 +458,33 @@ export function PlanPopup({
         </div>
 
         <footer className="pw-popup__actions">
-          <button
-            ref={firstActionRef}
-            type="button"
-            className="pw-popup__action pw-popup__action--primary"
-            onClick={onSelectPlan}
-            disabled={busy || isBillingCurrent}
-            aria-busy={busy}
-          >
-            {primaryLabel}
-          </button>
+          {isBillingCurrent ? (
+            <p className="pw-popup__action pw-popup__action--status" role="status">
+              Current plan
+            </p>
+          ) : (
+            <button
+              ref={firstActionRef}
+              type="button"
+              className="pw-popup__action pw-popup__action--primary"
+              onClick={onSelectPlan}
+              disabled={busy}
+              aria-busy={busy || undefined}
+            >
+              {primaryLabel}
+            </button>
+          )}
           <div className="pw-popup__actions-row">
             <button type="button" className="pw-popup__action" onClick={handleViewPrice} disabled={busy}>
               View price
             </button>
-            <button type="button" className="pw-popup__action" onClick={onViewOtherPlans} disabled={busy}>
+            <button
+              ref={viewOtherPlansRef}
+              type="button"
+              className="pw-popup__action"
+              onClick={onViewOtherPlans}
+              disabled={busy}
+            >
               View other plans
             </button>
           </div>

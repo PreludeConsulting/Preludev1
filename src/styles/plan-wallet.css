@@ -17,7 +17,8 @@
 
 .pw-wallet {
   --pw-width: min(28rem, 92vw);
-  --pw-radius: 1.6rem;
+  --pw-radius: 1.75rem;
+  --pw-card-radius: 1.25rem;
   --pw-card-h: 8.6rem;
   --pw-card-step: 5.9rem;
   --pw-pocket-h: 9.2rem;
@@ -110,7 +111,7 @@
   height: var(--pw-card-h);
   padding: 0.95rem 1.1rem;
   border: 1px solid rgb(17 24 64 / 0.14);
-  border-radius: 1.1rem;
+  border-radius: var(--pw-card-radius, 1.25rem);
   color: #11173d;
   text-align: left;
   cursor: pointer;
@@ -160,7 +161,7 @@
 }
 
 .pw-card--plus {
-  border-radius: 1.1rem;
+  border-radius: var(--pw-card-radius, 1.25rem);
   border-width: 1.5px;
   border-color: rgb(180 130 40 / 0.28);
   box-shadow:
@@ -185,7 +186,7 @@
 }
 
 .pw-card--pro {
-  border-radius: 1.22rem;
+  border-radius: var(--pw-card-radius, 1.25rem);
   border-width: 2px;
   border-color: rgb(120 106 255 / 0.38);
   box-shadow:
@@ -310,20 +311,11 @@
 }
 
 .pw-card__current-badge {
-  padding: 0.22rem 0.5rem;
-  border-radius: 999px;
-  background: rgb(32 120 72 / 0.12);
-  color: rgb(24 96 56);
-  font-size: 0.6rem;
-  font-weight: 850;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  transform: translateY(-0.1rem);
+  display: none;
 }
 
 .pw-card--current {
-  outline: 2px solid rgb(32 120 72 / 0.45);
-  outline-offset: 2px;
+  outline: none;
 }
 
 .pw-card__payment-type {
@@ -641,7 +633,7 @@
   max-height: min(38rem, calc(100dvh - 3rem));
   overflow: hidden;
   border: 1px solid rgb(17 24 64 / 0.12);
-  border-radius: 1.35rem;
+  border-radius: 1.6rem;
   background: linear-gradient(180deg, #ffffff 0%, #f8f7ff 100%);
   box-shadow:
     0 0.4rem 1rem rgb(17 24 64 / 0.1),
@@ -890,8 +882,12 @@
 
 .pw-popup__action:disabled {
   opacity: 0.62;
-  cursor: wait;
+  cursor: default;
   transform: none;
+}
+
+.pw-popup__action:disabled[aria-busy="true"] {
+  cursor: wait;
 }
 
 .pw-popup__action--primary {
@@ -904,6 +900,30 @@
 .pw-popup__action--primary:hover:not(:disabled) {
   border-color: transparent;
   background: hsl(var(--primary) / 0.92);
+}
+
+.pw-popup__action--status {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border-color: rgb(32 120 72 / 0.22);
+  background: rgb(32 120 72 / 0.08);
+  color: rgb(24 96 56);
+  box-shadow: none;
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pw-popup__action--status:hover {
+  transform: none;
+  border-color: rgb(32 120 72 / 0.22);
+  background: rgb(32 120 72 / 0.08);
+}
+
+.pw-popup__badge--current {
+  background: rgb(32 120 72 / 0.12);
+  color: rgb(24 96 56);
 }
 
 /* ------------------------------------------------------------------

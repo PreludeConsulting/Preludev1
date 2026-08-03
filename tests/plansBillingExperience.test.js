@@ -22,12 +22,20 @@ import { buildEssaySupportPath, getMonthlyOneOnOneLimit } from "../shared/mentor
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function readBillingPanel() {
+  return readFileSync(
+    join(__dirname, "../src/dashboard/components/settings/BillingMembershipPanel.jsx"),
+    "utf8"
+  );
+}
+
+function readPlanSelection() {
+  return readFileSync(join(__dirname, "../src/components/PlanSelectionPage.jsx"), "utf8");
+}
+
 describe("BillingMembershipPanel actions", () => {
   it("replaces Cancel membership and Update payment method with Manage billing", () => {
-    const source = readFileSync(
-      join(__dirname, "../src/dashboard/components/settings/BillingMembershipPanel.jsx"),
-      "utf8"
-    );
+    const source = readBillingPanel();
     expect(source).toContain("Manage billing");
     expect(source).toContain("openStripeCustomerPortal");
     expect(source).not.toMatch(/Cancel membership/);
@@ -36,6 +44,19 @@ describe("BillingMembershipPanel actions", () => {
     expect(source).toContain("Purchase Essay Support");
     expect(source).toContain("View plans");
     expect(source).toContain("Refresh");
+  });
+
+  it("does not render Automatic renewal, Available sessions, or Purchase history", () => {
+    const source = readBillingPanel();
+    expect(source).not.toMatch(/Automatic renewal/);
+    expect(source).not.toMatch(/Available sessions/);
+    expect(source).not.toMatch(/Purchase history/);
+    expect(source).not.toMatch(/No purchases yet/);
+    expect(source).not.toContain("fetchBillingHistory");
+    expect(source).toContain("fetchBillingSummary");
+    expect(source).toContain("membership.label");
+    expect(source).toContain("summary.plan?.name");
+    expect(source).toContain("summary.plan?.priceLabel");
   });
 });
 
@@ -48,16 +69,56 @@ describe("StudentBillingPlansPage back link", () => {
     expect(source).toContain("Back to Plans and Billing");
     expect(source).toContain("STUDENT_BILLING_PATH");
     expect(source).toContain('context="dashboard"');
+    expect(source).toContain("plans-flow__inner");
   });
 });
 
 describe("Dashboard plan switch avoids Payment Link for active subscribers", () => {
   it("uses changeMembershipPlan for Plus↔Pro switches", () => {
-    const source = readFileSync(join(__dirname, "../src/components/PlanSelectionPage.jsx"), "utf8");
+    const source = readPlanSelection();
     expect(source).toContain("handleChooseDashboard");
     expect(source).toContain("changeMembershipPlan");
     expect(source).toContain("activePaidPlanId");
     expect(source).toMatch(/never open a second Payment Link/);
+  });
+});
+
+describe("Current-plan wallet and modal presentation", () => {
+  it("does not show CURRENT PLAN badge on the compact wallet card", () => {
+    const source = readPlanSelection();
+    expect(source).not.toContain("pw-card__current-badge");
+    expect(source).toContain("pw-popup__badge--current");
+    expect(source).toContain('role="status"');
+    expect(source).toContain("pw-popup__action--status");
+  });
+
+  it("keeps current-plan cards clickable and status control non-interactive", () => {
+    const source = readPlanSelection();
+    expect(source).toContain("isCurrentPlan={isDashboardContext && activePaidPlanId === plan.id}");
+    expect(source).toContain("onClick={() => onSelect(plan.id)}");
+    expect(source).toContain("pw-popup__action--status");
+    expect(source).not.toMatch(/disabled=\{busy \|\| isBillingCurrent\}/);
+  });
+
+  it("does not attach checkout handler to the Current plan status", () => {
+    const source = readPlanSelection();
+    const statusIdx = source.indexOf("pw-popup__action--status");
+    expect(statusIdx).toBeGreaterThan(-1);
+    const nearby = source.slice(statusIdx - 120, statusIdx + 180);
+    expect(nearby).toContain("Current plan");
+    expect(nearby).not.toContain("onClick={onSelectPlan}");
+  });
+});
+
+describe("Rounded plan-selection surface", () => {
+  it("defines a rounded plans-flow surface", () => {
+    const css = readFileSync(join(__dirname, "../src/landing-ui.css"), "utf8");
+    expect(css).toContain("--plans-surface-radius");
+    expect(css).toMatch(/\.plans-flow__inner[\s\S]*border-radius:\s*var\(--plans-surface-radius\)/);
+    const walletCss = readFileSync(join(__dirname, "../src/styles/plan-wallet.css"), "utf8");
+    expect(walletCss).toContain("--pw-card-radius");
+    expect(walletCss).toContain("pw-popup__action--status");
+    expect(walletCss).toMatch(/\.pw-popup__action:disabled[\s\S]*cursor:\s*default/);
   });
 });
 
