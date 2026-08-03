@@ -26,6 +26,11 @@ import {
 import { fetchBillingSummary } from "../lib/billingMembership.js";
 import { useSubscription } from "../context/SubscriptionContext.jsx";
 import {
+  formatBillingDate,
+  hasActiveProEntitlement,
+  PLUS_BLOCKED_BY_PRO_MESSAGE
+} from "../../shared/billingMembership.js";
+import {
   WALLET_STATES,
   cardsSelectable,
   createWalletState,
@@ -291,9 +296,11 @@ export function PlanPopup({
   notice,
   context = "public",
   currentPlanId = null,
+  proEntitlementEndsAt = null,
   dialogRef,
   backdropRef,
   onSelectPlan,
+  onManageSubscription,
   onViewOtherPlans,
   onRequestClose
 }) {
@@ -304,11 +311,11 @@ export function PlanPopup({
   const isBillingCurrent =
     context === "billing-current" ||
     (isDashboard && currentPlanId && currentPlanId === plan.id);
-  const isPlanSwitch =
-    isDashboard &&
-    currentPlanId &&
-    (currentPlanId === "plus" || currentPlanId === "pro") &&
-    plan.id !== currentPlanId;
+  const isPlusBlockedByPro =
+    isDashboard && currentPlanId === "pro" && plan.id === "plus";
+  const isPlusToProUpgrade =
+    isDashboard && currentPlanId === "plus" && plan.id === "pro";
+  const isPlanSwitch = isPlusToProUpgrade;
   const bodyRef = useRef(null);
   const priceRef = useRef(null);
   const firstActionRef = useRef(null);
@@ -369,23 +376,29 @@ export function PlanPopup({
 
   const primaryLabel = busy
     ? "Processing…"
-    : isPlanSwitch
-      ? "Continue to checkout"
-      : isPayment
+    : isPlusBlockedByPro
+      ? "Plus unavailable"
+      : isPlanSwitch
         ? "Continue to checkout"
-        : isBilling
-          ? "Switch to this plan"
-          : "Select this plan";
+        : isPayment
+          ? "Continue to checkout"
+          : isBilling
+            ? "Switch to this plan"
+            : "Select this plan";
 
   const supportingText = isBillingCurrent
     ? null
-    : isPlanSwitch
-      ? `You'll be redirected to Stripe's billing portal to confirm switching from ${currentPlanId === "plus" ? "Plus" : "Pro"} to ${plan.name}. Your Prelude account stays on ${currentPlanId === "plus" ? "Plus" : "Pro"} until Stripe confirms the change.`
-      : context === "payment" || (isDashboard && !currentPlanId)
-        ? "You'll be redirected to Stripe's secure payment portal. Your account activates after payment is confirmed."
-        : isBilling
-          ? "You'll be redirected to Stripe to confirm your plan change. Your new rate applies on your next billing cycle."
-          : "Billing is not charged during this step.";
+    : isPlusBlockedByPro
+      ? PLUS_BLOCKED_BY_PRO_MESSAGE
+      : isPlanSwitch
+        ? "You'll be redirected to Stripe to confirm your Plus to Pro upgrade. Your Prelude account stays on Plus until Stripe confirms payment."
+        : context === "payment" || (isDashboard && !currentPlanId)
+          ? "You'll be redirected to Stripe's secure payment portal. Your account activates after payment is confirmed."
+          : isBilling
+            ? "You'll be redirected to Stripe to confirm your plan change. Your new rate applies on your next billing cycle."
+            : "Billing is not charged during this step.";
+
+  const proEndLabel = proEntitlementEndsAt ? formatBillingDate(proEntitlementEndsAt) : null;
 
   return (
     <div className="pw-popup-layer" onKeyDown={handleKeyDown}>
@@ -446,6 +459,11 @@ export function PlanPopup({
           </section>
 
           {supportingText ? <p className="pw-popup__supporting">{supportingText}</p> : null}
+          {isPlusBlockedByPro && proEndLabel ? (
+            <p className="pw-popup__supporting" role="status">
+              Your Pro subscription remains active through {proEndLabel}.
+            </p>
+          ) : null}
 
           {notice ? (
             <p className="pw-popup__notice" role="status">
@@ -459,6 +477,17 @@ export function PlanPopup({
             <p className="pw-popup__action pw-popup__action--status" role="status">
               Current plan
             </p>
+          ) : isPlusBlockedByPro ? (
+            <button
+              ref={firstActionRef}
+              type="button"
+              className="pw-popup__action pw-popup__action--primary"
+              onClick={() => onManageSubscription?.()}
+              disabled={busy}
+              aria-busy={busy || undefined}
+            >
+              Manage subscription
+            </button>
           ) : (
             <button
               ref={firstActionRef}
@@ -523,6 +552,8 @@ export function PlanWalletExperience({
     const planId = String(user?.plan || "").toLowerCase();
     return planId === "plus" || planId === "pro" ? planId : null;
   });
+  const [proEntitlementEndsAt, setProEntitlementEndsAt] = useState(null);
+  const [proCancelAtPeriodEnd, setProCancelAtPeriodEnd] = useState(false);
 
   useEffect(() => {
     if (!isDashboardContext || !user?.id) return undefined;
@@ -534,6 +565,17 @@ export function PlanWalletExperience({
         const accessActive = Boolean(summary?.membership?.accessActive);
         const paid = (planId === "plus" || planId === "pro") && accessActive;
         setActivePaidPlanId(paid ? planId : null);
+        setProEntitlementEndsAt(
+          planId === "pro" && accessActive
+            ? summary?.membership?.entitlementEndsAt ||
+                summary?.membership?.endsAt ||
+                summary?.membership?.currentPeriodEnd ||
+                null
+            : null
+        );
+        setProCancelAtPeriodEnd(
+          planId === "pro" && Boolean(summary?.membership?.cancelAtPeriodEnd)
+        );
       })
       .catch(() => {
         if (cancelled) return;
@@ -953,6 +995,30 @@ export function PlanWalletExperience({
     }
   }
 
+  async function handleManageSubscription() {
+    setNotice("");
+    setBusyPlan("portal");
+    let redirected = false;
+    try {
+      const result = await openBillingPortal();
+      const url = result?.url;
+      if (!url) {
+        setNotice(result?.message || "No billing profile exists for this account yet.");
+        return;
+      }
+      window.location.assign(url);
+      redirected = true;
+    } catch (error) {
+      setNotice(
+        error.payload?.message ||
+          error.message ||
+          "We couldn’t open your billing settings. Please try again."
+      );
+    } finally {
+      if (!redirected) setBusyPlan(null);
+    }
+  }
+
   async function handleChooseDashboard(plan) {
     setNotice("");
     if (busyPlan) return;
@@ -961,12 +1027,26 @@ export function PlanWalletExperience({
       return;
     }
 
+    // Pro users cannot buy or switch to Plus while Pro entitlement is active.
+    if (
+      plan.id === "plus" &&
+      hasActiveProEntitlement({
+        planId: activePaidPlanId,
+        subscriptionStatus: proCancelAtPeriodEnd ? "active" : user?.subscriptionStatus,
+        cancelAtPeriodEnd: proCancelAtPeriodEnd,
+        entitlementEndsAt: proEntitlementEndsAt,
+        currentPeriodEnd: proEntitlementEndsAt
+      })
+    ) {
+      setNotice(PLUS_BLOCKED_BY_PRO_MESSAGE);
+      return;
+    }
+
     setBusyPlan(plan.id);
     let redirected = false;
     try {
-      if (activePaidPlanId && activePaidPlanId !== plan.id) {
-        // Existing Plus/Pro subscribers must confirm changes in Stripe.
-        // Never mutate Prelude plan_id / credits / features before payment webhooks.
+      if (activePaidPlanId === "plus" && plan.id === "pro") {
+        // Plus→Pro upgrade confirms in Stripe Billing Portal.
         const result = await openBillingPortal();
         const url = result?.url;
         if (!url) {
@@ -975,6 +1055,11 @@ export function PlanWalletExperience({
         }
         window.location.assign(url);
         redirected = true;
+        return;
+      }
+
+      if (activePaidPlanId && activePaidPlanId !== plan.id) {
+        setNotice(PLUS_BLOCKED_BY_PRO_MESSAGE);
         return;
       }
 
@@ -991,6 +1076,8 @@ export function PlanWalletExperience({
     } catch (error) {
       if (error.code === "missing_checkout_identity") {
         setNotice(error.message);
+      } else if (error.payload?.error === "downgrade_not_allowed") {
+        setNotice(error.payload?.message || PLUS_BLOCKED_BY_PRO_MESSAGE);
       } else if (error.payload?.error === "billing_customer_missing") {
         setNotice(error.payload?.message || "No billing profile exists for this account yet.");
       } else if (error.payload?.error === "billing_not_configured") {
@@ -1157,13 +1244,15 @@ export function PlanWalletExperience({
           plan={popupPlan}
           language={preferredLanguage}
           status={state.status}
-          busy={busyPlan === popupPlan.id}
+          busy={busyPlan === popupPlan.id || busyPlan === "portal"}
           notice={notice}
           context={context}
           currentPlanId={isDashboardContext ? activePaidPlanId : null}
+          proEntitlementEndsAt={isDashboardContext ? proEntitlementEndsAt : null}
           dialogRef={popupRef}
           backdropRef={backdropRef}
           onSelectPlan={handleSelectPlanAction}
+          onManageSubscription={handleManageSubscription}
           onViewOtherPlans={handleViewOtherPlans}
           onRequestClose={handleViewOtherPlans}
         />

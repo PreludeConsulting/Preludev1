@@ -75,13 +75,13 @@ describe("StudentBillingPlansPage back link", () => {
 });
 
 describe("Dashboard plan switch opens Stripe without optimistic entitlement", () => {
-  it("redirects existing subscribers to Billing Portal instead of mutating plan", () => {
+  it("redirects Plus upgrades to Billing Portal and blocks Pro→Plus", () => {
     const source = readPlanSelection();
     expect(source).toContain("handleChooseDashboard");
     expect(source).toContain("openBillingPortal");
     expect(source).toContain("activePaidPlanId");
     expect(source).not.toContain("changeMembershipPlan");
-    expect(source).toMatch(/Never mutate Prelude plan_id/);
+    expect(source).toContain("PLUS_BLOCKED_BY_PRO_MESSAGE");
     expect(source).toContain("window.location.assign(url)");
   });
 
@@ -94,6 +94,7 @@ describe("Dashboard plan switch opens Stripe without optimistic entitlement", ()
     expect(body).not.toContain("refreshUser");
     expect(body).toContain("openBillingPortal");
     expect(body).toContain("startOnboardingBillingCheckout");
+    expect(body).toContain("PLUS_BLOCKED_BY_PRO_MESSAGE");
   });
 });
 

@@ -69,7 +69,7 @@ describe("Membership entitlement states", () => {
     const end = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString();
     const dto = buildSubscriptionEntitlement({
       planId: "pro",
-      pendingPlanId: "plus",
+      pendingPlanId: "pro",
       subscriptionStatus: "active",
       cancelAtPeriodEnd: false,
       billingPeriodEnd: end,
@@ -79,8 +79,8 @@ describe("Membership entitlement states", () => {
     });
     expect(dto.isActive).toBe(true);
     expect(dto.activePlan).toBe("PRO");
-    expect(dto.pendingPlan).toBe("PLUS");
-    expect(dto.downgradeScheduled).toBe(true);
+    expect(dto.pendingPlan).toBe("PRO");
+    expect(dto.downgradeScheduled).toBe(false);
     expect(dto.sessionCreditsRemaining).toBe(4);
   });
 

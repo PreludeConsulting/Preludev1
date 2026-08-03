@@ -22,6 +22,7 @@ describe("No optimistic entitlement on checkout click", () => {
     expect(body).toContain("window.location.assign");
     expect(body).not.toContain("changeMembershipPlan");
     expect(body).not.toContain("saveUserPlan");
+    expect(body).toContain("PLUS_BLOCKED_BY_PRO_MESSAGE");
     expect(body).not.toContain("reconcileActiveSessionPeriodForPlanChange");
     expect(body).not.toMatch(/profiles.*update|\.from\(["']profiles["']\)/);
   });
@@ -41,10 +42,11 @@ describe("No optimistic entitlement on checkout click", () => {
   it("change-plan API keeps current plan until webhook for upgrades", () => {
     const node = read("server/lib/billingMembership.js");
     const cf = read("functions/_lib/billingMembershipApi.js");
-    expect(node).toContain("Never grant Pro/Plus entitlement");
-    expect(cf).toContain("Never grant Pro/Plus entitlement");
+    expect(node).toContain("Keep Plus until Stripe confirms the paid upgrade");
+    expect(cf).toContain("Never grant Pro entitlement here");
     expect(node).toMatch(/plan_id:\s*currentPlan/);
     expect(cf).toMatch(/plan_id:\s*currentPlan/);
+    expect(node).toContain("downgrade_not_allowed");
     expect(node).not.toMatch(/reconcileActiveSessionPeriodForPlanChange\(subscriber\.id,\s*targetPlan/);
   });
 

@@ -184,12 +184,18 @@ export function deriveMembershipStatus({
   };
 }
 
-export function membershipAccessExplanation(statusInfo, { sessionBalance = 0, subscriptionCreditsRemaining = 0 } = {}) {
+export function membershipAccessExplanation(
+  statusInfo,
+  { sessionBalance = 0, subscriptionCreditsRemaining = 0, planId = null } = {}
+) {
   if (statusInfo.key === "cancels_at_period_end" && statusInfo.endsAt) {
     const creditsNote =
       subscriptionCreditsRemaining > 0
         ? " You may continue using your remaining session credits until then."
         : "";
+    if (String(planId || "").toLowerCase() === "pro") {
+      return `Your Pro subscription is scheduled to end on ${formatBillingDate(statusInfo.endsAt)}. You will keep Pro access until then.${creditsNote}`;
+    }
     return `Your subscription is scheduled to end on ${formatBillingDate(statusInfo.endsAt)}.${creditsNote}`;
   }
   if (statusInfo.key === "active" && statusInfo.renewsAt) {
@@ -208,6 +214,32 @@ export function membershipAccessExplanation(statusInfo, { sessionBalance = 0, su
     return `Your monthly membership is inactive, but you still have ${sessionBalance} purchased session${sessionBalance === 1 ? "" : "s"} available.`;
   }
   return "Your membership is inactive.";
+}
+
+export const PLUS_BLOCKED_BY_PRO_MESSAGE =
+  "To switch to Plus, cancel your current Pro subscription first. Your Pro access will remain active until the end of your current billing period. Once it expires, you can subscribe to Plus.";
+
+/**
+ * True when the student still has paid Pro access (including cancel_at_period_end
+ * while entitlementEndsAt / period end is in the future).
+ */
+export function hasActiveProEntitlement({
+  planId,
+  subscriptionStatus = null,
+  cancelAtPeriodEnd = false,
+  currentPeriodEnd = null,
+  entitlementEndsAt = null,
+  now = new Date()
+} = {}) {
+  if (String(planId || "").toLowerCase() !== "pro") return false;
+  const statusInfo = deriveMembershipStatus({
+    planId: "pro",
+    subscriptionStatus,
+    cancelAtPeriodEnd,
+    currentPeriodEnd: entitlementEndsAt || currentPeriodEnd,
+    now
+  });
+  return Boolean(statusInfo.accessActive);
 }
 
 /**
@@ -248,7 +280,7 @@ export function buildSubscriptionEntitlement({
     subscriptionStatus: subscriptionStatus || null,
     isActive: paidPlanActive,
     cancelAtPeriodEnd: Boolean(cancelAtPeriodEnd),
-    downgradeScheduled: Boolean(pendingPlan && paidPlanActive && pendingPlan !== activePlan),
+    downgradeScheduled: false,
     cancellationScheduled: Boolean(cancelAtPeriodEnd && paidPlanActive),
     billingPeriodStart: billingPeriodStart || null,
     billingPeriodEnd: billingPeriodEnd || null,

@@ -61,7 +61,7 @@ import {
   recordPurchaseFromInvoice,
   resolveBillingContext
 } from "./lib/billingMembership.js";
-import { logBillingEvent } from "../shared/billingMembership.js";
+import { logBillingEvent, hasActiveProEntitlement, PLUS_BLOCKED_BY_PRO_MESSAGE } from "../shared/billingMembership.js";
 
 const checkoutSchema = z.object({
   planId: z.enum(["plus", "pro"]),
@@ -279,6 +279,33 @@ async function handleCheckout(req, res) {
   }
 
   const authUser = await resolveCheckoutAuth(req, payload);
+  if (authUser && payload.planId === "plus") {
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select(
+          "plan_id, subscription_status, subscription_cancel_at_period_end, subscription_current_period_end, entitlement_ends_at"
+        )
+        .eq("id", authUser.userId)
+        .maybeSingle();
+      if (
+        profile &&
+        hasActiveProEntitlement({
+          planId: profile.plan_id,
+          subscriptionStatus: profile.subscription_status,
+          cancelAtPeriodEnd: Boolean(profile.subscription_cancel_at_period_end),
+          currentPeriodEnd: profile.subscription_current_period_end,
+          entitlementEndsAt: profile.entitlement_ends_at
+        })
+      ) {
+        return sendJson(res, 409, {
+          error: "downgrade_not_allowed",
+          message: PLUS_BLOCKED_BY_PRO_MESSAGE
+        });
+      }
+    }
+  }
   const priceId = getPlanPriceId(payload.planId, config);
   if (!priceId) return sendJson(res, 400, { error: "invalid_plan", message: "That paid plan is not available." });
 

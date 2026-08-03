@@ -9,7 +9,9 @@ import {
   deriveMembershipStatus,
   formatMoneyCents,
   membershipAccessExplanation,
-  buildSubscriptionEntitlement
+  buildSubscriptionEntitlement,
+  hasActiveProEntitlement,
+  PLUS_BLOCKED_BY_PRO_MESSAGE
 } from "../../shared/billingMembership.js";
 import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
 import { evaluateMentorAccess, sumPackageRemaining } from "../../shared/mentorAccess.js";
@@ -359,7 +361,8 @@ export async function handleBillingSummary(context) {
         hasCustomer: Boolean(sub.stripe_customer_id || ctx.viewer.stripe_customer_id),
         explanation: membershipAccessExplanation(statusInfo, {
           sessionBalance,
-          subscriptionCreditsRemaining
+          subscriptionCreditsRemaining,
+          planId
         }),
         actions: {
           cancel: canCancelMembership(statusInfo) && ctx.canManage,
@@ -855,7 +858,19 @@ export async function handleBillingChangePlan(context) {
     }
 
     const isUpgrade = currentPlan === "plus" && targetPlan === "pro";
-    const isDowngrade = currentPlan === "pro" && targetPlan === "plus";
+    if (currentPlan === "pro" && targetPlan === "plus") {
+      return json(
+        {
+          error: "downgrade_not_allowed",
+          message: PLUS_BLOCKED_BY_PRO_MESSAGE
+        },
+        409
+      );
+    }
+    if (!isUpgrade) {
+      return json({ error: "invalid_plan_change", message: "That plan change is not supported." }, 400);
+    }
+
     const periodEndIso = subscription.current_period_end
       ? new Date(subscription.current_period_end * 1000).toISOString()
       : ctx.subscriber.subscription_current_period_end || null;
@@ -864,18 +879,14 @@ export async function handleBillingChangePlan(context) {
     params.set("items[0][id]", recurringItem.id);
     params.set("items[0][price]", targetPriceId);
     params.set("items[0][quantity]", "1");
-    params.set("proration_behavior", isDowngrade ? "none" : "create_prorations");
+    params.set("proration_behavior", "create_prorations");
     params.set("metadata[planId]", targetPlan);
     params.set("metadata[userId]", ctx.subscriber.id);
     params.set("metadata[previousPlanId]", currentPlan);
-    params.set("metadata[pendingPlanId]", isDowngrade ? targetPlan : "");
-    params.set("metadata[deferDowngrade]", isDowngrade ? "true" : "false");
-    if (isDowngrade && periodEndIso) {
-      params.set("metadata[deferUntil]", periodEndIso);
-    } else {
-      params.set("metadata[deferUntil]", "");
-    }
-    params.set("metadata[pendingUpgrade]", isUpgrade ? "true" : "");
+    params.set("metadata[pendingPlanId]", targetPlan);
+    params.set("metadata[pendingUpgrade]", "true");
+    params.set("metadata[deferDowngrade]", "");
+    params.set("metadata[deferUntil]", "");
 
     await stripeRequest(
       context,
@@ -884,40 +895,25 @@ export async function handleBillingChangePlan(context) {
       params
     );
 
-    // Never grant Pro/Plus entitlement or reset credits here — webhooks only.
-    if (isDowngrade) {
-      await adminRest(context, `profiles?id=eq.${encodeURIComponent(ctx.subscriber.id)}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          plan_id: currentPlan,
-          pending_plan_id: targetPlan,
-          stripe_price_id: targetPriceId,
-          entitlement_ends_at: periodEndIso
-        }),
-        headers: { Prefer: "return=minimal" }
-      });
-    } else if (isUpgrade) {
-      await adminRest(context, `profiles?id=eq.${encodeURIComponent(ctx.subscriber.id)}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          plan_id: currentPlan,
-          pending_plan_id: targetPlan,
-          stripe_price_id: targetPriceId,
-          entitlement_ends_at: periodEndIso
-        }),
-        headers: { Prefer: "return=minimal" }
-      });
-    }
+    // Never grant Pro entitlement here — webhooks only.
+    await adminRest(context, `profiles?id=eq.${encodeURIComponent(ctx.subscriber.id)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        plan_id: currentPlan,
+        pending_plan_id: targetPlan,
+        stripe_price_id: targetPriceId,
+        entitlement_ends_at: periodEndIso
+      }),
+      headers: { Prefer: "return=minimal" }
+    });
 
     return json({
       ok: true,
       processing: true,
       fromPlan: currentPlan,
       targetPlan,
-      deferred: isDowngrade || isUpgrade,
-      message: isDowngrade
-        ? "Your downgrade is scheduled for the end of the current billing period. Pro access remains active until then."
-        : "Confirm the upgrade in Stripe. Your Prelude plan stays unchanged until payment succeeds."
+      deferred: false,
+      message: "Confirm the upgrade in Stripe. Your Prelude plan stays unchanged until payment succeeds."
     });
   } catch (error) {
     if (!error.status && !error.statusCode) {

@@ -109,10 +109,7 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
         : null
     });
     try {
-      const deferDowngrade =
-        String(subscription.metadata?.deferDowngrade || "").toLowerCase() === "true";
-      // Only reconcile credits after a paid confirmation (invoice.paid) or non-upgrade updates.
-      if (!deferDowngrade && paymentConfirmed) {
+      if (paymentConfirmed) {
         await reconcileActiveSessionPeriodForPlanChange(userId, planId);
       }
     } catch (error) {

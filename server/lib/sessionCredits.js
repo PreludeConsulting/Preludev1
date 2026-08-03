@@ -157,9 +157,9 @@ export async function getSessionCreditSummary(studentUserId, { now = new Date() 
 }
 
 /**
- * Mid-cycle Plus↔Pro switch.
+ * Mid-cycle Plus→Pro switch.
  * Plus→Pro upgrade: reset remaining to the full Pro allowance (do not preserve Plus balance).
- * Pro→Plus downgrade: keep usage clamped to the new allowance (or skip when entitlement is deferred).
+ * Pro→Plus is not supported as a direct plan change.
  * Does not touch Essay Support / review credits.
  */
 export async function reconcileActiveSessionPeriodForPlanChange(

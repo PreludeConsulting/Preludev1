@@ -10,7 +10,9 @@ import {
   formatMoneyCents,
   logBillingEvent,
   membershipAccessExplanation,
-  buildSubscriptionEntitlement
+  buildSubscriptionEntitlement,
+  hasActiveProEntitlement,
+  PLUS_BLOCKED_BY_PRO_MESSAGE
 } from "../../shared/billingMembership.js";
 import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
 import {
@@ -199,7 +201,8 @@ export async function getBillingSummary(userId) {
       hasCustomer,
       explanation: membershipAccessExplanation(statusInfo, {
         sessionBalance,
-        subscriptionCreditsRemaining
+        subscriptionCreditsRemaining,
+        planId
       }),
       actions: {
         cancel: canCancelMembership(statusInfo) && ctx.canManage,
@@ -625,53 +628,49 @@ export async function changeMembershipPlan(userId, targetPlanRaw, { stripe, getP
   }
 
   const isUpgrade = currentPlan === "plus" && targetPlan === "pro";
-  const isDowngrade = currentPlan === "pro" && targetPlan === "plus";
+  if (currentPlan === "pro" && targetPlan === "plus") {
+    const err = new Error(PLUS_BLOCKED_BY_PRO_MESSAGE);
+    err.statusCode = 409;
+    err.code = "downgrade_not_allowed";
+    throw err;
+  }
+  if (!isUpgrade) {
+    const err = new Error("That plan change is not supported.");
+    err.statusCode = 400;
+    err.code = "invalid_plan_change";
+    throw err;
+  }
+
   const periodEndIso = subscription.current_period_end
     ? new Date(subscription.current_period_end * 1000).toISOString()
     : subscriber.subscription_current_period_end || null;
 
   await stripe.subscriptions.update(subscriptionId, {
     items: [{ id: recurringItem.id, price: targetPriceId, quantity: 1 }],
-    proration_behavior: isDowngrade ? "none" : "create_prorations",
+    proration_behavior: "create_prorations",
     metadata: {
       ...(subscription.metadata || {}),
       planId: targetPlan,
       userId: subscriber.id,
       previousPlanId: currentPlan,
-      pendingPlanId: isDowngrade ? targetPlan : "",
-      deferDowngrade: isDowngrade ? "true" : "false",
-      deferUntil: isDowngrade && periodEndIso ? periodEndIso : "",
-      // Upgrades must not unlock Prelude access until invoice.paid webhook.
-      pendingUpgrade: isUpgrade ? "true" : ""
+      pendingPlanId: targetPlan,
+      pendingUpgrade: "true",
+      deferDowngrade: "",
+      deferUntil: ""
     }
   });
 
-  // Never grant Pro/Plus entitlement or reset credits here.
-  // Webhooks are the only authority for activePlan / session credits.
+  // Keep Plus until Stripe confirms the paid upgrade via webhook.
   const supabase = admin();
-  if (isDowngrade) {
-    await supabase
-      .from("profiles")
-      .update({
-        // Keep Pro active through the paid period.
-        plan_id: currentPlan,
-        pending_plan_id: targetPlan,
-        stripe_price_id: targetPriceId,
-        entitlement_ends_at: periodEndIso
-      })
-      .eq("id", subscriber.id);
-  } else if (isUpgrade) {
-    await supabase
-      .from("profiles")
-      .update({
-        // Keep Plus until Stripe confirms the paid upgrade.
-        plan_id: currentPlan,
-        pending_plan_id: targetPlan,
-        stripe_price_id: targetPriceId,
-        entitlement_ends_at: periodEndIso
-      })
-      .eq("id", subscriber.id);
-  }
+  await supabase
+    .from("profiles")
+    .update({
+      plan_id: currentPlan,
+      pending_plan_id: targetPlan,
+      stripe_price_id: targetPriceId,
+      entitlement_ends_at: periodEndIso
+    })
+    .eq("id", subscriber.id);
 
   logBillingEvent("plan_change_requested", {
     userId,
@@ -679,7 +678,7 @@ export async function changeMembershipPlan(userId, targetPlanRaw, { stripe, getP
     subscriptionId,
     fromPlan: currentPlan,
     toPlan: targetPlan,
-    deferred: isDowngrade,
+    deferred: false,
     entitlementDeferred: true
   });
 
@@ -688,10 +687,8 @@ export async function changeMembershipPlan(userId, targetPlanRaw, { stripe, getP
     processing: true,
     fromPlan: currentPlan,
     targetPlan,
-    deferred: isDowngrade || isUpgrade,
-    message: isDowngrade
-      ? "Your downgrade is scheduled for the end of the current billing period. Pro access remains active until then."
-      : "Confirm the upgrade in Stripe. Your Prelude plan stays unchanged until payment succeeds."
+    deferred: false,
+    message: "Confirm the upgrade in Stripe. Your Prelude plan stays unchanged until payment succeeds."
   };
 }
 
@@ -715,30 +712,20 @@ export async function persistSubscriptionFields(userId, subscription, planId = n
   const priceId =
     typeof recurring?.price === "string" ? recurring.price : recurring?.price?.id || null;
 
-  const deferDowngrade =
-    String(subscription.metadata?.deferDowngrade || "").toLowerCase() === "true" ||
-    String(extras.pendingPlanId || subscription.metadata?.pendingPlanId || "").toLowerCase() === "plus";
   const pendingFromMeta = String(
     extras.pendingPlanId ?? subscription.metadata?.pendingPlanId ?? ""
   ).toLowerCase();
-  const pendingPlanId =
-    pendingFromMeta === "plus" || pendingFromMeta === "pro" ? pendingFromMeta : null;
-  const deferUntilRaw = subscription.metadata?.deferUntil || null;
-  const deferUntilMs = deferUntilRaw ? new Date(deferUntilRaw).getTime() : NaN;
+  // Only Plus→Pro pending upgrades are tracked — Pro→Plus downgrades are not supported.
+  const pendingPlanId = pendingFromMeta === "pro" ? "pro" : null;
+  const pendingUpgrade =
+    String(subscription.metadata?.pendingUpgrade || "").toLowerCase() === "true" ||
+    pendingPlanId === "pro";
 
   let activePlanId = active && resolvedPlan ? resolvedPlan : null;
-  let stillDeferred = false;
-  if (
-    active &&
-    deferDowngrade &&
-    String(resolvedPlan).toLowerCase() === "plus" &&
-    String(subscription.metadata?.previousPlanId || "").toLowerCase() === "pro"
-  ) {
-    stillDeferred =
-      (Number.isFinite(deferUntilMs) && deferUntilMs > Date.now()) ||
-      (!Number.isFinite(deferUntilMs) && periodEnd && new Date(periodEnd).getTime() > Date.now());
-    if (stillDeferred) {
-      activePlanId = "pro";
+  if (active && pendingUpgrade && String(resolvedPlan).toLowerCase() === "pro") {
+    // Price may already be Pro while payment is outstanding — keep Plus until invoice.paid.
+    if (String(subscription.metadata?.previousPlanId || "").toLowerCase() === "plus") {
+      activePlanId = "plus";
     }
   }
 
@@ -755,14 +742,14 @@ export async function persistSubscriptionFields(userId, subscription, planId = n
         : null,
     entitlement_ends_at: periodEnd,
     ...(priceId ? { stripe_price_id: priceId } : {}),
-    pending_plan_id: stillDeferred ? pendingPlanId || "plus" : active ? null : pendingPlanId
+    pending_plan_id: active && pendingUpgrade && activePlanId === "plus" ? "pro" : active ? null : pendingPlanId
   };
   if (typeof subscription.customer === "string") {
     patch.stripe_customer_id = subscription.customer;
   } else if (subscription.customer?.id) {
     patch.stripe_customer_id = subscription.customer.id;
   }
-  if (activePlanId && (active || deferDowngrade)) patch.plan_id = activePlanId;
+  if (activePlanId && active) patch.plan_id = activePlanId;
   if (!active && status && ["canceled", "unpaid", "incomplete_expired"].includes(status)) {
     if (periodEnd && new Date(periodEnd).getTime() <= Date.now()) {
       patch.plan_id = "basic";

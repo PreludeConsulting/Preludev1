@@ -205,11 +205,11 @@ export default function BillingMembershipPanel({
             ) : null}
 
             <p className="dash-muted dash-billing-membership__explanation">{membership.explanation}</p>
-            {membership.pendingPlanId ? (
+            {membership.pendingPlanId === "pro" ? (
               <p className="dash-muted">
-                Scheduled change to {String(membership.pendingPlanId).replace(/^\w/, (c) => c.toUpperCase())}
+                Upgrade to Pro is pending payment confirmation
                 {membership.entitlementEndsAt || membership.endsAt
-                  ? ` on ${formatBillingDate(membership.entitlementEndsAt || membership.endsAt)}`
+                  ? ` (current period through ${formatBillingDate(membership.entitlementEndsAt || membership.endsAt)})`
                   : ""}
                 .
               </p>

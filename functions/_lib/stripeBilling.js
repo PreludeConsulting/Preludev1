@@ -9,6 +9,10 @@ import {
   enrichCheckoutSessionFromPaymentLink,
   isCheckoutPaymentSuccessful
 } from "../../shared/stripePaymentLinks.js";
+import {
+  hasActiveProEntitlement,
+  PLUS_BLOCKED_BY_PRO_MESSAGE
+} from "../../shared/billingMembership.js";
 
 const PAID_PLAN_IDS = ["basic", "plus", "pro"];
 const PURCHASABLE_PLAN_IDS = ["plus", "pro"];
@@ -366,30 +370,12 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
   const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
   const priceId = resolveSubscriptionPriceId(subscription);
 
-  // Preserve Pro access through the paid period when a Plus downgrade is scheduled.
+  // Preserve Pro access through cancel_at_period_end; never schedule Pro→Plus downgrades.
   let activePlanId = active ? planId : null;
   let pendingPlanId = null;
   const metadataPending = String(subscription.metadata?.pendingPlanId || "").toLowerCase();
-  if (metadataPending === "plus" || metadataPending === "pro") {
-    pendingPlanId = metadataPending;
-  }
-  const deferDowngrade =
-    String(subscription.metadata?.deferDowngrade || "").toLowerCase() === "true" &&
-    String(subscription.metadata?.previousPlanId || "").toLowerCase() === "pro" &&
-    planId === "plus";
-  const deferUntilRaw = subscription.metadata?.deferUntil || null;
-  const deferUntilMs = deferUntilRaw ? new Date(deferUntilRaw).getTime() : NaN;
-  if (active && deferDowngrade) {
-    const stillDeferred =
-      (Number.isFinite(deferUntilMs) && deferUntilMs > Date.now()) ||
-      (!Number.isFinite(deferUntilMs) && periodEnd && new Date(periodEnd).getTime() > Date.now());
-    if (stillDeferred) {
-      activePlanId = "pro";
-      pendingPlanId = "plus";
-    } else {
-      activePlanId = "plus";
-      pendingPlanId = null;
-    }
+  if (metadataPending === "pro") {
+    pendingPlanId = "pro";
   }
 
   // Plus→Pro price change must not unlock Pro until a paid invoice confirms it.
@@ -403,6 +389,17 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
   if (active && planId === "pro" && paymentConfirmed) {
     activePlanId = "pro";
     pendingPlanId = null;
+  }
+
+  // Canceled but still within paid Pro window — keep Pro entitlement.
+  if (
+    !active &&
+    priorPlanId === "pro" &&
+    periodEnd &&
+    new Date(periodEnd).getTime() > Date.now() &&
+    (status === "canceled" || status === "unpaid" || cancelAtPeriodEnd)
+  ) {
+    activePlanId = "pro";
   }
 
   await syncSupabasePaymentComplete(context, userId, {
@@ -968,6 +965,37 @@ export async function handleBillingCheckout(context) {
     }
   } else {
     authUser = authResult.user;
+  }
+
+  if (authUser && planId === "plus") {
+    try {
+      const rows = await supabaseRest(
+        context,
+        `profiles?id=eq.${encodeURIComponent(authUser.id)}&select=plan_id,subscription_status,subscription_cancel_at_period_end,subscription_current_period_end,entitlement_ends_at&limit=1`,
+        { method: "GET", prefer: "return=representation" }
+      );
+      const profile = Array.isArray(rows) && rows[0] ? rows[0] : null;
+      if (
+        profile &&
+        hasActiveProEntitlement({
+          planId: profile.plan_id,
+          subscriptionStatus: profile.subscription_status,
+          cancelAtPeriodEnd: Boolean(profile.subscription_cancel_at_period_end),
+          currentPeriodEnd: profile.subscription_current_period_end,
+          entitlementEndsAt: profile.entitlement_ends_at
+        })
+      ) {
+        return json(
+          {
+            error: "downgrade_not_allowed",
+            message: PLUS_BLOCKED_BY_PRO_MESSAGE
+          },
+          409
+        );
+      }
+    } catch (error) {
+      console.error("[stripe-billing] plus checkout entitlement check failed", error?.message || error);
+    }
   }
 
   const priceId = config.prices[planId];
