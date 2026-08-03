@@ -159,6 +159,7 @@ export function userNeedsPaymentStep(user) {
 
 export function userCanChangeRoleDuringOnboarding(user) {
   if (!user || user.authProvider !== "supabase") return false;
+  if (roleFromUser(user) === "parent") return false;
   if (userNeedsRoleSelection(user)) return true;
   const role = roleFromUser(user);
   if (role === "student") {
@@ -169,7 +170,6 @@ export function userCanChangeRoleDuringOnboarding(user) {
     );
   }
   if (role === "mentor") return userNeedsMentorOnboarding(user);
-  if (role === "parent") return true;
   return false;
 }
 

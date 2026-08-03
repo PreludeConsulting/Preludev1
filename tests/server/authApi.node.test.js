@@ -56,15 +56,26 @@ async function main() {
   assert.equal(missingVerifyToken.status, 400);
   assert.match(missingVerifyToken.json.message, /invalid|expired/i);
 
-  const registerMissingRole = await invoke(middleware, "/api/auth/register", "POST", {
+  const registerMissingTerms = await invoke(middleware, "/api/auth/register", "POST", {
     firstName: "Test",
     lastName: "User",
-    email: "missing-role@example.com",
+    email: "missing-terms@example.com",
     password: "ValidPass123!",
+    termsAccepted: false
+  });
+  assert.equal(registerMissingTerms.status, 400);
+  assert.equal(registerMissingTerms.json.error, "validation_error");
+
+  const publicParent = await invoke(middleware, "/api/auth/register", "POST", {
+    firstName: "Test",
+    lastName: "Parent",
+    email: "public-parent@example.com",
+    password: "ValidPass123!",
+    role: "PARENT",
     termsAccepted: true
   });
-  assert.equal(registerMissingRole.status, 400);
-  assert.equal(registerMissingRole.json.error, "validation_error");
+  assert.equal(publicParent.status, 403);
+  assert.equal(publicParent.json.error, "parent_invite_required");
 
   const resetMissingToken = await invoke(middleware, "/api/auth/reset-password", "POST", {
     token: "short",

@@ -91,7 +91,7 @@ export async function sendParentInviteEmail({ req, env, payload }) {
 
   const url = buildAuthUrl(
     req,
-    `/register?${new URLSearchParams({ parentInvite: parsed.inviteToken, role: "parent" }).toString()}`,
+    `/register?${new URLSearchParams({ parentInvite: parsed.inviteToken }).toString()}`,
     runtimeEnv
   );
 

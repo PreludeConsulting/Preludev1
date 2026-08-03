@@ -2,7 +2,7 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
-import { postAuthDestination, postConfirmationDestination } from "../lib/onboardingRoutes.js";
+import { postAuthDestination, postConfirmationDestination, ROLE_SELECTION_PATH } from "../lib/onboardingRoutes.js";
 import { signInWithGoogle } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -11,8 +11,6 @@ import AppLink from "./AppLink.jsx";
 import TurnstileWidget from "./auth/TurnstileWidget.jsx";
 import AuthLayout from "./auth/AuthLayout.jsx";
 import AuthDemoSection from "./auth/AuthDemoSection.jsx";
-import AuthRoleSelector from "./auth/AuthRoleSelector.jsx";
-import PromoOrReferralCodeField from "./auth/PromoOrReferralCodeField.jsx";
 import {
   AuthBanner,
   AuthDivider,
@@ -38,15 +36,8 @@ import {
 } from "../lib/signupVerificationState.js";
 import { sendLoginVerificationCode, verifyLoginCode } from "../lib/loginVerification.js";
 import { maskEmail } from "../../shared/passwordValidation.js";
-import {
-  clearPendingPromoRedemption,
-  redeemPromoCodeAtSignup,
-  storePendingPromoRedemption
-} from "../lib/promoCodes.js";
-import { associateReferralCode } from "../lib/referralCodes.js";
 export { default as ResetPasswordPage } from "./auth/ResetPasswordPage.jsx";
 
-const SIGNUP_ROLE_VALUES = new Set(["STUDENT", "MENTOR", "PARENT"]);
 const RESEND_COOLDOWN_SECONDS = 30;
 
 function validateSignupPassword(password, supabaseAuth) {
@@ -334,7 +325,7 @@ export function RegisterPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const parentInviteToken = searchParams.get("parentInvite") || "";
-  const invitedAsParent = searchParams.get("role") === "parent" || Boolean(parentInviteToken);
+  const invitedAsParent = Boolean(parentInviteToken);
   const prefilledEmail = searchParams.get("email")?.trim() || "";
   const { signUp } = useAuth();
   const supabaseAuth = isSupabaseConfigured();
@@ -344,20 +335,15 @@ export function RegisterPage() {
     lastName: "",
     email: prefilledEmail,
     password: "",
-    role: invitedAsParent ? "PARENT" : "",
-    parentEmail: "",
     termsAccepted: false,
     parentInviteToken
   });
-  const [signupCode, setSignupCode] = useState("");
-  const [signupCodeKind, setSignupCodeKind] = useState(null);
-  const [promoSummary, setPromoSummary] = useState(null);
   const [formError, setFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [message, setMessage] = useState("");
   const [authAction, setAuthAction] = useState("");
   const [resending, setResending] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendCountdown, setResendCountdown] = useState(0);
   const [confirmationEmail, setConfirmationEmail] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const turnstileRef = useRef(null);
@@ -370,17 +356,17 @@ export function RegisterPage() {
   const signupLoading = authAction === "signup";
 
   useEffect(() => {
-    if (resendCooldown <= 0) return undefined;
-    const id = window.setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
+    if (resendCountdown <= 0) return undefined;
+    const id = window.setInterval(() => setResendCountdown((seconds) => Math.max(0, seconds - 1)), 1000);
     return () => window.clearInterval(id);
-  }, [resendCooldown]);
+  }, [resendCountdown]);
 
   useEffect(() => {
     const mentorId = searchParams.get("mentor");
     const serviceId = searchParams.get("service");
     const planId = searchParams.get("plan");
     if (mentorId || serviceId || planId || destination) {
-      savePendingJourney({ next: destination || "/onboarding/match", mentorId, serviceId, planId });
+      savePendingJourney({ next: destination || ROLE_SELECTION_PATH, mentorId, serviceId, planId });
     }
   }, [destination, searchParams]);
 
@@ -397,7 +383,6 @@ export function RegisterPage() {
     else if (!isValidEmail(form.email)) nextErrors.email = "Enter a valid email address.";
     const passwordError = validateSignupPassword(form.password, supabaseAuth);
     if (passwordError) nextErrors.password = passwordError;
-    if (!invitedAsParent && !SIGNUP_ROLE_VALUES.has(form.role)) nextErrors.role = "Choose Student, Mentor, or Parent.";
     if (!form.termsAccepted) nextErrors.terms = "Accept the Terms and Privacy Policy to continue.";
     setFieldErrors(nextErrors);
     if (nextErrors.firstName) focusField(firstNameRef);
@@ -440,69 +425,21 @@ export function RegisterPage() {
     setFormError("");
     setMessage("");
     try {
-      const role = invitedAsParent ? "PARENT" : form.role;
-      const payload = {
-        ...form,
-        role,
-        parentInviteToken: parentInviteToken || form.parentInviteToken,
-        captchaToken
-      };
       const result = await signUp({
-        ...payload,
-        promoCode: signupCodeKind === "promo" && promoSummary ? signupCode : ""
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        password: form.password,
+        termsAccepted: form.termsAccepted,
+        captchaToken,
+        ...(invitedAsParent
+          ? { role: "PARENT", parentInviteToken: parentInviteToken || form.parentInviteToken }
+          : {})
       });
-      const userId = result?.id;
-      const userEmail = form.email.trim();
-      let promoRedemption = null;
-
-      if (signupCodeKind === "promo" && promoSummary && signupCode && userId && String(form.role).toUpperCase() === "STUDENT") {
-        try {
-          promoRedemption = await redeemPromoCodeAtSignup({
-            code: signupCode,
-            email: userEmail,
-            userId,
-            accessToken: result?.accessToken
-          });
-          clearPendingPromoRedemption(userEmail);
-        } catch (promoError) {
-          if (result?.needsEmailConfirmation || result?.verificationEmailSent) {
-            storePendingPromoRedemption(userEmail, signupCode);
-          } else {
-            setFormError(promoError.message || "Your account was created, but the promo code could not be redeemed.");
-            return;
-          }
-        }
-      } else if (signupCodeKind === "promo" && promoSummary && signupCode && (result?.needsEmailConfirmation || result?.verificationEmailSent)) {
-        storePendingPromoRedemption(userEmail, signupCode);
-      }
-
-      if (
-        signupCodeKind === "referral" &&
-        signupCode &&
-        userId &&
-        ["STUDENT", "PARENT"].includes(String(role).toUpperCase())
-      ) {
-        try {
-          await associateReferralCode({
-            code: signupCode,
-            role: String(role).toLowerCase(),
-            email: userEmail,
-            userId,
-            accessToken: result?.accessToken
-          });
-        } catch (referralError) {
-          if (!(result?.needsEmailConfirmation || result?.verificationEmailSent)) {
-            setFormError(
-              referralError.message ||
-                "Your account was created, but the referral code could not be applied. You can contact support if needed."
-            );
-          }
-        }
-      }
 
       if (result?.needsEmailConfirmation || result?.verificationEmailSent) {
         if (supabaseAuth) {
-          storePendingSignupVerification(userEmail);
+          storePendingSignupVerification(form.email.trim());
           navigate("/verify-email", { replace: true });
           return;
         }
@@ -518,23 +455,13 @@ export function RegisterPage() {
         return;
       }
       if (result?.id) {
-        if (promoRedemption?.success) {
-          navigate("/register/promo-success", {
-            replace: true,
-            state: {
-              email: userEmail,
-              summary: promoRedemption.summary,
-              campaignName: promoRedemption.summary?.campaignName,
-              promotionEndsAt: promoRedemption.promotionEndsAt,
-              loginVerificationError: result?.loginVerificationError || ""
-            }
-          });
-          return;
-        }
         if (result?.requiresLoginVerification) {
           const challenge = result.challengeId ? `&challenge=${encodeURIComponent(result.challengeId)}` : "";
-          const verificationDestination = resolveJourneyDestination(readPendingJourney() || { next: destination }, result);
-          const verifyQuery = `/verify-login?next=${encodeURIComponent(verificationDestination || "/dashboard")}${challenge}`;
+          const verificationDestination = resolveJourneyDestination(
+            readPendingJourney() || { next: destination || ROLE_SELECTION_PATH },
+            result
+          );
+          const verifyQuery = `/verify-login?next=${encodeURIComponent(verificationDestination || ROLE_SELECTION_PATH)}${challenge}`;
           navigate(verifyQuery, {
             replace: true,
             state: result?.loginVerificationError
@@ -543,7 +470,10 @@ export function RegisterPage() {
           });
           return;
         }
-        const requestedDestination = resolveJourneyDestination(readPendingJourney() || { next: destination }, result);
+        const requestedDestination = resolveJourneyDestination(
+          readPendingJourney() || { next: destination || ROLE_SELECTION_PATH },
+          result
+        );
         navigate(postConfirmationDestination(result, requestedDestination), { replace: true });
         clearPendingJourney();
         return;
@@ -577,7 +507,7 @@ export function RegisterPage() {
       const { resendSignupConfirmation } = await import("../lib/supabaseAuth.js");
       await resendSignupConfirmation(targetEmail);
       setMessage(`A new confirmation email was sent to ${maskEmail(targetEmail)}.`);
-      setResendCooldown(RESEND_COOLDOWN_SECONDS);
+      setResendCountdown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       setFormError(friendlyAuthError(err.message, "signup"));
     } finally {
@@ -591,12 +521,16 @@ export function RegisterPage() {
       subtitle={
         invitedAsParent
           ? "You've been invited to follow your student's college journey on Prelude."
-          : "Choose your role, verify your email, and start your Prelude dashboard."
+          : "Create your account, verify your email, and begin your Prelude experience."
       }
       headerLink={{ prefix: "Already have an account?", label: "Log in", href: "/login" }}
     >
-      <GoogleSignInButton label="Sign up with Google" onClick={onGoogle} disabled={loading} loading={googleLoading} />
-      <AuthDivider />
+      {!invitedAsParent ? (
+        <>
+          <GoogleSignInButton label="Sign up with Google" onClick={onGoogle} disabled={loading} loading={googleLoading} />
+          <AuthDivider />
+        </>
+      ) : null}
       {(formError || message) ? (
         <AuthBanner tone={formError ? "error" : "success"}>
           {formError || message}
@@ -605,8 +539,8 @@ export function RegisterPage() {
       {message ? (
         <div className="auth-inline-actions">
           {supabaseAuth ? (
-            <button type="button" disabled={resending || resendCooldown > 0} onClick={resendConfirmationEmail}>
-              {resending ? "Sending…" : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend confirmation email"}
+            <button type="button" disabled={resending || resendCountdown > 0} onClick={resendConfirmationEmail}>
+              {resending ? "Sending…" : resendCountdown > 0 ? `Resend in ${resendCountdown}s` : "Resend confirmation email"}
             </button>
           ) : null}
           <AuthInlineLink href="/login">Go to login</AuthInlineLink>
@@ -648,27 +582,6 @@ export function RegisterPage() {
           error={fieldErrors.email}
           required
         />
-        {form.role !== "MENTOR" ? (
-          <PromoOrReferralCodeField
-            email={form.email}
-            role={invitedAsParent ? "PARENT" : form.role}
-            value={signupCode}
-            appliedKind={signupCodeKind}
-            appliedSummary={promoSummary}
-            disabled={loading}
-            onChange={setSignupCode}
-            onApplied={({ kind, code, summary }) => {
-              setSignupCode(code || "");
-              setSignupCodeKind(kind);
-              setPromoSummary(kind === "promo" ? summary || null : null);
-            }}
-            onRemoved={() => {
-              setSignupCode("");
-              setSignupCodeKind(null);
-              setPromoSummary(null);
-            }}
-          />
-        ) : null}
         <AuthPasswordField
           ref={passwordRef}
           label="Password"
@@ -685,27 +598,7 @@ export function RegisterPage() {
           <AuthBanner tone="info" reserve>
             You&apos;ll continue as a parent account for this invitation.
           </AuthBanner>
-        ) : (
-          <AuthRoleSelector
-            value={form.role}
-            onChange={(role) => {
-              setForm((current) => ({ ...current, role }));
-              if (fieldErrors.role) setFieldErrors((current) => ({ ...current, role: "" }));
-              if (role === "MENTOR") {
-                setSignupCode("");
-                setSignupCodeKind(null);
-                setPromoSummary(null);
-              } else if (role === "PARENT" && signupCodeKind === "promo") {
-                setSignupCode("");
-                setSignupCodeKind(null);
-                setPromoSummary(null);
-              }
-            }}
-            disabled={loading}
-            lockedRole={invitedAsParent ? "PARENT" : ""}
-            error={fieldErrors.role}
-          />
-        )}
+        ) : null}
         <AuthTermsCheckbox checked={form.termsAccepted} onChange={update("termsAccepted")} disabled={loading} />
         {fieldErrors.terms ? (
           <p className="auth-field__message auth-field__message--error" role="alert">
@@ -718,16 +611,10 @@ export function RegisterPage() {
         )}
         {supabaseAuth ? <TurnstileWidget ref={turnstileRef} onTokenChange={setCaptchaToken} disabled={loading} /> : null}
         <AuthSubmitButton
-          disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken) || (!invitedAsParent && !form.role)}
+          disabled={loading || (supabaseAuth && isTurnstileRequired() && !captchaToken)}
           loading={signupLoading}
         >
-          {signupLoading
-            ? promoSummary
-              ? "Creating free account…"
-              : "Creating account…"
-            : promoSummary
-              ? "Create Free Account"
-              : "Create account"}
+          {signupLoading ? "Creating account…" : "Create account"}
         </AuthSubmitButton>
       </form>
     </AuthLayout>
@@ -1075,13 +962,13 @@ export function AuthCallbackPage() {
         const resolvedUser = nextUser || refreshed;
         const verification = await beginLoginVerification();
         if (!active) return;
-        if (!verification.verified) {
-          const challenge = verification.challengeId ? `&challenge=${encodeURIComponent(verification.challengeId)}` : "";
-          navigate(`/verify-login?next=${encodeURIComponent(nextPath || "/dashboard")}${challenge}`, { replace: true });
-          return;
-        }
         const requestedDestination = nextPath === "/dashboard" ? "" : nextPath;
         const destination = postConfirmationDestination(resolvedUser, requestedDestination);
+        if (!verification.verified) {
+          const challenge = verification.challengeId ? `&challenge=${encodeURIComponent(verification.challengeId)}` : "";
+          navigate(`/verify-login?next=${encodeURIComponent(destination)}${challenge}`, { replace: true });
+          return;
+        }
         setState({ loading: false, error: "", message: "Signed in. Opening Prelude…" });
         navigate(destination, { replace: true });
       })
@@ -1269,13 +1156,14 @@ export function VerifyLoginPage() {
       const refreshed = await refreshUser().catch(() => user);
       await refreshLoginVerification({ forceVerified: true, silent: true });
       setStatus("success");
-      setMessage("Verification successful. Opening your dashboard…");
+      setMessage("Verification successful. Opening Prelude…");
       await new Promise((resolve) => window.setTimeout(resolve, 450));
+      const resolved = refreshed || user;
       const pendingDestination = resolveJourneyDestination(
-        readPendingJourney() || { next: nextPath || "/dashboard" },
-        refreshed || user
+        readPendingJourney() || { next: nextPath === "/dashboard" ? "" : nextPath },
+        resolved
       );
-      navigate(nextPath === "/dashboard" ? pendingDestination : nextPath, { replace: true });
+      navigate(postConfirmationDestination(resolved, pendingDestination), { replace: true });
       clearPendingJourney();
     } catch (err) {
       if (import.meta.env.DEV) console.error("Login verification failed", err);

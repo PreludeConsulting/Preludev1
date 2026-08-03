@@ -4,8 +4,6 @@ import { getStoredSession, signIn as authSignIn, signOut as authSignOut, signUp 
 import {
   acceptPendingParentInvite,
   connectPendingParentEmailForStudent,
-  connectStudentParentEmail,
-  storePendingParentEmailConnect,
   storePendingParentInvite
 } from "../lib/parentLinks.js";
 import { clearLocalUserData, clearSupabaseAuthStorage, readPendingOAuthAccountDeletion } from "../lib/accountDeletionFlow.js";
@@ -59,7 +57,9 @@ export function AuthProvider({ children }) {
       try {
         if (normalizedRole === "parent") {
           await acceptPendingParentInvite(nextUser.id);
-        } else if (normalizedRole === "student") {
+        } else if (normalizedRole === "student" && nextUser.roleSelectionComplete !== false) {
+          // Placeholder student role during incomplete selection must not redeem promos
+          // or connect parent email until Student is finalized in Prelude Match.
           await connectPendingParentEmailForStudent({
             studentId: nextUser.id,
             studentName: nextUser.name || nextUser.email
@@ -385,7 +385,7 @@ export function AuthProvider({ children }) {
         authoritativeUser = next;
         if (next?.role === "parent") {
           await acceptPendingParentInvite(next.id);
-        } else if (next?.role === "student") {
+        } else if (next?.role === "student" && next?.roleSelectionComplete !== false) {
           await connectPendingParentEmailForStudent({
             studentId: next.id,
             studentName: next.name || next.email
@@ -419,42 +419,35 @@ export function AuthProvider({ children }) {
       if (useSupabase) {
         const { signUp: supabaseSignUp } = await loadSupabaseAuth();
         const fullName = `${payload.firstName || ""} ${payload.lastName || ""}`.trim() || (payload.name || "").trim();
-        const roleRaw = payload.role ? payload.role.toLowerCase() : "";
-        const role = roleRaw === "mentor" ? "mentor" : roleRaw === "parent" ? "parent" : roleRaw === "student" ? "student" : null;
-        if (!role) {
-          throw new Error("Please choose Student, Mentor, or Parent before creating your account.");
+        const roleRaw = payload.role ? String(payload.role).toLowerCase() : "";
+        const inviteToken = String(payload.parentInviteToken || "").trim();
+        let role = null;
+        let roleSelectionComplete = false;
+
+        if (inviteToken) {
+          // Invited parents finalize as Parent only with a valid invite token.
+          role = "parent";
+          roleSelectionComplete = true;
+          storePendingParentInvite(inviteToken);
+        } else if (roleRaw === "parent") {
+          throw new Error("Parent accounts join through an invitation only.");
+        } else if (roleRaw === "student" || roleRaw === "mentor") {
+          // Public signup no longer finalizes a role here — ignored if present.
+          role = null;
+          roleSelectionComplete = false;
         }
-        if (role === "parent" && payload.parentInviteToken) {
-          storePendingParentInvite(payload.parentInviteToken);
-        }
+
         const { user: next, userId, accessToken, error, needsEmailConfirmation } = await supabaseSignUp({
           email: payload.email,
           password: payload.password,
           fullName: fullName || (role === "parent" ? "Parent User" : "Prelude User"),
           role,
+          roleSelectionComplete,
           captchaToken: payload.captchaToken
         });
         if (error) throw new Error(error);
-        const parentEmail = (payload.parentEmail || "").trim();
-        if (role === "student" && parentEmail) {
-          if (next?.id) {
-            await connectStudentParentEmail({
-              studentId: next.id,
-              studentName: fullName || "Student",
-              parentEmail,
-              sendEmail: true
-            });
-          } else if (userId) {
-            storePendingParentEmailConnect(userId, parentEmail);
-          }
-        }
         if (next?.role === "parent") {
           await acceptPendingParentInvite(next.id);
-        } else if (next?.role === "student") {
-          await connectPendingParentEmailForStudent({
-            studentId: next.id,
-            studentName: fullName || next?.name || payload.email
-          });
         }
         if (next) {
           // Account already exists at this point — never fail signup because

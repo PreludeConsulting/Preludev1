@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import AuthLayout from "./AuthLayout.jsx";
 import { AuthSubmitButton } from "./AuthForm.jsx";
-import { postAuthDestination } from "../../lib/onboardingRoutes.js";
+import { postAuthDestination, ROLE_SELECTION_PATH } from "../../lib/onboardingRoutes.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 
 export function PromoRegistrationSuccessPage() {
@@ -14,7 +14,7 @@ export function PromoRegistrationSuccessPage() {
   const email = state.email || user?.email || "";
   const summary = state.summary || null;
   const planLabel = summary?.plan || "Plus";
-  const [destination, setDestination] = useState("/onboarding/match");
+  const [destination, setDestination] = useState(ROLE_SELECTION_PATH);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

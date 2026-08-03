@@ -402,7 +402,7 @@ export async function connectPendingParentEmailForStudent({ studentId, studentNa
 }
 
 export function parentInviteRegisterPath(inviteToken) {
-  const params = new URLSearchParams({ parentInvite: inviteToken, role: "parent" });
+  const params = new URLSearchParams({ parentInvite: inviteToken });
   return `/register?${params.toString()}`;
 }
 

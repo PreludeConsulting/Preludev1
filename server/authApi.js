@@ -41,7 +41,7 @@ const passwordSchema = z
   .regex(/[^A-Za-z0-9]/, "Password must contain a symbol.");
 
 const signupRoleSchema = z.enum(["STUDENT", "MENTOR", "PARENT"], {
-  error: "Please choose Student, Mentor, or Parent."
+  error: "Please choose Student or Mentor."
 });
 
 const registerSchema = z.object({
@@ -49,9 +49,10 @@ const registerSchema = z.object({
   lastName: z.string().trim().min(1).max(80),
   email: z.string().trim().email().max(255),
   password: passwordSchema,
-  role: signupRoleSchema,
+  role: signupRoleSchema.optional(),
   termsAccepted: z.literal(true),
   organizationId: z.string().uuid().optional(),
+  parentInviteToken: z.string().trim().max(200).optional(),
   promoCode: z.string().trim().max(64).optional()
 });
 
@@ -407,6 +408,24 @@ async function handleRegister(req, res) {
   await rateLimit(req, "/api/auth/register", 10, 60 * 60);
   const payload = registerSchema.parse(await readJsonBody(req));
   const email = normalizeEmail(payload.email);
+  const inviteToken = String(payload.parentInviteToken || "").trim();
+  let role = String(payload.role || "STUDENT").toUpperCase();
+  if (role === "PARENT" && !inviteToken) {
+    return sendJson(res, 403, {
+      error: "parent_invite_required",
+      message: "Parent accounts join through an invitation only."
+    });
+  }
+  if (role !== "STUDENT" && role !== "MENTOR" && !(role === "PARENT" && inviteToken)) {
+    return sendJson(res, 400, {
+      error: "invalid_role",
+      message: "Please choose Student or Mentor during onboarding."
+    });
+  }
+  if (!inviteToken) {
+    // Public registration no longer finalizes Mentor/Student here; Prisma still needs a role column.
+    role = "STUDENT";
+  }
   const exists = await db().user.findUnique({ where: { email } });
   if (exists) return sendJson(res, 409, { error: "email_exists", message: "An account with this email already exists." });
   const passwordHash = await argon2.hash(payload.password, { type: argon2.argon2id });
@@ -417,7 +436,7 @@ async function handleRegister(req, res) {
         lastName: payload.lastName,
         email,
         passwordHash,
-        role: payload.role,
+        role,
         termsAcceptedAt: new Date(),
         emailVerified: false,
         emailVerifiedAt: null
@@ -428,30 +447,6 @@ async function handleRegister(req, res) {
     await tx.activityLog.create({ data: { actorUserId: user.id, action: "REGISTER", entityType: "User", entityId: user.id } });
     return { user, verificationToken };
   });
-
-  let promoRedemption = null;
-  if (payload.promoCode && payload.role === "STUDENT") {
-    const { redeemPromoCode } = await import("./lib/promoCodes.js");
-    const { deliverPromoWelcomeEmail } = await import("./lib/promoEmail.js");
-    promoRedemption = await redeemPromoCode({
-      code: payload.promoCode,
-      email,
-      userId: result.user.id,
-      backend: "prisma"
-    });
-    if (promoRedemption.success) {
-      await deliverPromoWelcomeEmail({
-        to: email,
-        publicCode: promoRedemption.publicCode,
-        campaignName: promoRedemption.campaignName,
-        planId: promoRedemption.planId,
-        permanentAccess: promoRedemption.summary?.permanentAccess,
-        promotionEndsAt: promoRedemption.promotionEndsAt,
-        req
-      });
-      result.user = await db().user.findUnique({ where: { id: result.user.id } });
-    }
-  }
 
   const verifyUrl = buildAuthUrl(req, `/verify-email?token=${result.verificationToken}`);
   await deliverAuthEmail({ kind: "verify-email", to: email, url: verifyUrl, req });
@@ -465,7 +460,6 @@ async function handleRegister(req, res) {
       user: publicUser(result.user),
       csrfToken: tokens.csrfToken,
       verificationEmailSent: true,
-      promoRedemption: promoRedemption?.success ? promoRedemption : null,
       message:
         "Account created. We sent a verification link to your email — you can use Prelude now and verify when convenient."
     },
@@ -890,7 +884,7 @@ async function handleParentInviteSend(req, res) {
   const payload = parentInviteSendSchema.parse(await readJsonBody(req));
   const url = buildAuthUrl(
     req,
-    `/register?${new URLSearchParams({ parentInvite: payload.inviteToken, role: "parent" }).toString()}`
+    `/register?${new URLSearchParams({ parentInvite: payload.inviteToken }).toString()}`
   );
   const result = await deliverParentInviteEmail({
     to: normalizeEmail(payload.parentEmail),

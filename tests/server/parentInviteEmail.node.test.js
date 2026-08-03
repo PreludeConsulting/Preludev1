@@ -26,10 +26,10 @@ async function main() {
 
     const url = buildAuthUrl(
       req,
-      "/register?parentInvite=abc123def456&role=parent",
+      "/register?parentInvite=abc123def456",
       workerEnv
     );
-    assert.equal(url, "https://preludeconsultingllc.com/register?parentInvite=abc123def456&role=parent");
+    assert.equal(url, "https://preludeconsultingllc.com/register?parentInvite=abc123def456");
 
     let fetchCalled = false;
     const originalFetch = globalThis.fetch;

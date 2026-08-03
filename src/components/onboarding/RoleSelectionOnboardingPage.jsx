@@ -1,12 +1,11 @@
-import { GraduationCap, HeartHandshake, Users } from "lucide-react";
+import { GraduationCap, HeartHandshake } from "lucide-react";
 import { Navigate, useNavigate } from "react-router";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import {
   postAuthDestination,
   ROLE_SELECTION_PATH,
-  userCanChangeRoleDuringOnboarding,
-  userNeedsRoleSelection
+  userCanChangeRoleDuringOnboarding
 } from "../../lib/onboardingRoutes.js";
 import OnboardingShell from "./OnboardingShell.jsx";
 
@@ -22,12 +21,6 @@ const ROLE_OPTIONS = [
     title: "Mentor",
     description: "Create a mentor profile, share your strengths, and support matched students.",
     Icon: HeartHandshake
-  },
-  {
-    role: "parent",
-    title: "Parent",
-    description: "Follow your student's progress, calendar, and mentor updates from a parent dashboard.",
-    Icon: Users
   }
 ];
 
@@ -74,7 +67,7 @@ export default function RoleSelectionOnboardingPage() {
       subtitle="Choose the experience that fits you. You can correct this while your first setup is still in progress."
       eyebrow="Account setup"
       hideContinue
-      footerNote="You can update profile details later in Settings."
+      footerNote="Parents join through a student invitation. You can update profile details later in Settings."
     >
       {error ? <div className="onboarding-flow__error" role="alert">{error}</div> : null}
 

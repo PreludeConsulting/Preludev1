@@ -195,22 +195,28 @@ export async function signIn(email, password) {
   return attachFrontendFields(user);
 }
 
-const SIGNUP_ROLES = new Set(["STUDENT", "MENTOR", "PARENT"]);
+const SIGNUP_ROLES = new Set(["STUDENT", "MENTOR"]);
 
 export async function signUp(payload) {
   const [firstName, ...rest] = (payload.name || "").trim().split(/\s+/);
   const role = (payload.role || "").toUpperCase();
-  if (!SIGNUP_ROLES.has(role)) {
-    throw new Error("Please choose Student, Mentor, or Parent before creating your account.");
+  const inviteToken = String(payload.parentInviteToken || "").trim();
+  if (role === "PARENT" && !inviteToken) {
+    throw new Error("Parent accounts join through an invitation only.");
+  }
+  if (role && role !== "PARENT" && !SIGNUP_ROLES.has(role)) {
+    throw new Error("Please choose Student or Mentor during onboarding.");
   }
   const body = {
-    firstName: payload.firstName || firstName || "Student",
+    firstName: payload.firstName || firstName || "Prelude",
     lastName: payload.lastName || rest.join(" ") || "User",
     email: payload.email,
     password: payload.password,
-    role,
+    // Legacy Prisma path still requires a role column; incomplete public signups use STUDENT as a
+    // non-finalized placeholder. Production Supabase uses role_selection_complete instead.
+    role: role === "PARENT" && inviteToken ? "PARENT" : role === "MENTOR" ? "MENTOR" : "STUDENT",
     termsAccepted: Boolean(payload.termsAccepted ?? true),
-    promoCode: payload.promoCode || undefined
+    parentInviteToken: inviteToken || undefined
   };
   const result = await api("/api/auth/register", { method: "POST", body: JSON.stringify(body) });
   const user = attachFrontendFields(result.user);

@@ -30,6 +30,8 @@ import {
 } from "../../shared/signupVerificationConstants.js";
 
 export const SELECTABLE_ROLES = ["student", "mentor", "parent"];
+/** Roles that may be chosen in the public four-step onboarding flow. */
+export const PUBLIC_ONBOARDING_ROLES = ["student", "mentor"];
 const OAUTH_PROVIDERS = ["google"];
 const callbackRequests = new Map();
 const verificationRequests = new Map();
@@ -222,13 +224,20 @@ export function friendlyProviderError(rawError = "") {
   return import.meta.env.PROD ? "We couldn't finish signing you in. Please try again." : rawError;
 }
 
-export async function signUp({ email, password, fullName, role, captchaToken }) {
+export async function signUp({ email, password, fullName, role = null, roleSelectionComplete = false, captchaToken }) {
   if (!isSupabaseConfigured()) {
     return { user: null, error: getSupabaseConfigError() || "Supabase is not configured for this deployment.", needsEmailConfirmation: false };
   }
-  const safeRole = SELECTABLE_ROLES.includes(role) ? role : null;
-  if (!safeRole) {
-    return { user: null, error: "Please choose Student, Mentor, or Parent.", needsEmailConfirmation: false };
+  const invitedParent = role === "parent" && roleSelectionComplete === true;
+  if (role === "parent" && !invitedParent) {
+    return {
+      user: null,
+      error: "Parent accounts join through an invitation only.",
+      needsEmailConfirmation: false
+    };
+  }
+  if (role && !SELECTABLE_ROLES.includes(role) && !invitedParent) {
+    return { user: null, error: "That account role is not available.", needsEmailConfirmation: false };
   }
   const supabase = getSupabase();
   if (!supabase) return { user: null, error: "Supabase client unavailable.", needsEmailConfirmation: false };
@@ -236,19 +245,30 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
 
   const normalizedEmail = normalizeEmail(email);
   const emailRedirectTo = fullUrl("/verify-email");
-  authDebug("signup_started", { email: normalizedEmail, role: safeRole, emailRedirectTo });
+  authDebug("signup_started", {
+    email: normalizedEmail,
+    role: invitedParent ? "parent" : null,
+    roleSelectionComplete: invitedParent,
+    emailRedirectTo
+  });
+
+  const metadata = {
+    full_name: fullName,
+    email: normalizedEmail,
+    role_selection_complete: invitedParent
+  };
+  // Omit role for incomplete public signups so handle_new_user keeps selection incomplete.
+  // Placeholder DB role remains student until /onboarding/role finalizes Student or Mentor.
+  if (invitedParent) {
+    metadata.role = "parent";
+  }
 
   const { data, error } = await withAuthTimeout(
     supabase.auth.signUp({
       email: normalizedEmail,
       password,
       options: {
-        data: {
-          full_name: fullName,
-          email: normalizedEmail,
-          role: safeRole,
-          role_selection_complete: true
-        },
+        data: metadata,
         emailRedirectTo,
         ...captchaOptions(captchaToken)
       }
@@ -269,8 +289,9 @@ export async function signUp({ email, password, fullName, role, captchaToken }) 
     const result = await ensureUserProfile(data.session.user, {
       fullName,
       email: normalizedEmail,
-      role: safeRole,
-      roleSelectionComplete: true
+      ...(invitedParent
+        ? { role: "parent", roleSelectionComplete: true }
+        : { roleSelectionComplete: false })
     });
     profile = result.profile;
   }
@@ -333,8 +354,15 @@ export async function logIn({ email, password, captchaToken }) {
 }
 
 export async function saveUserRoleSelection(userId, role) {
-  const safeRole = SELECTABLE_ROLES.includes(role) ? role : null;
-  if (!safeRole) return { error: "Please choose Student, Mentor, or Parent." };
+  const safeRole = PUBLIC_ONBOARDING_ROLES.includes(role) ? role : null;
+  if (!safeRole) {
+    return {
+      error:
+        role === "parent"
+          ? "Parent accounts join through an invitation only."
+          : "Please choose Student or Mentor."
+    };
+  }
   if (!userId) return { error: "You must be signed in to choose a role." };
 
   const supabase = getSupabase();
@@ -819,7 +847,11 @@ export async function ensureUserProfile(user, overrides = {}) {
   if (!supabase || !user?.id) return { profile: null, error: "Supabase client unavailable." };
 
   const metadata = safeOAuthMetadata(user);
-  const role = SELECTABLE_ROLES.includes(overrides.role) ? overrides.role : null;
+  let role = SELECTABLE_ROLES.includes(overrides.role) ? overrides.role : null;
+  // Parent may only be written when invitation signup explicitly finalized selection.
+  if (role === "parent" && overrides.roleSelectionComplete !== true) {
+    role = null;
+  }
   const existing = await getProfile(user.id);
 
   if (existing.profile) {

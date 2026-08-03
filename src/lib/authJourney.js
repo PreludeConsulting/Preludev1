@@ -1,6 +1,6 @@
 import { PLAN_IDS } from "./plans.js";
 import { sanitizeAuthRedirect } from "./authRedirects.js";
-import { postAuthDestination } from "./onboardingRoutes.js";
+import { postAuthDestination, postConfirmationDestination } from "./onboardingRoutes.js";
 
 export const PENDING_JOURNEY_KEY = "prelude-pending-auth-journey";
 const JOURNEY_STEPS = new Set(["role", "plan", "match", "parent", "payment", "mentor", "result"]);
@@ -48,7 +48,9 @@ export function clearPendingJourney() {
 
 export function resolveJourneyDestination(journey, user) {
   const normalized = normalizePendingJourney(journey);
-  const destination = normalized.next || postAuthDestination(user);
+  // Default "/dashboard" must not outrank incomplete onboarding / role selection.
+  const requested = !normalized.next || normalized.next === "/dashboard" ? "" : normalized.next;
+  const destination = user ? postConfirmationDestination(user, requested) : requested || postAuthDestination(user);
   const url = new URL(destination, "https://prelude.local");
   if (normalized.mentorId) url.searchParams.set("mentor", normalized.mentorId);
   if (normalized.serviceId) url.searchParams.set("service", normalized.serviceId);
