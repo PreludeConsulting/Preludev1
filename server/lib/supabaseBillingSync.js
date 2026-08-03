@@ -91,7 +91,11 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
         : null
     });
     try {
-      await reconcileActiveSessionPeriodForPlanChange(userId, planId);
+      const deferDowngrade =
+        String(subscription.metadata?.deferDowngrade || "").toLowerCase() === "true";
+      if (!deferDowngrade) {
+        await reconcileActiveSessionPeriodForPlanChange(userId, planId);
+      }
     } catch (error) {
       console.error("[prelude-billing] session credit reconcile failed", error.message);
     }

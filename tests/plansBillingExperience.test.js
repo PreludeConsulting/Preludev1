@@ -34,10 +34,11 @@ function readPlanSelection() {
 }
 
 describe("BillingMembershipPanel actions", () => {
-  it("replaces Cancel membership and Update payment method with Manage billing", () => {
+  it("opens authenticated Billing Portal sessions instead of the generic Stripe login", () => {
     const source = readBillingPanel();
     expect(source).toContain("Manage billing");
-    expect(source).toContain("openStripeCustomerPortal");
+    expect(source).toContain("openBillingPortal");
+    expect(source).not.toContain("openStripeCustomerPortal");
     expect(source).not.toMatch(/Cancel membership/);
     expect(source).not.toMatch(/Update payment method/);
     expect(source).toContain("STUDENT_BILLING_PLANS_PATH");

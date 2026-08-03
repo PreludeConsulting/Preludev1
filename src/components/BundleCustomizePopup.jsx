@@ -407,15 +407,11 @@ export default function BundleCustomizePopup({
               type="button"
               className="pw-popup__action"
               onClick={() => {
-                if (primaryQuantityField) {
-                  setShowPackageOptions((open) => !open);
-                  return;
-                }
                 onViewOtherBundles?.();
               }}
               disabled={busy}
             >
-              View other options
+              View other plans
             </button>
           </div>
         </footer>

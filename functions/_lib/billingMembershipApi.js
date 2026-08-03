@@ -8,7 +8,8 @@ import {
   canReactivateMembership,
   deriveMembershipStatus,
   formatMoneyCents,
-  membershipAccessExplanation
+  membershipAccessExplanation,
+  buildSubscriptionEntitlement
 } from "../../shared/billingMembership.js";
 import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
 import { evaluateMentorAccess, sumPackageRemaining } from "../../shared/mentorAccess.js";
@@ -152,7 +153,7 @@ async function ensureHousehold(context, userId) {
 async function resolveBillingContext(context, userId) {
   const viewers = await adminRest(
     context,
-    `profiles?id=eq.${encodeURIComponent(userId)}&select=id,role,full_name,preferred_name,plan_id,household_id,stripe_customer_id,stripe_subscription_id,subscription_status,subscription_current_period_start,subscription_current_period_end,subscription_cancel_at_period_end,subscription_canceled_at,payment_waived,promo_access_ends_at&limit=1`
+    `profiles?id=eq.${encodeURIComponent(userId)}&select=id,role,full_name,preferred_name,plan_id,pending_plan_id,household_id,stripe_customer_id,stripe_subscription_id,stripe_price_id,subscription_status,subscription_current_period_start,subscription_current_period_end,subscription_cancel_at_period_end,subscription_canceled_at,entitlement_ends_at,payment_waived,promo_access_ends_at&limit=1`
   );
   const viewer = first(viewers);
   if (!viewer) throw httpError("Profile not found.", 404, "not_found");
@@ -181,7 +182,7 @@ async function resolveBillingContext(context, userId) {
     if (ids.length) {
       const profiles = await adminRest(
         context,
-        `profiles?id=in.(${ids.map(encodeURIComponent).join(",")})&select=id,role,full_name,preferred_name,plan_id,stripe_customer_id,stripe_subscription_id,subscription_status,subscription_current_period_start,subscription_current_period_end,subscription_cancel_at_period_end,subscription_canceled_at,payment_waived,promo_access_ends_at`
+        `profiles?id=in.(${ids.map(encodeURIComponent).join(",")})&select=id,role,full_name,preferred_name,plan_id,pending_plan_id,stripe_customer_id,stripe_subscription_id,stripe_price_id,subscription_status,subscription_current_period_start,subscription_current_period_end,subscription_cancel_at_period_end,subscription_canceled_at,entitlement_ends_at,payment_waived,promo_access_ends_at`
       );
       members = profiles || [];
     }
@@ -290,11 +291,12 @@ export async function handleBillingSummary(context) {
 
     const sub = ctx.subscriber;
     const planId = String(sub.plan_id || "basic").toLowerCase();
+    const entitlementEndsAt = sub.entitlement_ends_at || sub.subscription_current_period_end || null;
     const statusInfo = deriveMembershipStatus({
       planId,
       subscriptionStatus: sub.subscription_status,
       cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end),
-      currentPeriodEnd: sub.subscription_current_period_end
+      currentPeriodEnd: entitlementEndsAt
     });
 
     const packages = await collectSessionPackages(context, ctx.members);
@@ -305,7 +307,8 @@ export async function handleBillingSummary(context) {
       user: {
         plan: planId,
         subscriptionStatus: sub.subscription_status,
-        subscriptionCurrentPeriodEnd: sub.subscription_current_period_end,
+        subscriptionCurrentPeriodEnd: entitlementEndsAt,
+        entitlementEndsAt,
         promoAccessEndsAt: sub.promo_access_ends_at
       },
       packages,
@@ -314,6 +317,20 @@ export async function handleBillingSummary(context) {
 
     const priceCents = PLAN_PRICE_CENTS[planId] ?? null;
     const subscriptionCreditsRemaining = creditSummary.active ? creditSummary.remaining : 0;
+    const entitlement = buildSubscriptionEntitlement({
+      planId,
+      pendingPlanId: sub.pending_plan_id || null,
+      subscriptionStatus: sub.subscription_status,
+      cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end),
+      billingPeriodStart: sub.subscription_current_period_start || null,
+      billingPeriodEnd: sub.subscription_current_period_end || null,
+      entitlementEndsAt,
+      sessionCreditsRemaining: creditSummary.active ? creditSummary.remaining : 0,
+      sessionCreditsTotal: creditSummary.active ? creditSummary.allowance : 0,
+      stripeCustomerId: sub.stripe_customer_id || ctx.viewer.stripe_customer_id || null,
+      stripeSubscriptionId: sub.stripe_subscription_id || null,
+      stripePriceId: sub.stripe_price_id || null
+    });
 
     return json({
       eligible: true,
@@ -335,6 +352,8 @@ export async function handleBillingSummary(context) {
         cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end),
         currentPeriodStart: sub.subscription_current_period_start || null,
         currentPeriodEnd: sub.subscription_current_period_end || null,
+        entitlementEndsAt,
+        pendingPlanId: sub.pending_plan_id || null,
         canceledAt: sub.subscription_canceled_at || null,
         stripeSubscriptionId: sub.stripe_subscription_id || null,
         hasCustomer: Boolean(sub.stripe_customer_id || ctx.viewer.stripe_customer_id),
@@ -355,10 +374,14 @@ export async function handleBillingSummary(context) {
         status: sub.subscription_status || null,
         stripeCustomerId: sub.stripe_customer_id || ctx.viewer.stripe_customer_id || null,
         stripeSubscriptionId: sub.stripe_subscription_id || null,
+        stripePriceId: sub.stripe_price_id || null,
         currentPeriodStart: sub.subscription_current_period_start || null,
         currentPeriodEnd: sub.subscription_current_period_end || null,
+        entitlementEndsAt,
+        pendingPlanId: sub.pending_plan_id || null,
         cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end)
       },
+      entitlement,
       essaySupport: {
         remainingCredits: reviewCredits.remaining,
         totalPurchasedCredits: reviewCredits.purchased
@@ -393,6 +416,59 @@ export async function handleBillingSummary(context) {
         reason: access.reason
       },
       canOpenCustomerPortal: Boolean(sub.stripe_customer_id || ctx.viewer.stripe_customer_id)
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function handleMySubscription(context) {
+  try {
+    if (context.request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        }
+      });
+    }
+    if (context.request.method !== "GET") {
+      return json({ error: "method_not_allowed", message: "Use GET." }, 405);
+    }
+    const { user } = await requireUser(context);
+    const ctx = await resolveBillingContext(context, user.id);
+    if (!ctx.eligible) {
+      return json({
+        eligible: false,
+        reason: ctx.reason,
+        isActive: false,
+        activePlan: "NONE",
+        activePlanId: "basic"
+      });
+    }
+    const sub = ctx.subscriber;
+    const planId = String(sub.plan_id || "basic").toLowerCase();
+    const creditSummary = await getSessionCreditSummary(context, sub.id);
+    const entitlement = buildSubscriptionEntitlement({
+      planId,
+      pendingPlanId: sub.pending_plan_id || null,
+      subscriptionStatus: sub.subscription_status,
+      cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end),
+      billingPeriodStart: sub.subscription_current_period_start || null,
+      billingPeriodEnd: sub.subscription_current_period_end || null,
+      entitlementEndsAt: sub.entitlement_ends_at || sub.subscription_current_period_end || null,
+      sessionCreditsRemaining: creditSummary.active ? creditSummary.remaining : 0,
+      sessionCreditsTotal: creditSummary.active ? creditSummary.allowance : 0,
+      stripeCustomerId: sub.stripe_customer_id || ctx.viewer.stripe_customer_id || null,
+      stripeSubscriptionId: sub.stripe_subscription_id || null,
+      stripePriceId: sub.stripe_price_id || null
+    });
+    return json({
+      eligible: true,
+      viewerRole: String(ctx.viewer.role || "").toLowerCase(),
+      subscriberUserId: sub.id,
+      ...entitlement
     });
   } catch (error) {
     return errorResponse(error);
@@ -654,13 +730,9 @@ export async function handleBillingPortal(context) {
       );
     }
 
-    const referer = context.request.headers.get("referer") || "";
-    const returnPath = referer.includes("/settings")
-      ? "/dashboard/student/settings#billing"
-      : "/dashboard/student/billing";
     const params = new URLSearchParams();
     params.set("customer", customerId);
-    params.set("return_url", `${config.appBaseUrl}${returnPath}`);
+    params.set("return_url", `${config.appBaseUrl}/dashboard/student/billing?portal=return`);
     const session = await stripeRequest(context, "POST", "/v1/billing_portal/sessions", params);
     return json({ url: session.url });
   } catch (error) {
@@ -782,13 +854,27 @@ export async function handleBillingChangePlan(context) {
       return json({ error: "same_plan", message: "You are already on this plan." }, 409);
     }
 
+    const isUpgrade = currentPlan === "plus" && targetPlan === "pro";
+    const isDowngrade = currentPlan === "pro" && targetPlan === "plus";
+    const periodEndIso = subscription.current_period_end
+      ? new Date(subscription.current_period_end * 1000).toISOString()
+      : ctx.subscriber.subscription_current_period_end || null;
+
     const params = new URLSearchParams();
     params.set("items[0][id]", recurringItem.id);
     params.set("items[0][price]", targetPriceId);
     params.set("items[0][quantity]", "1");
-    params.set("proration_behavior", "create_prorations");
+    params.set("proration_behavior", isDowngrade ? "none" : "create_prorations");
     params.set("metadata[planId]", targetPlan);
     params.set("metadata[userId]", ctx.subscriber.id);
+    params.set("metadata[previousPlanId]", currentPlan);
+    params.set("metadata[pendingPlanId]", isDowngrade ? targetPlan : "");
+    params.set("metadata[deferDowngrade]", isDowngrade ? "true" : "false");
+    if (isDowngrade && periodEndIso) {
+      params.set("metadata[deferUntil]", periodEndIso);
+    } else {
+      params.set("metadata[deferUntil]", "");
+    }
 
     await stripeRequest(
       context,
@@ -797,12 +883,60 @@ export async function handleBillingChangePlan(context) {
       params
     );
 
+    if (isUpgrade) {
+      await adminRest(context, `profiles?id=eq.${encodeURIComponent(ctx.subscriber.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          plan_id: targetPlan,
+          pending_plan_id: null,
+          stripe_price_id: targetPriceId,
+          entitlement_ends_at: periodEndIso
+        }),
+        headers: { Prefer: "return=minimal" }
+      });
+      try {
+        const rows = await adminRest(
+          context,
+          `subscription_session_periods?student_user_id=eq.${encodeURIComponent(ctx.subscriber.id)}&status=eq.active&select=id&order=period_start.desc&limit=1`
+        );
+        const period = Array.isArray(rows) && rows[0] ? rows[0] : null;
+        if (period?.id) {
+          await adminRest(context, `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              plan_id: "pro",
+              allowance: 4,
+              remaining: 4,
+              updated_at: new Date().toISOString()
+            }),
+            headers: { Prefer: "return=minimal" }
+          });
+        }
+      } catch (creditError) {
+        console.error("[stripe-billing] upgrade credit reset failed", creditError?.message || creditError);
+      }
+    } else if (isDowngrade) {
+      await adminRest(context, `profiles?id=eq.${encodeURIComponent(ctx.subscriber.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          plan_id: currentPlan,
+          pending_plan_id: targetPlan,
+          stripe_price_id: targetPriceId,
+          entitlement_ends_at: periodEndIso
+        }),
+        headers: { Prefer: "return=minimal" }
+      });
+    }
+
     return json({
       ok: true,
       processing: true,
       fromPlan: currentPlan,
       targetPlan,
-      message: "Your plan change is processing. Refresh in a moment."
+      deferred: isDowngrade,
+      message: isDowngrade
+        ? "Your downgrade is scheduled for the end of the current billing period. Pro access remains active until then."
+        : "Your plan change is processing. Refresh in a moment."
     });
   } catch (error) {
     if (!error.status && !error.statusCode) {

@@ -69,7 +69,8 @@ describe("deriveMembershipStatus", () => {
       currentPeriodEnd: periodEnd,
       now: new Date()
     });
-    assert.equal(status.key, "expired");
+    assert.equal(status.key, "inactive");
+    assert.equal(status.label, "Inactive");
     assert.equal(status.accessActive, false);
     assert.equal(canPurchaseMembership(status), true);
   });

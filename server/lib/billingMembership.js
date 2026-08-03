@@ -9,7 +9,8 @@ import {
   deriveMembershipStatus,
   formatMoneyCents,
   logBillingEvent,
-  membershipAccessExplanation
+  membershipAccessExplanation,
+  buildSubscriptionEntitlement
 } from "../../shared/billingMembership.js";
 import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
 import {
@@ -55,7 +56,7 @@ export async function resolveBillingContext(userId) {
   const { data: viewer, error } = await supabase
     .from("profiles")
     .select(
-      "id, role, full_name, preferred_name, plan_id, household_id, stripe_customer_id, stripe_subscription_id, subscription_status, subscription_current_period_start, subscription_current_period_end, subscription_cancel_at_period_end, subscription_canceled_at, payment_waived, promo_access_ends_at"
+      "id, role, full_name, preferred_name, plan_id, pending_plan_id, household_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, subscription_status, subscription_current_period_start, subscription_current_period_end, subscription_cancel_at_period_end, subscription_canceled_at, entitlement_ends_at, payment_waived, promo_access_ends_at"
     )
     .eq("id", userId)
     .maybeSingle();
@@ -92,7 +93,7 @@ export async function resolveBillingContext(userId) {
       const { data: profiles } = await supabase
         .from("profiles")
         .select(
-          "id, role, full_name, preferred_name, plan_id, stripe_customer_id, stripe_subscription_id, subscription_status, subscription_current_period_start, subscription_current_period_end, subscription_cancel_at_period_end, subscription_canceled_at, payment_waived, promo_access_ends_at"
+          "id, role, full_name, preferred_name, plan_id, pending_plan_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, subscription_status, subscription_current_period_start, subscription_current_period_end, subscription_cancel_at_period_end, subscription_canceled_at, entitlement_ends_at, payment_waived, promo_access_ends_at"
         )
         .in("id", ids);
       members = profiles || [];
@@ -142,11 +143,12 @@ export async function getBillingSummary(userId) {
 
   const sub = ctx.subscriber;
   const planId = String(sub.plan_id || "basic").toLowerCase();
+  const entitlementEndsAt = sub.entitlement_ends_at || sub.subscription_current_period_end || null;
   const statusInfo = deriveMembershipStatus({
     planId,
     subscriptionStatus: sub.subscription_status,
     cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end),
-    currentPeriodEnd: sub.subscription_current_period_end
+    currentPeriodEnd: entitlementEndsAt
   });
 
   const packages = await collectSessionPackages(ctx.members);
@@ -190,6 +192,8 @@ export async function getBillingSummary(userId) {
       cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end),
       currentPeriodStart: sub.subscription_current_period_start || null,
       currentPeriodEnd: sub.subscription_current_period_end || null,
+      entitlementEndsAt,
+      pendingPlanId: sub.pending_plan_id || null,
       canceledAt: sub.subscription_canceled_at || null,
       stripeSubscriptionId: sub.stripe_subscription_id || null,
       hasCustomer,
@@ -209,8 +213,11 @@ export async function getBillingSummary(userId) {
       status: sub.subscription_status || null,
       stripeCustomerId: sub.stripe_customer_id || ctx.viewer.stripe_customer_id || null,
       stripeSubscriptionId: sub.stripe_subscription_id || null,
+      stripePriceId: sub.stripe_price_id || null,
       currentPeriodStart: sub.subscription_current_period_start || null,
       currentPeriodEnd: sub.subscription_current_period_end || null,
+      entitlementEndsAt,
+      pendingPlanId: sub.pending_plan_id || null,
       cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end)
     },
     essaySupport: {
@@ -247,6 +254,42 @@ export async function getBillingSummary(userId) {
       reason: access.reason
     },
     canOpenCustomerPortal: hasCustomer
+  };
+}
+
+export async function getMySubscription(userId) {
+  const ctx = await resolveBillingContext(userId);
+  if (!ctx.eligible) {
+    return {
+      eligible: false,
+      reason: ctx.reason,
+      isActive: false,
+      activePlan: "NONE",
+      activePlanId: "basic"
+    };
+  }
+  const sub = ctx.subscriber;
+  const planId = String(sub.plan_id || "basic").toLowerCase();
+  const creditSummary = await getSessionCreditSummary(sub.id);
+  const entitlement = buildSubscriptionEntitlement({
+    planId,
+    pendingPlanId: sub.pending_plan_id || null,
+    subscriptionStatus: sub.subscription_status,
+    cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end),
+    billingPeriodStart: sub.subscription_current_period_start || null,
+    billingPeriodEnd: sub.subscription_current_period_end || null,
+    entitlementEndsAt: sub.entitlement_ends_at || sub.subscription_current_period_end || null,
+    sessionCreditsRemaining: creditSummary.active ? creditSummary.remaining : 0,
+    sessionCreditsTotal: creditSummary.active ? creditSummary.allowance : 0,
+    stripeCustomerId: sub.stripe_customer_id || ctx.viewer.stripe_customer_id || null,
+    stripeSubscriptionId: sub.stripe_subscription_id || null,
+    stripePriceId: sub.stripe_price_id || null
+  });
+  return {
+    eligible: true,
+    viewerRole: String(ctx.viewer.role || "").toLowerCase(),
+    subscriberUserId: sub.id,
+    ...entitlement
   };
 }
 
@@ -581,22 +624,64 @@ export async function changeMembershipPlan(userId, targetPlanRaw, { stripe, getP
     throw err;
   }
 
+  const isUpgrade = currentPlan === "plus" && targetPlan === "pro";
+  const isDowngrade = currentPlan === "pro" && targetPlan === "plus";
+  const periodEndIso = subscription.current_period_end
+    ? new Date(subscription.current_period_end * 1000).toISOString()
+    : subscriber.subscription_current_period_end || null;
+
   await stripe.subscriptions.update(subscriptionId, {
     items: [{ id: recurringItem.id, price: targetPriceId, quantity: 1 }],
-    proration_behavior: "create_prorations",
+    proration_behavior: isDowngrade ? "none" : "create_prorations",
     metadata: {
       ...(subscription.metadata || {}),
       planId: targetPlan,
-      userId: subscriber.id
+      userId: subscriber.id,
+      previousPlanId: currentPlan,
+      pendingPlanId: isDowngrade ? targetPlan : "",
+      deferDowngrade: isDowngrade ? "true" : "false",
+      deferUntil: isDowngrade && periodEndIso ? periodEndIso : ""
     }
   });
+
+  // Persist Prelude entitlement immediately for upgrades; defer active plan for Pro→Plus.
+  const supabase = admin();
+  if (isUpgrade) {
+    await supabase
+      .from("profiles")
+      .update({
+        plan_id: targetPlan,
+        pending_plan_id: null,
+        stripe_price_id: targetPriceId,
+        entitlement_ends_at: periodEndIso
+      })
+      .eq("id", subscriber.id);
+    try {
+      const { reconcileActiveSessionPeriodForPlanChange } = await import("./sessionCredits.js");
+      await reconcileActiveSessionPeriodForPlanChange(subscriber.id, targetPlan, { resetRemaining: true });
+    } catch (creditError) {
+      console.error("[prelude-billing] upgrade credit reset failed", creditError?.message || creditError);
+    }
+  } else if (isDowngrade) {
+    await supabase
+      .from("profiles")
+      .update({
+        // Keep Pro active through the paid period.
+        plan_id: currentPlan,
+        pending_plan_id: targetPlan,
+        stripe_price_id: targetPriceId,
+        entitlement_ends_at: periodEndIso
+      })
+      .eq("id", subscriber.id);
+  }
 
   logBillingEvent("plan_change_requested", {
     userId,
     subscriberUserId: subscriber.id,
     subscriptionId,
     fromPlan: currentPlan,
-    toPlan: targetPlan
+    toPlan: targetPlan,
+    deferred: isDowngrade
   });
 
   return {
@@ -604,12 +689,14 @@ export async function changeMembershipPlan(userId, targetPlanRaw, { stripe, getP
     processing: true,
     fromPlan: currentPlan,
     targetPlan,
-    message:
-      "Your plan change is processing. Refresh in a moment."
+    deferred: isDowngrade,
+    message: isDowngrade
+      ? "Your downgrade is scheduled for the end of the current billing period. Pro access remains active until then."
+      : "Your plan change is processing. Refresh in a moment."
   };
 }
 
-export async function persistSubscriptionFields(userId, subscription, planId = null) {
+export async function persistSubscriptionFields(userId, subscription, planId = null, extras = {}) {
   const supabase = admin();
   const periodEnd = subscription.current_period_end
     ? new Date(subscription.current_period_end * 1000).toISOString()
@@ -624,6 +711,38 @@ export async function persistSubscriptionFields(userId, subscription, planId = n
     subscription.metadata?.planId ||
     null;
 
+  const items = subscription.items?.data || [];
+  const recurring = items.find((item) => item.price?.type === "recurring" || item.price?.recurring) || items[0];
+  const priceId =
+    typeof recurring?.price === "string" ? recurring.price : recurring?.price?.id || null;
+
+  const deferDowngrade =
+    String(subscription.metadata?.deferDowngrade || "").toLowerCase() === "true" ||
+    String(extras.pendingPlanId || subscription.metadata?.pendingPlanId || "").toLowerCase() === "plus";
+  const pendingFromMeta = String(
+    extras.pendingPlanId ?? subscription.metadata?.pendingPlanId ?? ""
+  ).toLowerCase();
+  const pendingPlanId =
+    pendingFromMeta === "plus" || pendingFromMeta === "pro" ? pendingFromMeta : null;
+  const deferUntilRaw = subscription.metadata?.deferUntil || null;
+  const deferUntilMs = deferUntilRaw ? new Date(deferUntilRaw).getTime() : NaN;
+
+  let activePlanId = active && resolvedPlan ? resolvedPlan : null;
+  let stillDeferred = false;
+  if (
+    active &&
+    deferDowngrade &&
+    String(resolvedPlan).toLowerCase() === "plus" &&
+    String(subscription.metadata?.previousPlanId || "").toLowerCase() === "pro"
+  ) {
+    stillDeferred =
+      (Number.isFinite(deferUntilMs) && deferUntilMs > Date.now()) ||
+      (!Number.isFinite(deferUntilMs) && periodEnd && new Date(periodEnd).getTime() > Date.now());
+    if (stillDeferred) {
+      activePlanId = "pro";
+    }
+  }
+
   const patch = {
     stripe_subscription_id: subscription.id || null,
     subscription_status: status,
@@ -634,16 +753,22 @@ export async function persistSubscriptionFields(userId, subscription, planId = n
       ? new Date(subscription.canceled_at * 1000).toISOString()
       : subscription.cancel_at_period_end
         ? new Date().toISOString()
-        : null
+        : null,
+    entitlement_ends_at: periodEnd,
+    ...(priceId ? { stripe_price_id: priceId } : {}),
+    pending_plan_id: stillDeferred ? pendingPlanId || "plus" : active ? null : pendingPlanId
   };
   if (typeof subscription.customer === "string") {
     patch.stripe_customer_id = subscription.customer;
   } else if (subscription.customer?.id) {
     patch.stripe_customer_id = subscription.customer.id;
   }
-  if (resolvedPlan && active) patch.plan_id = resolvedPlan;
+  if (activePlanId && (active || deferDowngrade)) patch.plan_id = activePlanId;
   if (!active && status && ["canceled", "unpaid", "incomplete_expired"].includes(status)) {
-    // Keep plan_id for history display; access uses status + period end.
+    if (periodEnd && new Date(periodEnd).getTime() <= Date.now()) {
+      patch.plan_id = "basic";
+      patch.pending_plan_id = null;
+    }
   }
 
   await supabase.from("profiles").update(patch).eq("id", userId);

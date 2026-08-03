@@ -157,11 +157,16 @@ export async function getSessionCreditSummary(studentUserId, { now = new Date() 
 }
 
 /**
- * Mid-cycle Plus↔Pro switch: set allowance to the target plan and keep usage.
- * remaining = max(0, targetAllowance - usedInCurrentCycle).
+ * Mid-cycle Plus↔Pro switch.
+ * Plus→Pro upgrade: reset remaining to the full Pro allowance (do not preserve Plus balance).
+ * Pro→Plus downgrade: keep usage clamped to the new allowance (or skip when entitlement is deferred).
  * Does not touch Essay Support / review credits.
  */
-export async function reconcileActiveSessionPeriodForPlanChange(studentUserId, planId, { now = new Date() } = {}) {
+export async function reconcileActiveSessionPeriodForPlanChange(
+  studentUserId,
+  planId,
+  { now = new Date(), resetRemaining = null } = {}
+) {
   const normalizedPlan = normalizePlanId(planId);
   const newAllowance = getPlanSessionAllowance(normalizedPlan);
   if (!studentUserId || !newAllowance) return null;
@@ -169,8 +174,11 @@ export async function reconcileActiveSessionPeriodForPlanChange(studentUserId, p
   const period = await getActiveSessionPeriod(studentUserId, { now });
   if (!period?.id) return null;
 
-  const used = Math.max(0, (Number(period.allowance) || 0) - (Number(period.remaining) || 0));
-  const remaining = Math.max(0, newAllowance - used);
+  const priorAllowance = Number(period.allowance) || 0;
+  const used = Math.max(0, priorAllowance - (Number(period.remaining) || 0));
+  const isUpgrade = newAllowance > priorAllowance;
+  const shouldReset = resetRemaining == null ? isUpgrade : Boolean(resetRemaining);
+  const remaining = shouldReset ? newAllowance : Math.max(0, newAllowance - used);
   const updatedAt = new Date().toISOString();
 
   if (canUsePrisma()) {
@@ -417,10 +425,17 @@ export async function grantSessionCreditsFromPaidInvoice({
 }) {
   if (!studentUserId) return null;
   const billingReason = String(invoice?.billing_reason || "").toLowerCase();
-  if (billingReason && !["subscription_create", "subscription_cycle"].includes(billingReason)) {
+  // subscription_update covers paid Plus→Pro upgrades (prorated invoice).
+  if (
+    billingReason &&
+    !["subscription_create", "subscription_cycle", "subscription_update"].includes(billingReason)
+  ) {
     return null;
   }
   if (invoice && invoice.status && String(invoice.status).toLowerCase() !== "paid") {
+    return null;
+  }
+  if (billingReason === "subscription_update" && Number(invoice?.amount_paid) === 0) {
     return null;
   }
   if (invoice && Number(invoice.amount_paid) === 0 && billingReason !== "subscription_create") {

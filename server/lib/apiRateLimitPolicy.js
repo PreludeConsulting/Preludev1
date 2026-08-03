@@ -56,6 +56,7 @@ export const RATE_LIMIT_TIERS = Object.freeze({
 
 export const EXEMPT_API_ROUTE_PATTERNS = Object.freeze([
   "/api/billing/webhook",
+  "/api/stripe-webhook",
   "/api/cron/rotate-referral-codes"
 ]);
 
@@ -63,15 +64,18 @@ const ROUTE_POLICIES = Object.freeze([
   { pattern: "/api/chat", tier: "ai" },
 
   { pattern: "/api/billing/webhook", exempt: true },
+  { pattern: "/api/stripe-webhook", exempt: true },
   { pattern: "/api/billing/config", tier: "read_public" },
   { pattern: "/api/billing/checkout", tier: "money" },
   { pattern: "/api/billing/bundle-checkout", tier: "money" },
   { pattern: "/api/billing/confirm-session", tier: "money" },
   { pattern: "/api/billing/portal", tier: "money" },
+  { pattern: "/api/billing/change-plan", tier: "money" },
   { pattern: "/api/billing/cancel", tier: "money" },
   { pattern: "/api/billing/reactivate", tier: "money" },
   { pattern: "/api/billing/consume-essay-review", tier: "money" },
   { pattern: "/api/billing/summary", tier: "read_private" },
+  { pattern: "/api/me/subscription", tier: "read_private" },
   { pattern: "/api/billing/history", tier: "read_private" },
 
   { pattern: "/api/auth/send-signup-verification", tier: "auth_email" },
@@ -147,7 +151,10 @@ const ROUTE_POLICIES = Object.freeze([
   { pattern: "/api/admin/mentor-review/access", tier: "admin" },
   { pattern: "/api/admin/mentor-review/:studentId/assign", tier: "admin" },
 
-  { pattern: "/api/cron/rotate-referral-codes", exempt: true }
+  { pattern: "/api/cron/rotate-referral-codes", exempt: true },
+
+  // Cloudflare Pages optional catch-all (`functions/api/[[path]].js`) and unknown /api fallbacks.
+  { pattern: "/api/:path*", tier: "read_public" }
 ]);
 
 export const API_RATE_LIMIT_ROUTE_POLICIES = ROUTE_POLICIES;
@@ -210,6 +217,8 @@ export function routePatternFromApiFile(filePath) {
     .split("/")
     .filter(Boolean)
     .map((segment) => {
+      const optionalCatchAll = segment.match(/^\[\[(.+)\]\]$/);
+      if (optionalCatchAll) return `:${optionalCatchAll[1]}*`;
       const catchAll = segment.match(/^\[\.\.\.(.+)\]$/);
       if (catchAll) return `:${catchAll[1]}*`;
       const dynamic = segment.match(/^\[(.+)\]$/);

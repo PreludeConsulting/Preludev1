@@ -140,10 +140,22 @@ export function deriveMembershipStatus({
     };
   }
 
+  // Canceled/unpaid but still within the already-paid window — keep access until entitlement ends.
+  if (CANCELED.has(status) && stillInPaidPeriod && (plan === "plus" || plan === "pro")) {
+    return {
+      key: "cancels_at_period_end",
+      label: `Access through ${formatBillingDate(periodEnd)}`,
+      autoRenew: false,
+      accessActive: true,
+      endsAt: periodEnd.toISOString(),
+      renewsAt: null
+    };
+  }
+
   if (CANCELED.has(status) || (cancelAtPeriodEnd && periodEndValid && !stillInPaidPeriod)) {
     return {
-      key: periodEndValid && !stillInPaidPeriod ? "expired" : "canceled",
-      label: periodEndValid && !stillInPaidPeriod ? "Expired" : "Canceled",
+      key: "inactive",
+      label: "Inactive",
       autoRenew: false,
       accessActive: false,
       endsAt: periodEndValid ? periodEnd.toISOString() : null,
@@ -153,8 +165,8 @@ export function deriveMembershipStatus({
 
   if (!status && plan === "basic") {
     return {
-      key: "none",
-      label: "No paid membership",
+      key: "inactive",
+      label: "Inactive",
       autoRenew: false,
       accessActive: false,
       endsAt: null,
@@ -195,7 +207,66 @@ export function membershipAccessExplanation(statusInfo, { sessionBalance = 0, su
   if (sessionBalance > 0) {
     return `Your monthly membership is inactive, but you still have ${sessionBalance} purchased session${sessionBalance === 1 ? "" : "s"} available.`;
   }
-  return "Your membership has ended. Purchase a monthly subscription or individual sessions to continue contacting mentors.";
+  return "Your membership is inactive.";
+}
+
+/**
+ * Normalized entitlement DTO for `/api/me/subscription` and dashboard guards.
+ */
+export function buildSubscriptionEntitlement({
+  planId,
+  pendingPlanId = null,
+  subscriptionStatus = null,
+  cancelAtPeriodEnd = false,
+  billingPeriodStart = null,
+  billingPeriodEnd = null,
+  entitlementEndsAt = null,
+  sessionCreditsRemaining = 0,
+  sessionCreditsTotal = 0,
+  stripeCustomerId = null,
+  stripeSubscriptionId = null,
+  stripePriceId = null,
+  now = new Date()
+} = {}) {
+  const activePlan = String(planId || "basic").toLowerCase();
+  const pendingPlan = pendingPlanId ? String(pendingPlanId).toLowerCase() : null;
+  const endsAt = entitlementEndsAt || billingPeriodEnd || null;
+  const statusInfo = deriveMembershipStatus({
+    planId: activePlan,
+    subscriptionStatus,
+    cancelAtPeriodEnd,
+    currentPeriodEnd: endsAt,
+    now
+  });
+  const paidPlanActive =
+    statusInfo.accessActive && (activePlan === "plus" || activePlan === "pro");
+  return {
+    activePlan: paidPlanActive ? activePlan.toUpperCase() : activePlan === "basic" ? "NONE" : activePlan.toUpperCase(),
+    activePlanId: paidPlanActive ? activePlan : "basic",
+    pendingPlan: pendingPlan ? pendingPlan.toUpperCase() : null,
+    pendingPlanId: pendingPlan,
+    subscriptionStatus: subscriptionStatus || null,
+    isActive: paidPlanActive,
+    cancelAtPeriodEnd: Boolean(cancelAtPeriodEnd),
+    downgradeScheduled: Boolean(pendingPlan && paidPlanActive && pendingPlan !== activePlan),
+    cancellationScheduled: Boolean(cancelAtPeriodEnd && paidPlanActive),
+    billingPeriodStart: billingPeriodStart || null,
+    billingPeriodEnd: billingPeriodEnd || null,
+    entitlementEndsAt: endsAt,
+    sessionCreditsRemaining: Number(sessionCreditsRemaining) || 0,
+    sessionCreditsTotal: Number(sessionCreditsTotal) || 0,
+    stripeCustomerId: stripeCustomerId || null,
+    stripeSubscriptionId: stripeSubscriptionId || null,
+    stripePriceId: stripePriceId || null,
+    membershipKey: statusInfo.key,
+    membershipLabel: statusInfo.label,
+    features: {
+      plus: paidPlanActive && (activePlan === "plus" || activePlan === "pro"),
+      pro: paidPlanActive && activePlan === "pro",
+      sessionBooking: paidPlanActive,
+      progressRewards: paidPlanActive
+    }
+  };
 }
 
 export function canCancelMembership(statusInfo) {
@@ -207,7 +278,13 @@ export function canReactivateMembership(statusInfo) {
 }
 
 export function canPurchaseMembership(statusInfo) {
-  return !statusInfo?.accessActive || statusInfo?.key === "expired" || statusInfo?.key === "canceled" || statusInfo?.key === "none";
+  return (
+    !statusInfo?.accessActive ||
+    statusInfo?.key === "expired" ||
+    statusInfo?.key === "canceled" ||
+    statusInfo?.key === "inactive" ||
+    statusInfo?.key === "none"
+  );
 }
 
 export function logBillingEvent(event, payload = {}) {

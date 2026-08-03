@@ -36,6 +36,10 @@ export async function fetchBillingSummary() {
   return billingRequest("/api/billing/summary");
 }
 
+export async function fetchMySubscription() {
+  return billingRequest("/api/me/subscription");
+}
+
 export async function consumeEssayReviewCredit() {
   return billingRequest("/api/billing/consume-essay-review", {
     method: "POST",

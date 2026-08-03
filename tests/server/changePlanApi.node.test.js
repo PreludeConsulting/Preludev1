@@ -52,7 +52,7 @@ test("change-plan requires auth and returns JSON 401", async () => {
   assert.notEqual(res.headers["Content-Type"]?.includes?.("text/html"), true);
 });
 
-test("mid-cycle Plus→Pro reconcile keeps used sessions", async () => {
+test("mid-cycle Plus→Pro reconcile resets remaining to full Pro allowance", async () => {
   process.env.DATABASE_URL = "";
   process.env.NODE_ENV = "test";
   const dir = dirname(PERIOD_STORE);
@@ -82,13 +82,13 @@ test("mid-cycle Plus→Pro reconcile keeps used sessions", async () => {
   const updated = await reconcileActiveSessionPeriodForPlanChange(studentId, "pro");
   assert.equal(updated.planId, "pro");
   assert.equal(updated.allowance, 4);
-  // used=1 → remaining = max(0, 4-1) = 3
-  assert.equal(updated.remaining, 3);
+  // Upgrade resets to exactly 4 — does not preserve Plus usage.
+  assert.equal(updated.remaining, 4);
 
   const summary = await getSessionCreditSummary(studentId);
   assert.equal(summary.allowance, 4);
-  assert.equal(summary.remaining, 3);
-  assert.equal(summary.used, 1);
+  assert.equal(summary.remaining, 4);
+  assert.equal(summary.used, 0);
 });
 
 test("Pro→Plus reconcile clamps remaining at zero when over allowance", async () => {

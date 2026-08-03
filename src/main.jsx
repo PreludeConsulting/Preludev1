@@ -31,9 +31,11 @@ const ScrollAnimationTestPage = import.meta.env.DEV
   ? lazy(() => import("./dev/ScrollAnimationTestPage.jsx"))
   : null;
 import RequirePlanGuard from "./components/RequirePlanGuard.jsx";
+import RequireActiveMembershipGuard from "./components/RequireActiveMembershipGuard.jsx";
 import RequireOnboardingAccess from "./components/onboarding/RequireOnboardingAccess.jsx";
 import SecuritySettingsRedirect from "./components/SecuritySettingsRedirect.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { SubscriptionProvider } from "./context/SubscriptionContext.jsx";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { LegalModalProvider } from "./context/LegalModalContext.jsx";
 import LegalModal from "./components/LegalModal.jsx";
@@ -106,6 +108,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <SoundProvider>
         <InteractionFeedbackProvider>
         <AuthProvider>
+          <SubscriptionProvider>
           <LegalModalProvider>
           <RouteErrorBoundary>
             <Suspense fallback={<RouteLoadingFallback />}>
@@ -138,7 +141,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               path="/dashboard/*"
               element={
                 <RequirePlanGuard>
-                  <DashboardRouter />
+                  <RequireActiveMembershipGuard>
+                    <DashboardRouter />
+                  </RequireActiveMembershipGuard>
                 </RequirePlanGuard>
               }
             />
@@ -169,6 +174,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           </RouteErrorBoundary>
           <LegalModal />
           </LegalModalProvider>
+          </SubscriptionProvider>
         </AuthProvider>
         </InteractionFeedbackProvider>
         </SoundProvider>

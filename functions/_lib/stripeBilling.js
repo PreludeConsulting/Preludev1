@@ -182,13 +182,48 @@ async function hmacSha256Hex(secret, value) {
 
 async function verifyStripeSignature(rawBody, signatureHeader, signingSecret) {
   if (!signatureHeader || !signingSecret) return false;
-  const parts = Object.fromEntries(signatureHeader.split(",").map((part) => {
-    const [key, value] = part.split("=");
-    return [key, value];
-  }));
-  if (!parts.t || !parts.v1) return false;
-  const expected = await hmacSha256Hex(signingSecret, `${parts.t}.${rawBody}`);
-  return timingSafeEqual(expected, parts.v1);
+  const entries = signatureHeader.split(",").map((part) => {
+    const eq = part.indexOf("=");
+    if (eq < 0) return null;
+    return [part.slice(0, eq), part.slice(eq + 1)];
+  }).filter(Boolean);
+  const timestamp = entries.find(([key]) => key === "t")?.[1];
+  const signatures = entries.filter(([key]) => key === "v1").map(([, value]) => value);
+  if (!timestamp || !signatures.length) return false;
+
+  // Reject stale signatures (Stripe default tolerance is 5 minutes).
+  const ageSeconds = Math.abs(Math.floor(Date.now() / 1000) - Number(timestamp));
+  if (!Number.isFinite(ageSeconds) || ageSeconds > 300) return false;
+
+  const expected = await hmacSha256Hex(signingSecret, `${timestamp}.${rawBody}`);
+  return signatures.some((candidate) => timingSafeEqual(expected, candidate));
+}
+
+async function claimBillingWebhookEvent(context, eventId, eventType, payload = {}) {
+  if (!eventId) return true;
+  try {
+    await supabaseRest(context, "billing_webhook_events", {
+      method: "POST",
+      prefer: "return=minimal",
+      body: {
+        id: eventId,
+        event_type: eventType,
+        payload
+      }
+    });
+    return true;
+  } catch (error) {
+    const details = error?.details || {};
+    const code = details.code || details?.error || "";
+    const message = String(error?.message || details?.message || "");
+    if (code === "23505" || /duplicate|unique/i.test(message)) {
+      console.info("[stripe-billing] webhook_duplicate_prevented", { eventId, eventType });
+      return false;
+    }
+    // Table may be missing in some envs — process rather than drop events.
+    if (/billing_webhook_events|schema cache|does not exist/i.test(message)) return true;
+    throw error;
+  }
 }
 
 async function patchSupabaseProfile(context, userId, data) {
@@ -229,7 +264,14 @@ async function syncSupabasePaymentComplete(context, userId, {
   planId = null,
   stripeCustomerId = null,
   stripeSubscriptionId = null,
-  subscriptionStatus = undefined
+  stripePriceId = null,
+  subscriptionStatus = undefined,
+  subscriptionCurrentPeriodStart = null,
+  subscriptionCurrentPeriodEnd = null,
+  subscriptionCancelAtPeriodEnd = null,
+  subscriptionCanceledAt = null,
+  pendingPlanId = undefined,
+  entitlementEndsAt = null
 } = {}) {
   if (!userId) return;
 
@@ -237,7 +279,22 @@ async function syncSupabasePaymentComplete(context, userId, {
     ...(planId ? { plan_id: planId } : {}),
     ...(stripeCustomerId ? { stripe_customer_id: stripeCustomerId } : {}),
     ...(stripeSubscriptionId ? { stripe_subscription_id: stripeSubscriptionId } : {}),
-    ...(subscriptionStatus != null ? { subscription_status: subscriptionStatus } : {})
+    ...(stripePriceId ? { stripe_price_id: stripePriceId } : {}),
+    ...(subscriptionStatus != null ? { subscription_status: subscriptionStatus } : {}),
+    ...(subscriptionCurrentPeriodStart != null
+      ? { subscription_current_period_start: subscriptionCurrentPeriodStart }
+      : {}),
+    ...(subscriptionCurrentPeriodEnd != null
+      ? { subscription_current_period_end: subscriptionCurrentPeriodEnd }
+      : {}),
+    ...(subscriptionCancelAtPeriodEnd != null
+      ? { subscription_cancel_at_period_end: Boolean(subscriptionCancelAtPeriodEnd) }
+      : {}),
+    ...(subscriptionCanceledAt !== undefined
+      ? { subscription_canceled_at: subscriptionCanceledAt }
+      : {}),
+    ...(pendingPlanId !== undefined ? { pending_plan_id: pendingPlanId } : {}),
+    ...(entitlementEndsAt != null ? { entitlement_ends_at: entitlementEndsAt } : {})
   };
   if (Object.keys(profilePatch).length > 0) {
     await patchSupabaseProfile(context, userId, profilePatch);
@@ -251,6 +308,18 @@ async function syncSupabasePaymentComplete(context, userId, {
   });
 }
 
+function subscriptionPeriodIso(subscription, field) {
+  const stamp = subscription?.[field];
+  if (!stamp) return null;
+  return new Date(stamp * 1000).toISOString();
+}
+
+function resolveSubscriptionPriceId(subscription) {
+  const items = subscription?.items?.data || [];
+  const recurring = items.find((item) => item.price?.type === "recurring" || item.price?.recurring) || items[0];
+  return stripeObjectId(recurring?.price);
+}
+
 async function syncSubscription(context, subscription) {
   let userId = subscription.metadata?.userId || null;
   if (!userId) {
@@ -259,7 +328,7 @@ async function syncSubscription(context, subscription) {
       try {
         const rows = await supabaseRest(
           context,
-          `profiles?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=id&limit=1`,
+          `profiles?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=id,plan_id,pending_plan_id&limit=1`,
           { method: "GET", prefer: "return=representation" }
         );
         userId = Array.isArray(rows) && rows[0]?.id ? rows[0].id : null;
@@ -276,41 +345,96 @@ async function syncSubscription(context, subscription) {
       .map((item) => planIdForPriceId(stripeObjectId(item.price), config))
       .find(Boolean);
   if (!userId || !planId) return;
-  const active = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status);
+
+  const status = subscription.status || null;
+  const active = ACTIVE_SUBSCRIPTION_STATUSES.has(status);
+  const periodStart = subscriptionPeriodIso(subscription, "current_period_start");
+  const periodEnd = subscriptionPeriodIso(subscription, "current_period_end");
+  const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
+  const priceId = resolveSubscriptionPriceId(subscription);
+
+  // Preserve Pro access through the paid period when a Plus downgrade is scheduled.
+  let activePlanId = active ? planId : null;
+  let pendingPlanId = null;
+  const metadataPending = String(subscription.metadata?.pendingPlanId || "").toLowerCase();
+  if (metadataPending === "plus" || metadataPending === "pro") {
+    pendingPlanId = metadataPending;
+  }
+  const deferDowngrade =
+    String(subscription.metadata?.deferDowngrade || "").toLowerCase() === "true" &&
+    String(subscription.metadata?.previousPlanId || "").toLowerCase() === "pro" &&
+    planId === "plus";
+  const deferUntilRaw = subscription.metadata?.deferUntil || null;
+  const deferUntilMs = deferUntilRaw ? new Date(deferUntilRaw).getTime() : NaN;
+  if (active && deferDowngrade) {
+    const stillDeferred =
+      (Number.isFinite(deferUntilMs) && deferUntilMs > Date.now()) ||
+      (!Number.isFinite(deferUntilMs) && periodEnd && new Date(periodEnd).getTime() > Date.now());
+    if (stillDeferred) {
+      activePlanId = "pro";
+      pendingPlanId = "plus";
+    } else {
+      activePlanId = "plus";
+      pendingPlanId = null;
+    }
+  }
+
   await syncSupabasePaymentComplete(context, userId, {
-    planId: active ? planId : "basic",
+    planId: activePlanId || undefined,
     stripeCustomerId: stripeObjectId(subscription.customer),
     stripeSubscriptionId: subscription.id,
-    subscriptionStatus: subscription.status || null
+    stripePriceId: priceId,
+    subscriptionStatus: status,
+    subscriptionCurrentPeriodStart: periodStart,
+    subscriptionCurrentPeriodEnd: periodEnd,
+    subscriptionCancelAtPeriodEnd: cancelAtPeriodEnd,
+    subscriptionCanceledAt: subscription.canceled_at
+      ? new Date(subscription.canceled_at * 1000).toISOString()
+      : cancelAtPeriodEnd
+        ? new Date().toISOString()
+        : null,
+    pendingPlanId,
+    entitlementEndsAt: periodEnd
   });
 
-  // Mid-cycle Plus↔Pro: keep usage, set remaining = max(0, newAllowance - used).
-  if (active && (planId === "plus" || planId === "pro")) {
+  // Plus→Pro upgrade: reset remaining credits to the full Pro allowance once.
+  // Pro→Plus mid-cycle: do not cut credits while Pro entitlement remains active.
+  if (active && (planId === "plus" || planId === "pro") && activePlanId === planId) {
     try {
+      const deferDowngrade =
+        String(subscription.metadata?.deferDowngrade || "").toLowerCase() === "true";
+      if (deferDowngrade) {
+        // Scheduled downgrade — keep current Pro credits until entitlement ends.
+      } else {
       const allowance = String(planId).toLowerCase() === "pro" ? 4 : 2;
       const rows = await supabaseRest(
         context,
-        `subscription_session_periods?student_user_id=eq.${encodeURIComponent(userId)}&status=eq.active&select=id,allowance,remaining&order=period_start.desc&limit=1`,
+        `subscription_session_periods?student_user_id=eq.${encodeURIComponent(userId)}&status=eq.active&select=id,allowance,remaining,plan_id&order=period_start.desc&limit=1`,
         { method: "GET", prefer: "return=representation" }
       );
       const period = Array.isArray(rows) && rows[0] ? rows[0] : null;
       if (period?.id) {
-        const used = Math.max(0, (Number(period.allowance) || 0) - (Number(period.remaining) || 0));
-        const remaining = Math.max(0, allowance - used);
-        await supabaseRest(
-          context,
-          `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}`,
-          {
-            method: "PATCH",
-            prefer: "return=minimal",
-            body: {
-              plan_id: String(planId).toLowerCase(),
-              allowance,
-              remaining,
-              updated_at: new Date().toISOString()
+        const priorAllowance = Number(period.allowance) || 0;
+        const isUpgrade = allowance > priorAllowance;
+        const used = Math.max(0, priorAllowance - (Number(period.remaining) || 0));
+        const remaining = isUpgrade ? allowance : Math.max(0, allowance - used);
+        if (isUpgrade || String(period.plan_id || "") !== String(planId).toLowerCase() || priorAllowance !== allowance) {
+          await supabaseRest(
+            context,
+            `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}`,
+            {
+              method: "PATCH",
+              prefer: "return=minimal",
+              body: {
+                plan_id: String(planId).toLowerCase(),
+                allowance,
+                remaining,
+                updated_at: new Date().toISOString()
+              }
             }
-          }
-        );
+          );
+        }
+      }
       }
     } catch (creditError) {
       console.error("[stripe-billing] session credit reconcile failed", creditError?.message || creditError);
@@ -704,11 +828,13 @@ async function processWebhookEvent(context, event) {
       if (userId && planId && ["plus", "pro"].includes(String(planId).toLowerCase())) {
         try {
           const billingReason = String(object.billing_reason || "").toLowerCase();
+          const amountPaid = Number(object.amount_paid);
           const shouldGrant =
             !billingReason ||
             billingReason === "subscription_create" ||
-            billingReason === "subscription_cycle";
-          const zeroCycle = Number(object.amount_paid) === 0 && billingReason === "subscription_cycle";
+            billingReason === "subscription_cycle" ||
+            (billingReason === "subscription_update" && amountPaid > 0);
+          const zeroCycle = amountPaid === 0 && billingReason === "subscription_cycle";
           if (shouldGrant && !zeroCycle) {
             const periodStart =
               object.lines?.data?.[0]?.period?.start || subscription.current_period_start;
@@ -997,10 +1123,13 @@ export async function handleBillingConfirmSession(context) {
 }
 
 export async function handleBillingPortal() {
-  return json({
-    error: "billing_customer_missing",
-    message: "No billing profile exists for this account yet."
-  }, 400);
+  return json(
+    {
+      error: "use_billing_membership_portal",
+      message: "Use POST /api/billing/portal."
+    },
+    500
+  );
 }
 
 export async function handleBillingWebhook(context) {
@@ -1009,12 +1138,48 @@ export async function handleBillingWebhook(context) {
 
   const rawBody = await context.request.text();
   const signature = context.request.headers.get("stripe-signature");
+  if (!signature) {
+    return json({ error: "missing_signature", message: "Stripe-Signature header is required." }, 400);
+  }
   const verified = await verifyStripeSignature(rawBody, signature, config.stripeWebhookSecret);
   if (!verified) {
     return json({ error: "invalid_signature", message: "Stripe webhook signature verification failed." }, 400);
   }
 
-  const event = JSON.parse(rawBody);
-  await processWebhookEvent(context, event);
+  let event;
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return json({ error: "invalid_payload", message: "Webhook body must be valid JSON." }, 400);
+  }
+
+  const claimed = await claimBillingWebhookEvent(context, event.id, event.type, {
+    type: event.type,
+    created: event.created || null
+  });
+  if (!claimed) {
+    return json({ received: true, duplicate: true });
+  }
+
+  try {
+    await processWebhookEvent(context, event);
+  } catch (error) {
+    // Allow Stripe retries — do not leave a completed claim if processing failed.
+    try {
+      await supabaseRest(context, `billing_webhook_events?id=eq.${encodeURIComponent(event.id)}`, {
+        method: "DELETE",
+        prefer: "return=minimal"
+      });
+    } catch {
+      /* ignore cleanup failure */
+    }
+    console.error("[stripe-billing] webhook_processing_failed", {
+      eventId: event.id,
+      eventType: event.type,
+      category: error?.code || error?.status || "processing_error"
+    });
+    return json({ error: "processing_failed", message: "Webhook accepted but processing failed." }, 500);
+  }
+
   return json({ received: true });
 }

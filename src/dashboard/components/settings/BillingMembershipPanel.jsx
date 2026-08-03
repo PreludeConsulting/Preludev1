@@ -5,15 +5,14 @@ import { useLanguage } from "../../../context/LanguageContext.jsx";
 import { getPlanBadgeLabel } from "../../../lib/planBadges.js";
 import { fetchBillingSummary, reactivateMembership } from "../../../lib/billingMembership.js";
 import { buildEssaySupportPath } from "../../../../shared/mentorAccess.js";
-import {
-  STUDENT_BILLING_PLANS_PATH,
-  openStripeCustomerPortal
-} from "../../../../shared/stripePaymentLinks.js";
+import { STUDENT_BILLING_PLANS_PATH } from "../../../../shared/stripePaymentLinks.js";
 import EssaySupportCreditsSummary from "../../../components/EssaySupportCreditsSummary.jsx";
 import {
   formatBillingDate,
   formatBillingDateTime
 } from "../../../../shared/billingMembership.js";
+import { openBillingPortal } from "../../../lib/auth.js";
+import { useSubscription } from "../../../context/SubscriptionContext.jsx";
 import { PrimaryButton, SecondaryButton, SectionCard, EmptyState, DashBadge } from "../ui/index.jsx";
 
 function statusBadgeVariant(key) {
@@ -30,6 +29,7 @@ export default function BillingMembershipPanel({
 }) {
   const { preferredLanguage } = useLanguage();
   const location = useLocation();
+  const { syncAfterStripe, syncing } = useSubscription();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -55,16 +55,20 @@ export default function BillingMembershipPanel({
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") === "success") {
-      load();
+    if (params.get("checkout") === "success" || params.get("portal") === "return") {
+      setActionMessage("Syncing your plan…");
+      syncAfterStripe().then(() => load());
     }
-  }, [load]);
+  }, [load, syncAfterStripe]);
 
   useEffect(() => {
     if (location.state?.planChangeProcessing) {
-      setActionMessage("Your plan change is processing. Refresh in a moment.");
+      setActionMessage("Syncing your plan…");
+      syncAfterStripe({
+        expectActivePlanId: location.state?.targetPlan || null
+      }).then(() => load());
     }
-  }, [location.state]);
+  }, [location.state, load, syncAfterStripe]);
 
   async function runAction(key, fn) {
     setActionLoading(key);
@@ -80,12 +84,23 @@ export default function BillingMembershipPanel({
     }
   }
 
-  function handleManageBilling() {
+  async function handleManageBilling() {
     setActionMessage("");
+    setActionLoading("portal");
     try {
-      openStripeCustomerPortal();
-    } catch {
-      setActionMessage("We couldn’t open your billing settings. Please try again.");
+      const result = await openBillingPortal();
+      const url = result?.url;
+      if (!url) {
+        setActionMessage(result?.message || "No billing profile exists for this account yet.");
+        return;
+      }
+      window.location.assign(url);
+    } catch (err) {
+      setActionMessage(
+        err.payload?.message || err.message || "We couldn’t open your billing settings. Please try again."
+      );
+    } finally {
+      setActionLoading("");
     }
   }
 
@@ -190,6 +205,20 @@ export default function BillingMembershipPanel({
             ) : null}
 
             <p className="dash-muted dash-billing-membership__explanation">{membership.explanation}</p>
+            {membership.pendingPlanId ? (
+              <p className="dash-muted">
+                Scheduled change to {String(membership.pendingPlanId).replace(/^\w/, (c) => c.toUpperCase())}
+                {membership.entitlementEndsAt || membership.endsAt
+                  ? ` on ${formatBillingDate(membership.entitlementEndsAt || membership.endsAt)}`
+                  : ""}
+                .
+              </p>
+            ) : null}
+            {syncing || actionMessage === "Syncing your plan…" ? (
+              <p className="dash-muted" role="status">
+                Syncing your plan…
+              </p>
+            ) : null}
           </>
         )}
 

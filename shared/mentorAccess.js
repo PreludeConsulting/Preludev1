@@ -122,22 +122,40 @@ export function hasActiveMentorSubscription(user = {}) {
   if (plan !== "plus" && plan !== "pro") return false;
 
   const status = user.subscriptionStatus ?? user.subscription_status ?? null;
-  if (status == null || String(status).trim() === "") return true;
-  if (!isActiveSubscriptionStatus(status)) return false;
+  const endsAt =
+    user.entitlementEndsAt ??
+    user.entitlement_ends_at ??
+    user.promoAccessEndsAt ??
+    user.promo_access_ends_at ??
+    user.subscriptionCurrentPeriodEnd ??
+    user.subscription_current_period_end ??
+    null;
+  const stillInPaidPeriod = (() => {
+    if (!endsAt) return false;
+    const end = new Date(endsAt);
+    return !Number.isNaN(end.getTime()) && end.getTime() > Date.now();
+  })();
 
-  if (String(status).trim().toLowerCase() === "promotional") {
-    const endsAt =
-      user.promoAccessEndsAt ??
-      user.promo_access_ends_at ??
-      user.subscriptionCurrentPeriodEnd ??
-      user.subscription_current_period_end ??
-      null;
-    if (endsAt) {
-      const end = new Date(endsAt);
-      if (!Number.isNaN(end.getTime()) && end.getTime() <= Date.now()) return false;
-    }
+  if (status == null || String(status).trim() === "") return true;
+
+  const normalized = String(status).trim().toLowerCase();
+  if (isActiveSubscriptionStatus(status)) {
+    if (normalized === "promotional" && endsAt && !stillInPaidPeriod) return false;
+    return true;
   }
-  return true;
+
+  // Keep access through the already-paid window after cancel / past_due.
+  if (
+    stillInPaidPeriod &&
+    (normalized === "canceled" ||
+      normalized === "cancelled" ||
+      normalized === "unpaid" ||
+      normalized === "past_due")
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 export function countOneOnOneMeetingsThisMonth(meetings = [], now = new Date()) {

@@ -54,6 +54,7 @@ import {
   changeMembershipPlan,
   claimBillingWebhookEvent,
   getBillingSummary,
+  getMySubscription,
   listBillingPurchases,
   reactivateMembershipRenewal,
   recordPurchaseFromCheckoutSession,
@@ -159,7 +160,9 @@ function isBillingPath(pathname) {
     pathname === "/api/billing/confirm-session" ||
     pathname === "/api/billing/portal" ||
     pathname === "/api/billing/webhook" ||
+    pathname === "/api/stripe-webhook" ||
     pathname === "/api/billing/summary" ||
+    pathname === "/api/me/subscription" ||
     pathname === "/api/billing/history" ||
     pathname === "/api/billing/cancel" ||
     pathname === "/api/billing/reactivate" ||
@@ -509,9 +512,7 @@ async function handlePortal(req, res) {
   }
 
   const stripe = getStripeClient(config);
-  const returnPath = String(req.headers.referer || "").includes("/settings")
-    ? "/dashboard/student/settings#billing"
-    : "/dashboard/student/billing";
+  const returnPath = "/dashboard/student/billing?portal=return";
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
     return_url: `${getAppBaseUrl(req)}${returnPath}`
@@ -525,6 +526,12 @@ async function handleSummary(req, res) {
   const { user } = await requireSupabaseUser(req);
   const summary = await getBillingSummary(user.id);
   return sendJson(res, 200, summary);
+}
+
+async function handleMySubscription(req, res) {
+  const { user } = await requireSupabaseUser(req);
+  const subscription = await getMySubscription(user.id);
+  return sendJson(res, 200, subscription);
 }
 
 async function handleConsumeEssayReview(req, res) {
@@ -893,6 +900,7 @@ export function createBillingApiMiddleware(deps = {}) {
       if (url.pathname === "/api/billing/confirm-session" && req.method === "POST") return await handleConfirmSession(req, res, deps);
       if (url.pathname === "/api/billing/portal" && req.method === "POST") return await handlePortal(req, res);
       if (url.pathname === "/api/billing/summary" && req.method === "GET") return await handleSummary(req, res);
+      if (url.pathname === "/api/me/subscription" && req.method === "GET") return await handleMySubscription(req, res);
       if (url.pathname === "/api/billing/consume-essay-review" && req.method === "POST") {
         return await handleConsumeEssayReview(req, res);
       }
@@ -900,7 +908,12 @@ export function createBillingApiMiddleware(deps = {}) {
       if (url.pathname === "/api/billing/cancel" && req.method === "POST") return await handleCancel(req, res);
       if (url.pathname === "/api/billing/reactivate" && req.method === "POST") return await handleReactivate(req, res);
       if (url.pathname === "/api/billing/change-plan" && req.method === "POST") return await handleChangePlan(req, res);
-      if (url.pathname === "/api/billing/webhook" && req.method === "POST") return await handleWebhook(req, res);
+      if (
+        (url.pathname === "/api/billing/webhook" || url.pathname === "/api/stripe-webhook") &&
+        req.method === "POST"
+      ) {
+        return await handleWebhook(req, res);
+      }
       return sendJson(res, 404, { error: "not_found" });
     } catch (error) {
       if (error instanceof z.ZodError) return sendJson(res, 400, { error: "validation_error", issues: error.issues });

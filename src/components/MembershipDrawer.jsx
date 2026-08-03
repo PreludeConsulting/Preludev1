@@ -12,7 +12,6 @@ import {
 import { Link } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuth } from "../context/AuthContext.jsx";
-import { openStripeCustomerPortal } from "../../shared/stripePaymentLinks.js";
 import { dashboardHomeForRole, roleFromUser } from "../lib/dashboardRoutes.js";
 import { settingsPathForRole } from "../lib/onboardingRoutes.js";
 import { PRELUDE_AI_NAME } from "../lib/preludeAi.js";
@@ -22,6 +21,7 @@ import MembershipPlanCard from "./MembershipPlanCard.jsx";
 import { getPlan } from "../lib/plans.js";
 import { isEssaySupportProduct } from "../lib/currentProduct.js";
 import { fetchBillingSummary } from "../lib/billingMembership.js";
+import { openBillingPortal } from "../lib/auth.js";
 import AppLink from "./AppLink.jsx";
 
 function userInitial(name) {
@@ -63,9 +63,18 @@ export default function MembershipDrawer({ onOpenPersonalizedAi }) {
     setBillingLoading(true);
     setBillingMessage("");
     try {
-      openStripeCustomerPortal();
-    } catch {
-      setBillingMessage("We couldn’t open your billing settings. Please try again.");
+      const result = await openBillingPortal();
+      const url = result?.url;
+      if (!url) {
+        setBillingMessage(result?.message || "No billing profile exists for this account yet.");
+        setBillingLoading(false);
+        return;
+      }
+      window.location.assign(url);
+    } catch (err) {
+      setBillingMessage(
+        err.payload?.message || err.message || "We couldn’t open your billing settings. Please try again."
+      );
       setBillingLoading(false);
     }
   }
