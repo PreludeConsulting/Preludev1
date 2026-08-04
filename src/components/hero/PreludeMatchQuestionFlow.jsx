@@ -74,7 +74,7 @@ export default function PreludeMatchQuestionFlow({
           disabled={submitting || (!canContinue && !canSkip)}
           onClick={onContinue}
         >
-          {submitting ? "Submitting..." : isLast ? "See my matches" : "Continue"}
+          {submitting ? "Submitting..." : isLast ? "Submit My Responses" : "Continue"}
         </button>
       </div>
     </div>

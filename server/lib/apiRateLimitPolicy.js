@@ -124,6 +124,7 @@ const ROUTE_POLICIES = Object.freeze([
   { pattern: "/api/onboarding/mentor-selection", tier: "write" },
   { pattern: "/api/parent-invites/send", tier: "auth_email" },
   { pattern: "/api/prelude-match-questionnaire", tier: "read_private", methodTiers: { POST: "write" } },
+  { pattern: "/api/prelude-match/submit", tier: "auth_email" },
   { pattern: "/api/college-recommendations", tier: "read_private" },
   { pattern: "/api/students/:id", tier: "read_private" },
 

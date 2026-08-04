@@ -16,6 +16,12 @@ All post-auth routing decisions flow through `src/lib/onboardingRoutes.js`:
 Parent invite details (API routes, email delivery, Supabase schema): see
 [`docs/parent-invites.md`](./parent-invites.md).
 
+Prelude Match submissions are emailed to `prelude@preludeconsultingllc.com` via
+`POST /api/prelude-match/submit` (Cloudflare Pages Function / local API). Answers are
+persisted in `prelude_match_submissions` and `onboarding_progress.questionnaire_answers`
+before onboarding is marked complete. Required env: `RESEND_API_KEY`,
+`PRELUDE_MATCH_RECIPIENT`, `PRELUDE_FROM_EMAIL` (falls back to `AUTH_EMAIL_FROM`).
+
 `postAuthDestination(user)` is the single source of truth for the next required step.
 
 ## Student onboarding order

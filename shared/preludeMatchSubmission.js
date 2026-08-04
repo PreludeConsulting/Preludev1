@@ -1,6 +1,6 @@
 /**
- * Pure helpers for Prelude Match email-only submission.
- * Safe for browser, Node tests, and Deno Edge Functions (no Vite/Prisma).
+ * Pure helpers for Prelude Match submission (validation + email formatting).
+ * Safe for browser, Node tests, Deno Edge Functions, and Cloudflare Workers.
  */
 import {
   EXPLORE_COLLEGE_CATALOG,
@@ -332,5 +332,52 @@ export function buildPreludeMatchEmail({
     subject,
     text: textParts.join("\n"),
     html
+  };
+}
+
+/**
+ * Convert validated wire answers into the shape used by admin matching UI
+ * (`questionnaire_answers` on onboarding_progress).
+ */
+export function toDisplayQuestionnaireAnswers(wireAnswers = {}) {
+  const display = { ...(wireAnswers || {}) };
+  const colleges = wireAnswers?.colleges;
+  if (colleges && typeof colleges === "object" && !Array.isArray(colleges)) {
+    if (colleges.stillExploring) {
+      display.colleges = [STILL_EXPLORING_LABEL];
+    } else {
+      const resolved = resolveCollegeIds(colleges.collegeIds || []);
+      display.colleges = resolved.ok
+        ? resolved.colleges.map((college) => ({
+            id: college.id,
+            name: college.name,
+            city: college.city || "",
+            state: college.state || ""
+          }))
+        : [];
+    }
+  }
+  return display;
+}
+
+/**
+ * Resolve Resend config from Cloudflare / Node / Edge env.
+ * Prefers the documented names; falls back to legacy Match + auth sender vars.
+ */
+export function resolvePreludeMatchEmailConfig(env = {}) {
+  const apiKey = String(env.RESEND_API_KEY || "").trim();
+  const toEmail = String(
+    env.PRELUDE_MATCH_RECIPIENT ||
+      env.PRELUDE_MATCH_NOTIFICATION_EMAIL ||
+      "prelude@preludeconsultingllc.com"
+  ).trim();
+  const fromEmail = String(
+    env.PRELUDE_FROM_EMAIL || env.PRELUDE_MATCH_FROM_EMAIL || env.AUTH_EMAIL_FROM || ""
+  ).trim();
+  return {
+    apiKey,
+    toEmail,
+    fromEmail,
+    configured: Boolean(apiKey && toEmail && fromEmail)
   };
 }

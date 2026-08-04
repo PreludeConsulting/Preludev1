@@ -12,13 +12,14 @@ describe("MatchPendingPanel", () => {
       })
     );
 
-    expect(html).toContain("Prelude Match submitted");
-    expect(html).toContain("Your responses have been sent to our team");
+    expect(html).toContain("Responses submitted successfully");
+    expect(html).toContain("Your Prelude Match responses were sent to our team");
     expect(html).toContain("reach out as soon as your match is ready");
     expect(html).toContain("pm-match-pending__status");
     expect(html).toContain("Continue to parent invite");
     expect(html).toContain("prelude-pig-mascot.png");
     expect(html).not.toContain("Your mentor matches");
+    expect(html).not.toContain("See my matches");
     expect(html).not.toContain("matchPercent");
     expect(html).not.toContain("pm-mentor-card");
     expect(html).not.toContain("questionnaire_answers");

@@ -1,6 +1,4 @@
 /** @vitest-environment happy-dom */
-import React, { act } from "react";
-import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   clearPreludeMatchSubmissionId,
@@ -8,8 +6,6 @@ import {
   readPreludeMatchSubmissionId,
   submitPreludeMatchByEmail
 } from "../src/lib/preludeMatchSubmit.js";
-
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("../src/lib/supabase.js", () => ({
   getSupabase: () => globalThis.__preludeMatchSupabase
@@ -19,6 +15,7 @@ afterEach(() => {
   clearPreludeMatchSubmissionId();
   globalThis.__preludeMatchSupabase = null;
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("preludeMatchSubmit client behavior", () => {
@@ -32,10 +29,21 @@ describe("preludeMatchSubmit client behavior", () => {
     expect(Object.keys(sessionStorage).every((key) => !/answer|questionnaire|payload/i.test(key))).toBe(true);
   });
 
-  it("invokes send-prelude-match and clears the attempt id only after success", async () => {
-    const invoke = vi.fn(async () => ({ data: { success: true, submissionId: "x" }, error: null }));
-    globalThis.__preludeMatchSupabase = { functions: { invoke } };
+  it("posts to /api/prelude-match/submit and clears the attempt id only after success", async () => {
     const id = ensurePreludeMatchSubmissionId();
+    globalThis.__preludeMatchSupabase = {
+      auth: {
+        getSession: async () => ({
+          data: { session: { access_token: "tok_test" } },
+          error: null
+        })
+      }
+    };
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ success: true, submissionId: id, emailId: "email_1" })
+    }));
+    vi.stubGlobal("fetch", fetchMock);
 
     const result = await submitPreludeMatchByEmail(
       {
@@ -52,27 +60,41 @@ describe("preludeMatchSubmit client behavior", () => {
     );
 
     expect(result.success).toBe(true);
-    expect(invoke).toHaveBeenCalledWith(
-      "send-prelude-match",
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/prelude-match/submit",
       expect.objectContaining({
-        body: expect.objectContaining({
-          submissionId: id,
-          answers: expect.objectContaining({
-            colleges: { stillExploring: false, collegeIds: ["harvard"] }
-          })
-        })
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer tok_test"
+        }),
+        body: expect.stringContaining(id)
       })
     );
     expect(readPreludeMatchSubmissionId()).toBe("");
   });
 
   it("preserves the submission id when the provider rejects", async () => {
-    const invoke = vi.fn(async () => ({
-      data: { success: false, error: "Email provider unavailable" },
-      error: null
-    }));
-    globalThis.__preludeMatchSupabase = { functions: { invoke } };
     const id = ensurePreludeMatchSubmissionId();
+    globalThis.__preludeMatchSupabase = {
+      auth: {
+        getSession: async () => ({
+          data: { session: { access_token: "tok_test" } },
+          error: null
+        })
+      }
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status: 502,
+        json: async () => ({
+          success: false,
+          error: "We couldn’t submit your Prelude Match responses. Your answers are still here—please try again."
+        })
+      }))
+    );
+
     await expect(
       submitPreludeMatchByEmail({
         grade: "11th grade",

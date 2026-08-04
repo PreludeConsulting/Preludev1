@@ -39,11 +39,11 @@ export function MatchPendingPanel({ loading = false, onContinue, showAction = tr
     <div className="pm-match-pending">
       <PreludePigAvatar size="lg" variant="intro" animate className="pm-match-pending__mascot" />
       <div className="pm-match-pending__body">
-        <p className="pm-match-pending__eyebrow">Prelude Match submitted</p>
-        <h2 className="pm-match-pending__title">Prelude Match submitted</h2>
+        <p className="pm-match-pending__eyebrow">Responses submitted</p>
+        <h2 className="pm-match-pending__title">Responses submitted successfully</h2>
         <p className="pm-match-pending__lead">
-          Your responses have been sent to our team. We&apos;ll review your profile and follow up with your mentor
-          match.
+          Your Prelude Match responses were sent to our team. We&apos;ll review your profile and follow up with your
+          mentor match.
         </p>
         <p className="pm-match-pending__status">We&apos;ll reach out as soon as your match is ready.</p>
       </div>
@@ -73,7 +73,7 @@ function MatchCompletePanel({ onEdit }) {
         <p className="pm-match-pending__eyebrow">Step complete</p>
         <h2 className="pm-match-pending__title">Prelude Match is complete</h2>
         <p className="pm-match-pending__lead">
-          Your responses were sent to our team. Continue to meet your match, or update your answers before moving on.
+          Your responses were sent to our team. Continue onboarding, or update your answers before moving on.
         </p>
       </div>
       <div className="pm-match-pending__actions">
@@ -102,6 +102,7 @@ export default function PreludeMatchOnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const submissionLockRef = useRef(false);
+  const submitSucceededRef = useRef(false);
 
   const visibleQuestions = useMemo(
     () => getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, answers),
@@ -185,6 +186,7 @@ export default function PreludeMatchOnboardingPage() {
   async function finishQuestionnaire(finalAnswers) {
     if (submissionLockRef.current || saving) return;
     submissionLockRef.current = true;
+    submitSucceededRef.current = false;
     setPhase("loading");
     setProgress(90);
     setSaving(true);
@@ -194,11 +196,16 @@ export default function PreludeMatchOnboardingPage() {
         await submitPreludeMatchByEmail(finalAnswers, {
           studentDisplayName: user.name || user.firstName || ""
         });
-        const { error: err } = await markMatchQuestionnaireComplete(user.id);
-        if (err) throw new Error(err);
+        // Server already marked onboarding complete after email delivery.
+        // Best-effort client sync; do not fail the user if this upsert races.
+        const { error: err } = await markMatchQuestionnaireComplete(user.id, finalAnswers);
+        if (err) {
+          console.warn("[prelude-match] onboarding sync warning:", err);
+        }
       } else {
         throw new Error("Sign in with Supabase to submit Prelude Match.");
       }
+      submitSucceededRef.current = true;
       await refreshUser();
       setProgress(100);
       setEditingAnswers(false);
@@ -206,6 +213,7 @@ export default function PreludeMatchOnboardingPage() {
       setPhase("result");
       navigate(`${MATCH_ONBOARDING_PATH}?step=result`, { replace: true });
     } catch (err) {
+      submitSucceededRef.current = false;
       setError(
         err.message ||
           "We couldn’t submit your Prelude Match responses. Your answers are still here—please try again."
@@ -341,7 +349,7 @@ export default function PreludeMatchOnboardingPage() {
                     reducedMotion={reducedMotion}
                     progressFrom={progress}
                     onComplete={() => {
-                      if (!saving) setPhase("result");
+                      if (submitSucceededRef.current && !saving) setPhase("result");
                     }}
                   />
                 </motion.div>

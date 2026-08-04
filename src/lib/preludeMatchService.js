@@ -113,13 +113,22 @@ export async function loadOnboardingProgress(userId) {
 }
 
 /**
- * Mark Prelude Match onboarding complete without storing questionnaire answers.
- * Answers are emailed only (send-prelude-match Edge Function) and must not be persisted.
+ * Mark Prelude Match onboarding complete after a successful email/API submission.
+ * Prefer preserving existing questionnaire_answers; never wipe answers to {}.
  */
-export async function markMatchQuestionnaireComplete(userId) {
+export async function markMatchQuestionnaireComplete(userId, answers = null) {
+  const existing = await loadOnboardingProgress(userId);
+  const preservedAnswers =
+    answers && typeof answers === "object" && Object.keys(answers).length
+      ? answers
+      : existing.onboarding?.questionnaire_answers &&
+          Object.keys(existing.onboarding.questionnaire_answers).length
+        ? existing.onboarding.questionnaire_answers
+        : {};
+
   const payload = {
     user_id: userId,
-    questionnaire_answers: {},
+    questionnaire_answers: preservedAnswers,
     mentor_matching_started: true,
     mentor_matching_complete: true,
     prelude_match_completed: true,
@@ -149,9 +158,9 @@ export async function markMatchQuestionnaireComplete(userId) {
   };
 }
 
-/** @deprecated Prefer markMatchQuestionnaireComplete — answers must not be stored. */
-export async function saveMatchQuestionnaire(userId, _answers) {
-  return markMatchQuestionnaireComplete(userId);
+/** @deprecated Prefer markMatchQuestionnaireComplete — answers are stored by the submit API. */
+export async function saveMatchQuestionnaire(userId, answers) {
+  return markMatchQuestionnaireComplete(userId, answers);
 }
 
 export async function saveMatchDecision(userId, { decision, mentorId, declinedIds = [] }) {

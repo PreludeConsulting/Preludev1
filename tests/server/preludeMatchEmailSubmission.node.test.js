@@ -1,5 +1,5 @@
 /**
- * Prelude Match email-only submission helpers (no DB / Storage).
+ * Prelude Match submission helpers + API wiring.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -13,9 +13,12 @@ import {
   buildPreludeMatchEmail,
   buildPreludeMatchPayload,
   escapeHtml,
+  resolvePreludeMatchEmailConfig,
   serializeCollegesAnswer,
+  toDisplayQuestionnaireAnswers,
   validatePreludeMatchPayload
 } from "../../shared/preludeMatchSubmission.js";
+import { processPreludeMatchSubmission } from "../../server/lib/preludeMatchSubmit.js";
 
 function baseAnswers(overrides = {}) {
   return {
@@ -47,6 +50,59 @@ function validPayload(overrides = {}) {
   return { ...payload, ...overrides };
 }
 
+function mockAdmin({ existing = null } = {}) {
+  const rows = new Map();
+  if (existing) rows.set(existing.submission_id, { ...existing });
+  const onboarding = [];
+
+  return {
+    onboarding,
+    rows,
+    from(table) {
+      const state = { table, filters: {}, payload: null, op: "select" };
+
+      const resolve = async () => {
+        if (state.table === "prelude_match_submissions") {
+          if (state.op === "upsert") {
+            const id = state.payload.submission_id;
+            const next = { id: rows.get(id)?.id || "row-1", ...rows.get(id), ...state.payload };
+            rows.set(id, next);
+            return { data: next, error: null };
+          }
+          const id = state.filters.submission_id;
+          return { data: rows.get(id) || null, error: null };
+        }
+        if (state.table === "onboarding_progress" && state.op === "upsert") {
+          onboarding.push(state.payload);
+          return { data: state.payload, error: null };
+        }
+        return { data: null, error: null };
+      };
+
+      const api = {
+        select() {
+          if (state.op !== "upsert") state.op = "select";
+          return api;
+        },
+        eq(col, val) {
+          state.filters[col] = val;
+          return api;
+        },
+        upsert(payload) {
+          state.op = "upsert";
+          state.payload = payload;
+          return api;
+        },
+        maybeSingle: resolve,
+        then(onFulfilled, onRejected) {
+          return resolve().then(onFulfilled, onRejected);
+        }
+      };
+      return api;
+    }
+  };
+}
+
 test("shared catalog has the approved 85 colleges", () => {
   assert.equal(EXPLORE_COLLEGE_CATALOG.length, 85);
   assert.equal(EXPLORE_COLLEGE_CATALOG[0].id, "mit");
@@ -61,7 +117,6 @@ test("payload includes answers from every current question id when provided", ()
       assert.deepEqual(payload.answers.colleges.collegeIds, ["harvard"]);
       continue;
     }
-    // Adaptive questions may be absent; required base ones must exist in baseAnswers
     if (!question.showWhen) {
       assert.notEqual(payload.answers[question.id], undefined, question.id);
     }
@@ -164,36 +219,158 @@ test("serializeCollegesAnswer strips custom schools", () => {
   });
 });
 
-test("no DB migration / Prisma model / Storage write paths in send-prelude-match", () => {
+test("resolvePreludeMatchEmailConfig prefers documented names and defaults recipient", () => {
+  const cfg = resolvePreludeMatchEmailConfig({
+    RESEND_API_KEY: "re_test",
+    PRELUDE_FROM_EMAIL: "Prelude <no-reply@preludeconsultingllc.com>"
+  });
+  assert.equal(cfg.toEmail, "prelude@preludeconsultingllc.com");
+  assert.equal(cfg.configured, true);
+
+  const legacy = resolvePreludeMatchEmailConfig({
+    RESEND_API_KEY: "re_test",
+    PRELUDE_MATCH_NOTIFICATION_EMAIL: "team@example.com",
+    AUTH_EMAIL_FROM: "Prelude <no-reply@preludeconsultingllc.com>"
+  });
+  assert.equal(legacy.toEmail, "team@example.com");
+  assert.equal(legacy.fromEmail, "Prelude <no-reply@preludeconsultingllc.com>");
+});
+
+test("toDisplayQuestionnaireAnswers expands college ids for admin UI", () => {
+  const display = toDisplayQuestionnaireAnswers({
+    grade: "11th grade",
+    colleges: { stillExploring: false, collegeIds: ["harvard"] }
+  });
+  assert.equal(display.colleges[0].name, "Harvard University");
+  assert.deepEqual(
+    toDisplayQuestionnaireAnswers({ colleges: { stillExploring: true, collegeIds: [] } }).colleges,
+    [STILL_EXPLORING_LABEL]
+  );
+});
+
+test("processPreludeMatchSubmission persists then emails and is idempotent on retry", async () => {
+  const admin = mockAdmin();
+  let resendCalls = 0;
+  const fetchImpl = async () => {
+    resendCalls += 1;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ id: "email_123" })
+    };
+  };
+
+  const env = {
+    RESEND_API_KEY: "re_test",
+    PRELUDE_MATCH_RECIPIENT: "prelude@preludeconsultingllc.com",
+    PRELUDE_FROM_EMAIL: "Prelude <no-reply@preludeconsultingllc.com>"
+  };
+  const user = { id: "user-1", email: "student@example.com" };
+  const payload = validPayload();
+
+  const first = await processPreludeMatchSubmission({ env, user, payload, fetchImpl, admin });
+  assert.equal(first.success, true);
+  assert.equal(first.emailId, "email_123");
+  assert.equal(resendCalls, 1);
+  assert.equal(admin.rows.get(payload.submissionId).email_status, "sent");
+  assert.equal(admin.onboarding.length, 1);
+  assert.ok(Object.keys(admin.onboarding[0].questionnaire_answers).length > 0);
+
+  const second = await processPreludeMatchSubmission({ env, user, payload, fetchImpl, admin });
+  assert.equal(second.success, true);
+  assert.equal(second.alreadySubmitted, true);
+  assert.equal(resendCalls, 1);
+});
+
+test("processPreludeMatchSubmission keeps DB row failed when Resend fails", async () => {
+  const admin = mockAdmin();
+  const fetchImpl = async () => ({
+    ok: false,
+    status: 500,
+    json: async () => ({ message: "boom" })
+  });
+  const env = {
+    RESEND_API_KEY: "re_test",
+    PRELUDE_FROM_EMAIL: "Prelude <no-reply@preludeconsultingllc.com>"
+  };
+
+  await assert.rejects(
+    () =>
+      processPreludeMatchSubmission({
+        env,
+        user: { id: "user-1", email: "student@example.com" },
+        payload: validPayload(),
+        fetchImpl,
+        admin
+      }),
+    /provider unavailable|still here|couldn’t submit/i
+  );
+  assert.equal(admin.rows.get("11111111-1111-4111-8111-111111111111").email_status, "failed");
+  assert.equal(admin.onboarding.length, 0);
+});
+
+test("processPreludeMatchSubmission rejects missing env and invalid payloads", async () => {
+  await assert.rejects(
+    () =>
+      processPreludeMatchSubmission({
+        env: {},
+        user: { id: "user-1", email: "student@example.com" },
+        payload: validPayload(),
+        admin: mockAdmin()
+      }),
+    /not configured/i
+  );
+
+  await assert.rejects(
+    () =>
+      processPreludeMatchSubmission({
+        env: {
+          RESEND_API_KEY: "re_test",
+          PRELUDE_FROM_EMAIL: "Prelude <no-reply@preludeconsultingllc.com>"
+        },
+        user: { id: "user-1", email: "student@example.com" },
+        payload: {},
+        admin: mockAdmin()
+      }),
+    /Invalid Prelude Match submission/
+  );
+});
+
+test("Cloudflare route and env example wire Prelude Match submit", () => {
+  const route = fs.readFileSync(
+    path.join(process.cwd(), "functions/api/prelude-match/submit.js"),
+    "utf8"
+  );
+  assert.match(route, /handlePreludeMatchSubmit/);
+
   const fn = fs.readFileSync(
     path.join(process.cwd(), "supabase/functions/send-prelude-match/index.ts"),
     "utf8"
   );
-  assert.doesNotMatch(fn, /\.from\(/);
-  assert.doesNotMatch(fn, /storage\.from/);
-  assert.doesNotMatch(fn, /prisma/i);
-  assert.doesNotMatch(fn, /\.insert\(/);
-  assert.doesNotMatch(fn, /\.upsert\(/);
-  assert.doesNotMatch(fn, /console\.(?:log|error|warn)\(\s*[`'"].*answers/);
-  assert.doesNotMatch(fn, /JSON\.stringify\(\s*payload\s*\)/);
-  assert.match(fn, /Idempotency-Key/);
-  assert.match(fn, /PRELUDE_MATCH_NOTIFICATION_EMAIL/);
-  assert.match(fn, /PRELUDE_MATCH_FROM_EMAIL/);
+  assert.match(fn, /PRELUDE_MATCH_RECIPIENT|PRELUDE_MATCH_NOTIFICATION_EMAIL/);
+  assert.match(fn, /PRELUDE_FROM_EMAIL|PRELUDE_MATCH_FROM_EMAIL|AUTH_EMAIL_FROM/);
   assert.match(fn, /RESEND_API_KEY/);
+  assert.match(fn, /prelude_match_submissions/);
+  assert.match(fn, /Idempotency-Key/);
+
+  const envExample = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");
+  assert.match(envExample, /PRELUDE_MATCH_RECIPIENT=prelude@preludeconsultingllc\.com/);
+  assert.match(envExample, /PRELUDE_FROM_EMAIL=/);
 });
 
-test("frontend submit helper does not embed Resend secrets", () => {
+test("frontend submit helper posts to secure API and does not embed Resend secrets", () => {
   const src = fs.readFileSync(path.join(process.cwd(), "src/lib/preludeMatchSubmit.js"), "utf8");
   assert.doesNotMatch(src, /RESEND_API_KEY/);
   assert.doesNotMatch(src, /re_[A-Za-z0-9]/);
-  assert.match(src, /functions\.invoke\(\s*"send-prelude-match"/);
+  assert.match(src, /\/api\/prelude-match\/submit/);
   assert.match(src, /sessionStorage/);
   assert.match(src, /prelude_match_submission_attempt_id/);
   assert.doesNotMatch(src, /localStorage/);
 });
 
-test("markMatchQuestionnaireComplete ignores answer persistence", () => {
+test("markMatchQuestionnaireComplete preserves questionnaire answers", () => {
   const src = fs.readFileSync(path.join(process.cwd(), "src/lib/preludeMatchService.js"), "utf8");
-  assert.match(src, /questionnaire_answers:\s*\{\}/);
+  assert.doesNotMatch(src, /questionnaire_answers:\s*\{\}/);
   assert.match(src, /markMatchQuestionnaireComplete/);
+  assert.match(src, /preservedAnswers/);
 });

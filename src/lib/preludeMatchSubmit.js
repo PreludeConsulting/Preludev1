@@ -3,6 +3,8 @@ import { PRELUDE_MATCH_QUESTIONS } from "../data/preludeMatchQuestions.js";
 import { buildPreludeMatchPayload } from "../../shared/preludeMatchSubmission.js";
 
 const SUBMISSION_ID_KEY = "prelude_match_submission_attempt_id";
+const GENERIC_RETRY =
+  "We couldn’t submit your Prelude Match responses. Your answers are still here—please try again.";
 
 export function readPreludeMatchSubmissionId() {
   try {
@@ -45,46 +47,47 @@ export function buildPreludeMatchClientPayload(answers, { studentDisplayName = "
   });
 }
 
+async function getAccessToken() {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const {
+    data: { session },
+    error
+  } = await supabase.auth.getSession();
+  if (error || !session?.access_token) return null;
+  return session.access_token;
+}
+
 /**
- * Invoke the send-prelude-match Edge Function. Does not persist answers.
+ * Submit Prelude Match via the secure Cloudflare/Node API route.
+ * Persists answers server-side and emails Prelude. Does not clear local answers on failure.
  */
 export async function submitPreludeMatchByEmail(answers, { studentDisplayName = "" } = {}) {
-  const supabase = getSupabase();
-  if (!supabase) {
-    const error = new Error("Supabase is not configured.");
-    error.code = "supabase_missing";
+  const token = await getAccessToken();
+  if (!token) {
+    const error = new Error("Sign in to submit Prelude Match.");
+    error.code = "unauthenticated";
     throw error;
   }
 
   const payload = buildPreludeMatchClientPayload(answers, { studentDisplayName });
-  const { data, error } = await supabase.functions.invoke("send-prelude-match", {
-    body: payload
+  const response = await fetch("/api/prelude-match/submit", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
   });
 
-  if (error) {
-    let serverMessage = "";
-    try {
-      if (typeof error.context?.json === "function") {
-        const body = await error.context.json();
-        serverMessage = body?.error || "";
-      }
-    } catch {
-      serverMessage = "";
-    }
-    const err = new Error(
-      serverMessage ||
-        "We couldn’t submit your Prelude Match responses. Your answers are still here—please try again."
-    );
-    err.code = "invoke_failed";
-    err.cause = error;
-    throw err;
-  }
+  const data = await response.json().catch(() => ({}));
 
-  if (!data || data.success !== true) {
-    const err = new Error(
-      "We couldn’t submit your Prelude Match responses. Your answers are still here—please try again."
-    );
-    err.code = "provider_rejected";
+  if (!response.ok || data?.success !== true) {
+    const err = new Error(data?.error || GENERIC_RETRY);
+    err.code = data?.code || "submit_failed";
+    err.status = response.status;
     err.payload = data;
     throw err;
   }
