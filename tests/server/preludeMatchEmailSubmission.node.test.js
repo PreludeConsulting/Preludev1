@@ -336,6 +336,13 @@ test("processPreludeMatchSubmission rejects missing env and invalid payloads", a
   );
 });
 
+test("Cloudflare-safe prelude match submit does not import node:crypto", () => {
+  const src = fs.readFileSync(path.join(process.cwd(), "server/lib/preludeMatchSubmit.js"), "utf8");
+  assert.doesNotMatch(src, /node:crypto/);
+  assert.doesNotMatch(src, /loginAssurance/);
+  assert.doesNotMatch(src, /supabaseRequestAuth/);
+});
+
 test("Cloudflare route and env example wire Prelude Match submit", () => {
   const route = fs.readFileSync(
     path.join(process.cwd(), "functions/api/prelude-match/submit.js"),

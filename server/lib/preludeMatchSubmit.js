@@ -1,7 +1,9 @@
 /**
  * Prelude Match submission: validate → persist → email via Resend.
  * Shared by Cloudflare Pages Functions and the local/Node API stack.
+ * Do not import Node-only modules (node:crypto / loginAssurance) — CF Pages bundles this file.
  */
+import { createClient } from "@supabase/supabase-js";
 import { PRELUDE_MATCH_QUESTIONS } from "../../shared/preludeMatchQuestions.js";
 import {
   MAX_PRELUDE_MATCH_BODY_BYTES,
@@ -10,12 +12,20 @@ import {
   toDisplayQuestionnaireAnswers,
   validatePreludeMatchPayload
 } from "../../shared/preludeMatchSubmission.js";
-import { getSupabaseAdmin } from "./supabaseRequestAuth.js";
 
 const MATCH_COMPLETED_STATUS = "match_completed";
 
 const GENERIC_RETRY =
   "We couldn’t submit your Prelude Match responses. Your answers are still here—please try again.";
+
+function getDefaultAdmin() {
+  const url = (typeof process !== "undefined" && (process.env?.SUPABASE_URL || process.env?.VITE_SUPABASE_URL)) || "";
+  const key = (typeof process !== "undefined" && process.env?.SUPABASE_SERVICE_ROLE_KEY) || "";
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
+}
 
 function httpError(message, statusCode = 500, code = "server_error", details = undefined) {
   const error = new Error(message);
@@ -137,14 +147,14 @@ async function markOnboardingComplete(admin, { userId, answers }) {
  * @param {{ id: string, email?: string }} params.user
  * @param {object} params.payload
  * @param {typeof fetch} [params.fetchImpl]
- * @param {ReturnType<typeof getSupabaseAdmin>} [params.admin]
+ * @param {import("@supabase/supabase-js").SupabaseClient | null} [params.admin]
  */
 export async function processPreludeMatchSubmission({
   env,
   user,
   payload: rawPayload,
   fetchImpl = fetch,
-  admin = getSupabaseAdmin()
+  admin = getDefaultAdmin()
 }) {
   if (!user?.id || !user?.email) {
     throw httpError("Authentication required.", 401, "unauthenticated");
