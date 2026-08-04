@@ -931,7 +931,7 @@ export function VerifyEmailPage() {
 export function AuthCallbackPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { beginLoginVerification, refreshUser } = useAuth();
+  const { refreshUser, refreshLoginVerification } = useAuth();
   const processed = useRef(false);
   const callbackPromise = useRef(null);
   const callbackUrl = useMemo(() => ({ search: window.location.search, hash: window.location.hash }), []);
@@ -960,18 +960,22 @@ export function AuthCallbackPage() {
         }
         const refreshed = await refreshUser();
         if (!active) return;
-        const resolvedUser = nextUser || refreshed;
-        const verification = await beginLoginVerification();
+        const resolvedUser = refreshed || nextUser;
+        // Google already proved identity with the OAuth provider. Do not send
+        // confirmed users through a second email OTP on the callback path.
+        if (resolvedUser?.emailVerified) {
+          await refreshLoginVerification({ forceVerified: true, silent: true });
+        }
         if (!active) return;
-        const requestedDestination = nextPath === "/dashboard" ? "" : nextPath;
-        const destination = postConfirmationDestination(resolvedUser, requestedDestination);
-        if (!verification.verified) {
-          const challenge = verification.challengeId ? `&challenge=${encodeURIComponent(verification.challengeId)}` : "";
-          navigate(`/verify-login?next=${encodeURIComponent(destination)}${challenge}`, { replace: true });
+        if (!resolvedUser?.emailVerified) {
+          navigate("/verify-email", { replace: true });
           return;
         }
+        const requestedDestination = nextPath === "/dashboard" ? "" : nextPath;
+        const destination = postConfirmationDestination(resolvedUser, requestedDestination);
         setState({ loading: false, error: "", message: "Signed in. Opening Prelude…" });
         navigate(destination, { replace: true });
+        clearPendingJourney();
       })
       .catch((err) => {
         if (active) {
@@ -981,7 +985,7 @@ export function AuthCallbackPage() {
     return () => {
       active = false;
     };
-  }, [beginLoginVerification, callbackUrl.hash, callbackUrl.search, navigate, nextPath, refreshUser]);
+  }, [callbackUrl.hash, callbackUrl.search, navigate, nextPath, refreshLoginVerification, refreshUser]);
 
   return (
     <AuthLayout title="Finishing Google sign-in" subtitle="Prelude is restoring your session securely." headerLink={{ prefix: "Having trouble?", label: "Log in", href: "/login" }}>

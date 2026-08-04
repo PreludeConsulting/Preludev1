@@ -22,7 +22,10 @@ export function getSupabase() {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
+        // OAuth / email links are handled explicitly on /auth/callback and
+        // /verify-email. Auto-detect races with exchangeCodeForSession and
+        // consumes the one-time PKCE code before our callback page can use it.
+        detectSessionInUrl: false,
         flowType: "pkce"
       }
     });

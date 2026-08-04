@@ -119,7 +119,17 @@ describe("supabase client and cookie persistence contracts", () => {
     const src = fs.readFileSync(path.join(ROOT, "src/lib/supabase.js"), "utf8");
     expect(src).toMatch(/persistSession:\s*true/);
     expect(src).toMatch(/autoRefreshToken:\s*true/);
-    expect(src).toMatch(/detectSessionInUrl:\s*true/);
+    // OAuth is completed on /auth/callback via exchangeCodeForSession; auto
+    // URL detection would consume the one-time PKCE code first.
+    expect(src).toMatch(/detectSessionInUrl:\s*false/);
+  });
+
+  it("completes Google OAuth without a second login OTP for confirmed users", () => {
+    const src = fs.readFileSync(path.join(ROOT, "src/components/AuthPages.jsx"), "utf8");
+    const callback = src.slice(src.indexOf("export function AuthCallbackPage"), src.indexOf("export function VerifyLoginPage"));
+    expect(callback).toMatch(/forceVerified:\s*true/);
+    expect(callback).not.toMatch(/beginLoginVerification/);
+    expect(callback).not.toMatch(/verify-login/);
   });
 
   it("uses Lax SameSite cookies so Stripe returns keep trusted-device / assurance cookies", () => {

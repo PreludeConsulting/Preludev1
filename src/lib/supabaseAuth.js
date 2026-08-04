@@ -922,8 +922,20 @@ async function processAuthCallback(search, hash) {
   if (code) {
     authDebug("callback_code_detected", { flow: "oauth" });
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return { user: null, error: friendlyError(error) };
-    exchangedSession = data?.session || null;
+    if (error) {
+      // If detectSessionInUrl or a prior attempt already consumed the code,
+      // fall back to whatever session is already in storage.
+      const {
+        data: { session: existingSession }
+      } = await supabase.auth.getSession();
+      if (!existingSession) {
+        return { user: null, error: friendlyError(error) };
+      }
+      authDebug("callback_code_reuse_fallback", { userId: existingSession.user?.id || null });
+      exchangedSession = existingSession;
+    } else {
+      exchangedSession = data?.session || null;
+    }
   } else {
     const {
       data: { session: existingSession }
