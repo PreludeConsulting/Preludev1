@@ -142,7 +142,7 @@ describe("onboarding flow navigation", () => {
       backPath: `${MATCH_ONBOARDING_PATH}?step=result`,
       showNext: true,
       nextDisabled: true,
-      nextReason: "Send a parent invite or choose Skip for now to continue."
+      nextReason: "Choose Skip for now to continue. Parent invitations are coming soon."
     });
 
     const readyForPayment = student({

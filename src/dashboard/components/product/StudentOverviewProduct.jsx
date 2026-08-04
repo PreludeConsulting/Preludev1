@@ -4,6 +4,7 @@ import { Calendar, ChevronRight } from "lucide-react";
 import { cn } from "../../../lib/utils.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { MENTOR_DASHBOARD_BASE, STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { resolveStudentFirstName } from "../../../lib/studentDisplayName.js";
 import { getPhaseHeaderLabel } from "../../config/studentDashboardByGrade.js";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import AdmissionsCalendarVisual from "./AdmissionsCalendarVisual.jsx";
@@ -32,7 +33,7 @@ export default function StudentOverviewProduct() {
 
   const firstName = isMentorStudentView
     ? mentorViewStudent?.name?.split(" ")[0] || "there"
-    : user?.name?.split(" ")[0] || "there";
+    : resolveStudentFirstName(user) || "there";
   const phaseLabel = getPhaseHeaderLabel(profile);
   const [upcomingEventsMountEl, setUpcomingEventsMountEl] = useState(null);
   const calendarPath = isMentorStudentView

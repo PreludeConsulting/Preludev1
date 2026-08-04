@@ -9,7 +9,7 @@
  *
  * @typedef {Object} PreludeMatchQuestion
  * @property {string} id
- * @property {'single-select'|'multi-select'|'open-response'|'college-search'|'scale'} type
+ * @property {'single-select'|'multi-select'|'open-response'|'college-search'|'scale'|'name-fields'} type
  * @property {string} question
  * @property {string} [helperText]
  * @property {string[]} [options]
@@ -21,6 +21,13 @@
 
 /** @type {PreludeMatchQuestion[]} */
 export const PRELUDE_MATCH_QUESTIONS = [
+  {
+    id: "studentName",
+    type: "name-fields",
+    question: "What is your name?",
+    helperText: "We'll use your first name in your Prelude dashboard.",
+    required: true
+  },
   {
     id: "grade",
     type: "single-select",

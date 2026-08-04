@@ -22,6 +22,7 @@ import { processPreludeMatchSubmission } from "../../server/lib/preludeMatchSubm
 
 function baseAnswers(overrides = {}) {
   return {
+    studentName: { firstName: "Ada", lastName: "Lovelace" },
     grade: "11th grade",
     processStage: ["Building my college list"],
     helpAreas: ["Choosing colleges", "Essay brainstorming"],

@@ -7,15 +7,8 @@ import {
 import { useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useLanguage } from "../context/LanguageContext.jsx";
-import {
-  buildBundleWalletPath,
-  savePendingBundleIntent
-} from "../lib/bundlePurchaseIntent.js";
-import {
-  canAccessDashboard,
-  postAuthDestination,
-  userNeedsPaymentStep
-} from "../lib/onboardingRoutes.js";
+import { savePendingJourney } from "../lib/authJourney.js";
+import { MATCH_ONBOARDING_PATH } from "../lib/onboardingRoutes.js";
 import { formatUsd, SUPPORT_BUNDLES } from "../../shared/supportBundles.js";
 import ScrollReveal from "./motion/ScrollReveal.jsx";
 
@@ -156,35 +149,25 @@ export function SupportBundleCard({ card, labels, onCustomize }) {
 
 export default function SupportBundlesSection() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, openRegister } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { t } = useLanguage();
   const copy = t("sections.bundles") || {};
   const cards = (Array.isArray(copy.cards) ? copy.cards : []).filter(
     (card) => card?.id === "essay_support"
   );
 
-  function handleCustomize(bundleId) {
-    savePendingBundleIntent(bundleId);
-    const paymentPath = buildBundleWalletPath({ payment: true, bundleId });
-    const publicPath = buildBundleWalletPath({ payment: false, bundleId });
+  function handleCustomize() {
+    savePendingJourney({ next: MATCH_ONBOARDING_PATH, onboardingStep: "match" });
     const requiresRealAccount = user?.authProvider === "demo" || user?.authProvider === "dev";
 
     if (!isAuthenticated || requiresRealAccount) {
-      openRegister();
+      navigate(`/register?next=${encodeURIComponent(MATCH_ONBOARDING_PATH)}`, {
+        state: { from: MATCH_ONBOARDING_PATH }
+      });
       return;
     }
 
-    if (userNeedsPaymentStep(user)) {
-      navigate(paymentPath);
-      return;
-    }
-
-    if (user?.role === "student" && !canAccessDashboard(user)) {
-      navigate(postAuthDestination(user));
-      return;
-    }
-
-    navigate(publicPath);
+    navigate(MATCH_ONBOARDING_PATH);
   }
 
   return (

@@ -36,12 +36,12 @@ describe("server-enforced login assurance", () => {
     );
   });
 
-  it("accepts a live assurance bound to the current bearer session", async () => {
+  it("accepts a live assurance cookie even after the access token refreshes", async () => {
     const authorization = "Bearer session-token";
     const result = await requireLoginAssurance({
       req: {
         headers: {
-          authorization,
+          authorization: "Bearer refreshed-token-different-suffix",
           cookie: `${LOGIN_ASSURANCE_COOKIE}=raw-assurance-token`
         }
       },

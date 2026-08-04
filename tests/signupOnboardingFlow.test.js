@@ -64,8 +64,8 @@ describe("signup page source contract", () => {
     expect(registerFn).toMatch(/parentInviteToken/);
   });
 
-  it("routes verified or immediate sessions through postConfirmationDestination / role selection", () => {
-    expect(registerFn).toMatch(/ROLE_SELECTION_PATH/);
+  it("routes verified or immediate sessions toward Prelude Match onboarding", () => {
+    expect(registerFn).toMatch(/MATCH_ONBOARDING_PATH/);
     expect(registerFn).toMatch(/postConfirmationDestination/);
     expect(registerFn).toMatch(/navigate\("\/verify-email"/);
   });

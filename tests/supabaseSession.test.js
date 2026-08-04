@@ -38,6 +38,33 @@ describe("mapSupabaseUser", () => {
     expect(user.email).toBe("vincent.zhu@preludeconsultingllc.com");
     expect(user.emailVerified).toBe(true);
     expect(user.matchOnboardingComplete).toBe(false);
+    expect(user.firstName).toBe("Vincent");
+    expect(user.preferredName).toBe("");
+  });
+
+  it("prefers preferred_name for dashboard first-name display", () => {
+    const user = mapSupabaseUser(
+      session({
+        email: "ada@example.com",
+        email_confirmed_at: "2026-08-01T00:00:00.000Z"
+      }),
+      {
+        id: "user-1",
+        email: "ada@example.com",
+        full_name: "Ada Lovelace",
+        preferred_name: "Ada",
+        role: "student",
+        role_selection_complete: true
+      },
+      {
+        mentor_matching_complete: true,
+        questionnaire_answers: { studentName: { firstName: "Ada", lastName: "Lovelace" } }
+      }
+    );
+
+    expect(user.preferredName).toBe("Ada");
+    expect(user.firstName).toBe("Ada");
+    expect(user.name).toBe("Ada Lovelace");
   });
 
   it("does not send first-login users to plan selection before role selection", () => {

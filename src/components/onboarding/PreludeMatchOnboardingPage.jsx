@@ -24,6 +24,8 @@ import {
   getVisibleQuestions,
   pruneStaleAnswers
 } from "../../lib/preludeMatchLogic.js";
+import { updateMyProfile } from "../../lib/profileData.js";
+import { buildPrefillStudentNameAnswer } from "../../lib/studentDisplayName.js";
 import { useReducedMotion } from "../../lib/useReducedMotion.js";
 import AppLink from "../AppLink.jsx";
 import PreludeMatchBoot from "../hero/PreludeMatchBoot.jsx";
@@ -34,7 +36,7 @@ import PreludePigAvatar from "../hero/PreludePigAvatar.jsx";
 import EmailVerificationBanner from "../EmailVerificationBanner.jsx";
 import { OnboardingProgress } from "./OnboardingShell.jsx";
 
-export function MatchPendingPanel({ loading = false, onContinue, showAction = true, onEdit = null }) {
+export function MatchPendingPanel({ loading = false, onContinue, showAction = true }) {
   return (
     <div className="pm-match-pending">
       <PreludePigAvatar size="lg" variant="intro" animate className="pm-match-pending__mascot" />
@@ -47,25 +49,18 @@ export function MatchPendingPanel({ loading = false, onContinue, showAction = tr
         </p>
         <p className="pm-match-pending__status">We&apos;ll reach out as soon as your match is ready.</p>
       </div>
-      {showAction || onEdit ? (
+      {showAction ? (
         <div className="pm-match-pending__actions">
-          {onEdit ? (
-            <button type="button" className="dash-btn dash-btn--secondary" onClick={onEdit}>
-              Update answers
-            </button>
-          ) : null}
-          {showAction ? (
-            <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onContinue}>
-              Continue to parent invite
-            </button>
-          ) : null}
+          <button type="button" className="dash-btn dash-btn--primary" disabled={loading} onClick={onContinue}>
+            Continue to parent invite
+          </button>
         </div>
       ) : null}
     </div>
   );
 }
 
-function MatchCompletePanel({ onEdit }) {
+function MatchCompletePanel() {
   return (
     <div className="pm-match-pending">
       <PreludePigAvatar size="lg" variant="intro" animate className="pm-match-pending__mascot" />
@@ -73,13 +68,8 @@ function MatchCompletePanel({ onEdit }) {
         <p className="pm-match-pending__eyebrow">Step complete</p>
         <h2 className="pm-match-pending__title">Prelude Match is complete</h2>
         <p className="pm-match-pending__lead">
-          Your responses were sent to our team. Continue onboarding, or update your answers before moving on.
+          Your responses were sent to our team. Continue onboarding when you&apos;re ready.
         </p>
-      </div>
-      <div className="pm-match-pending__actions">
-        <button type="button" className="dash-btn dash-btn--secondary" onClick={onEdit}>
-          Update answers
-        </button>
       </div>
     </div>
   );
@@ -95,7 +85,6 @@ export default function PreludeMatchOnboardingPage() {
 
   const [phase, setPhase] = useState(forceResult ? "result" : "intro");
   const [answers, setAnswers] = useState({});
-  const [editingAnswers, setEditingAnswers] = useState(false);
   const [currentQuestionId, setCurrentQuestionId] = useState(null);
   const [pigMotion, setPigMotion] = useState("none");
   const [progress, setProgress] = useState(0);
@@ -120,12 +109,10 @@ export default function PreludeMatchOnboardingPage() {
   useEffect(() => {
     if (forceResult) {
       setError("");
-      setEditingAnswers(false);
       setPhase("result");
       return;
     }
     setPhase((current) => (current === "result" ? "intro" : current));
-    setEditingAnswers(false);
     setError("");
   }, [forceResult]);
 
@@ -134,6 +121,11 @@ export default function PreludeMatchOnboardingPage() {
     const ms = reducedMotion ? 0 : 400;
     setTimeout(() => setPigMotion("none"), ms);
   }, [reducedMotion]);
+
+  function initialAnswersFromUser(sourceUser) {
+    const prefillName = buildPrefillStudentNameAnswer(sourceUser);
+    return prefillName ? { studentName: prefillName } : {};
+  }
 
   if (!ready) {
     return <main className="pm-onboarding-page"><p className="text-muted-foreground">Loading…</p></main>;
@@ -163,7 +155,8 @@ export default function PreludeMatchOnboardingPage() {
   const stepProgress = getOnboardingProgress(user, location.pathname, new URLSearchParams(location.search));
 
   function handleStart() {
-    setAnswers({});
+    const seeded = initialAnswersFromUser(user);
+    setAnswers(seeded);
     setProgress(0);
     setPhase(reducedMotion ? "questions" : "boot");
     setCurrentQuestionId(PRELUDE_MATCH_QUESTIONS[0].id);
@@ -172,7 +165,7 @@ export default function PreludeMatchOnboardingPage() {
   function handleBootComplete() {
     setPhase("questions");
     setCurrentQuestionId(PRELUDE_MATCH_QUESTIONS[0].id);
-    setProgress(computeQuestionProgress(0, getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, {}).length));
+    setProgress(computeQuestionProgress(0, getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, answers).length));
     bumpPig();
   }
 
@@ -193,8 +186,14 @@ export default function PreludeMatchOnboardingPage() {
     setError("");
     try {
       if (user.authProvider === "supabase") {
+        const nameAnswer = finalAnswers?.studentName || {};
+        const firstName = typeof nameAnswer.firstName === "string" ? nameAnswer.firstName.trim() : "";
+        const lastName = typeof nameAnswer.lastName === "string" ? nameAnswer.lastName.trim() : "";
+        const fullName = [firstName, lastName].filter(Boolean).join(" ");
+        const displayName = firstName || fullName || user.name || "";
+
         await submitPreludeMatchByEmail(finalAnswers, {
-          studentDisplayName: user.name || user.firstName || ""
+          studentDisplayName: displayName
         });
         // Server already marked onboarding complete after email delivery.
         // Best-effort client sync; do not fail the user if this upsert races.
@@ -202,13 +201,21 @@ export default function PreludeMatchOnboardingPage() {
         if (err) {
           console.warn("[prelude-match] onboarding sync warning:", err);
         }
+        if (firstName || lastName) {
+          const { error: profileError } = await updateMyProfile(user.id, {
+            fullName: fullName || undefined,
+            preferredName: firstName || undefined
+          });
+          if (profileError) {
+            console.warn("[prelude-match] profile name sync warning:", profileError);
+          }
+        }
       } else {
         throw new Error("Sign in with Supabase to submit Prelude Match.");
       }
       submitSucceededRef.current = true;
       await refreshUser();
       setProgress(100);
-      setEditingAnswers(false);
       setAnswers({});
       setPhase("result");
       navigate(`${MATCH_ONBOARDING_PATH}?step=result`, { replace: true });
@@ -253,10 +260,10 @@ export default function PreludeMatchOnboardingPage() {
     currentQuestion &&
     getQuestionIndex(visibleQuestions, currentQuestion.id) === visibleQuestions.length - 1;
 
-  const showResultPanel = phase === "result" && !editingAnswers;
+  const showResultPanel = phase === "result";
   const showVerifyBanner = !user.emailVerified && showResultPanel;
-  const showCompletedPanel = user.matchOnboardingComplete && !showResultPanel && !editingAnswers;
-  const renderQuestionnaireFlow = !forceResult || editingAnswers;
+  const showCompletedPanel = user.matchOnboardingComplete && !showResultPanel && !forceResult && phase === "intro";
+  const renderQuestionnaireFlow = !forceResult && !showCompletedPanel;
   const cardVariant =
     phase === "questions" || phase === "boot"
       ? "questionnaire"
@@ -264,16 +271,6 @@ export default function PreludeMatchOnboardingPage() {
         ? "intro"
         : "panel";
   const nextHint = navigation.nextDisabled ? navigation.nextReason : "";
-
-  function beginEditingAnswers() {
-    setAnswers({});
-    setEditingAnswers(true);
-    setError("");
-    setPhase("questions");
-    setCurrentQuestionId(PRELUDE_MATCH_QUESTIONS[0].id);
-    setProgress(computeQuestionProgress(0, getVisibleQuestions(PRELUDE_MATCH_QUESTIONS, {}).length));
-    bumpPig();
-  }
 
   function handleStepNext() {
     if (navigation.nextDisabled) {
@@ -308,7 +305,7 @@ export default function PreludeMatchOnboardingPage() {
             <AnimatePresence mode="wait">
               {showCompletedPanel ? (
                 <motion.div key="match-complete" className="pm-card__panel pm-card__panel--summary" exit={{ opacity: 0 }}>
-                  <MatchCompletePanel onEdit={beginEditingAnswers} />
+                  <MatchCompletePanel />
                 </motion.div>
               ) : null}
 

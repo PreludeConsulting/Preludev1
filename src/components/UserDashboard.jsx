@@ -6,6 +6,7 @@ import { getPlan } from "../lib/plans.js";
 import { getCurrentProductName, isEssaySupportProduct } from "../lib/currentProduct.js";
 import { PRELUDE_AI_NAME } from "../lib/preludeAi.js";
 import { getNodeById } from "../lib/roadmapData.js";
+import { resolveStudentFirstName } from "../lib/studentDisplayName.js";
 import { Button } from "./ui/button.jsx";
 import RoadmapPath from "./RoadmapPath.jsx";
 
@@ -39,12 +40,13 @@ export default function UserDashboard() {
   const essaySupport = isEssaySupportProduct(plan.id);
   const currentNode = getNodeById(user.roadmap?.currentNodeId);
   const completed = user.roadmap?.completedNodes?.length ?? 0;
+  const greetingName = resolveStudentFirstName(user) || "there";
 
   return (
     <section className="section-shell min-h-screen pt-24 pb-16" id="dashboard">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <span className="section-badge mb-4">Welcome back, {user.name.split(" ")[0]}</span>
+          <span className="section-badge mb-4">Welcome back, {greetingName}</span>
           <h1 className="section-heading max-w-2xl">Your application roadmap</h1>
           <p className="body-copy mt-4 max-w-xl">
             Prelude AI updates this path as you chat — your focus, deadlines, and next steps stay saved here.

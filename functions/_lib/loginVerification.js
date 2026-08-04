@@ -48,15 +48,27 @@ function parseCookies(header = "") {
   );
 }
 
-function serializeCookie(name, value, options = {}) {
-  const parts = [`${name}=${encodeURIComponent(value)}`, "Path=/", "HttpOnly", "SameSite=Strict"];
-  if (options.secure !== false) parts.push("Secure");
+function isSecureRequest(context) {
+  const proto = context.request?.headers?.get?.("x-forwarded-proto") || "";
+  if (proto === "https") return true;
+  try {
+    return new URL(context.request.url).protocol === "https:";
+  } catch {
+    return true;
+  }
+}
+
+function serializeCookie(name, value, options = {}, context = null) {
+  const parts = [`${name}=${encodeURIComponent(value)}`, "Path=/", "HttpOnly", "SameSite=Lax"];
+  if (options.secure !== false && (context ? isSecureRequest(context) : true)) parts.push("Secure");
   if (options.maxAge !== undefined) parts.push(`Max-Age=${options.maxAge}`);
+  const domain = context ? getEnv(context, "AUTH_COOKIE_DOMAIN") : "";
+  if (domain) parts.push(`Domain=${domain}`);
   return parts.join("; ");
 }
 
-function clearCookie(name) {
-  return serializeCookie(name, "", { maxAge: 0 });
+function clearCookie(name, context = null) {
+  return serializeCookie(name, "", { maxAge: 0 }, context);
 }
 
 function bytesToHex(bytes) {
@@ -260,7 +272,7 @@ export async function handleLoginVerification(context, action) {
     }
 
     if (action === "clear") {
-      return json({ cleared: true }, 200, { "Set-Cookie": clearCookie(LOGIN_ASSURANCE_COOKIE) });
+      return json({ cleared: true }, 200, { "Set-Cookie": clearCookie(LOGIN_ASSURANCE_COOKIE, context) });
     }
 
     if (action === "create-login-challenge" || action === "resend-login-challenge" || action === "send" || action === "create" || action === "resend") {
@@ -356,8 +368,8 @@ export async function handleLoginVerification(context, action) {
         })
       });
       const headers = new Headers();
-      headers.append("Set-Cookie", serializeCookie(LOGIN_ASSURANCE_COOKIE, assuranceRaw, { maxAge: 12 * 60 * 60 }));
-      if (trustedDeviceRaw) headers.append("Set-Cookie", serializeCookie(TRUSTED_DEVICE_COOKIE, trustedDeviceRaw, { maxAge: TRUSTED_DEVICE_DAYS * 24 * 60 * 60 }));
+      headers.append("Set-Cookie", serializeCookie(LOGIN_ASSURANCE_COOKIE, assuranceRaw, { maxAge: 12 * 60 * 60 }, context));
+      if (trustedDeviceRaw) headers.append("Set-Cookie", serializeCookie(TRUSTED_DEVICE_COOKIE, trustedDeviceRaw, { maxAge: TRUSTED_DEVICE_DAYS * 24 * 60 * 60 }, context));
       logAuth("verification.challenge.verified", { requestId: rid, userId: user.id, challengeId: selected.id, assuranceId: assuranceRows?.[0]?.id || null });
       return json({ verified: true, trustedDevice, assuranceId: assuranceRows?.[0]?.id || null }, 200, headers);
     }
@@ -389,8 +401,8 @@ export async function handleTrustedDevices(context, id = "") {
       await supabaseFetch(context, `/rest/v1/trusted_devices?id=eq.${id}&user_id=eq.${user.id}`, { method: "PATCH", body: JSON.stringify({ revoked_at: now }) });
       await supabaseFetch(context, `/rest/v1/login_assurances?trusted_device_id=eq.${id}&user_id=eq.${user.id}`, { method: "PATCH", body: JSON.stringify({ revoked_at: now }) });
       const headers = new Headers();
-      headers.append("Set-Cookie", clearCookie(TRUSTED_DEVICE_COOKIE));
-      headers.append("Set-Cookie", clearCookie(LOGIN_ASSURANCE_COOKIE));
+      headers.append("Set-Cookie", clearCookie(TRUSTED_DEVICE_COOKIE, context));
+      headers.append("Set-Cookie", clearCookie(LOGIN_ASSURANCE_COOKIE, context));
       logAuth("trusted_device.revoked", { userId: user.id, trustedDeviceId: id });
       return json({ message: "Trusted device revoked." }, 200, headers);
     }

@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import AuthLoadingState from "./AuthLoadingState.jsx";
 
 export default function RequireLoginVerification({ children }) {
-  const { user, ready, verificationRequired } = useAuth();
+  const { user, ready, verificationRequired, emailConfirmationRequired } = useAuth();
   const location = useLocation();
 
   if (!ready) {
@@ -17,6 +17,10 @@ export default function RequireLoginVerification({ children }) {
 
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  if (emailConfirmationRequired) {
+    return <Navigate to="/verify-email" replace />;
   }
 
   if (verificationRequired) {

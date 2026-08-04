@@ -6,13 +6,12 @@ import {
   ArrowUpRight,
   ShieldCheck
 } from "lucide-react";
-import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { Button } from "./ui/button.jsx";
 import PreludeLogo from "./PreludeLogo.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { startBillingCheckout } from "../lib/auth.js";
+import { savePendingJourney } from "../lib/authJourney.js";
 import { getPricingPlans } from "../lib/plans.js";
 import PricingCard from "./PricingCard.jsx";
 import RewardsShowcase from "./RewardsShowcase.jsx";
@@ -20,7 +19,7 @@ import SupportBundlesSection from "./SupportBundlesSection.jsx";
 import { FOOTER_LINK_COLUMNS } from "../data/footerLinks.js";
 import AppLink from "./AppLink.jsx";
 import { useLegalModal } from "../context/LegalModalContext.jsx";
-import { dashboardPathForRole } from "../lib/onboardingRoutes.js";
+import { dashboardPathForRole, MATCH_ONBOARDING_PATH } from "../lib/onboardingRoutes.js";
 import ScrollReveal from "./motion/ScrollReveal.jsx";
 import TrueFocus from "./TrueFocus.jsx";
 export { default as AdmissionsCostBanner } from "./AdmissionsCostBanner.jsx";
@@ -137,11 +136,8 @@ export function LowerBenefits() {
 
 export function LowerPlans() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, openRegister } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { t, language } = useLanguage();
-  const [billingNotice, setBillingNotice] = useState("");
-  const [loadingPlan, setLoadingPlan] = useState(null);
-  const allowGuestCheckout = import.meta.env.DEV || import.meta.env.VITE_ALLOW_GUEST_CHECKOUT === "true";
   const translatedPlanCards = t("sections.plans.cards");
   const plans = getPricingPlans().map((plan) => {
     const translatedPlan = translatedPlanCards.find(({ id }) => id === plan.id);
@@ -161,41 +157,21 @@ export function LowerPlans() {
           : t("sections.plans.priceLabels.free")
     };
   });
-  async function handlePlanClick(plan) {
-    setBillingNotice("");
+
+  function goToMatchOnboarding() {
+    savePendingJourney({ next: MATCH_ONBOARDING_PATH, onboardingStep: "match" });
     const requiresRealAccount = user?.authProvider === "demo" || user?.authProvider === "dev";
-    if (!plan.paid) {
-      if (isAuthenticated && !requiresRealAccount) {
-        navigate("/dashboard");
-      } else {
-        setBillingNotice(t("sections.plans.notices.basicFree"));
-        openRegister();
-      }
+    if (isAuthenticated && !requiresRealAccount) {
+      navigate(MATCH_ONBOARDING_PATH);
       return;
     }
+    navigate(`/register?next=${encodeURIComponent(MATCH_ONBOARDING_PATH)}`, {
+      state: { from: MATCH_ONBOARDING_PATH }
+    });
+  }
 
-    if ((!isAuthenticated || requiresRealAccount) && !allowGuestCheckout) {
-      setBillingNotice(t("sections.plans.notices.signInFirst"));
-      openRegister();
-      return;
-    }
-
-    setLoadingPlan(plan.id);
-    try {
-      const result = await startBillingCheckout(plan.id, { guestCheckout: !isAuthenticated || requiresRealAccount });
-      if (result.url) window.location.href = result.url;
-    } catch (error) {
-      if (error.payload?.error === "billing_not_configured") {
-        setBillingNotice(t("sections.plans.notices.comingSoon"));
-      } else if (error.status === 401 || error.status === 403) {
-        setBillingNotice(t("sections.plans.notices.signInFirst"));
-        openRegister();
-      } else {
-        setBillingNotice(error.message || t("sections.plans.notices.unavailable"));
-      }
-    } finally {
-      setLoadingPlan(null);
-    }
+  function handlePlanClick() {
+    goToMatchOnboarding();
   }
 
   return (
@@ -225,11 +201,6 @@ export function LowerPlans() {
               )}
             </p>
           </ScrollReveal>
-          {billingNotice ? (
-            <p className="pricing-section__notice mx-auto max-w-xl rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-center font-body text-sm text-muted-foreground">
-              {billingNotice}
-            </p>
-          ) : null}
           <div className="pricing-section__cards pricing-section__cards--two grid items-start gap-6">
             {plans.map((plan, index) => (
               <ScrollReveal delay={index * 0.08} key={plan.id} className="pricing-section__card-reveal">
@@ -237,7 +208,7 @@ export function LowerPlans() {
                   plan={plan}
                   language={language}
                   onSelect={handlePlanClick}
-                  loading={loadingPlan === plan.id}
+                  loading={false}
                   startFreeLabel={t("sections.plans.startFree")}
                   chooseLabel={t("sections.plans.choose")}
                   pleaseWaitLabel={t("sections.plans.pleaseWait")}

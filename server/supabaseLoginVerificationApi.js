@@ -164,8 +164,9 @@ function serializeCookie(name, value, options = {}) {
   return cookie.serialize(name, value, {
     httpOnly: true,
     secure: isProduction(),
-    sameSite: "strict",
+    sameSite: "lax",
     path: "/",
+    ...(process.env.AUTH_COOKIE_DOMAIN ? { domain: process.env.AUTH_COOKIE_DOMAIN } : {}),
     ...options
   });
 }

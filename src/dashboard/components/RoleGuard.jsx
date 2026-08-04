@@ -4,7 +4,7 @@ import AuthLoadingState from "../../components/AuthLoadingState.jsx";
 import { canAccessDashboardRole, dashboardHomeForUser } from "../../lib/dashboardRoutes.js";
 
 export default function RoleGuard({ role, children }) {
-  const { user, ready, verificationRequired } = useAuth();
+  const { user, ready, verificationRequired, emailConfirmationRequired } = useAuth();
 
   if (!ready) {
     return (
@@ -17,6 +17,10 @@ export default function RoleGuard({ role, children }) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (emailConfirmationRequired) {
+    return <Navigate to="/verify-email" replace />;
   }
 
   if (verificationRequired) {

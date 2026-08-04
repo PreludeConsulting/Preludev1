@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { getCurrentProductLabel } from "../../lib/currentProduct.js";
+import { resolveStudentFirstName } from "../../lib/studentDisplayName.js";
 import { cn } from "../../lib/utils.js";
 import { useDashboardData } from "../context/DashboardDataContext.jsx";
 import { Avatar, IconButton } from "./ui/index.jsx";
@@ -27,7 +28,7 @@ export default function DashboardHeader({ routeMeta, basePath, onMenuToggle }) {
     planDetails?.id || user?.plan,
     planDetails?.name || user?.planName
   );
-  const firstName = (user?.firstName || user?.name || "Account").trim().split(/\s+/)[0] || "Account";
+  const firstName = resolveStudentFirstName(user) || "Account";
 
   function closeProfileMenu({ restoreFocus = true } = {}) {
     setProfileOpen(false);

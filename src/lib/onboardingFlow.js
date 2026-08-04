@@ -36,7 +36,7 @@ const ONBOARDING_STEP_INCOMPLETE_REASONS = {
   [ONBOARDING_STEP_IDS.ROLE]: "Choose your role to continue.",
   [ONBOARDING_STEP_IDS.MATCH]: "Complete Prelude Match to continue.",
   [ONBOARDING_STEP_IDS.MATCH_RESULT]: "Review your match to continue.",
-  [ONBOARDING_STEP_IDS.PARENT]: "Send a parent invite or choose Skip for now to continue.",
+  [ONBOARDING_STEP_IDS.PARENT]: "Choose Skip for now to continue. Parent invitations are coming soon.",
   [ONBOARDING_STEP_IDS.PAYMENT]: "Choose a plan and complete checkout to finish setup.",
   [ONBOARDING_STEP_IDS.MENTOR]: "Complete your mentor profile to continue."
 };

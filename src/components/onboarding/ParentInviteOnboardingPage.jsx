@@ -6,7 +6,7 @@ import {
   MATCH_ONBOARDING_PATH,
   dashboardPathForRole
 } from "../../lib/onboardingRoutes.js";
-import { inviteParent, markParentInviteStepComplete } from "../../lib/parentLinks.js";
+import { markParentInviteStepComplete } from "../../lib/parentLinks.js";
 import {
   peekPendingBundleIntent,
   pendingBundlePaymentPath
@@ -19,7 +19,7 @@ export default function ParentInviteOnboardingPage() {
   const [parentEmail, setParentEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [sent, setSent] = useState(false);
+  const [skipped, setSkipped] = useState(false);
   const finishingRef = useRef(false);
 
   if (!ready) {
@@ -33,6 +33,7 @@ export default function ParentInviteOnboardingPage() {
   }
 
   const stepAlreadyComplete = Boolean(user.parentInviteStepComplete);
+  const canContinue = skipped || stepAlreadyComplete;
 
   async function finish() {
     if (finishingRef.current) return;
@@ -67,24 +68,6 @@ export default function ParentInviteOnboardingPage() {
     }
   }
 
-  async function handleSend(event) {
-    event.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      await inviteParent({
-        studentId: user.id,
-        studentName: user.name,
-        parentEmail
-      });
-      setSent(true);
-    } catch (err) {
-      setError(err.message || "Could not send the invitation.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <OnboardingShell
       user={user}
@@ -93,9 +76,9 @@ export default function ParentInviteOnboardingPage() {
       eyebrow="Almost there"
       backHref={`${MATCH_ONBOARDING_PATH}?step=result`}
       continueLabel="Next"
-      continueDisabled={!sent && !stepAlreadyComplete}
+      continueDisabled={!canContinue}
       continueLoading={loading}
-      continueHint={!sent && !stepAlreadyComplete ? "Send a parent invite or choose Skip for now to continue." : ""}
+      continueHint={!canContinue ? "Choose Skip for now to continue. Parent invitations are coming soon." : ""}
       useStepCompletionGate={false}
       onContinue={() => {
         if (stepAlreadyComplete) {
@@ -121,13 +104,13 @@ export default function ParentInviteOnboardingPage() {
               <p><strong>Parent invite step complete.</strong></p>
               <p className="dash-muted">Continue to choose your Prelude plan, or go back to review your mentor match.</p>
             </div>
-          ) : sent ? (
+          ) : skipped ? (
             <div className="dash-parent-invite-card__success">
-              <p><strong>Invitation sent!</strong> We emailed <strong>{parentEmail}</strong>.</p>
-              <p className="dash-muted">Next, choose your Prelude plan and complete secure checkout.</p>
+              <p><strong>Skipped for now.</strong></p>
+              <p className="dash-muted">You can invite a parent later from Settings. Click Next to choose your plan.</p>
             </div>
           ) : (
-            <form className="dash-parent-invite-form" onSubmit={handleSend}>
+            <div className="dash-parent-invite-form">
               <label className="prelude-field">
                 <span>Parent or guardian email</span>
                 <div className="dash-parent-invite-form__input-wrap">
@@ -137,26 +120,28 @@ export default function ParentInviteOnboardingPage() {
                     value={parentEmail}
                     onChange={(e) => setParentEmail(e.target.value)}
                     placeholder="parent@example.com"
-                    required
                     autoComplete="email"
                   />
                 </div>
               </label>
               {error ? <p className="onboarding-flow__error" role="alert">{error}</p> : null}
               <div className="dash-parent-invite-form__actions">
-                <button type="submit" className="pm-btn pm-btn--primary" disabled={loading}>
-                  {loading ? "Sending…" : "Send invitation"}
+                <button type="button" className="pm-btn pm-btn--primary" disabled aria-disabled="true">
+                  Coming soon!
                 </button>
                 <button
                   type="button"
                   className="pm-btn pm-btn--ghost"
                   disabled={loading}
-                  onClick={finish}
+                  onClick={() => {
+                    setError("");
+                    setSkipped(true);
+                  }}
                 >
                   Skip for now
                 </button>
               </div>
-            </form>
+            </div>
           )}
         </div>
       </div>

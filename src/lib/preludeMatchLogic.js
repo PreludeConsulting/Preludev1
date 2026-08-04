@@ -92,6 +92,11 @@ export function canAdvanceQuestion(question, answer) {
       return isValidMatchCollegeAnswer(answer);
     case "open-response":
       return typeof answer === "string" && answer.trim().length > 0;
+    case "name-fields": {
+      const firstName = typeof answer?.firstName === "string" ? answer.firstName.trim() : "";
+      const lastName = typeof answer?.lastName === "string" ? answer.lastName.trim() : "";
+      return Boolean(firstName && lastName);
+    }
     case "scale":
       return typeof answer === "number";
     default:

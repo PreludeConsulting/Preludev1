@@ -1,6 +1,7 @@
 import { getOpeningMessage } from "./agentPrompt.js";
 import { getPlan } from "./plans.js";
 import { PRELUDE_AI_NAME, PRELUDE_AI_RESPONSIBILITIES } from "./preludeAi.js";
+import { resolveStudentFirstName } from "./studentDisplayName.js";
 
 export function buildProfileContext(profile) {
   if (!profile) return "";
@@ -29,7 +30,7 @@ export function getPersonalizedOpening(profile) {
   if (!profile) return getOpeningMessage();
 
   const plan = getPlan(profile.plan);
-  const firstName = profile.name.split(" ")[0];
+  const firstName = resolveStudentFirstName(profile) || "there";
   const gradeBit = profile.grade ? ` I see you're in grade ${profile.grade}.` : "";
   const focusBit = profile.focus ? ` You're focused on ${profile.focus}.` : "";
 

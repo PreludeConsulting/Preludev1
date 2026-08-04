@@ -23,9 +23,10 @@ describe("MatchPendingPanel", () => {
     expect(html).not.toContain("matchPercent");
     expect(html).not.toContain("pm-mentor-card");
     expect(html).not.toContain("questionnaire_answers");
+    expect(html).not.toContain("Update answers");
   });
 
-  it("hides the update answers action when onEdit is not provided", () => {
+  it("hides the continue action when showAction is false", () => {
     const html = renderToStaticMarkup(
       React.createElement(MatchPendingPanel, {
         loading: false,
@@ -35,18 +36,6 @@ describe("MatchPendingPanel", () => {
     );
 
     expect(html).not.toContain("Update answers");
-  });
-
-  it("renders an update answers action when provided", () => {
-    const html = renderToStaticMarkup(
-      React.createElement(MatchPendingPanel, {
-        loading: false,
-        onContinue: vi.fn(),
-        onEdit: vi.fn(),
-        showAction: false
-      })
-    );
-
-    expect(html).toContain("Update answers");
+    expect(html).not.toContain("Continue to parent invite");
   });
 });

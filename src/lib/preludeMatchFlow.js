@@ -55,6 +55,11 @@ export function canAdvanceQuestion(question, answer) {
       return Array.isArray(answer) && answer.length > 0;
     case "open-response":
       return typeof answer === "string" && answer.trim().length > 0;
+    case "name-fields": {
+      const firstName = typeof answer?.firstName === "string" ? answer.firstName.trim() : "";
+      const lastName = typeof answer?.lastName === "string" ? answer.lastName.trim() : "";
+      return Boolean(firstName && lastName);
+    }
     case "scale":
       return typeof answer === "number";
     case "boolean":

@@ -1190,20 +1190,39 @@ export async function resolveSupabaseAppUser() {
     data: { user: authUser },
     error: userError
   } = await supabase.auth.getUser();
-  if (userError || !authUser) return null;
-  if (isSupabaseUserConfirmed(authUser)) clearPendingSignupVerification();
+  if (userError || !authUser) {
+    // Prefer the persisted session user over treating a transient getUser failure as logout.
+    if (!session.user) return null;
+  }
+  const resolvedAuthUser = authUser || session.user;
+  if (!resolvedAuthUser) return null;
+  if (isSupabaseUserConfirmed(resolvedAuthUser)) clearPendingSignupVerification();
 
-  const userId = authUser.id;
-  const { profile } = await ensureUserProfile(authUser);
+  const userId = resolvedAuthUser.id;
+  let profile = null;
+  try {
+    const ensured = await ensureUserProfile(resolvedAuthUser);
+    profile = ensured.profile;
+  } catch (err) {
+    console.warn("[prelude-auth] profile hydrate failed; continuing with session:", err?.message || err);
+  }
 
-  const profileRole = (profile?.role || authUser.user_metadata?.role || "student").toLowerCase();
+  const profileRole = (profile?.role || resolvedAuthUser.user_metadata?.role || "student").toLowerCase();
   const shouldCheckMatchingTeamAccess = profileRole === "mentor" || profileRole === "admin";
-  const [onboardingRes, mentorRes, mentorQuestionnaireRes, matchingTeamAccess] = await Promise.all([
-    supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle(),
-    supabase.from("mentor_matches").select("id").eq("user_id", userId).eq("status", "assigned").limit(1),
-    supabase.from("mentor_questionnaires").select("completed").eq("user_id", userId).maybeSingle(),
-    shouldCheckMatchingTeamAccess ? resolveMatchingTeamAccess(session.access_token) : false
-  ]);
+  let onboardingRes = { data: null };
+  let mentorRes = { data: [] };
+  let mentorQuestionnaireRes = { data: null };
+  let matchingTeamAccess = false;
+  try {
+    [onboardingRes, mentorRes, mentorQuestionnaireRes, matchingTeamAccess] = await Promise.all([
+      supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle(),
+      supabase.from("mentor_matches").select("id").eq("user_id", userId).eq("status", "assigned").limit(1),
+      supabase.from("mentor_questionnaires").select("completed").eq("user_id", userId).maybeSingle(),
+      shouldCheckMatchingTeamAccess ? resolveMatchingTeamAccess(session.access_token) : Promise.resolve(false)
+    ]);
+  } catch (err) {
+    console.warn("[prelude-auth] onboarding hydrate failed; continuing with session:", err?.message || err);
+  }
 
   const hasAssignedMentor = (mentorRes.data || []).length > 0;
   authDebug("profile_lookup_completed", {
@@ -1213,7 +1232,7 @@ export async function resolveSupabaseAppUser() {
     hasAssignedMentor,
     matchingTeamAccess
   });
-  const hydratedSession = { ...session, user: authUser };
+  const hydratedSession = { ...session, user: resolvedAuthUser };
   return mapSupabaseUser(
     hydratedSession,
     profile,

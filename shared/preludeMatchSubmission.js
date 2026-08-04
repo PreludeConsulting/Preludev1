@@ -204,6 +204,18 @@ export function validatePreludeMatchPayload(payload, questionDefs = []) {
       if (typeof value !== "string" || value.length > MAX_OPEN_RESPONSE_LENGTH) {
         return { ok: false, status: 400, error: "Invalid Prelude Match submission" };
       }
+    } else if (question.type === "name-fields") {
+      if (!isPlainObject(value)) {
+        return { ok: false, status: 400, error: "Invalid Prelude Match submission" };
+      }
+      const firstName = value.firstName;
+      const lastName = value.lastName;
+      if (typeof firstName !== "string" || typeof lastName !== "string") {
+        return { ok: false, status: 400, error: "Invalid Prelude Match submission" };
+      }
+      if (!firstName.trim() || !lastName.trim() || firstName.length > 80 || lastName.length > 80) {
+        return { ok: false, status: 400, error: "Invalid Prelude Match submission" };
+      }
     } else if (question.type === "scale") {
       const min = question.scale?.min ?? 1;
       const max = question.scale?.max ?? 5;
@@ -218,6 +230,14 @@ export function validatePreludeMatchPayload(payload, questionDefs = []) {
   for (const question of requiredAlways) {
     if (question.id === "colleges") continue;
     const value = answers[question.id];
+    if (question.type === "name-fields") {
+      const firstName = typeof value?.firstName === "string" ? value.firstName.trim() : "";
+      const lastName = typeof value?.lastName === "string" ? value.lastName.trim() : "";
+      if (!firstName || !lastName) {
+        return { ok: false, status: 400, error: "Invalid Prelude Match submission" };
+      }
+      continue;
+    }
     if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) {
       return { ok: false, status: 400, error: "Invalid Prelude Match submission" };
     }
@@ -241,6 +261,12 @@ function formatAnswerLines(question, answers) {
   const value = answers[question.id];
   if (value == null || value === "" || (Array.isArray(value) && value.length === 0)) {
     return ["No answer provided"];
+  }
+  if (question.type === "name-fields" && isPlainObject(value)) {
+    const firstName = String(value.firstName || "").trim();
+    const lastName = String(value.lastName || "").trim();
+    if (!firstName && !lastName) return ["No answer provided"];
+    return [`${firstName} ${lastName}`.trim()];
   }
   if (Array.isArray(value)) return value.map(String);
   if (question.type === "scale") {

@@ -2,7 +2,7 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { getDashboardData, getProfile, getSessions, requestPasswordReset, revokeSession, updateProfile, verifyEmail } from "../lib/auth.js";
-import { postAuthDestination, postConfirmationDestination, ROLE_SELECTION_PATH } from "../lib/onboardingRoutes.js";
+import { postAuthDestination, postConfirmationDestination, MATCH_ONBOARDING_PATH } from "../lib/onboardingRoutes.js";
 import { signInWithGoogle } from "../lib/googleAuth.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -365,9 +365,8 @@ export function RegisterPage() {
     const mentorId = searchParams.get("mentor");
     const serviceId = searchParams.get("service");
     const planId = searchParams.get("plan");
-    if (mentorId || serviceId || planId || destination) {
-      savePendingJourney({ next: destination || ROLE_SELECTION_PATH, mentorId, serviceId, planId });
-    }
+    const journeyNext = destination || MATCH_ONBOARDING_PATH;
+    savePendingJourney({ next: journeyNext, mentorId, serviceId, planId, onboardingStep: "match" });
   }, [destination, searchParams]);
 
   const update = (key) => (event) => {
@@ -458,10 +457,10 @@ export function RegisterPage() {
         if (result?.requiresLoginVerification) {
           const challenge = result.challengeId ? `&challenge=${encodeURIComponent(result.challengeId)}` : "";
           const verificationDestination = resolveJourneyDestination(
-            readPendingJourney() || { next: destination || ROLE_SELECTION_PATH },
+            readPendingJourney() || { next: destination || MATCH_ONBOARDING_PATH },
             result
           );
-          const verifyQuery = `/verify-login?next=${encodeURIComponent(verificationDestination || ROLE_SELECTION_PATH)}${challenge}`;
+          const verifyQuery = `/verify-login?next=${encodeURIComponent(verificationDestination || MATCH_ONBOARDING_PATH)}${challenge}`;
           navigate(verifyQuery, {
             replace: true,
             state: result?.loginVerificationError
@@ -471,7 +470,7 @@ export function RegisterPage() {
           return;
         }
         const requestedDestination = resolveJourneyDestination(
-          readPendingJourney() || { next: destination || ROLE_SELECTION_PATH },
+          readPendingJourney() || { next: destination || MATCH_ONBOARDING_PATH },
           result
         );
         navigate(postConfirmationDestination(result, requestedDestination), { replace: true });
@@ -790,7 +789,8 @@ export function VerifyEmailPage() {
         if (cancelled) return;
         const resolvedUser = refreshedUser || nextUser;
         clearPendingSignupVerification();
-        navigate(postAuthDestination(resolvedUser), { replace: true });
+        const pending = readPendingJourney() || { next: MATCH_ONBOARDING_PATH };
+        navigate(resolveJourneyDestination(pending, resolvedUser), { replace: true });
       })
       .catch((err) => {
         if (!cancelled) setState({ checking: false, processing: false, message: "", error: friendlyAuthError(err.message, "signup"), alreadyVerified: false });
@@ -826,7 +826,8 @@ export function VerifyEmailPage() {
       }
       const refreshedUser = (await refreshUser()) || verifiedUser;
       clearPendingSignupVerification();
-      navigate(postAuthDestination(refreshedUser), { replace: true });
+      const pending = readPendingJourney() || { next: MATCH_ONBOARDING_PATH };
+      navigate(resolveJourneyDestination(pending, refreshedUser), { replace: true });
     } catch (error) {
       setState((current) => ({ ...current, processing: false, error: friendlyAuthError(error.message, "signup") }));
     }
@@ -1038,37 +1039,59 @@ export function VerifyLoginPage() {
   useEffect(() => {
     if (!ready || !user?.id || challengeId || autoSendRef.current) return;
     autoSendRef.current = true;
-    const storageKey = `prelude-login-code-autosent:${user.id}:${nextPath}`;
-    const alreadyRequested = (() => {
-      try {
-        return sessionStorage.getItem(storageKey) === "1";
-      } catch {
-        return false;
-      }
-    })();
-    if (alreadyRequested) return;
-
-    try {
-      sessionStorage.setItem(storageKey, "1");
-    } catch {
-      /* ignore */
-    }
 
     let cancelled = false;
-    setStatus("sending");
-    setMessage("Sending a verification code to your email…");
-    setError("");
 
-    sendLoginVerificationCode()
-      .then((result) => {
+    (async () => {
+      try {
+        const existing = await refreshLoginVerification({ silent: true });
+        if (cancelled) return;
+        if (existing?.verified) {
+          await refreshLoginVerification({ forceVerified: true, silent: true });
+          const destination = resolveJourneyDestination(
+            readPendingJourney() || { next: nextPath === "/dashboard" ? "" : nextPath },
+            user
+          );
+          navigate(postConfirmationDestination(user, destination), { replace: true });
+          clearPendingJourney();
+          return;
+        }
+      } catch {
+        /* continue to send a code */
+      }
+
+      const storageKey = `prelude-login-code-autosent:${user.id}:${nextPath}`;
+      const alreadyRequested = (() => {
+        try {
+          return sessionStorage.getItem(storageKey) === "1";
+        } catch {
+          return false;
+        }
+      })();
+      if (alreadyRequested) {
+        setStatus("waiting");
+        return;
+      }
+
+      try {
+        sessionStorage.setItem(storageKey, "1");
+      } catch {
+        /* ignore */
+      }
+
+      setStatus("sending");
+      setMessage("Sending a verification code to your email…");
+      setError("");
+
+      try {
+        const result = await sendLoginVerificationCode();
         if (cancelled) return;
         setChallengeId(result.challengeId || "");
         setCooldown(Number(result.retryAfter || RESEND_COOLDOWN_SECONDS));
         setMessage(result.emailSent ? "Verification code sent. Check your email." : "Prelude could not confirm email delivery. Please use resend.");
         setStatus("waiting");
         focusFirstOtpInput();
-      })
-      .catch((err) => {
+      } catch (err) {
         if (cancelled) return;
         if (err?.payload?.error === "cooldown") {
           setCooldown(Number(err.payload.retryAfter || RESEND_COOLDOWN_SECONDS));
@@ -1083,12 +1106,13 @@ export function VerifyLoginPage() {
         }
         setStatus("delivery_failed");
         setError(friendlyVerificationError(err));
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [challengeId, nextPath, ready, user?.id]);
+  }, [challengeId, navigate, nextPath, ready, refreshLoginVerification, user, user?.id]);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;

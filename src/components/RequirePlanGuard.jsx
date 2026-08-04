@@ -8,7 +8,7 @@ import {
 
 /** Requires login + completed onboarding before dashboard access. */
 export default function RequirePlanGuard({ children }) {
-  const { user, ready, verificationRequired } = useAuth();
+  const { user, ready, verificationRequired, emailConfirmationRequired } = useAuth();
   const location = useLocation();
 
   if (!ready) {
@@ -22,6 +22,10 @@ export default function RequirePlanGuard({ children }) {
 
   if (!user) {
     return <Navigate to="/login" replace state={{ from: `${location.pathname}${location.search}` }} />;
+  }
+
+  if (emailConfirmationRequired) {
+    return <Navigate to="/verify-email" replace />;
   }
 
   if (verificationRequired) {

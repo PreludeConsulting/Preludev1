@@ -65,8 +65,10 @@ export async function requireLoginAssurance({ req, userId, admin, env = process.
       "assurance_token_hash",
       hashLoginToken(assuranceToken, env)
     );
-    const expectedSession = createSessionReference(req.headers?.authorization || "");
-    if (assurance && assurance.session_reference && assurance.session_reference === expectedSession) {
+    // Accept a live assurance cookie without binding to the access-token suffix.
+    // Access tokens refresh often; requiring session_reference equality caused
+    // false "login verification required" after Stripe returns and page reloads.
+    if (assurance) {
       return { verified: true, method: "assurance", id: assurance.id };
     }
   }

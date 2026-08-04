@@ -27,6 +27,7 @@ export function mapSupabaseUser(
   if (!session?.user) return null;
   const u = session.user;
   const meta = u.user_metadata || {};
+  const preferredName = (profile?.preferred_name || "").trim();
   const fullName = (profile?.full_name || meta.full_name || "").trim();
   const oauthAvatarUrl = (meta.avatar_url || meta.picture || "").trim() || null;
   const avatarUrl = resolveAvatarUrl({
@@ -34,7 +35,10 @@ export function mapSupabaseUser(
     user: { avatarUrl: profile?.avatar_url, oauthAvatarUrl },
     oauthAvatarUrl
   }) || null;
-  const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
+  const [firstFromFull, ...rest] = fullName.split(/\s+/).filter(Boolean);
+  const preferredFirst = preferredName.split(/\s+/).filter(Boolean)[0] || preferredName || "";
+  const firstName = preferredFirst || firstFromFull || "";
+  const lastName = rest.join(" ") || "";
   const storedRole = (profile?.role || meta.role || "student").toLowerCase();
   const metadataRole = (meta.role || "").toLowerCase();
   const matchingTeamAccess = hasMatchingTeamAccess({
@@ -78,9 +82,10 @@ export function mapSupabaseUser(
   return {
     id: u.id,
     email: u.email,
-    firstName: firstName || "Student",
-    lastName: rest.join(" ") || "User",
-    name: fullName || u.email,
+    firstName: firstName || "",
+    lastName: lastName || "",
+    preferredName: preferredName || "",
+    name: fullName || preferredName || u.email || "",
     role,
     systemRole: storedRole,
     matchingTeamAccess,

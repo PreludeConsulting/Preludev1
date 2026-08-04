@@ -13,6 +13,11 @@ import { getPlan, normalizePlanId } from "../lib/plans.js";
 import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 import { checkLoginVerification, clearLoginAssurance, sendLoginVerificationCode } from "../lib/loginVerification.js";
 import {
+  needsEmailConfirmation,
+  resolveRestoredLoginVerified,
+  shouldFailOpenLoginVerification
+} from "../lib/authPersistence.js";
+import {
   clearPendingPromoRedemption,
   readPendingPromoRedemption,
   redeemPromoCodeAtSignup
@@ -41,6 +46,7 @@ export function AuthProvider({ children }) {
   const authStateRefreshRef = useRef(null);
   const demoSessionActiveRef = useRef(false);
   const postAuthLinkageRef = useRef({ userId: null, ran: false });
+  const pendingLoginStepUpRef = useRef(false);
 
   const runPostAuthLinkage = useCallback(
     async (nextUser) => {
@@ -93,10 +99,12 @@ export function AuthProvider({ children }) {
     const silent = Boolean(options.silent);
     if (!useSupabase) {
       setLoginVerified(true);
+      pendingLoginStepUpRef.current = false;
       return { verified: true };
     }
     if (options.forceVerified) {
       setLoginVerified(true);
+      pendingLoginStepUpRef.current = false;
       return { verified: true };
     }
     if (verificationRequestRef.current) return verificationRequestRef.current;
@@ -105,11 +113,21 @@ export function AuthProvider({ children }) {
     verificationRequestRef.current = (async () => {
       try {
         const result = await checkLoginVerification();
-        setLoginVerified(Boolean(result.verified));
+        const verified = Boolean(result.verified);
+        if (verified) pendingLoginStepUpRef.current = false;
+        if (pendingLoginStepUpRef.current) {
+          setLoginVerified(verified);
+        } else {
+          setLoginVerified(true);
+        }
         return result;
       } catch (error) {
-        if (!silent) setLoginVerified(false);
-        return { verified: false, error: error.message };
+        if (shouldFailOpenLoginVerification(error) && !pendingLoginStepUpRef.current) {
+          setLoginVerified(true);
+          return { verified: true, failOpen: true, error: error.message };
+        }
+        if (!silent && pendingLoginStepUpRef.current) setLoginVerified(false);
+        return { verified: false, error: error.message, payload: error.payload, status: error.status };
       } finally {
         if (!silent) setLoginVerificationLoading(false);
         verificationRequestRef.current = null;
@@ -125,17 +143,43 @@ export function AuthProvider({ children }) {
       if (demoSessionActiveRef.current) return null;
 
       const { resolveSupabaseAppUser } = await loadSupabaseAuth();
-      const next = await resolveSupabaseAppUser();
+      let next = null;
+      try {
+        next = await resolveSupabaseAppUser();
+      } catch (err) {
+        console.warn("[prelude-auth] silent user refresh failed:", err?.message || err);
+        return null;
+      }
       if (demoSessionActiveRef.current) return null;
+      if (!next) {
+        // Do not clear an existing user on a transient profile/API failure.
+        return null;
+      }
       setUser((current) => next || current);
       let refreshed = next;
       if (next) {
         await runPostAuthLinkage(next);
         if (demoSessionActiveRef.current) return null;
-        refreshed = (await resolveSupabaseAppUser()) || next;
+        try {
+          refreshed = (await resolveSupabaseAppUser()) || next;
+        } catch {
+          refreshed = next;
+        }
         if (refreshed) setUser(refreshed);
-        const verification = await refreshLoginVerification({ silent: true });
-        setLoginVerified((current) => (verification.error ? current : Boolean(verification.verified)));
+        if (!pendingLoginStepUpRef.current && refreshed?.emailVerified) {
+          setLoginVerified(true);
+        } else {
+          const verification = await refreshLoginVerification({ silent: true });
+          setLoginVerified(
+            resolveRestoredLoginVerified({
+              user: refreshed,
+              pendingLoginStepUp: pendingLoginStepUpRef.current,
+              assuranceVerified: verification.verified,
+              assuranceError: verification.error || null
+            })
+          );
+          if (verification.verified) pendingLoginStepUpRef.current = false;
+        }
       }
       return refreshed;
     })().finally(() => {
@@ -146,6 +190,7 @@ export function AuthProvider({ children }) {
 
   const clearAuthenticatedSession = useCallback(() => {
     demoSessionActiveRef.current = false;
+    pendingLoginStepUpRef.current = false;
     setUser(null);
     setLoginVerified(false);
     if (!initialAuthCompleteRef.current) setLoginVerificationLoading(false);
@@ -169,16 +214,31 @@ export function AuthProvider({ children }) {
   const beginLoginVerification = useCallback(async () => {
     if (!useSupabase) {
       setLoginVerified(true);
+      pendingLoginStepUpRef.current = false;
       return { verified: true };
     }
+    // Mark step-up before the trust/assurance probe so a miss does not
+    // auto-approve the way a restored session would.
+    pendingLoginStepUpRef.current = true;
     const current = await refreshLoginVerification();
-    if (current.verified) return current;
+    if (current.verified || current.failOpen) {
+      pendingLoginStepUpRef.current = false;
+      setLoginVerified(true);
+      return { verified: true, ...current };
+    }
     try {
       const challenge = await sendLoginVerificationCode();
+      pendingLoginStepUpRef.current = true;
       setLoginVerified(false);
       return { verified: false, codeSent: true, ...challenge };
     } catch (error) {
+      if (shouldFailOpenLoginVerification(error)) {
+        pendingLoginStepUpRef.current = false;
+        setLoginVerified(true);
+        return { verified: true, failOpen: true, error: error.message };
+      }
       if (error?.payload?.error === "email_unconfirmed") {
+        pendingLoginStepUpRef.current = false;
         setLoginVerified(false);
         return { verified: false, emailUnconfirmed: true, error: error.message };
       }
@@ -187,6 +247,7 @@ export function AuthProvider({ children }) {
         error?.payload?.error === "login_verification_storage_missing" ||
         error?.status === 503
       ) {
+        pendingLoginStepUpRef.current = true;
         setLoginVerified(false);
         return {
           verified: false,
@@ -224,12 +285,20 @@ export function AuthProvider({ children }) {
               } else {
                 setUser(sessionUser);
                 if (sessionUser) {
+                  pendingLoginStepUpRef.current = false;
                   await runPostAuthLinkage(sessionUser);
-                  const refreshed = await resolveSupabaseAppUser();
+                  const refreshed = await resolveSupabaseAppUser().catch(() => sessionUser);
                   if (!cancelled && refreshed && !demoSessionActiveRef.current) setUser(refreshed);
-                  const verification = await refreshLoginVerification();
-                  if (!cancelled && !demoSessionActiveRef.current) setLoginVerified(Boolean(verification.verified));
+                  const activeUser = refreshed || sessionUser;
+                  if (activeUser?.emailVerified) {
+                    // Restored confirmed session: never bounce to login OTP.
+                    if (!cancelled && !demoSessionActiveRef.current) setLoginVerified(true);
+                    refreshLoginVerification({ silent: true }).catch(() => null);
+                  } else if (!cancelled && !demoSessionActiveRef.current) {
+                    setLoginVerified(false);
+                  }
                 } else {
+                  pendingLoginStepUpRef.current = false;
                   setLoginVerified(false);
                 }
               }
@@ -394,6 +463,7 @@ export function AuthProvider({ children }) {
         const verification = await beginLoginVerification();
         next.requiresLoginVerification = !verification.verified;
         next.challengeId = verification.challengeId || "";
+        pendingLoginStepUpRef.current = Boolean(next.requiresLoginVerification);
         setUser(next);
         setLoginVerified(Boolean(verification.verified));
         setSignInOpen(false);
@@ -450,30 +520,11 @@ export function AuthProvider({ children }) {
           await acceptPendingParentInvite(next.id);
         }
         if (next) {
-          // Account already exists at this point — never fail signup because
-          // the follow-up login-verification email/challenge could not be sent.
-          try {
-            const verification = await beginLoginVerification();
-            next.requiresLoginVerification = !verification.verified;
-            next.challengeId = verification.challengeId || "";
-            if (verification.error && !verification.verified) {
-              next.loginVerificationError = verification.error;
-            }
-            setUser(next);
-            setLoginVerified(Boolean(verification.verified));
-          } catch (verificationError) {
-            console.warn(
-              "[prelude-auth] Signup succeeded but login verification could not start:",
-              verificationError?.message || verificationError
-            );
-            next.requiresLoginVerification = true;
-            next.challengeId = "";
-            next.loginVerificationError =
-              verificationError?.message ||
-              "Account created, but we could not send the login verification code. You can resend it on the next screen.";
-            setUser(next);
-            setLoginVerified(false);
-          }
+          // Signup email confirmation is separate from login step-up OTP.
+          // A confirmed session after signup should enter onboarding without another OTP.
+          pendingLoginStepUpRef.current = false;
+          setUser(next);
+          setLoginVerified(Boolean(next.emailVerified));
           setSignInOpen(false);
         }
         return {
@@ -482,9 +533,9 @@ export function AuthProvider({ children }) {
           accessToken: accessToken || null,
           emailVerified: Boolean(next?.emailVerified),
           needsEmailConfirmation,
-          requiresLoginVerification: Boolean(next?.requiresLoginVerification),
-          challengeId: next?.challengeId || "",
-          loginVerificationError: next?.loginVerificationError || ""
+          requiresLoginVerification: false,
+          challengeId: "",
+          loginVerificationError: ""
         };
       }
       const next = await authSignUp(payload);
@@ -498,12 +549,13 @@ export function AuthProvider({ children }) {
       setAuthError(error.message);
       throw error;
     }
-  }, [beginLoginVerification, useSupabase]);
+  }, [useSupabase]);
 
   const signInAsDemo = useCallback(async (accountKey = "student") => {
     setAuthError(null);
     // Mark demo mode before clearing Supabase so SIGNED_OUT does not wipe the demo user.
     demoSessionActiveRef.current = true;
+    pendingLoginStepUpRef.current = false;
     if (useSupabase) {
       try {
         const { logOut } = await loadSupabaseAuth();
@@ -525,6 +577,7 @@ export function AuthProvider({ children }) {
     closeModals();
     navigate("/", { replace: true });
     demoSessionActiveRef.current = false;
+    pendingLoginStepUpRef.current = false;
 
     try {
       if (useSupabase) {
@@ -622,21 +675,42 @@ export function AuthProvider({ children }) {
   const refreshUser = useCallback(async () => {
     if (useSupabase) {
       const { resolveSupabaseAppUser } = await loadSupabaseAuth();
-      const session = await resolveSupabaseAppUser();
-      setUser(session);
+      let session = null;
+      try {
+        session = await resolveSupabaseAppUser();
+      } catch (err) {
+        console.warn("[prelude-auth] refreshUser failed:", err?.message || err);
+        // Keep the current authenticated user on transient profile/API failures.
+        return user;
+      }
       if (session) {
-        const verification = await refreshLoginVerification();
-        setLoginVerified(Boolean(verification.verified));
-      } else {
+        setUser(session);
+        if (!pendingLoginStepUpRef.current && session.emailVerified) {
+          setLoginVerified(true);
+        } else if (pendingLoginStepUpRef.current) {
+          const verification = await refreshLoginVerification({ silent: true });
+          const verified = resolveRestoredLoginVerified({
+            user: session,
+            pendingLoginStepUp: true,
+            assuranceVerified: verification.verified,
+            assuranceError: verification.error || null
+          });
+          setLoginVerified(verified);
+          if (verification.verified) pendingLoginStepUpRef.current = false;
+        } else {
+          setLoginVerified(Boolean(session.emailVerified));
+        }
+      } else if (!user) {
         setLoginVerified(false);
       }
-      return session;
+      return session || user;
     }
     const session = await getStoredSession();
     setUser(session);
+    pendingLoginStepUpRef.current = false;
     setLoginVerified(Boolean(session));
     return session;
-  }, [refreshLoginVerification, useSupabase]);
+  }, [refreshLoginVerification, useSupabase, user]);
 
   const requestPersonalizedAi = useCallback(() => {
     setPersonalizedAiRequest((n) => n + 1);
@@ -668,13 +742,17 @@ export function AuthProvider({ children }) {
     return next;
   }, [useSupabase, user]);
 
+  const emailConfirmationRequired = needsEmailConfirmation({ user });
+  const verificationRequired = Boolean(user?.emailVerified && !loginVerified);
+
   const value = useMemo(
     () => ({
       user,
       ready,
       loginVerified,
       loginVerificationLoading,
-      verificationRequired: Boolean(user && !loginVerified),
+      verificationRequired,
+      emailConfirmationRequired,
       isAuthenticated: Boolean(user),
       planDetails,
       useSupabase,
@@ -706,6 +784,8 @@ export function AuthProvider({ children }) {
       ready,
       loginVerified,
       loginVerificationLoading,
+      verificationRequired,
+      emailConfirmationRequired,
       planDetails,
       useSupabase,
       signInOpen,

@@ -54,6 +54,47 @@ export default function PreludeMatchQuestionCard({ question, answer, onAnswer, r
           />
         );
 
+      case "name-fields": {
+        const nameAnswer =
+          current && typeof current === "object" && !Array.isArray(current)
+            ? current
+            : { firstName: "", lastName: "" };
+        return (
+          <div className="pm-q-card__name-fields">
+            <label className="pm-q-card__name-field">
+              <span>First name</span>
+              <input
+                type="text"
+                autoComplete="given-name"
+                required
+                value={typeof nameAnswer.firstName === "string" ? nameAnswer.firstName : ""}
+                onChange={(e) =>
+                  onAnswer(question.id, {
+                    firstName: e.target.value,
+                    lastName: typeof nameAnswer.lastName === "string" ? nameAnswer.lastName : ""
+                  })
+                }
+              />
+            </label>
+            <label className="pm-q-card__name-field">
+              <span>Last name</span>
+              <input
+                type="text"
+                autoComplete="family-name"
+                required
+                value={typeof nameAnswer.lastName === "string" ? nameAnswer.lastName : ""}
+                onChange={(e) =>
+                  onAnswer(question.id, {
+                    firstName: typeof nameAnswer.firstName === "string" ? nameAnswer.firstName : "",
+                    lastName: e.target.value
+                  })
+                }
+              />
+            </label>
+          </div>
+        );
+      }
+
       case "scale": {
         const min = question.scale?.min ?? 1;
         const max = question.scale?.max ?? 5;
