@@ -32,6 +32,7 @@ import {
   buildContactSchedule,
   buildGmailComposeUrl,
   buildMailtoHref,
+  excludeReservedCallSlots,
   formatDateLabel,
   formatMonthLabel,
   formatTimeLabel,
@@ -78,13 +79,27 @@ export default function ContactPage() {
   const { openLegal } = useLegalModal();
   const location = useLocation();
   const [scheduleNow, setScheduleNow] = useState(() => new Date());
-  const schedule = useMemo(() => buildContactSchedule(scheduleNow), [scheduleNow]);
-  const { availableCallSlots, bookingWindow, months: scheduleMonths } = schedule;
-  const [monthCursor, setMonthCursor] = useState(() =>
-    getMonthCursorForDate(schedule.months, schedule.firstAvailableDate)
+  const localSchedule = useMemo(() => buildContactSchedule(scheduleNow), [scheduleNow]);
+  const [reservedSlots, setReservedSlots] = useState([]);
+  const availableCallSlots = useMemo(
+    () => excludeReservedCallSlots(localSchedule.availableCallSlots, reservedSlots),
+    [localSchedule.availableCallSlots, reservedSlots]
   );
-  const [selectedDate, setSelectedDate] = useState(schedule.firstAvailableDate);
-  const [selectedTime, setSelectedTime] = useState(schedule.firstAvailableTime);
+  const schedule = useMemo(() => {
+    const firstAvailableDate = Object.keys(availableCallSlots).sort()[0] || "";
+    return {
+      ...localSchedule,
+      availableCallSlots,
+      firstAvailableDate,
+      firstAvailableTime: availableCallSlots[firstAvailableDate]?.[0] || ""
+    };
+  }, [availableCallSlots, localSchedule]);
+  const { bookingWindow, months: scheduleMonths } = schedule;
+  const [monthCursor, setMonthCursor] = useState(() =>
+    getMonthCursorForDate(localSchedule.months, localSchedule.firstAvailableDate)
+  );
+  const [selectedDate, setSelectedDate] = useState(localSchedule.firstAvailableDate);
+  const [selectedTime, setSelectedTime] = useState(localSchedule.firstAvailableTime);
   const [copied, setCopied] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -103,6 +118,33 @@ export default function ContactPage() {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [location.hash, location.pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshReservedSlots() {
+      try {
+        const response = await fetch("/api/contact/availability", { headers: { Accept: "application/json" } });
+        if (!response.ok) return;
+        const payload = await response.json().catch(() => ({}));
+        if (cancelled) return;
+        setReservedSlots(Array.isArray(payload.reservedSlots) ? payload.reservedSlots : []);
+      } catch {
+        // Keep the local calendar visible if availability cannot be refreshed.
+      }
+    }
+
+    refreshReservedSlots();
+    const refreshId = window.setInterval(() => {
+      setScheduleNow(new Date());
+      refreshReservedSlots();
+    }, SCHEDULE_REFRESH_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshId);
+    };
+  }, []);
 
   const safeMonthCursor = Math.min(monthCursor, Math.max(scheduleMonths.length - 1, 0));
   const month = scheduleMonths[safeMonthCursor];
@@ -129,11 +171,6 @@ export default function ContactPage() {
   const isBookingLoading = bookingStatus === "loading";
   const bookingCompleted = bookingStatus === "success";
   const canRequestCall = Boolean(activeSelectedDate && activeSelectedTime && form.name.trim() && form.email.trim() && !isBookingLoading && !bookingCompleted);
-
-  useEffect(() => {
-    const refreshId = window.setInterval(() => setScheduleNow(new Date()), SCHEDULE_REFRESH_MS);
-    return () => window.clearInterval(refreshId);
-  }, []);
 
   useEffect(() => {
     if (safeMonthCursor !== monthCursor) {
@@ -223,6 +260,15 @@ export default function ContactPage() {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload.message || "Request failed.");
+      }
+      if (payload.selectedDate && payload.selectedTime) {
+        setReservedSlots((current) => {
+          const exists = current.some(
+            (slot) => slot.selectedDate === payload.selectedDate && slot.selectedTime === payload.selectedTime
+          );
+          if (exists) return current;
+          return [...current, { selectedDate: payload.selectedDate, selectedTime: payload.selectedTime }];
+        });
       }
       setBookingStatus("success");
     } catch (error) {

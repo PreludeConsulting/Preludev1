@@ -14,7 +14,8 @@ import {
   formatDateLabel,
   formatTimeLabel,
   getAvailableTimes,
-  getCalendarCells
+  getCalendarCells,
+  excludeReservedCallSlots
 } from "../src/lib/contactSchedule.js";
 
 describe("contact scheduling helpers", () => {
@@ -158,5 +159,20 @@ describe("contact scheduling helpers", () => {
     expect(gmailParams.get("to")).toBe(CONTACT_EMAIL);
     expect(gmailParams.get("su")).toContain("Prelude discovery call request");
     expect(gmailParams.get("body")).toContain("Jordan Lee");
+  });
+
+  it("hides reserved discovery call windows from availability", () => {
+    const available = {
+      "2026-07-06": ["10:00", "10:30", "11:00"],
+      "2026-07-07": ["10:00"]
+    };
+    const filtered = excludeReservedCallSlots(available, [
+      { selectedDate: "2026-07-06", selectedTime: "10:30" },
+      { selected_date: "2026-07-07", selected_time: "10:00" }
+    ]);
+
+    expect(filtered).toEqual({
+      "2026-07-06": ["10:00", "11:00"]
+    });
   });
 });

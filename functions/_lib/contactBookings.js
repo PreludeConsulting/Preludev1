@@ -1,12 +1,15 @@
-import { bookContactCall } from "../../server/lib/contactBookings.js";
+import { bookContactCall, getContactAvailability } from "../../server/lib/contactBookings.js";
 import { enforceIpRateLimit } from "../../server/lib/ipRateLimit.js";
 
 const BOOK_CALL_LIMIT = 8;
 const BOOK_CALL_WINDOW_SECONDS = 60 * 60;
+const AVAILABILITY_LIMIT = 60;
+const AVAILABILITY_WINDOW_SECONDS = 60 * 60;
 
 function json(payload, status = 200, headers = {}) {
   const responseHeaders = headers instanceof Headers ? headers : new Headers(headers);
   responseHeaders.set("Content-Type", "application/json");
+  responseHeaders.set("Cache-Control", "no-store");
   return new Response(JSON.stringify(payload), { status, headers: responseHeaders });
 }
 
@@ -35,9 +38,9 @@ function envFromContext(context) {
   };
 }
 
-function methodNotAllowed() {
+function methodNotAllowed(allow) {
   return json({ error: "method_not_allowed", message: "Method not allowed." }, 405, {
-    Allow: "POST"
+    Allow: allow
   });
 }
 
@@ -56,8 +59,46 @@ function errorResponse(error) {
   );
 }
 
+function rateLimitResponse(rateLimitError, message) {
+  const headers = rateLimitError.retryAfterSeconds
+    ? { "Retry-After": String(rateLimitError.retryAfterSeconds) }
+    : {};
+  return json(
+    {
+      error: rateLimitError.code,
+      message
+    },
+    rateLimitError.statusCode,
+    headers
+  );
+}
+
+export async function handleContactAvailability(context) {
+  if (context.request.method === "OPTIONS") return json({}, 204);
+  if (context.request.method !== "GET") return methodNotAllowed("GET");
+
+  const env = envFromContext(context);
+  const rateLimitError = enforceIpRateLimit(
+    requestFromContext(context),
+    "/api/contact/availability",
+    AVAILABILITY_LIMIT,
+    AVAILABILITY_WINDOW_SECONDS,
+    env
+  );
+  if (rateLimitError) {
+    return rateLimitResponse(rateLimitError, "Too many availability checks. Please wait a moment and try again.");
+  }
+
+  try {
+    const result = await getContactAvailability({ env });
+    return json(result);
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
 export async function handleContactBookCall(context) {
-  if (context.request.method !== "POST") return methodNotAllowed();
+  if (context.request.method !== "POST") return methodNotAllowed("POST");
 
   const env = envFromContext(context);
   const rateLimitError = enforceIpRateLimit(
@@ -68,17 +109,7 @@ export async function handleContactBookCall(context) {
     env
   );
   if (rateLimitError) {
-    const headers = rateLimitError.retryAfterSeconds
-      ? { "Retry-After": String(rateLimitError.retryAfterSeconds) }
-      : {};
-    return json(
-      {
-        error: rateLimitError.code,
-        message: "Too many booking requests. Please wait a moment and try again."
-      },
-      rateLimitError.statusCode,
-      headers
-    );
+    return rateLimitResponse(rateLimitError, "Too many booking requests. Please wait a moment and try again.");
   }
 
   let payload;

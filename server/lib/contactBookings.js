@@ -3,10 +3,16 @@ import {
   CONTACT_EMAIL,
   CONTACT_TIME_ZONE,
   CONTACT_TIME_ZONE_ID,
-  buildAvailableCallSlots,
+  buildContactSchedule,
+  excludeReservedCallSlots,
   formatDateLabel,
   formatTimeLabel
 } from "../../src/lib/contactSchedule.js";
+import {
+  listReservedDiscoveryCallSlots,
+  releaseDiscoveryCallSlot,
+  reserveDiscoveryCallSlot
+} from "./discoveryCallSlots.js";
 
 export const contactBookingSchema = z.object({
   selectedDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -92,14 +98,29 @@ export function easternDateTimeToUtc(isoDate, time24) {
   return guess;
 }
 
-function assertAvailableSlot({ selectedDate, selectedTime }, now = new Date()) {
-  const availableSlots = buildAvailableCallSlots({ now });
+function assertAvailableSlot({ selectedDate, selectedTime }, availableSlots) {
   if (!availableSlots[selectedDate]?.includes(selectedTime)) {
     const error = new Error("That call time is no longer available. Please choose another time.");
     error.statusCode = 409;
     error.code = "slot_unavailable";
     throw error;
   }
+}
+
+export async function getContactAvailability({ env = process.env, now = new Date() } = {}) {
+  const runtimeEnv = resolveRuntimeEnv(env);
+  const schedule = buildContactSchedule(now);
+  const reservedSlots = await listReservedDiscoveryCallSlots({ env: runtimeEnv, now });
+  const availableCallSlots = excludeReservedCallSlots(schedule.availableCallSlots, reservedSlots);
+  const firstAvailableDate = Object.keys(availableCallSlots).sort()[0] || "";
+
+  return {
+    availableCallSlots,
+    reservedSlots,
+    bookingWindow: schedule.bookingWindow,
+    firstAvailableDate,
+    firstAvailableTime: availableCallSlots[firstAvailableDate]?.[0] || ""
+  };
 }
 
 function buildBookingDetails(parsed, env) {
@@ -196,22 +217,37 @@ function assertEmailDelivered(result, message) {
   throw error;
 }
 
-export async function bookContactCall({ env = process.env, payload }) {
+export async function bookContactCall({ env = process.env, payload, now = new Date() }) {
   const runtimeEnv = resolveRuntimeEnv(env);
   const parsed = contactBookingSchema.parse(payload);
-  assertAvailableSlot(parsed);
-  const details = buildBookingDetails(parsed, runtimeEnv);
-  const supportResult = await sendContactEmail({
-    env: runtimeEnv,
-    to: details.support_email,
-    subject: `New discovery call request - ${formatDateLabel(details.selected_date)} at ${formatTimeLabel(details.selected_time)}`,
-    html: buildSupportEmail(details)
-  });
+  const availability = await getContactAvailability({ env: runtimeEnv, now });
+  assertAvailableSlot(parsed, availability.availableCallSlots);
 
-  assertEmailDelivered(supportResult, "We could not notify Prelude support right now. Please try again in a moment.");
+  const details = buildBookingDetails(parsed, runtimeEnv);
+  const reservation = await reserveDiscoveryCallSlot({ env: runtimeEnv, details });
+
+  try {
+    const supportResult = await sendContactEmail({
+      env: runtimeEnv,
+      to: details.support_email,
+      subject: `New discovery call request - ${formatDateLabel(details.selected_date)} at ${formatTimeLabel(details.selected_time)}`,
+      html: buildSupportEmail(details)
+    });
+    assertEmailDelivered(supportResult, "We could not notify Prelude support right now. Please try again in a moment.");
+  } catch (error) {
+    await releaseDiscoveryCallSlot({
+      env: runtimeEnv,
+      reservationId: reservation.id,
+      selectedDate: reservation.selectedDate,
+      selectedTime: reservation.selectedTime
+    });
+    throw error;
+  }
 
   return {
     message: "Discovery call request received.",
-    emailSent: true
+    emailSent: true,
+    selectedDate: reservation.selectedDate,
+    selectedTime: reservation.selectedTime
   };
 }

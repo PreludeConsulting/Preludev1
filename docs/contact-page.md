@@ -8,7 +8,8 @@ Prelude exposes a public `/contact` route for families who want to book a discov
 - Visitors choose an available date and 30-minute call start, add their contact details, then select **Request this time**.
 - Availability is generated from separate windows: Monday-Friday, 10:00 AM-4:00 PM Eastern, and Saturday, 12:00 PM-3:00 PM Eastern.
 - Visitors can only request calls inside a rolling 11-calendar-day range, which is roughly a week and a half including today. The range is recalculated in Eastern Time as time moves forward.
-- The request is submitted to `/api/contact/book-call` and sent through Resend.
+- The request is submitted to `/api/contact/book-call`, which locks that date + start time and emails Prelude support through Resend.
+- Once a window is requested, `/api/contact/availability` stops offering it to other visitors until support cancels the reservation in Supabase.
 - Prelude support receives an automated email with the appointment time and customer details.
 - `/contact#email-us` opens the email section.
 - **Open Gmail** launches a Gmail compose window with the same recipient and prefilled body.
@@ -21,18 +22,22 @@ Prelude exposes a public `/contact` route for families who want to book a discov
 - Styles: `src/styles/contact.css`
 - Schedule/email helpers: `src/lib/contactSchedule.js`
 - Booking API: `functions/api/contact/book-call.js`
-- Server helper: `server/lib/contactBookings.js`
-- Tests: `tests/contactSchedule.test.js`
+- Availability API: `functions/api/contact/availability.js`
+- Server helpers: `server/lib/contactBookings.js`, `server/lib/discoveryCallSlots.js`
+- Slot lock migration: `supabase/migrations/20260805230000_discovery_call_slot_locks.sql`
+- Tests: `tests/contactSchedule.test.js`, `tests/server/contactBookings.node.test.js`
 
-Production requires Resend:
+Production requires Resend and Supabase service-role access:
 
 ```env
 RESEND_API_KEY=
 AUTH_EMAIL_FROM=Prelude <no-reply@preludeconsultingllc.com>
 CONTACT_SUPPORT_EMAIL=preludesupport@preludeconsultingllc.com
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-The booking API does not create calendar events or reminders. Mentors send Zoom links and any Zoom reminders separately.
+The booking API does not create calendar events or reminders. Mentors send Zoom links and any Zoom reminders separately. Slot locks live in `public.discovery_call_requests` with a unique index on active `(selected_date, selected_time)` rows.
 
 ## Updating Availability
 
@@ -68,6 +73,7 @@ The rolling range is controlled by `BOOKING_WINDOW_DAYS`. It is currently set to
 3. Select a date and time.
 4. Fill name, email, student year, and topic.
 5. Confirm **Request this time** sends the support email with the selected date, time, and customer details.
-6. Confirm **Open Gmail** opens a Gmail compose URL with `to`, `su`, and `body` parameters.
-7. Confirm **Open email app** opens a `mailto:` URL.
-8. Run `npx.cmd vitest run tests/contactSchedule.test.js`.
+6. Confirm the same date/time disappears for a second visitor and returns HTTP 409 if requested again.
+7. Confirm **Open Gmail** opens a Gmail compose URL with `to`, `su`, and `body` parameters.
+8. Confirm **Open email app** opens a `mailto:` URL.
+9. Run `npx vitest run tests/contactSchedule.test.js` and `node --test tests/server/contactBookings.node.test.js`.

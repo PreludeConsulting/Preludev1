@@ -14,6 +14,7 @@ import { createAdminPromoApiMiddleware } from "./adminPromoApi.js";
 import { createReferralApiMiddleware } from "./referralApi.js";
 import { createReferralRotationApiMiddleware } from "./referralRotationApi.js";
 import { createBugReportsMiddleware } from "./bugReportsApi.js";
+import { createContactBookingsMiddleware } from "./contactBookingsApi.js";
 import { createPreludeMatchSubmitMiddleware } from "./preludeMatchSubmitApi.js";
 import { createMentorActivitiesApiMiddleware } from "./mentorActivitiesApi.js";
 import { createApiRateLimitMiddleware } from "./lib/apiRateLimitMiddleware.js";
@@ -27,6 +28,7 @@ export function createPreludeApiStack(env = process.env) {
     createSupabaseDashboardApiMiddleware(),
     createMentorActivitiesApiMiddleware({ env }),
     createBugReportsMiddleware(env),
+    createContactBookingsMiddleware(env),
     createPreludeMatchSubmitMiddleware(env),
     // Keep legacy cookie-authenticated dashboard routes ahead of the broad
     // auth middleware, which otherwise turns unknown dashboard paths into 404s.

@@ -250,6 +250,29 @@ export function getAvailableTimes(isoDate, availableSlots = AVAILABLE_CALL_SLOTS
   return availableSlots[isoDate] || [];
 }
 
+export function reservedSlotKey(selectedDate, selectedTime) {
+  return `${selectedDate}|${selectedTime}`;
+}
+
+export function excludeReservedCallSlots(availableSlots = {}, reservedSlots = []) {
+  if (!reservedSlots?.length) return availableSlots;
+
+  const reserved = new Set(
+    reservedSlots
+      .map((slot) => reservedSlotKey(slot.selectedDate || slot.selected_date, slot.selectedTime || slot.selected_time))
+      .filter(Boolean)
+  );
+
+  return Object.fromEntries(
+    Object.entries(availableSlots)
+      .map(([isoDate, times]) => [
+        isoDate,
+        times.filter((time) => !reserved.has(reservedSlotKey(isoDate, time)))
+      ])
+      .filter(([, times]) => times.length > 0)
+  );
+}
+
 export function buildContactEmailSubject({ selectedDate, selectedTime } = {}) {
   if (selectedDate && selectedTime) {
     return `Prelude discovery call request - ${formatDateLabel(selectedDate)} at ${formatTimeLabel(selectedTime)}`;

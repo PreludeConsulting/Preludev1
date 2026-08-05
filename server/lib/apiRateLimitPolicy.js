@@ -144,6 +144,7 @@ const ROUTE_POLICIES = Object.freeze([
   { pattern: "/api/referral/claim", tier: "money" },
 
   { pattern: "/api/support/bug-report", tier: "auth_email" },
+  { pattern: "/api/contact/availability", tier: "read_public" },
   { pattern: "/api/contact/book-call", tier: "auth_email" },
 
   { pattern: "/api/admin/promo-codes", tier: "admin" },
