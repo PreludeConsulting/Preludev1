@@ -75,14 +75,14 @@ describe("StudentBillingPlansPage back link", () => {
 });
 
 describe("Dashboard plan switch opens Stripe without optimistic entitlement", () => {
-  it("redirects Plus upgrades to Billing Portal and blocks Pro→Plus", () => {
+  it("upgrades Plus→Pro in place and blocks Pro→Plus", () => {
     const source = readPlanSelection();
     expect(source).toContain("handleChooseDashboard");
-    expect(source).toContain("openBillingPortal");
+    expect(source).toContain("changeMembershipPlan");
+    expect(source).toContain('changeMembershipPlan("pro")');
+    expect(source).toContain("syncAfterStripe");
     expect(source).toContain("activePaidPlanId");
-    expect(source).not.toContain("changeMembershipPlan");
     expect(source).toContain("PLUS_BLOCKED_BY_PRO_MESSAGE");
-    expect(source).toContain("window.location.assign(url)");
   });
 
   it("does not call saveUserPlan from dashboard checkout", () => {
@@ -91,8 +91,7 @@ describe("Dashboard plan switch opens Stripe without optimistic entitlement", ()
     const end = dashboardFn.indexOf("async function handleChoosePublic");
     const body = dashboardFn.slice(0, end > 0 ? end : undefined);
     expect(body).not.toContain("saveUserPlan");
-    expect(body).not.toContain("refreshUser");
-    expect(body).toContain("openBillingPortal");
+    expect(body).toContain("changeMembershipPlan");
     expect(body).toContain("startOnboardingBillingCheckout");
     expect(body).toContain("PLUS_BLOCKED_BY_PRO_MESSAGE");
   });

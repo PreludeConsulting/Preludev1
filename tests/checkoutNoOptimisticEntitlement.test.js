@@ -18,9 +18,11 @@ describe("No optimistic entitlement on checkout click", () => {
     const start = source.indexOf("async function handleChooseDashboard");
     const end = source.indexOf("async function handleChoosePublic", start);
     const body = source.slice(start, end);
-    expect(body).toContain("openBillingPortal");
-    expect(body).toContain("window.location.assign");
-    expect(body).not.toContain("changeMembershipPlan");
+    expect(body).toContain("changeMembershipPlan");
+    expect(body).toContain('changeMembershipPlan("pro")');
+    expect(body).toContain("syncAfterStripe");
+    expect(body).toContain('expectActivePlanId: "pro"');
+    expect(body).not.toContain("openBillingPortal");
     expect(body).not.toContain("saveUserPlan");
     expect(body).toContain("PLUS_BLOCKED_BY_PRO_MESSAGE");
     expect(body).not.toContain("reconcileActiveSessionPeriodForPlanChange");
@@ -52,10 +54,15 @@ describe("No optimistic entitlement on checkout click", () => {
 
   it("subscription.updated does not unlock Pro without paymentConfirmed", () => {
     const cf = read("functions/_lib/stripeBilling.js");
+    const shared = read("shared/billingSubscriptionSync.js");
     expect(cf).toContain("paymentConfirmed = false");
-    expect(cf).toContain("pendingUpgrade");
+    expect(cf).toContain("resolveSubscriptionPlanEntitlement");
     expect(cf).toContain("must not unlock Pro until a paid invoice confirms");
     expect(cf).toContain("syncSubscription(context, subscription, { paymentConfirmed: true })");
+    expect(cf).toContain("CLEARED_PENDING_UPGRADE_METADATA");
+    expect(shared).toContain("shouldClearPendingMetadata");
+    expect(shared).toContain('activePlanId: "plus"');
+    expect(shared).toContain('activePlanId: "pro"');
   });
 
   it("shared subscription provider remains the source of truth after Stripe return", () => {

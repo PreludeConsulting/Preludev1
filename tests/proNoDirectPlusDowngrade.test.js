@@ -102,8 +102,10 @@ describe("No direct Pro→Plus downgrades", () => {
 
   it("webhook sync no longer schedules Pro→Plus deferrals", () => {
     const cf = read("functions/_lib/stripeBilling.js");
+    const shared = read("shared/billingSubscriptionSync.js");
     expect(cf).not.toContain("deferDowngrade");
-    expect(cf).toContain("never schedule Pro→Plus downgrades");
-    expect(cf).toContain("pendingUpgrade");
+    expect(cf).toContain("resolveSubscriptionPlanEntitlement");
+    expect(cf).toContain("Sticky pendingUpgrade metadata must not demote");
+    expect(shared).toContain("pendingUpgrade");
   });
 });

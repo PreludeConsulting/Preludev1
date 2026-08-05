@@ -62,6 +62,7 @@ import {
   resolveBillingContext
 } from "./lib/billingMembership.js";
 import { logBillingEvent, hasActiveProEntitlement, PLUS_BLOCKED_BY_PRO_MESSAGE } from "../shared/billingMembership.js";
+import { resolveSubscriptionPlanEntitlement } from "../shared/billingSubscriptionSync.js";
 
 const checkoutSchema = z.object({
   planId: z.enum(["plus", "pro"]),
@@ -279,17 +280,31 @@ async function handleCheckout(req, res) {
   }
 
   const authUser = await resolveCheckoutAuth(req, payload);
-  if (authUser && payload.planId === "plus") {
+  if (authUser) {
     const supabase = getSupabaseAdmin();
     if (supabase) {
       const { data: profile } = await supabase
         .from("profiles")
         .select(
-          "plan_id, subscription_status, subscription_cancel_at_period_end, subscription_current_period_end, entitlement_ends_at"
+          "plan_id, stripe_subscription_id, subscription_status, subscription_cancel_at_period_end, subscription_current_period_end, entitlement_ends_at"
         )
         .eq("id", authUser.userId)
         .maybeSingle();
+      const status = String(profile?.subscription_status || "").toLowerCase();
       if (
+        profile?.stripe_subscription_id &&
+        (status === "active" || status === "trialing" || status === "past_due")
+      ) {
+        return sendJson(res, 409, {
+          error: "subscription_exists",
+          message:
+            payload.planId === "pro" && String(profile.plan_id || "").toLowerCase() === "plus"
+              ? "You already have an active subscription. Upgrade to Pro from Plans & Billing instead of starting a new checkout."
+              : "You already have an active subscription. Manage it from Plans & Billing instead of starting a new checkout."
+        });
+      }
+      if (
+        payload.planId === "plus" &&
         profile &&
         hasActiveProEntitlement({
           planId: profile.plan_id,
@@ -694,12 +709,13 @@ async function syncSubscription(subscription, { paymentConfirmed = false } = {})
 
   const active = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status);
   const priorPlan = String(user.plan || "").toLowerCase();
-  const pendingUpgrade =
-    String(subscription.metadata?.pendingUpgrade || "").toLowerCase() === "true" ||
-    (priorPlan === "plus" && String(planId || "").toLowerCase() === "pro" && !paymentConfirmed);
-  if (active && pendingUpgrade && !paymentConfirmed) {
-    planId = "plus";
-  }
+  const entitlement = resolveSubscriptionPlanEntitlement({
+    priorPlanId: priorPlan,
+    mappedPlanId: planId,
+    paymentConfirmed,
+    metadata: subscription.metadata
+  });
+  planId = active ? entitlement.activePlanId : planId;
 
   const periodEndTimestamp = subscriptionPeriodEnd(subscription);
   const periodEnd = periodEndTimestamp ? new Date(periodEndTimestamp * 1000) : null;

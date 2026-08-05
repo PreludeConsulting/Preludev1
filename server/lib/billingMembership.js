@@ -14,6 +14,7 @@ import {
   hasActiveProEntitlement,
   PLUS_BLOCKED_BY_PRO_MESSAGE
 } from "../../shared/billingMembership.js";
+import { resolveSubscriptionPlanEntitlement } from "../../shared/billingSubscriptionSync.js";
 import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
 import {
   enrichCheckoutSessionFromPaymentLink,
@@ -688,7 +689,7 @@ export async function changeMembershipPlan(userId, targetPlanRaw, { stripe, getP
     fromPlan: currentPlan,
     targetPlan,
     deferred: false,
-    message: "Confirm the upgrade in Stripe. Your Prelude plan stays unchanged until payment succeeds."
+    message: "Upgrade requested. Your Prelude plan switches to Pro after Stripe confirms payment."
   };
 }
 
@@ -712,22 +713,22 @@ export async function persistSubscriptionFields(userId, subscription, planId = n
   const priceId =
     typeof recurring?.price === "string" ? recurring.price : recurring?.price?.id || null;
 
-  const pendingFromMeta = String(
-    extras.pendingPlanId ?? subscription.metadata?.pendingPlanId ?? ""
-  ).toLowerCase();
-  // Only Plus→Pro pending upgrades are tracked — Pro→Plus downgrades are not supported.
-  const pendingPlanId = pendingFromMeta === "pro" ? "pro" : null;
-  const pendingUpgrade =
-    String(subscription.metadata?.pendingUpgrade || "").toLowerCase() === "true" ||
-    pendingPlanId === "pro";
+  const entitlement = resolveSubscriptionPlanEntitlement({
+    priorPlanId: extras.priorPlanId || null,
+    mappedPlanId: resolvedPlan,
+    paymentConfirmed: Boolean(extras.paymentConfirmed),
+    metadata: subscription.metadata
+  });
 
-  let activePlanId = active && resolvedPlan ? resolvedPlan : null;
-  if (active && pendingUpgrade && String(resolvedPlan).toLowerCase() === "pro") {
-    // Price may already be Pro while payment is outstanding — keep Plus until invoice.paid.
-    if (String(subscription.metadata?.previousPlanId || "").toLowerCase() === "plus") {
-      activePlanId = "plus";
-    }
-  }
+  // Prefer the caller-resolved plan (already gated for unpaid upgrades), then entitlement.
+  let activePlanId = active
+    ? (planId != null ? planId : entitlement.activePlanId)
+    : null;
+  const pendingPlanId = active
+    ? (extras.pendingPlanId !== undefined ? extras.pendingPlanId : entitlement.pendingPlanId)
+    : extras.pendingPlanId === "pro"
+      ? "pro"
+      : null;
 
   const patch = {
     stripe_subscription_id: subscription.id || null,
@@ -742,7 +743,7 @@ export async function persistSubscriptionFields(userId, subscription, planId = n
         : null,
     entitlement_ends_at: periodEnd,
     ...(priceId ? { stripe_price_id: priceId } : {}),
-    pending_plan_id: active && pendingUpgrade && activePlanId === "plus" ? "pro" : active ? null : pendingPlanId
+    pending_plan_id: pendingPlanId
   };
   if (typeof subscription.customer === "string") {
     patch.stripe_customer_id = subscription.customer;

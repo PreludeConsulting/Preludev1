@@ -2,6 +2,10 @@ import {
   enrichCheckoutSessionFromPaymentLink,
   isCheckoutPaymentSuccessful
 } from "../../shared/stripePaymentLinks.js";
+import {
+  CLEARED_PENDING_UPGRADE_METADATA,
+  resolveSubscriptionPlanEntitlement
+} from "../../shared/billingSubscriptionSync.js";
 import { getSupabaseAdmin } from "./supabaseRequestAuth.js";
 import { persistSubscriptionFields, recordPurchaseFromCheckoutSession } from "./billingMembership.js";
 import { reconcileActiveSessionPeriodForPlanChange } from "./sessionCredits.js";
@@ -16,7 +20,8 @@ export async function syncSupabasePaymentComplete(userId, {
   currentPeriodStart = null,
   currentPeriodEnd = null,
   cancelAtPeriodEnd = undefined,
-  canceledAt = undefined
+  canceledAt = undefined,
+  pendingPlanId = undefined
 } = {}) {
   const supabase = getSupabaseAdmin();
   if (!supabase || !userId) return;
@@ -31,7 +36,8 @@ export async function syncSupabasePaymentComplete(userId, {
     ...(currentPeriodStart ? { subscription_current_period_start: currentPeriodStart } : {}),
     ...(currentPeriodEnd ? { subscription_current_period_end: currentPeriodEnd } : {}),
     ...(cancelAtPeriodEnd !== undefined ? { subscription_cancel_at_period_end: Boolean(cancelAtPeriodEnd) } : {}),
-    ...(canceledAt !== undefined ? { subscription_canceled_at: canceledAt } : {})
+    ...(canceledAt !== undefined ? { subscription_canceled_at: canceledAt } : {}),
+    ...(pendingPlanId !== undefined ? { pending_plan_id: pendingPlanId } : {})
   };
 
   if (Object.keys(profilePatch).length > 0) {
@@ -60,6 +66,26 @@ async function findProfileIdByStripeCustomer(customerId) {
   return data?.id || null;
 }
 
+async function clearPendingUpgradeMetadata(subscriptionId) {
+  if (!subscriptionId) return;
+  try {
+    const { getBillingConfig, STRIPE_API_VERSION } = await import("../billingConfig.js");
+    const Stripe = (await import("stripe")).default;
+    const config = getBillingConfig();
+    if (!config.stripeSecretKey) return;
+    const stripe = new Stripe(config.stripeSecretKey, {
+      apiVersion: STRIPE_API_VERSION,
+      appInfo: { name: "Prelude", version: "1.0.0" },
+      maxNetworkRetries: 2
+    });
+    await stripe.subscriptions.update(subscriptionId, {
+      metadata: { ...CLEARED_PENDING_UPGRADE_METADATA }
+    });
+  } catch (error) {
+    console.error("[prelude-billing] pending upgrade metadata clear failed", error.message);
+  }
+}
+
 export async function syncSupabaseSubscription(subscription, resolvedPlanId = null, { paymentConfirmed = false } = {}) {
   let userId = subscription.metadata?.userId || null;
   let priorPlanId = null;
@@ -73,22 +99,49 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
     const { data } = await supabase.from("profiles").select("plan_id").eq("id", userId).maybeSingle();
     priorPlanId = data?.plan_id ? String(data.plan_id).toLowerCase() : null;
   }
-  let planId = resolvedPlanId || subscription.metadata?.planId;
+  const mappedPlanId = resolvedPlanId || subscription.metadata?.planId;
   if (!userId) return;
 
   const active = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status);
-  const pendingUpgrade =
-    String(subscription.metadata?.pendingUpgrade || "").toLowerCase() === "true" ||
-    (priorPlanId === "plus" && String(planId || "").toLowerCase() === "pro" && !paymentConfirmed);
-  if (active && pendingUpgrade && !paymentConfirmed) {
-    planId = "plus";
+  let confirmed = Boolean(paymentConfirmed);
+  if (!confirmed && priorPlanId === "plus" && String(mappedPlanId || "").toLowerCase() === "pro") {
+    const latestInvoiceId =
+      typeof subscription.latest_invoice === "string"
+        ? subscription.latest_invoice
+        : subscription.latest_invoice?.id || null;
+    if (latestInvoiceId) {
+      try {
+        const { getBillingConfig, STRIPE_API_VERSION } = await import("../billingConfig.js");
+        const Stripe = (await import("stripe")).default;
+        const config = getBillingConfig();
+        if (config.stripeSecretKey) {
+          const stripe = new Stripe(config.stripeSecretKey, {
+            apiVersion: STRIPE_API_VERSION,
+            appInfo: { name: "Prelude", version: "1.0.0" },
+            maxNetworkRetries: 2
+          });
+          const invoice = await stripe.invoices.retrieve(latestInvoiceId);
+          if (invoice?.status === "paid" || invoice?.paid === true) {
+            confirmed = true;
+          }
+        }
+      } catch (error) {
+        console.error("[prelude-billing] pending upgrade invoice lookup failed", error.message);
+      }
+    }
   }
 
-  await persistSubscriptionFields(userId, subscription, active ? planId : planId || null, {
-    pendingPlanId:
-      active && pendingUpgrade && !paymentConfirmed
-        ? "pro"
-        : subscription.metadata?.pendingPlanId || null
+  const entitlement = resolveSubscriptionPlanEntitlement({
+    priorPlanId,
+    mappedPlanId,
+    paymentConfirmed: confirmed,
+    metadata: subscription.metadata
+  });
+  const planId = active ? entitlement.activePlanId : mappedPlanId || null;
+
+  await persistSubscriptionFields(userId, subscription, planId, {
+    pendingPlanId: active ? entitlement.pendingPlanId : subscription.metadata?.pendingPlanId || null,
+    paymentConfirmed: confirmed
   });
 
   if (planId && active) {
@@ -106,10 +159,11 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
       cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
       canceledAt: subscription.canceled_at
         ? new Date(subscription.canceled_at * 1000).toISOString()
-        : null
+        : null,
+      pendingPlanId: entitlement.pendingPlanId
     });
     try {
-      if (paymentConfirmed) {
+      if (confirmed) {
         await reconcileActiveSessionPeriodForPlanChange(userId, planId);
       }
     } catch (error) {
@@ -117,7 +171,11 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
     }
   } else if (userId) {
     // Still persist status/period when canceled or past_due without forcing plan_id to basic mid-period.
-    await persistSubscriptionFields(userId, subscription, planId);
+    await persistSubscriptionFields(userId, subscription, planId, { paymentConfirmed: confirmed });
+  }
+
+  if (entitlement.shouldClearPendingMetadata) {
+    await clearPendingUpgradeMetadata(subscription.id);
   }
 }
 
@@ -137,7 +195,8 @@ export async function syncSupabaseCheckoutSession(session) {
       stripeSubscriptionId:
         typeof enriched.subscription === "string" ? enriched.subscription : enriched.subscription?.id,
       // $0 fully-discounted subscriptions still activate when payment_status is paid/no_payment_required.
-      subscriptionStatus: enriched.status || "checkout_completed"
+      subscriptionStatus: enriched.status || "checkout_completed",
+      pendingPlanId: null
     });
   } else if (bundleId) {
     await syncSupabasePaymentComplete(userId, {

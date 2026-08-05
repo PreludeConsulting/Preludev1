@@ -13,6 +13,10 @@ import {
   hasActiveProEntitlement,
   PLUS_BLOCKED_BY_PRO_MESSAGE
 } from "../../shared/billingMembership.js";
+import {
+  CLEARED_PENDING_UPGRADE_METADATA,
+  resolveSubscriptionPlanEntitlement
+} from "../../shared/billingSubscriptionSync.js";
 
 const PAID_PLAN_IDS = ["basic", "plus", "pro"];
 const PURCHASABLE_PLAN_IDS = ["plus", "pro"];
@@ -363,6 +367,30 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
       .find(Boolean);
   if (!userId || !planId) return;
 
+  let confirmed = Boolean(paymentConfirmed);
+  // Recover stuck Plus→Pro upgrades when Stripe already collected payment but
+  // Prelude was left on Plus by sticky pendingUpgrade metadata.
+  if (!confirmed && priorPlanId === "plus" && planId === "pro") {
+    const latestInvoiceId = stripeObjectId(subscription.latest_invoice);
+    if (latestInvoiceId) {
+      try {
+        const invoice = await stripeRequest(
+          context,
+          "GET",
+          `/v1/invoices/${encodeURIComponent(latestInvoiceId)}`
+        );
+        if (invoice?.status === "paid" || invoice?.paid === true) {
+          confirmed = true;
+        }
+      } catch (invoiceError) {
+        console.error(
+          "[stripe-billing] pending upgrade invoice lookup failed",
+          invoiceError?.message || invoiceError
+        );
+      }
+    }
+  }
+
   const status = subscription.status || null;
   const active = ACTIVE_SUBSCRIPTION_STATUSES.has(status);
   const periodStart = subscriptionPeriodIso(subscription, "current_period_start");
@@ -370,26 +398,16 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
   const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
   const priceId = resolveSubscriptionPriceId(subscription);
 
-  // Preserve Pro access through cancel_at_period_end; never schedule Pro→Plus downgrades.
-  let activePlanId = active ? planId : null;
-  let pendingPlanId = null;
-  const metadataPending = String(subscription.metadata?.pendingPlanId || "").toLowerCase();
-  if (metadataPending === "pro") {
-    pendingPlanId = "pro";
-  }
-
   // Plus→Pro price change must not unlock Pro until a paid invoice confirms it.
-  const pendingUpgrade =
-    String(subscription.metadata?.pendingUpgrade || "").toLowerCase() === "true" ||
-    (priorPlanId === "plus" && planId === "pro" && !paymentConfirmed);
-  if (active && pendingUpgrade && !paymentConfirmed) {
-    activePlanId = "plus";
-    pendingPlanId = "pro";
-  }
-  if (active && planId === "pro" && paymentConfirmed) {
-    activePlanId = "pro";
-    pendingPlanId = null;
-  }
+  // Sticky pendingUpgrade metadata must not demote an already-confirmed Pro account.
+  const entitlement = resolveSubscriptionPlanEntitlement({
+    priorPlanId,
+    mappedPlanId: planId,
+    paymentConfirmed: confirmed,
+    metadata: subscription.metadata
+  });
+  let activePlanId = active ? entitlement.activePlanId : null;
+  let pendingPlanId = active ? entitlement.pendingPlanId : null;
 
   // Canceled but still within paid Pro window — keep Pro entitlement.
   if (
@@ -420,8 +438,28 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
     entitlementEndsAt: periodEnd
   });
 
+  if (entitlement.shouldClearPendingMetadata && subscription.id) {
+    try {
+      const metaParams = new URLSearchParams();
+      for (const [key, value] of Object.entries(CLEARED_PENDING_UPGRADE_METADATA)) {
+        metaParams.set(`metadata[${key}]`, value);
+      }
+      await stripeRequest(
+        context,
+        "POST",
+        `/v1/subscriptions/${encodeURIComponent(subscription.id)}`,
+        metaParams
+      );
+    } catch (metaError) {
+      console.error(
+        "[stripe-billing] pending upgrade metadata clear failed",
+        metaError?.message || metaError
+      );
+    }
+  }
+
   // Credits only reset after a confirmed paid upgrade/period — never on unpaid subscription.updated.
-  if (active && paymentConfirmed && activePlanId === "pro" && (priorPlanId === "plus" || priorPlanId === "pro")) {
+  if (active && confirmed && activePlanId === "pro" && (priorPlanId === "plus" || priorPlanId === "pro")) {
     try {
       const rows = await supabaseRest(
         context,
@@ -967,15 +1005,32 @@ export async function handleBillingCheckout(context) {
     authUser = authResult.user;
   }
 
-  if (authUser && planId === "plus") {
+  if (authUser) {
     try {
       const rows = await supabaseRest(
         context,
-        `profiles?id=eq.${encodeURIComponent(authUser.id)}&select=plan_id,subscription_status,subscription_cancel_at_period_end,subscription_current_period_end,entitlement_ends_at&limit=1`,
+        `profiles?id=eq.${encodeURIComponent(authUser.id)}&select=plan_id,stripe_subscription_id,subscription_status,subscription_cancel_at_period_end,subscription_current_period_end,entitlement_ends_at&limit=1`,
         { method: "GET", prefer: "return=representation" }
       );
       const profile = Array.isArray(rows) && rows[0] ? rows[0] : null;
+      const status = String(profile?.subscription_status || "").toLowerCase();
       if (
+        profile?.stripe_subscription_id &&
+        (status === "active" || status === "trialing" || status === "past_due")
+      ) {
+        return json(
+          {
+            error: "subscription_exists",
+            message:
+              planId === "pro" && String(profile.plan_id || "").toLowerCase() === "plus"
+                ? "You already have an active subscription. Upgrade to Pro from Plans & Billing instead of starting a new checkout."
+                : "You already have an active subscription. Manage it from Plans & Billing instead of starting a new checkout."
+          },
+          409
+        );
+      }
+      if (
+        planId === "plus" &&
         profile &&
         hasActiveProEntitlement({
           planId: profile.plan_id,
@@ -994,7 +1049,7 @@ export async function handleBillingCheckout(context) {
         );
       }
     } catch (error) {
-      console.error("[stripe-billing] plus checkout entitlement check failed", error?.message || error);
+      console.error("[stripe-billing] checkout entitlement check failed", error?.message || error);
     }
   }
 

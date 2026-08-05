@@ -913,7 +913,7 @@ export async function handleBillingChangePlan(context) {
       fromPlan: currentPlan,
       targetPlan,
       deferred: false,
-      message: "Confirm the upgrade in Stripe. Your Prelude plan stays unchanged until payment succeeds."
+      message: "Upgrade requested. Your Prelude plan switches to Pro after Stripe confirms payment."
     });
   } catch (error) {
     if (!error.status && !error.statusCode) {

@@ -23,7 +23,7 @@ import {
   startOnboardingBillingCheckout,
   startOnboardingBundleCheckout
 } from "../lib/onboardingPayment.js";
-import { fetchBillingSummary } from "../lib/billingMembership.js";
+import { fetchBillingSummary, changeMembershipPlan } from "../lib/billingMembership.js";
 import { useSubscription } from "../context/SubscriptionContext.jsx";
 import {
   formatBillingDate,
@@ -1046,15 +1046,33 @@ export function PlanWalletExperience({
     let redirected = false;
     try {
       if (activePaidPlanId === "plus" && plan.id === "pro") {
-        // Plus→Pro upgrade confirms in Stripe Billing Portal.
-        const result = await openBillingPortal();
-        const url = result?.url;
-        if (!url) {
-          setNotice(result?.message || "No billing profile exists for this account yet.");
-          return;
+        // In-place Plus→Pro on the existing Stripe subscription — never open a second Checkout.
+        const result = await changeMembershipPlan("pro");
+        setNotice(
+          result?.message ||
+            "Upgrade requested. Your Prelude plan switches to Pro after Stripe confirms payment."
+        );
+        const synced = await syncAfterStripe?.({ expectActivePlanId: "pro" });
+        const summary = await fetchBillingSummary().catch(() => null);
+        const nextPlan = String(
+          synced?.activePlanId || summary?.plan?.id || ""
+        ).toLowerCase();
+        if (nextPlan === "pro") {
+          setActivePaidPlanId("pro");
+          setProEntitlementEndsAt(
+            summary?.membership?.entitlementEndsAt ||
+              summary?.membership?.endsAt ||
+              summary?.membership?.currentPeriodEnd ||
+              null
+          );
+          setProCancelAtPeriodEnd(Boolean(summary?.membership?.cancelAtPeriodEnd));
+          setNotice("You're on Pro. Dashboard features update automatically.");
+          await refreshUser?.();
+        } else if (summary?.membership?.pendingPlanId === "pro" || result?.processing) {
+          setNotice(
+            "Upgrade is processing with Stripe. Your plan will switch to Pro as soon as payment confirms."
+          );
         }
-        window.location.assign(url);
-        redirected = true;
         return;
       }
 
