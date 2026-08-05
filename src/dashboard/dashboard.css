@@ -3802,16 +3802,21 @@ img.dash-avatar {
   display: block;
 }
 
+/* Cap in px only. A percentage here is unresolvable while the browser sizes the
+   shrink-to-fit link/bubble around it, so those boxes would stretch to the
+   photo's natural width instead of hugging the rendered image. */
 .msg-bubble__image {
   display: block;
   width: auto;
-  max-width: min(260px, 100%);
+  max-width: 260px;
   height: auto;
   border-radius: 0.85rem;
 }
 
+/* Block-level so the auto margins below can side-align it; fit-content keeps the
+   clickable area on the photo instead of the full row. */
 .msg-bubble__image-link {
-  display: inline-block;
+  display: block;
   width: fit-content;
   max-width: 100%;
   line-height: 0;
@@ -3824,14 +3829,18 @@ img.dash-avatar {
 }
 
 /* The bubble is a block box, so an attachment narrower than the bubble would sit
-   on its left edge. Push it to the side the message belongs to, like the text. */
+   on its left edge. Push it to the side the message belongs to, like the text.
+   The image is also targeted directly so it stays aligned even if the link ends
+   up wider than the rendered photo. */
 .msg-group--me .msg-bubble__image-link,
+.msg-group--me .msg-bubble__image,
 .msg-group--me .msg-attachment {
   margin-left: auto;
   margin-right: 0;
 }
 
 .msg-group--them .msg-bubble__image-link,
+.msg-group--them .msg-bubble__image,
 .msg-group--them .msg-attachment {
   margin-left: 0;
   margin-right: auto;
@@ -3849,7 +3858,15 @@ img.dash-avatar {
 }
 
 .msg-bubble:has(.msg-bubble__image):not(:has(.msg-bubble__text)) .msg-bubble__image {
-  max-width: min(300px, 100%);
+  max-width: 300px;
+}
+
+/* Narrow viewports are the only place the px caps can overflow the thread. */
+@media (max-width: 640px) {
+  .msg-bubble__image,
+  .msg-bubble:has(.msg-bubble__image):not(:has(.msg-bubble__text)) .msg-bubble__image {
+    max-width: 100%;
+  }
 }
 
 /* Non-image attachment card (shared by the Messages page and the floating chat) */
