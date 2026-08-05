@@ -26,7 +26,11 @@ import {
   updateLocalChatMessage
 } from "./localChatStore.js";
 import { applyParentThreadLabels } from "./parentChatLabels.js";
-import { createPrivateChatAttachmentUrl, normalizeChatAttachmentStoragePath } from "./chatStorage.js";
+import {
+  createPrivateChatAttachmentUrl,
+  deleteChatAttachment,
+  normalizeChatAttachmentStoragePath
+} from "./chatStorage.js";
 
 export { applyParentThreadLabels } from "./parentChatLabels.js";
 
@@ -112,6 +116,23 @@ function shouldUseLocalChat(user) {
   return !isSupabaseConfigured();
 }
 
+function reconcileCachedThreadPreview(thread) {
+  if (!thread || !Object.prototype.hasOwnProperty.call(thread, "lastMessageAt")) return;
+  const cached = loadLocalChatMessages(thread);
+  if (!cached.length) return;
+
+  const serverLastAt = thread.lastMessageAt ? new Date(thread.lastMessageAt).getTime() : null;
+  const next = cached.filter((message) => {
+    if (isOptimisticMessageId(message.id)) return true;
+    if (serverLastAt === null) return false;
+    const createdAt = new Date(message.created_at || message.createdAt || 0).getTime();
+    return createdAt <= serverLastAt;
+  });
+  if (next.length !== cached.length) {
+    saveLocalChatMessages(thread, next, { silent: true });
+  }
+}
+
 export function mapChatMessage(row, viewerId) {
   const status = row.status || (isOptimisticMessageId(row.id) ? MESSAGE_STATUS.SENDING : MESSAGE_STATUS.SENT);
   const attachment = normalizeChatAttachment(row);
@@ -129,6 +150,7 @@ export function mapChatMessage(row, viewerId) {
     read: Boolean(row.read),
     createdAt: row.created_at || row.createdAt,
     editedAt: row.edited_at || row.editedAt || null,
+    deletedAt: row.deleted_at || row.deletedAt || null,
     ...attachment,
     isMine: (row.sender_id || row.senderId) === viewerId
   };
@@ -150,6 +172,7 @@ export function toCacheRow(message, threadId) {
     read: message.read,
     created_at: message.createdAt,
     edited_at: message.editedAt,
+    deleted_at: message.deletedAt,
     attachment_path: message.attachmentPath || null,
     // Only inline data survives a reload; a signed URL would be stale by then.
     attachment_url: message.attachmentPath ? null : message.attachmentUrl || null,
@@ -568,6 +591,7 @@ export async function listChatThreadsForUser(user) {
     }
 
     const normalized = threads.map(withStorageKey);
+    normalized.forEach(reconcileCachedThreadPreview);
     if (normalized.length) saveLocalChatThreads(user.id, normalized);
     return { threads: normalized, error: null };
   } catch (err) {
@@ -602,6 +626,7 @@ export async function loadChatMessages(user, threadMeta) {
       .from("messages")
       .select("*")
       .eq("chat_thread_id", thread.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -613,7 +638,10 @@ export async function loadChatMessages(user, threadMeta) {
 
     const resolvedRows = await Promise.all((data || []).map(withResolvedAttachment));
     const remoteRows = resolvedRows.map((row) => mapChatMessage(row, user.id));
-    const merged = mergeChatMessages(remoteRows, localRows).map((m) => mapChatMessage(m, user.id));
+    // Remote rows are authoritative for persisted messages. Only pending local
+    // rows survive when a persisted row disappears (for example, after deletion).
+    const pendingLocalRows = localRows.filter((message) => isOptimisticMessageId(message.id));
+    const merged = mergeChatMessages(remoteRows, pendingLocalRows).map((m) => mapChatMessage(m, user.id));
     // Cached rows carry a storage key, not a URL, so sign whatever the merge kept.
     const withUrls = await resolveAttachmentUrls(merged, user.id);
     saveLocalChatMessages(thread, withUrls.map((message) => toCacheRow(message, thread.id)), { silent: true });
@@ -853,6 +881,74 @@ export async function editChatMessage(user, messageId, body) {
   }
 }
 
+export async function deleteChatMessage(user, threadMeta, messageId) {
+  const thread = typeof threadMeta === "string" ? { id: threadMeta } : threadMeta;
+  if (!user?.id || !thread?.id || !messageId) {
+    return { deletedId: null, error: "Missing message." };
+  }
+  if (isOptimisticMessageId(messageId)) {
+    return { deletedId: null, error: "Wait for the message to finish sending." };
+  }
+
+  if (shouldUseLocalChat(user)) {
+    const rows = loadLocalChatMessages(thread);
+    const message = rows.find((row) => row.id === messageId);
+    const senderId = message?.sender_id || message?.senderId;
+    if (!message || senderId !== user.id) {
+      return { deletedId: null, error: "You can only delete messages you sent." };
+    }
+    removeLocalChatMessage(thread, messageId);
+    return { deletedId: messageId, error: null };
+  }
+
+  try {
+    const { data: ownedMessage, error: lookupError } = await db()
+      .from("messages")
+      .select("id, attachment_url")
+      .eq("id", messageId)
+      .eq("chat_thread_id", thread.id)
+      .eq("sender_id", user.id)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (lookupError) return { deletedId: null, error: lookupError.message };
+    if (!ownedMessage?.id) {
+      return { deletedId: null, error: "Message not found or you cannot delete it." };
+    }
+
+    const deletedAt = new Date().toISOString();
+    const { data, error } = await db()
+      .from("messages")
+      .update({
+        body: "",
+        attachment_url: null,
+        attachment_mime: null,
+        attachment_name: null,
+        attachment_size: null,
+        deleted_at: deletedAt,
+        deleted_by: user.id
+      })
+      .eq("id", messageId)
+      .eq("chat_thread_id", thread.id)
+      .eq("sender_id", user.id)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+
+    if (error) return { deletedId: null, error: error.message };
+    if (!data?.id) {
+      return { deletedId: null, error: "Message not found or you cannot delete it." };
+    }
+
+    removeLocalChatMessage(thread, messageId, { silent: true });
+    if (ownedMessage.attachment_url) {
+      await deleteChatAttachment(user, ownedMessage.attachment_url);
+    }
+    return { deletedId: data.id, error: null };
+  } catch (err) {
+    return { deletedId: null, error: err.message || "Could not delete the message." };
+  }
+}
+
 export { countUnreadChatMessages } from "./localChatStore.js";
 
 export async function markChatThreadRead(user, threadMeta) {
@@ -902,7 +998,11 @@ export function subscribeChatMessages(threadMeta, onChange) {
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "messages", filter: `chat_thread_id=eq.${thread.id}` },
-          (payload) => onChange?.({ source: "realtime", event: payload?.eventType, row: payload?.new || null })
+          (payload) => onChange?.({
+            source: "realtime",
+            event: payload?.eventType,
+            row: payload?.new || payload?.old || null
+          })
         )
         .subscribe();
       cleanups.push(() => {

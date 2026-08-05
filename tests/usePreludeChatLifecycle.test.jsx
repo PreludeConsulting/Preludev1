@@ -14,7 +14,8 @@ const state = {
   threads: [THREAD_A],
   history: {},
   subscriptions: [],
-  sendImpl: null
+  sendImpl: null,
+  deleteImpl: null
 };
 
 vi.mock("../src/dashboard/lib/notificationSounds.js", () => ({
@@ -26,6 +27,7 @@ vi.mock("../src/context/AuthContext.jsx", () => ({
 }));
 
 vi.mock("../src/lib/chatStorage.js", () => ({
+  deleteChatAttachment: vi.fn(async () => ({ error: null })),
   uploadChatAttachment: vi.fn(async () => ({ url: "https://example.test/x.png" })),
   validateChatImageFile: vi.fn(() => null)
 }));
@@ -42,6 +44,7 @@ vi.mock("../src/lib/chatService.js", async () => {
     markChatThreadRead: vi.fn(async () => ({ updated: 0, error: null })),
     countUnreadChatMessages: vi.fn(() => 0),
     editChatMessage: vi.fn(async () => ({ message: null, error: null })),
+    deleteChatMessage: vi.fn(async (user, thread, messageId) => state.deleteImpl(user, thread, messageId)),
     sendChatMessage: vi.fn(async (user, thread, payload) => state.sendImpl(user, thread, payload)),
     subscribeChatMessages: vi.fn((thread, onChange) => {
       const entry = { threadId: thread.id, onChange, active: true };
@@ -104,10 +107,10 @@ function activeSubscriptions(threadId) {
   return state.subscriptions.filter((s) => s.active && (!threadId || s.threadId === threadId));
 }
 
-async function emit(threadId, row) {
+async function emit(threadId, row, event = "INSERT") {
   const targets = activeSubscriptions(threadId);
   await act(async () => {
-    await Promise.all(targets.map((s) => s.onChange({ source: "realtime", event: "INSERT", row })));
+    await Promise.all(targets.map((s) => s.onChange({ source: "realtime", event, row })));
   });
 }
 
@@ -115,6 +118,7 @@ beforeEach(() => {
   state.threads = [THREAD_A];
   state.history = { [THREAD_A.id]: [] };
   state.subscriptions = [];
+  state.deleteImpl = async (_user, _thread, messageId) => ({ deletedId: messageId, error: null });
   state.sendImpl = async (user, thread, payload) => ({
     message: mapChatMessage(
       {
@@ -318,6 +322,38 @@ describe("realtime delivery", () => {
 
     expect(ref.current.messages).toHaveLength(1);
     expect(playIncomingMessageSound).toHaveBeenCalledTimes(1);
+    await unmount();
+  });
+
+  it("removes a message immediately after the sender deletes it", async () => {
+    state.history = {
+      [THREAD_A.id]: [mapChatMessage(persistedRow("db-own", STUDENT.id, "remove me"), STUDENT.id)]
+    };
+    const { ref, unmount } = await renderChat();
+
+    await act(async () => {
+      await ref.current.deleteMessage("db-own");
+    });
+
+    expect(ref.current.messages).toEqual([]);
+    expect(ref.current.error).toBeNull();
+    await unmount();
+  });
+
+  it("removes a realtime-deleted message without playing a sound", async () => {
+    state.history = {
+      [THREAD_A.id]: [mapChatMessage(persistedRow("db-gone", MENTOR.id, "remove me"), STUDENT.id)]
+    };
+    const { ref, unmount } = await renderChat();
+    playIncomingMessageSound.mockClear();
+
+    await emit(THREAD_A.id, {
+      ...persistedRow("db-gone", MENTOR.id, null),
+      deleted_at: "2026-08-05T20:00:00.000Z"
+    }, "UPDATE");
+
+    expect(ref.current.messages).toEqual([]);
+    expect(playIncomingMessageSound).not.toHaveBeenCalled();
     await unmount();
   });
 });

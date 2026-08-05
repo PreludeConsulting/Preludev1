@@ -187,3 +187,14 @@ export async function uploadChatAttachment(user, threadId, file) {
     error: null
   };
 }
+
+/** Best-effort cleanup after the owning message has been deleted. */
+export async function deleteChatAttachment(user, value) {
+  const path = normalizeChatAttachmentStoragePath(value);
+  if (!path || shouldUseLocalAttachments(user)) return { error: null };
+
+  const supabase = getSupabase();
+  if (!supabase) return { error: "Supabase is not configured." };
+  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  return { error: error?.message || null };
+}

@@ -45,6 +45,9 @@ vi.mock("../src/lib/supabase.js", () => {
       eq() {
         return api;
       },
+      is() {
+        return api;
+      },
       order() {
         return Promise.resolve({ data: db.rows, error: null });
       },

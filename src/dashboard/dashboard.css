@@ -3811,9 +3811,16 @@ img.dash-avatar {
 }
 
 .msg-bubble__image-link {
-  display: block;
+  display: inline-block;
   width: fit-content;
   max-width: 100%;
+  line-height: 0;
+  pointer-events: none;
+}
+
+.msg-bubble__image-link .msg-bubble__image {
+  pointer-events: auto;
+  cursor: zoom-in;
 }
 
 /* The bubble is a block box, so an attachment narrower than the bubble would sit
@@ -3855,7 +3862,7 @@ img.dash-avatar {
   border: 1px solid hsl(var(--foreground) / 0.1);
   border-radius: 0.7rem;
   background: hsl(var(--background) / 0.6);
-  color: inherit;
+  color: #1c1c1e;
   text-decoration: none;
 }
 
@@ -3873,6 +3880,7 @@ img.dash-avatar {
 
 .msg-attachment__name {
   overflow: hidden;
+  color: #1c1c1e;
   font-size: 0.8rem;
   font-weight: 500;
   text-overflow: ellipsis;
@@ -3880,6 +3888,7 @@ img.dash-avatar {
 }
 
 .msg-attachment__meta {
+  color: #4b5563;
   font-size: 0.68rem;
   opacity: 0.65;
 }
@@ -3907,8 +3916,8 @@ img.dash-avatar {
 
 /* Paired with text, the card sits on the sender's coloured bubble. */
 .msg-bubble--me:has(.msg-bubble__text) .msg-attachment {
-  border-color: rgb(255 255 255 / 0.25);
-  background: rgb(255 255 255 / 0.15);
+  border-color: rgb(255 255 255 / 0.45);
+  background: rgb(255 255 255 / 0.9);
 }
 
 .msg-preview__file,
@@ -3942,6 +3951,40 @@ img.dash-avatar {
 
 .msg-bubble--me .msg-bubble__edit {
   background: rgb(255 255 255 / 0.15);
+}
+
+.msg-bubble__delete {
+  display: inline-grid;
+  place-items: center;
+  padding: 0.15rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.msg-bubble-wrap:hover .msg-bubble__delete,
+.msg-bubble__delete:focus-visible {
+  opacity: 1;
+}
+
+.msg-bubble__delete:hover {
+  background: rgb(35 39 48 / 0.08);
+  color: hsl(var(--destructive, 0 72% 51%));
+}
+
+.msg-bubble__delete:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+@media (hover: none) {
+  .msg-bubble__delete {
+    opacity: 0.65;
+  }
 }
 
 /* Bubble meta */

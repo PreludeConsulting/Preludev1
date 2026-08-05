@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { ArrowLeft, Calendar, Check, CheckCheck, ChevronRight, ImagePlus, MessageCircle, Pencil, Send, Users, Video, X } from "lucide-react";
+import { ArrowLeft, Calendar, Check, CheckCheck, ChevronRight, ImagePlus, MessageCircle, Pencil, Send, Trash2, Users, Video, X } from "lucide-react";
 import { findNextJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import { chatMessagePreviewText, sanitizeThreadPreview } from "../../../lib/chatAttachments.js";
 import { CHAT_ATTACHMENT_ACCEPT } from "../../../lib/chatStorage.js";
@@ -33,6 +33,15 @@ const EDIT_WINDOW_MS = 2 * 60 * 1000;
 function canEditMessage(msg, now) {
   if (!msg?.isMine || !msg.createdAt) return false;
   return now - new Date(msg.createdAt).getTime() <= EDIT_WINDOW_MS;
+}
+
+function canDeleteMessage(msg) {
+  return Boolean(
+    msg?.isMine &&
+    msg.status !== "sending" &&
+    msg.status !== "failed" &&
+    !String(msg.id || "").startsWith("local-")
+  );
 }
 
 function formatRelative(iso) {
@@ -167,7 +176,9 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
     sendMessage,
     editingId,
     setEditingId,
+    deletingMessageId,
     saveEdit,
+    deleteMessage,
     threadRevision,
     unreadByThread,
     markThreadRead,
@@ -273,6 +284,12 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
       setPendingFile(null);
       if (fileRef.current) fileRef.current.value = "";
     }
+  }
+
+  async function handleDelete(message) {
+    const confirmed = window.confirm("Delete this message? It will be removed for everyone.");
+    if (!confirmed) return;
+    await deleteMessage(message.id);
   }
 
   function handleComposerKeyDown(e) {
@@ -464,6 +481,18 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                                   />
                                 ) : null}
                                 <time className="msg-time">{formatTime(msg.createdAt)}</time>
+                                {canDeleteMessage(msg) ? (
+                                  <button
+                                    type="button"
+                                    className="msg-bubble__delete"
+                                    onClick={() => handleDelete(msg)}
+                                    disabled={deletingMessageId === msg.id}
+                                    aria-label="Delete message"
+                                    title="Delete message"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                ) : null}
                               </div>
                             </div>
                           )

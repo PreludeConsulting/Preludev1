@@ -4,6 +4,7 @@ import {
   buildOptimisticChatMessage,
   countUnreadChatMessages,
   createClientMessageId,
+  deleteChatMessage,
   editChatMessage,
   listChatThreadsForUser,
   loadChatMessages,
@@ -15,7 +16,7 @@ import {
   subscribeChatMessages
 } from "../../lib/chatService.js";
 import { uploadChatAttachment, validateChatImageFile } from "../../lib/chatStorage.js";
-import { loadLocalChatMessages } from "../../lib/localChatStore.js";
+import { loadLocalChatMessages, removeLocalChatMessage } from "../../lib/localChatStore.js";
 import { playIncomingMessageSound } from "../lib/notificationSounds.js";
 
 const THREAD_SYNC_INTERVAL_MS = 30000;
@@ -38,6 +39,7 @@ export function usePreludeChat({ enabled = true } = {}) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const [deletingMessageId, setDeletingMessageId] = useState(null);
   const [threadRevision, setThreadRevision] = useState(0);
   const [lastOutgoingAt, setLastOutgoingAt] = useState(null);
 
@@ -223,6 +225,17 @@ export function usePreludeChat({ enabled = true } = {}) {
         if (!currentUser?.id) return;
         const isActive = thread.id === activeThreadIdRef.current;
         const row = event.row ? mapChatMessage(event.row, currentUser.id) : null;
+
+        if (row?.deletedAt) {
+          removeLocalChatMessage(thread, row.id, { silent: true });
+          if (isActive) {
+            setMessages((prev) => prev.filter((message) => message.id !== row.id));
+          }
+          seenMessageIdsRef.current.get(thread.id)?.delete(row.id);
+          setThreadRevision((revision) => revision + 1);
+          refreshThreadsRef.current?.({ silent: true });
+          return;
+        }
 
         // The insert response already reconciled our own send; a realtime echo of
         // it must not re-enter the list or make a sound.
@@ -431,6 +444,30 @@ export function usePreludeChat({ enabled = true } = {}) {
     []
   );
 
+  const deleteMessage = useCallback(async (messageId) => {
+    const currentUser = userRef.current;
+    const thread = threadsRef.current.find((item) => item.id === activeThreadIdRef.current) || null;
+    if (!currentUser?.id || !thread?.id) return { ok: false, error: "No active conversation." };
+
+    setDeletingMessageId(messageId);
+    setError(null);
+    const { deletedId, error: err } = await deleteChatMessage(currentUser, thread, messageId);
+    if (err || !deletedId) {
+      setError(err || "Could not delete the message.");
+      setDeletingMessageId(null);
+      return { ok: false, error: err };
+    }
+
+    setMessages((prev) => prev.filter((message) => message.id !== deletedId));
+    pendingRetryRef.current.delete(deletedId);
+    seenMessageIdsRef.current.get(thread.id)?.delete(deletedId);
+    setEditingId((current) => current === deletedId ? null : current);
+    setThreadRevision((revision) => revision + 1);
+    await refreshThreadsRef.current?.({ silent: true });
+    setDeletingMessageId(null);
+    return { ok: true };
+  }, []);
+
   return {
     open,
     setOpen,
@@ -446,9 +483,11 @@ export function usePreludeChat({ enabled = true } = {}) {
     setError,
     editingId,
     setEditingId,
+    deletingMessageId,
     sendMessage,
     retryMessage,
     saveEdit,
+    deleteMessage,
     refreshMessages,
     markThreadRead,
     unreadByThread,

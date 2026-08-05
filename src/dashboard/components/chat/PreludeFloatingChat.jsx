@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router";
-import { ImagePlus, MessageCircle, Pencil, Send, X } from "lucide-react";
+import { ImagePlus, MessageCircle, Pencil, Send, Trash2, X } from "lucide-react";
 import { Avatar } from "../ui/index.jsx";
 import { CHAT_ATTACHMENT_ACCEPT } from "../../../lib/chatStorage.js";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
@@ -37,8 +37,12 @@ function groupByDate(messages) {
   return groups;
 }
 
-function ChatBubble({ message, onEdit }) {
+function ChatBubble({ message, onEdit, onDelete, deleting }) {
   const side = message.isMine ? "me" : "them";
+  const canDelete = message.isMine &&
+    message.status !== "sending" &&
+    message.status !== "failed" &&
+    !String(message.id || "").startsWith("local-");
 
   return (
     <div className={`dash-msg-fab-bubble dash-msg-fab-bubble--${side}`}>
@@ -54,6 +58,18 @@ function ChatBubble({ message, onEdit }) {
         {message.isMine ? (
           <button type="button" className="dash-msg-fab-bubble__edit" onClick={() => onEdit(message)} aria-label="Edit message">
             <Pencil size={12} />
+          </button>
+        ) : null}
+        {canDelete ? (
+          <button
+            type="button"
+            className="dash-msg-fab-bubble__delete"
+            onClick={() => onDelete(message)}
+            disabled={deleting}
+            aria-label="Delete message"
+            title="Delete message"
+          >
+            <Trash2 size={12} />
           </button>
         ) : null}
       </div>
@@ -109,6 +125,8 @@ function ChatPanel({
   editingId,
   setEditingId,
   saveEdit,
+  deleteMessage,
+  deletingMessageId,
   setError,
   lastOutgoingAt
 }) {
@@ -149,6 +167,12 @@ function ChatPanel({
       setPendingFile(null);
       if (fileRef.current) fileRef.current.value = "";
     }
+  }
+
+  async function handleDelete(message) {
+    const confirmed = window.confirm("Delete this message? It will be removed for everyone.");
+    if (!confirmed) return;
+    await deleteMessage(message.id);
   }
 
   const groups = groupByDate(messages);
@@ -223,7 +247,13 @@ function ChatPanel({
                 onSave={(body) => saveEdit(g.msg.id, body)}
               />
             ) : (
-              <ChatBubble key={g.key} message={g.msg} onEdit={(m) => setEditingId(m.id)} />
+              <ChatBubble
+                key={g.key}
+                message={g.msg}
+                onEdit={(m) => setEditingId(m.id)}
+                onDelete={handleDelete}
+                deleting={deletingMessageId === g.msg.id}
+              />
             )
           )
         )}
@@ -319,6 +349,8 @@ export default function PreludeFloatingChat() {
     editingId,
     setEditingId,
     saveEdit,
+    deleteMessage,
+    deletingMessageId,
     markThreadRead,
     unreadTotal,
     lastOutgoingAt
@@ -374,6 +406,8 @@ export default function PreludeFloatingChat() {
         editingId={editingId}
         setEditingId={setEditingId}
         saveEdit={saveEdit}
+        deleteMessage={deleteMessage}
+        deletingMessageId={deletingMessageId}
         setError={setError}
         lastOutgoingAt={lastOutgoingAt}
         />

@@ -291,11 +291,14 @@
 }
 
 .dash-msg-fab-bubble__image-link {
-  display: block;
+  display: inline-block;
+  width: fit-content;
   border-radius: 0.85rem;
   overflow: hidden;
   border: 1px solid rgb(35 39 48 / 0.08);
   max-width: 12rem;
+  line-height: 0;
+  pointer-events: none;
 }
 
 .dash-msg-fab-bubble__image {
@@ -304,6 +307,8 @@
   height: auto;
   max-height: 10rem;
   object-fit: cover;
+  pointer-events: auto;
+  cursor: zoom-in;
 }
 
 .dash-msg-fab-bubble__meta {
@@ -324,7 +329,8 @@
   opacity: 0.85;
 }
 
-.dash-msg-fab-bubble__edit {
+.dash-msg-fab-bubble__edit,
+.dash-msg-fab-bubble__delete {
   display: inline-grid;
   place-items: center;
   padding: 0.15rem;
@@ -337,12 +343,31 @@
   transition: opacity 0.15s ease, background 0.15s ease;
 }
 
-.dash-msg-fab-bubble:hover .dash-msg-fab-bubble__edit {
+.dash-msg-fab-bubble:hover .dash-msg-fab-bubble__edit,
+.dash-msg-fab-bubble:hover .dash-msg-fab-bubble__delete,
+.dash-msg-fab-bubble__edit:focus-visible,
+.dash-msg-fab-bubble__delete:focus-visible {
   opacity: 1;
 }
 
-.dash-msg-fab-bubble__edit:hover {
+.dash-msg-fab-bubble__edit:hover,
+.dash-msg-fab-bubble__delete:hover {
   background: rgb(35 39 48 / 0.06);
+}
+
+.dash-msg-fab-bubble__delete:hover {
+  color: hsl(var(--destructive, 0 72% 51%));
+}
+
+.dash-msg-fab-bubble__delete:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
+@media (hover: none) {
+  .dash-msg-fab-bubble__delete {
+    opacity: 0.65;
+  }
 }
 
 .dash-msg-fab-edit {
