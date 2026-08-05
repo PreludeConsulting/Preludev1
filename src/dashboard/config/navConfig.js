@@ -9,6 +9,7 @@ import {
   Search,
   Settings
 } from "lucide-react";
+import { isPreludeAiEnabled } from "../../lib/preludeAi.js";
 
 export const STUDENT_NAV = [
   { to: "/overview", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -17,7 +18,7 @@ export const STUDENT_NAV = [
   { to: "/calendar", label: "Calendar", icon: Calendar },
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/messages", label: "Messages", icon: MessageCircle },
-  { to: "/ai", label: "Prelude AI", icon: Bot },
+  ...(isPreludeAiEnabled() ? [{ to: "/ai", label: "Prelude AI", icon: Bot }] : []),
   { to: "/workspace", label: "Application Workspace", icon: ClipboardList }
 ];
 

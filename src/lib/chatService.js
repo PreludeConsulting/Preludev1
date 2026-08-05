@@ -33,6 +33,9 @@ export const CHAT_TYPE = {
   MENTOR_PARENT: "mentor_parent"
 };
 
+/** Assignment states that mean "this pair is working together right now". */
+export const ACTIVE_MATCH_STATUSES = ["assigned", "accepted", "active"];
+
 const DEMO_IDS = {
   studentEssay: "demo-student-basic",
   studentPlus: "demo-student-plus",
@@ -235,7 +238,8 @@ async function resolveMentorForStudent(studentId) {
     .from("mentor_matches")
     .select("mentor_id, mentor_name")
     .eq("student_id", studentId)
-    .eq("status", "assigned")
+    .in("status", ACTIVE_MATCH_STATUSES)
+    .not("mentor_id", "is", null)
     .limit(1)
     .maybeSingle();
   return data;
@@ -304,7 +308,7 @@ async function resolveMentorThreads(mentorId) {
     .from("mentor_matches")
     .select("student_id, status")
     .eq("mentor_id", mentorId)
-    .in("status", ["assigned", "accepted", "active"]);
+    .in("status", ACTIVE_MATCH_STATUSES);
 
   const assignedStudentIds = new Set((matches || []).map((match) => match.student_id).filter(Boolean));
   if (!assignedStudentIds.size) return [];
@@ -392,6 +396,48 @@ async function ensureThread({ chatType, mentorId, studentId, parentId }) {
   });
 }
 
+function titleCaseRole(role) {
+  const value = String(role || "").trim();
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function mapRpcThread(row, viewerRole) {
+  const participantRole = titleCaseRole(row.participantRole) || (viewerRole === "mentor" ? "Student" : "Mentor");
+  const sublabel = participantRole === "Mentor" ? "Your mentor" : "Assigned student";
+
+  return withStorageKey({
+    id: row.id,
+    chatType: row.chatType,
+    mentorId: row.mentorId,
+    studentId: row.studentId,
+    parentId: row.parentId || null,
+    label: row.participantName || participantRole,
+    sublabel,
+    participantRole,
+    participantId: row.participantId || null,
+    avatarUrl: row.participantAvatarUrl || null,
+    lastMessagePreview: row.lastMessagePreview || "",
+    lastMessageAt: row.lastMessageAt || null,
+    unreadCount: Number(row.unreadCount) || 0
+  });
+}
+
+/**
+ * Conversations come from the mentor↔student assignment, not from message history:
+ * this RPC repairs any missing thread for the caller and returns every active
+ * conversation — including ones where nobody has written yet.
+ */
+async function listThreadsViaRpc(viewerRole) {
+  const { data, error } = await db().rpc("list_user_chat_threads");
+  if (error) return null;
+  const rows = Array.isArray(data) ? data : [];
+  if (!rows.length) return null;
+  return rows
+    .filter((row) => row?.id)
+    .map((row) => mapRpcThread(row, viewerRole));
+}
+
 function otherParticipantId(thread, viewerId) {
   if (thread.mentorId === viewerId) {
     return thread.chatType === CHAT_TYPE.MENTOR_PARENT ? thread.parentId : thread.studentId;
@@ -417,10 +463,19 @@ export async function listChatThreadsForUser(user) {
 
   try {
     const role = (user.role || "student").toLowerCase();
-    let threads = [];
-    if (role === "student") threads = await resolveStudentThreads(user.id);
-    else if (role === "parent") threads = await resolveParentThreads(user.id);
-    else if (role === "mentor") threads = await resolveMentorThreads(user.id);
+    let threads = null;
+
+    if (role === "student" || role === "mentor") {
+      threads = await listThreadsViaRpc(role);
+    }
+
+    if (!threads) {
+      if (role === "student") threads = await resolveStudentThreads(user.id);
+      else if (role === "parent") threads = await resolveParentThreads(user.id);
+      else if (role === "mentor") threads = await resolveMentorThreads(user.id);
+      else threads = [];
+    }
+
     const normalized = threads.map(withStorageKey);
     if (normalized.length) saveLocalChatThreads(user.id, normalized);
     return { threads: normalized, error: null };

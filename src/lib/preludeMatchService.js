@@ -23,6 +23,23 @@ export function getMentorCatalog() {
   return MENTOR_CATALOG;
 }
 
+/**
+ * Assignments own the conversation: create it as soon as the pair is linked so
+ * Messages is populated before anyone writes. Best effort — a failure here must
+ * not block onboarding, and the Messages page repairs the thread on load.
+ */
+async function ensureAssignedMentorChatThread(studentId, mentorId) {
+  if (!studentId || !mentorId) return;
+  try {
+    await getSupabase().rpc("ensure_mentor_student_chat_thread", {
+      p_mentor_id: mentorId,
+      p_student_id: studentId
+    });
+  } catch {
+    /* conversation is repaired lazily when Messages loads */
+  }
+}
+
 export function getMentorById(id) {
   return MENTOR_CATALOG.find((m) => m.id === id) || null;
 }
@@ -202,6 +219,9 @@ export async function saveMatchDecision(userId, { decision, mentorId, declinedId
         status: "assigned",
         notes: mentor.reason
       });
+      if (mentor.source === "supabase") {
+        await ensureAssignedMentorChatThread(userId, mentor.id);
+      }
     }
   }
 
@@ -311,6 +331,9 @@ async function assignSelectedMentorMatch(userId, mentorId, notes) {
     status: "assigned",
     notes
   });
+  if (mentor.source === "supabase") {
+    await ensureAssignedMentorChatThread(userId, mentor.id);
+  }
 }
 
 export async function saveMentorSelectionDirect(userId, { selectedMentorId = null } = {}) {

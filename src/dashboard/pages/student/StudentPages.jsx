@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { isJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
 import {
@@ -31,6 +31,7 @@ import { useInteractionFeedback } from "../../../components/interaction/Interact
 import { useInterfaceSound } from "../../../lib/sound/SoundProvider.jsx";
 import { cn } from "../../../lib/utils.js";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { isPreludeAiEnabled } from "../../../lib/preludeAi.js";
 import { getInitials } from "../../../lib/avatar.js";
 import {
   buildMentorCollegeLine,
@@ -199,6 +200,9 @@ export function StudentCalendar() {
 }
 
 export function StudentAI() {
+  if (!isPreludeAiEnabled()) {
+    return <Navigate to={`${STUDENT_DASHBOARD_BASE}/overview`} replace />;
+  }
   return (
     <div className="dash-page dash-page--flush">
       <PreludeChatPanel />

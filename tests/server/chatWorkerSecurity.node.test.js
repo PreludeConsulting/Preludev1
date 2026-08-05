@@ -26,7 +26,7 @@ describe("Cloudflare chat request security", () => {
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ message: "x".repeat(8_001) })
         }),
-        env: { OPENAI_API_KEY: "test-key" }
+        env: { OPENAI_API_KEY: "test-key", PRELUDE_AI_ENABLED: "1" }
       });
       assert.equal(response.status, 413);
       assert.equal(called, false);
@@ -50,7 +50,7 @@ describe("Cloudflare chat request security", () => {
           profile: { name: injection, gpa: "1.0" }
         })
       }),
-      env: { OPENAI_API_KEY: "test-key" },
+      env: { OPENAI_API_KEY: "test-key", PRELUDE_AI_ENABLED: "1" },
       fetch: async (_url, options = {}) => {
         const payload = JSON.parse(options.body);
         outboundMessages = payload.messages;

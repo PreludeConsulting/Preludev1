@@ -32,6 +32,7 @@ describe("Cloudflare API rate limiting", () => {
 
     const env = {
       OPENAI_API_KEY: "sk-test",
+      PRELUDE_AI_ENABLED: "1",
       RATE_LIMIT_STORE: "memory"
     };
 

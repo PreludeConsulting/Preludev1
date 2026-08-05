@@ -279,6 +279,15 @@ async function handleSaveMentorSelection(req, res) {
         status: "assigned",
         notes: "Selected by student during PreludeMatch onboarding."
       });
+      // Student self-selection creates the same conversation an admin assignment would.
+      try {
+        await syncAssignedMentorStudentChat(supabase, {
+          studentId: user.id,
+          mentorId: resolved.selectedMentorId
+        });
+      } catch (chatError) {
+        console.error("[mentor-selection] chat sync failed", chatError?.message || chatError);
+      }
     }
   }
 

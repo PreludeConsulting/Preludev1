@@ -28,11 +28,13 @@ function response() {
 }
 
 describe("/api/chat profile ownership", () => {
+  const enabledEnv = { PRELUDE_AI_ENABLED: "1" };
+
   it("does not use client profile data when an authenticated request cannot be verified", async () => {
     let profileSeen = "not-called";
     const authError = Object.assign(new Error("Authentication required."), { statusCode: 401 });
     const middleware = createChatApiMiddleware(
-      {},
+      enabledEnv,
       {
         requireAuthFn: async () => {
           throw authError;
@@ -64,7 +66,7 @@ describe("/api/chat profile ownership", () => {
   it("uses authenticated server-owned profile facts instead of client overrides", async () => {
     let profileSeen = null;
     const middleware = createChatApiMiddleware(
-      {},
+      enabledEnv,
       {
         requireAuthFn: async () => ({
           user: {

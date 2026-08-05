@@ -7,6 +7,7 @@
 // the SAME knowledge as local. To add/update knowledge, edit:
 //   src/lib/ai/preludeKnowledge.js
 import { buildPreludeSystemContext } from "../../src/lib/ai/preludeKnowledge.js";
+import { isPreludeAiEnabled, PRELUDE_AI_DISABLED_MESSAGE } from "../../shared/preludeAiEnabled.js";
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = "gpt-4o-mini";
@@ -149,6 +150,10 @@ export async function handlePreludeChat(context) {
 
   if (request.method !== "POST") {
     return json({ error: "method_not_allowed", message: "Method not allowed." }, 405, { Allow: "POST" });
+  }
+
+  if (!isPreludeAiEnabled(env)) {
+    return json({ error: "prelude_ai_disabled", message: PRELUDE_AI_DISABLED_MESSAGE }, 503);
   }
 
   const apiKey = env?.OPENAI_API_KEY;

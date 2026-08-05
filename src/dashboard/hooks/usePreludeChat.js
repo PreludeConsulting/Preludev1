@@ -13,6 +13,8 @@ import { uploadChatAttachment, validateChatImageFile } from "../../lib/chatStora
 import { loadLocalChatMessages } from "../../lib/localChatStore.js";
 import { playIncomingMessageSound } from "../lib/notificationSounds.js";
 
+const THREAD_SYNC_INTERVAL_MS = 30000;
+
 function shouldPlayIncomingMessageSound(threadId, activeThreadId) {
   if (typeof document !== "undefined" && document.visibilityState !== "visible") return true;
   return threadId !== activeThreadId;
@@ -42,7 +44,12 @@ export function usePreludeChat({ enabled = true } = {}) {
   const unreadByThread = useMemo(() => {
     if (!user?.id) return {};
     return threads.reduce((acc, thread) => {
-      acc[thread.id] = countUnreadChatMessages(thread, user.id);
+      // Locally cached history is the freshest read-state; fall back to the
+      // server count so a conversation opened on a new device is still accurate.
+      const hasLocalHistory = loadLocalChatMessages(thread).length > 0;
+      acc[thread.id] = hasLocalHistory
+        ? countUnreadChatMessages(thread, user.id)
+        : Number(thread.unreadCount) || 0;
       return acc;
     }, {});
   }, [threads, threadRevision, user?.id]);
@@ -52,9 +59,9 @@ export function usePreludeChat({ enabled = true } = {}) {
     [unreadByThread]
   );
 
-  const refreshThreads = useCallback(async () => {
+  const refreshThreads = useCallback(async ({ silent = false } = {}) => {
     if (!enabled || !user?.id) return;
-    setLoadingThreads(true);
+    if (!silent) setLoadingThreads(true);
     const { threads: next, error: err } = await listChatThreadsForUser(user);
     setThreads(next);
     if (!activeThreadId && next[0]?.id) setActiveThreadId(next[0].id);
@@ -62,8 +69,11 @@ export function usePreludeChat({ enabled = true } = {}) {
       setActiveThreadId(next[0].id);
     }
     if (err) setError(err);
-    setLoadingThreads(false);
+    if (!silent) setLoadingThreads(false);
   }, [enabled, user, activeThreadId]);
+
+  const refreshThreadsRef = useRef(refreshThreads);
+  refreshThreadsRef.current = refreshThreads;
 
   const refreshMessages = useCallback(async () => {
     if (!enabled || !user?.id || !activeThread?.id) {
@@ -141,6 +151,17 @@ export function usePreludeChat({ enabled = true } = {}) {
     );
     return () => cleanups.forEach((cleanup) => cleanup());
   }, [enabled, threads, activeThreadId, refreshMessages, user]);
+
+  // An admin can assign a mentor while this page is open; pick up the new
+  // conversation without requiring a reload or sign-out.
+  useEffect(() => {
+    if (!enabled || !user?.id) return undefined;
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      refreshThreadsRef.current?.({ silent: true });
+    }, THREAD_SYNC_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [enabled, user?.id]);
 
   useEffect(() => {
     if (!enabled || !user?.id) return undefined;

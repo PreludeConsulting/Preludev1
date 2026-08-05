@@ -8,6 +8,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { STUDENT_DASHBOARD_BASE } from "../../../lib/dashboardRoutes.js";
+import { isPreludeAiEnabled } from "../../../lib/preludeAi.js";
 import {
   APPLICATION_AI_SUGGESTIONS,
   DEFAULT_ESSAY_TRACKER,
@@ -117,7 +118,7 @@ export default function ApplicationDashboardCards({
             </li>
           ))}
         </ul>
-        <Link to={`${STUDENT_DASHBOARD_BASE}/ai`} className="dash-product-card__link">
+        <Link to={`${STUDENT_DASHBOARD_BASE}/workspace`} className="dash-product-card__link">
           Open essay workspace <TrendingUp className="h-4 w-4" />
         </Link>
       </article>
@@ -147,20 +148,22 @@ export default function ApplicationDashboardCards({
         </div>
       </article>
 
-      <article className="dash-product-card dash-product-card--feed">
-        <header className="dash-product-card__head">
-          <div>
-            <p className="dash-product-card__eyebrow">AI Insights</p>
-            <h3 className="dash-product-card__title">Prelude AI</h3>
-          </div>
-          <Bot className="h-5 w-5 text-primary" aria-hidden="true" />
-        </header>
-        <InsightList
-          items={insights}
-          actionLink={`${STUDENT_DASHBOARD_BASE}/ai`}
-          actionLabel="Ask Prelude AI"
-        />
-      </article>
+      {isPreludeAiEnabled() ? (
+        <article className="dash-product-card dash-product-card--feed">
+          <header className="dash-product-card__head">
+            <div>
+              <p className="dash-product-card__eyebrow">AI Insights</p>
+              <h3 className="dash-product-card__title">Prelude AI</h3>
+            </div>
+            <Bot className="h-5 w-5 text-primary" aria-hidden="true" />
+          </header>
+          <InsightList
+            items={insights}
+            actionLink={`${STUDENT_DASHBOARD_BASE}/ai`}
+            actionLabel="Ask Prelude AI"
+          />
+        </article>
+      ) : null}
     </>
   );
 }

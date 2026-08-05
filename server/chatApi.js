@@ -8,6 +8,7 @@ import { hasAuthenticatedRequest } from "./lib/dataOwnership.js";
 import { mergeStudentProfileForChat } from "./rag/studentProfile.js";
 import { sanitizeStudentProfile } from "./rag/studentProfile.js";
 import { validateChatRequestBody } from "./chatRequest.js";
+import { isPreludeAiEnabled, PRELUDE_AI_DISABLED_MESSAGE } from "../shared/preludeAiEnabled.js";
 
 export function createChatApiMiddleware(env = process.env, deps = {}) {
   const config = buildChatModelConfig(env);
@@ -57,6 +58,14 @@ export function createChatApiMiddleware(env = process.env, deps = {}) {
 
     if (req.method !== "POST") {
       sendJson(res, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    if (!isPreludeAiEnabled(env)) {
+      sendJson(res, 503, {
+        error: "prelude_ai_disabled",
+        message: PRELUDE_AI_DISABLED_MESSAGE
+      });
       return;
     }
 

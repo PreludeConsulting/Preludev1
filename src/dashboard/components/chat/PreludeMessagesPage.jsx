@@ -71,13 +71,13 @@ function groupMessages(messages) {
 function threadPreview(thread) {
   const cached = loadLocalChatMessages(thread);
   const last = cached[cached.length - 1];
-  return last?.body || last?.attachmentName || "";
+  return last?.body || last?.attachmentName || thread?.lastMessagePreview || "";
 }
 
 function threadLastActivity(thread) {
   const cached = loadLocalChatMessages(thread);
   const last = cached[cached.length - 1];
-  return last?.created_at || last?.createdAt || null;
+  return last?.created_at || last?.createdAt || thread?.lastMessageAt || null;
 }
 
 function EditComposer({ message, onCancel, onSave }) {

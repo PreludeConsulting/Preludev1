@@ -3,9 +3,9 @@ import {
   Building2,
   Calendar,
   LayoutDashboard,
-  Sparkles,
-  TrendingUp
+  Sparkles
 } from "lucide-react";
+import { isPreludeAiEnabled } from "../../lib/preludeAi.js";
 
 /** Sub-navigation when a mentor views a student's full dashboard. */
 export const MENTOR_STUDENT_NAV = [
@@ -13,5 +13,5 @@ export const MENTOR_STUDENT_NAV = [
   { to: "workspace", label: "Colleges", icon: Building2, workspaceTab: "colleges" },
   { to: "calendar", label: "Meetings", icon: Calendar },
   { to: "progress-rewards", label: "Progress Rewards", icon: Sparkles },
-  { to: "ai", label: "Prelude AI", icon: Bot }
+  ...(isPreludeAiEnabled() ? [{ to: "ai", label: "Prelude AI", icon: Bot }] : [])
 ];
