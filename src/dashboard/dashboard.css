@@ -900,6 +900,28 @@ img.dash-avatar {
   gap: 1.1rem;
 }
 
+.dash-mentor-profile-identity {
+  display: grid;
+  grid-template-columns: minmax(15rem, 1fr) minmax(14rem, 1fr);
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid hsl(var(--foreground) / 0.07);
+}
+
+.dash-mentor-profile-identity .dash-avatar-editor {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  .dash-mentor-profile-identity {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dash-mentor-profile-settings__textarea {
   min-height: 7rem;
   resize: vertical;
@@ -3790,6 +3812,22 @@ img.dash-avatar {
 
 .msg-bubble__image-link {
   display: block;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* The bubble is a block box, so an attachment narrower than the bubble would sit
+   on its left edge. Push it to the side the message belongs to, like the text. */
+.msg-group--me .msg-bubble__image-link,
+.msg-group--me .msg-attachment {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.msg-group--them .msg-bubble__image-link,
+.msg-group--them .msg-attachment {
+  margin-left: 0;
+  margin-right: auto;
 }
 
 .msg-bubble:has(.msg-bubble__image) .msg-bubble__text {
@@ -3855,6 +3893,22 @@ img.dash-avatar {
 
 .msg-attachment--missing {
   opacity: 0.75;
+}
+
+/* An attachment on its own needs no bubble chrome behind it. */
+.msg-bubble:has(.msg-attachment):not(:has(.msg-bubble__text)) {
+  padding: 0;
+  background: transparent;
+}
+
+.msg-bubble:has(.msg-attachment) .msg-bubble__text {
+  margin-top: 0.35rem;
+}
+
+/* Paired with text, the card sits on the sender's coloured bubble. */
+.msg-bubble--me:has(.msg-bubble__text) .msg-attachment {
+  border-color: rgb(255 255 255 / 0.25);
+  background: rgb(255 255 255 / 0.15);
 }
 
 .msg-preview__file,

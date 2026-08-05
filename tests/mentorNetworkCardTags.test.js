@@ -7,9 +7,9 @@ describe("pickMentorNetworkCardTags", () => {
     specialties: ["Choosing colleges", "Academic profile review", "Financial aid"]
   };
 
-  it("returns up to 2 specialties from the help checklist only", () => {
+  it("returns exactly one specialty from the help checklist", () => {
     const tags = pickMentorNetworkCardTags(mentor);
-    expect(tags).toHaveLength(2);
+    expect(tags).toHaveLength(1);
     expect(tags.every((tag) => mentor.specialties.includes(tag))).toBe(true);
   });
 

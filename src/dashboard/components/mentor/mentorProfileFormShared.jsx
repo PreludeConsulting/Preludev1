@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Camera } from "lucide-react";
 import {
   MENTOR_APPLICATION_STRENGTHS,
   MENTOR_PROGRAM_OPTIONS,
@@ -7,8 +8,11 @@ import {
   MENTOR_TARGET_MAJORS
 } from "../../../data/mentorQuestionnaire.js";
 import { EXPLORE_COLLEGES } from "../../data/collegeExploreData.js";
+import { getInitials } from "../../../lib/avatar.js";
 
 export const EMPTY_MENTOR_PROFILE_FORM = {
+  fullName: "",
+  avatarUrl: "",
   college: "",
   major: "",
   bio: "",
@@ -38,6 +42,8 @@ export function mentorProfileFormFromData(questionnaire, matchingProfile) {
   return {
     ...EMPTY_MENTOR_PROFILE_FORM,
     ...answers,
+    fullName: answers.fullName ?? matchingProfile?.display_name ?? "",
+    avatarUrl: answers.avatarUrl ?? matchingProfile?.avatar_url ?? "",
     college: answers.college ?? matchingProfile?.college ?? "",
     major: answers.major ?? matchingProfile?.major ?? "",
     bio: answers.bio ?? matchingProfile?.bio ?? "",
@@ -53,6 +59,8 @@ export function mentorProfileFormFromData(questionnaire, matchingProfile) {
 
 export function validateMentorProfileForm(form, { requireAvailabilityNotes = true } = {}) {
   const errors = {};
+  if (!cleanText(form.fullName)) errors.fullName = "Enter your full name.";
+  if (!cleanText(form.avatarUrl)) errors.avatarUrl = "Upload a profile photo.";
   if (!cleanText(form.college)) errors.college = "Choose or enter your college.";
   if (!cleanText(form.major)) errors.major = "Choose or enter your major.";
   if (!cleanText(form.bio)) errors.bio = "Add a mentor bio.";
@@ -68,6 +76,8 @@ export function validateMentorProfileForm(form, { requireAvailabilityNotes = tru
 
 export function normalizeMentorProfilePayload(form) {
   return {
+    fullName: cleanText(form.fullName),
+    avatarUrl: cleanText(form.avatarUrl),
     college: cleanText(form.college),
     major: cleanText(form.major),
     bio: cleanText(form.bio),
@@ -287,13 +297,88 @@ export function MentorListEditor({ label, value, onChange, placeholder }) {
   );
 }
 
-export function MentorProfileFormFields({ form, errors = {}, onChange }) {
+export function MentorProfileFormFields({
+  form,
+  errors = {},
+  onChange,
+  onPhotoSelect = null,
+  onPhotoRemove = null,
+  photoState = { status: "idle", message: "" }
+}) {
+  const photoInputRef = useRef(null);
+  const [photoFailed, setPhotoFailed] = useState(false);
+
+  useEffect(() => {
+    setPhotoFailed(false);
+  }, [form.avatarUrl]);
+
   function updateField(key, value) {
     onChange({ ...form, [key]: value });
   }
 
   return (
     <div className="dash-mentor-profile-settings">
+      <section className="dash-mentor-profile-identity">
+        <div className="dash-avatar-editor">
+          <div className="dash-avatar-editor__preview" aria-label="Profile photo preview">
+            {form.avatarUrl && !photoFailed ? (
+              <img src={form.avatarUrl} alt="" onError={() => setPhotoFailed(true)} />
+            ) : (
+              <span aria-hidden="true">{getInitials(form.fullName, "M").slice(0, 1)}</span>
+            )}
+          </div>
+          <div className="dash-avatar-editor__actions">
+            <input
+              ref={photoInputRef}
+              className="sr-only"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(event) => {
+                const file = event.target.files?.[0] || null;
+                if (file) onPhotoSelect?.(file);
+                event.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className="dash-btn dash-btn--secondary dash-btn--sm"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={!onPhotoSelect || photoState.status === "saving"}
+            >
+              <Camera className="h-4 w-4" aria-hidden="true" />
+              {form.avatarUrl ? "Replace photo" : "Upload photo"}
+            </button>
+            {form.avatarUrl && onPhotoRemove ? (
+              <button
+                type="button"
+                className="dash-btn dash-btn--secondary dash-btn--sm"
+                onClick={onPhotoRemove}
+                disabled={photoState.status === "saving"}
+              >
+                Remove
+              </button>
+            ) : null}
+            <p className="dash-setting-row__desc">JPG, PNG, WebP, or GIF. Max 5 MB.</p>
+            {photoState.status === "saving" ? <span className="dash-save-state" role="status">Updating photo…</span> : null}
+            {photoState.status === "saved" ? <span className="dash-save-state dash-save-state--ok" role="status">{photoState.message}</span> : null}
+            {photoState.status === "error" ? <span className="dash-save-state dash-save-state--error" role="alert">{photoState.message}</span> : null}
+            {errors.avatarUrl ? <em>{errors.avatarUrl}</em> : null}
+          </div>
+        </div>
+
+        <label className="dash-field">
+          <span>Full name</span>
+          <input
+            className="dash-input"
+            value={form.fullName}
+            onChange={(event) => updateField("fullName", event.target.value)}
+            aria-invalid={Boolean(errors.fullName)}
+            autoComplete="name"
+          />
+          {errors.fullName ? <em>{errors.fullName}</em> : null}
+        </label>
+      </section>
+
       <div className="dash-form-grid dash-form-grid--settings">
         <label className="dash-field">
           <span>College or university</span>

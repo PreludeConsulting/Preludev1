@@ -6525,6 +6525,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: 1rem;
   background:
@@ -6559,11 +6560,13 @@
 
 .dash-chat-network-card--expanded {
   max-width: 24rem;
+  aspect-ratio: auto;
 }
 
 .dash-chat-network-card__media {
   position: relative;
-  aspect-ratio: 4 / 3;
+  flex: 0 0 70%;
+  min-height: 0;
   overflow: hidden;
   border-bottom: 1px solid hsl(var(--foreground) / 0.06);
   background: linear-gradient(180deg, #f5f2ff 0%, #ebe6ff 100%);
@@ -6597,6 +6600,37 @@
   flex-direction: column;
   gap: 0.65rem;
   padding: 0.9rem 0.95rem 1rem;
+  overflow: hidden;
+}
+
+.dash-chat-network-card--expanded .dash-chat-network-card__media {
+  flex-basis: auto;
+  aspect-ratio: 4 / 3;
+}
+
+.dash-chat-network-card--placeholder {
+  pointer-events: none;
+}
+
+.dash-chat-network-card__placeholder-line,
+.dash-chat-network-card__placeholder-tag {
+  display: block;
+  height: 0.8rem;
+  border-radius: 999px;
+}
+
+.dash-chat-network-card__placeholder-line {
+  width: 72%;
+}
+
+.dash-chat-network-card__placeholder-line--short {
+  width: 48%;
+}
+
+.dash-chat-network-card__placeholder-tag {
+  width: 38%;
+  height: 1.25rem;
+  margin-top: 0.2rem;
 }
 
 .dash-chat-network-card__identity {
@@ -7368,6 +7402,148 @@
   font-weight: 750;
 }
 
+.mentor-approvals-page {
+  gap: 1rem;
+}
+
+.mentor-approvals-toolbar {
+  display: grid;
+  grid-template-columns: minmax(16rem, 1fr) minmax(12rem, 0.35fr);
+  gap: 0.75rem;
+  align-items: end;
+  padding: 0.9rem;
+}
+
+.mentor-approvals-filter {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.mentor-approvals-filter span {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.mentor-approvals-filter select {
+  min-height: 2.7rem;
+  border: 1px solid rgb(35 39 48 / 0.1);
+  border-radius: 0.75rem;
+  padding: 0 0.7rem;
+  background: #fff;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.mentor-approvals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.mentor-approval-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: clamp(1rem, 1.5vw, 1.25rem);
+}
+
+.mentor-approval-card__identity {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.mentor-approval-card__avatar {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 0.9rem;
+  object-fit: cover;
+  background: #f1f0f5;
+}
+
+.mentor-approval-card__avatar--empty {
+  display: grid;
+  place-items: center;
+  color: hsl(var(--primary));
+  font-family: var(--dash-font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.mentor-approval-card__title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.mentor-approval-card__title h2,
+.mentor-approval-card__identity p,
+.mentor-approval-card__bio {
+  margin: 0;
+}
+
+.mentor-approval-card__title h2 {
+  color: #111827;
+  font-family: var(--dash-font-display);
+  font-size: 1.05rem;
+}
+
+.mentor-approval-card__identity p,
+.mentor-approval-card__bio {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.mentor-approval-status {
+  border-radius: 999px;
+  padding: 0.24rem 0.48rem;
+  font-size: 0.66rem;
+  font-weight: 850;
+}
+
+.mentor-approval-status--approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.mentor-approval-status--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.mentor-approval-status--incomplete {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.mentor-approval-card__specialties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.mentor-approval-card__specialties span {
+  border-radius: 999px;
+  padding: 0.28rem 0.5rem;
+  background: #f4f3f8;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.mentor-approval-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 0.2rem;
+}
+
 @media (max-width: 1180px) {
   .matching-team-filters {
     grid-template-columns: 1fr;
@@ -7399,6 +7575,11 @@
 
   .matching-team-card__actions {
     justify-content: flex-start;
+  }
+
+  .mentor-approvals-toolbar,
+  .mentor-approvals-grid {
+    grid-template-columns: 1fr;
   }
 }
 

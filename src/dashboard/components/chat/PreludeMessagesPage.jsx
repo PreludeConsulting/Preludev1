@@ -184,7 +184,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
       mentor?.mentorUserId ||
       mentor?.id
   );
-  const showMentorNetworkBrowse = !isMentor && !hasAssignedMentor;
+  const showMentorNetworkBrowse = !isMentor;
 
   const [q, setQ] = useState("");
   const [panel, setPanel] = useState("inbox");

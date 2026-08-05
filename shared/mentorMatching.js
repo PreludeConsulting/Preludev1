@@ -70,6 +70,8 @@ export function mapMentorMatchingProfile(row, matchPercent = null, reasons = [])
   return {
     id: row.mentor_user_id,
     name: row.display_name || "Prelude mentor",
+    avatarUrl: row.avatar_url || null,
+    photo: row.avatar_url || null,
     school: row.college || "College mentor",
     university: row.college || "College mentor",
     major: row.major || "Admissions mentor",

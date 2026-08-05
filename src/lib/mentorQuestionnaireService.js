@@ -27,6 +27,8 @@ function asArray(value) {
 
 export function extractMentorFields(answers = {}) {
   return {
+    fullName: (answers.fullName || "").trim(),
+    avatarUrl: (answers.avatarUrl || "").trim(),
     college: (answers.college || "").trim(),
     major: (answers.major || "").trim(),
     bio: (answers.bio || "").trim(),
@@ -56,7 +58,9 @@ export async function saveMentorQuestionnaire(user, answers, options = {}) {
   if (!user?.id) return { error: "You must be signed in." };
   const fields = extractMentorFields(answers);
   const meetsRequirements = Boolean(
-    fields.college &&
+    fields.fullName &&
+      fields.avatarUrl &&
+      fields.college &&
       fields.major &&
       fields.bio &&
       fields.specialties.length &&
@@ -78,7 +82,8 @@ export async function saveMentorQuestionnaire(user, answers, options = {}) {
 
   const matchingPayload = {
     mentor_user_id: user.id,
-    display_name: user.name || user.email || "Prelude mentor",
+    display_name: fields.fullName || user.name || user.email || "Prelude mentor",
+    avatar_url: fields.avatarUrl || null,
     college: fields.college,
     major: fields.major,
     bio: fields.bio,
@@ -92,7 +97,7 @@ export async function saveMentorQuestionnaire(user, answers, options = {}) {
     updated_at: now
   };
 
-  const [questionnaireRes, matchingRes] = await Promise.all([
+  const [questionnaireRes, matchingRes, profileRes] = await Promise.all([
     db()
       .from("mentor_questionnaires")
       .upsert(questionnairePayload, { onConflict: "user_id" })
@@ -102,6 +107,16 @@ export async function saveMentorQuestionnaire(user, answers, options = {}) {
       .from("mentor_matching_profiles")
       .upsert(matchingPayload, { onConflict: "mentor_user_id" })
       .select()
+      .maybeSingle(),
+    db()
+      .from("profiles")
+      .update({
+        full_name: fields.fullName,
+        avatar_url: fields.avatarUrl || null,
+        updated_at: now
+      })
+      .eq("id", user.id)
+      .select("id")
       .maybeSingle()
   ]);
 
@@ -109,7 +124,11 @@ export async function saveMentorQuestionnaire(user, answers, options = {}) {
     questionnaire: questionnaireRes.data || null,
     matchingProfile: matchingRes.data || null,
     completed,
-    error: questionnaireRes.error?.message || matchingRes.error?.message || null
+    error:
+      questionnaireRes.error?.message ||
+      matchingRes.error?.message ||
+      profileRes.error?.message ||
+      null
   };
 }
 
@@ -122,6 +141,8 @@ export async function saveMentorProfileSettings(user, fields) {
   const currentAnswers = questionnaire?.answers || {};
   const answers = {
     ...currentAnswers,
+    fullName: fields.fullName ?? currentAnswers.fullName ?? matchingProfile?.display_name ?? user.name ?? "",
+    avatarUrl: fields.avatarUrl ?? currentAnswers.avatarUrl ?? matchingProfile?.avatar_url ?? user.avatarUrl ?? "",
     college: fields.college ?? currentAnswers.college ?? matchingProfile?.college ?? "",
     major: fields.major ?? currentAnswers.major ?? matchingProfile?.major ?? "",
     bio: fields.bio ?? currentAnswers.bio ?? matchingProfile?.bio ?? "",
@@ -149,8 +170,37 @@ export async function getMentorMatchingProfile(mentorUserId) {
   if (!mentorUserId) return { mentor: null, error: null };
   const { data, error } = await db()
     .from("mentor_matching_profiles")
-    .select("*")
+    .select(
+      "mentor_user_id,display_name,avatar_url,college,major,bio,specialties,target_majors,target_schools,support_styles,application_strengths,availability,completed,approved,updated_at"
+    )
     .eq("mentor_user_id", mentorUserId)
     .maybeSingle();
   return { mentor: data ? mapMentorMatchingProfile(data) : null, error: error?.message || null };
+}
+
+/** Approved, completed mentor accounts shown in the student-facing network. */
+export async function listMentorNetworkProfiles() {
+  const { data, error } = await db()
+    .from("mentor_matching_profiles")
+    .select("*")
+    .eq("completed", true)
+    .eq("approved", true)
+    .order("updated_at", { ascending: false });
+  return {
+    mentors: (data || []).map((row) => mapMentorMatchingProfile(row)),
+    error: error?.message || null
+  };
+}
+
+export function subscribeMentorNetworkProfiles(onChange) {
+  const client = db();
+  const channel = client
+    .channel(`mentor-network-${Math.random().toString(36).slice(2, 10)}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "mentor_matching_profiles" },
+      () => onChange?.()
+    )
+    .subscribe();
+  return () => client.removeChannel(channel);
 }

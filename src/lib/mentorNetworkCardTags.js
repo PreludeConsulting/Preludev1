@@ -28,12 +28,12 @@ function resolveMentorHelpSpecialties(mentor) {
   return [];
 }
 
-/** Up to 2 stable tags from "Where can you help students most?" only. */
+/** One stable pseudo-random tag from "Where can you help students most?" only. */
 export function pickMentorNetworkCardTags(mentor) {
   const specialties = resolveMentorHelpSpecialties(mentor);
   if (!specialties.length) return [];
 
   const seed = hashString(String(mentor.id || mentor.mentor_user_id || mentor.name || ""));
   const shuffled = seededShuffle(specialties, seed);
-  return shuffled.slice(0, Math.min(2, specialties.length));
+  return shuffled.slice(0, 1);
 }

@@ -260,10 +260,12 @@
 
 .dash-msg-fab-bubble--me {
   align-self: flex-end;
+  align-items: flex-end;
 }
 
 .dash-msg-fab-bubble--them {
   align-self: flex-start;
+  align-items: flex-start;
 }
 
 .dash-msg-fab-bubble__text {

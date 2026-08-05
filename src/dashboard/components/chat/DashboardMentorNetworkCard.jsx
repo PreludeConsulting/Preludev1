@@ -86,7 +86,7 @@ export default function DashboardMentorNetworkCard({
       <div className="dash-chat-network-card__body">
         <div className="dash-chat-network-card__identity">
           <h3 className="dash-chat-network-card__name">{mentor.name}</h3>
-          {school ? <p className="dash-chat-network-card__school">{school}</p> : null}
+          {expanded && school ? <p className="dash-chat-network-card__school">{school}</p> : null}
           {mentor.major ? <p className="dash-chat-network-card__major">{mentor.major}</p> : null}
         </div>
 
@@ -100,11 +100,11 @@ export default function DashboardMentorNetworkCard({
           </div>
         ) : null}
 
-        {bio ? (
+        {expanded && bio ? (
           <p className={cn("dash-chat-network-card__bio", !expanded && "dash-chat-network-card__bio--clamp")}>{bio}</p>
         ) : null}
 
-        {mentor.availability ? (
+        {expanded && mentor.availability ? (
           <p className="dash-chat-network-card__availability">
             <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
             <span>{mentor.availability}</span>

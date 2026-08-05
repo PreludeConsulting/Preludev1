@@ -264,6 +264,7 @@ function MentorProfileSettingsPanel({ user, profile, useSupabaseData, saveProfil
   const [form, setForm] = useState(EMPTY_MENTOR_PROFILE_FORM);
   const [errors, setErrors] = useState({});
   const [state, setState] = useState({ status: "loading", message: "" });
+  const [photoState, setPhotoState] = useState({ status: "idle", message: "" });
 
   useEffect(() => {
     let cancelled = false;
@@ -271,6 +272,8 @@ function MentorProfileSettingsPanel({ user, profile, useSupabaseData, saveProfil
       if (!user?.id || !useSupabaseData) {
         const fallback = {
           ...EMPTY_MENTOR_PROFILE_FORM,
+          fullName: profile?.fullName || user?.name || "",
+          avatarUrl: profile?.avatarUrl || profile?.avatar_url || user?.avatarUrl || "",
           college: profile?.school || "",
           bio: profile?.bio || "",
           targetMajors: asArray(profile?.targetMajors || profile?.majors)
@@ -286,7 +289,22 @@ function MentorProfileSettingsPanel({ user, profile, useSupabaseData, saveProfil
       setState({ status: "loading", message: "" });
       const { questionnaire, matchingProfile, error } = await loadMentorQuestionnaire(user.id);
       if (cancelled) return;
-      const nextForm = mentorProfileFormFromData(questionnaire, matchingProfile);
+      const nextForm = {
+        ...mentorProfileFormFromData(questionnaire, matchingProfile),
+        fullName:
+          profile?.fullName ||
+          user?.name ||
+          questionnaire?.answers?.fullName ||
+          matchingProfile?.display_name ||
+          "",
+        avatarUrl:
+          profile?.avatarUrl ||
+          profile?.avatar_url ||
+          user?.avatarUrl ||
+          questionnaire?.answers?.avatarUrl ||
+          matchingProfile?.avatar_url ||
+          ""
+      };
       setInitialForm(nextForm);
       setForm(nextForm);
       setState(error ? { status: "error", message: error } : { status: "idle", message: "" });
@@ -318,6 +336,8 @@ function MentorProfileSettingsPanel({ user, profile, useSupabaseData, saveProfil
       const { error } = await saveMentorProfileSettings(user, payload);
       if (error) throw new Error(error);
       await saveProfile({
+        fullName: payload.fullName,
+        avatarUrl: payload.avatarUrl || null,
         school: payload.college,
         bio: payload.bio,
         targetMajors: payload.targetMajors
@@ -331,6 +351,53 @@ function MentorProfileSettingsPanel({ user, profile, useSupabaseData, saveProfil
     }
   }
 
+  async function handlePhotoSelect(file) {
+    const validation = validateAvatarFile(file);
+    if (validation) {
+      setPhotoState({ status: "error", message: validation });
+      return;
+    }
+    if (!useSupabaseData) {
+      setPhotoState({ status: "error", message: "Profile photo upload requires a signed-in Supabase session." });
+      return;
+    }
+    setPhotoState({ status: "saving", message: "" });
+    try {
+      const { url, error } = await uploadAvatar(user.id, file, { previousAvatarUrl: form.avatarUrl });
+      if (error) throw new Error(error);
+      const nextForm = { ...form, avatarUrl: url || "" };
+      const result = await saveMentorProfileSettings(user, { avatarUrl: url || "" });
+      if (result.error) throw new Error(result.error);
+      await saveProfile({ avatarUrl: url || "" }, { localOnly: true });
+      emitAvatarUpdated(url || "");
+      setForm(nextForm);
+      setInitialForm((current) => ({ ...current, avatarUrl: url || "" }));
+      setErrors((current) => ({ ...current, avatarUrl: undefined }));
+      setPhotoState({ status: "saved", message: "Profile photo updated." });
+    } catch (error) {
+      setPhotoState({ status: "error", message: error?.message || "We could not update your photo." });
+    }
+  }
+
+  async function handlePhotoRemove() {
+    if (!form.avatarUrl || !useSupabaseData) return;
+    setPhotoState({ status: "saving", message: "" });
+    try {
+      const { error } = await removeAvatar(user.id, { previousAvatarUrl: form.avatarUrl });
+      if (error) throw new Error(error);
+      const nextForm = { ...form, avatarUrl: "" };
+      const result = await saveMentorProfileSettings(user, { avatarUrl: "" });
+      if (result.error) throw new Error(result.error);
+      await saveProfile({ avatarUrl: null }, { localOnly: true });
+      emitAvatarUpdated("");
+      setForm(nextForm);
+      setInitialForm((current) => ({ ...current, avatarUrl: "" }));
+      setPhotoState({ status: "saved", message: "Profile photo removed." });
+    } catch (error) {
+      setPhotoState({ status: "error", message: error?.message || "We could not remove your photo." });
+    }
+  }
+
   return (
     <SectionCard title="Mentor profile" className="dash-panel">
       <div className="dash-mentor-profile-settings">
@@ -338,6 +405,9 @@ function MentorProfileSettingsPanel({ user, profile, useSupabaseData, saveProfil
         <MentorProfileFormFields
           form={form}
           errors={errors}
+          photoState={photoState}
+          onPhotoSelect={handlePhotoSelect}
+          onPhotoRemove={handlePhotoRemove}
           onChange={(next) => {
             setForm(next);
             setErrors({});
@@ -1055,21 +1125,12 @@ export function MentorSettingsPage() {
       accountActionLabel="Account"
     >
       {tab === "profile" ? (
-        <>
-          <AccountSettingsPanel
-            user={user}
-            profile={profile}
-            roleLabel="Mentor"
-            useSupabaseData={useSupabaseData}
-            saveProfile={saveProfile}
-          />
-          <MentorProfileSettingsPanel
-            user={user}
-            profile={profile}
-            useSupabaseData={useSupabaseData}
-            saveProfile={saveProfile}
-          />
-        </>
+        <MentorProfileSettingsPanel
+          user={user}
+          profile={profile}
+          useSupabaseData={useSupabaseData}
+          saveProfile={saveProfile}
+        />
       ) : null}
 
       {tab === "integrations" ? (

@@ -26,6 +26,8 @@ import {
   userNeedsMentorOnboarding
 } from "../../lib/onboardingRoutes.js";
 import { loadMentorQuestionnaire, saveMentorQuestionnaire } from "../../lib/mentorQuestionnaireService.js";
+import { uploadAvatar, validateAvatarFile } from "../../lib/supabaseStorage.js";
+import { emitAvatarUpdated } from "../../lib/avatar.js";
 import AppLink from "../AppLink.jsx";
 
 export default function MentorQuestionnaireOnboardingPage() {
@@ -41,6 +43,7 @@ export default function MentorQuestionnaireOnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [photoState, setPhotoState] = useState({ status: "idle", message: "" });
   const errorRef = useRef(null);
 
   useEffect(() => {
@@ -52,7 +55,11 @@ export default function MentorQuestionnaireOnboardingPage() {
       }
       const { questionnaire, matchingProfile } = await loadMentorQuestionnaire(user.id);
       if (cancelled) return;
-      setForm(mentorProfileFormFromData(questionnaire, matchingProfile));
+      setForm({
+        ...mentorProfileFormFromData(questionnaire, matchingProfile),
+        fullName: matchingProfile?.display_name || questionnaire?.answers?.fullName || user.name || "",
+        avatarUrl: matchingProfile?.avatar_url || questionnaire?.answers?.avatarUrl || user.avatarUrl || ""
+      });
       setAvailabilityForm(scheduleToWeeklyFormState(matchingProfile?.availability_schedule));
       setLoading(false);
     }
@@ -110,6 +117,34 @@ export default function MentorQuestionnaireOnboardingPage() {
       showError(err.message || "Could not save your mentor profile.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePhotoSelect(file) {
+    const validation = validateAvatarFile(file);
+    if (validation) {
+      setPhotoState({ status: "error", message: validation });
+      return;
+    }
+    if (user.authProvider !== "supabase") {
+      setPhotoState({ status: "error", message: "Profile photo upload requires a signed-in Supabase session." });
+      return;
+    }
+    setPhotoState({ status: "saving", message: "" });
+    try {
+      const { url, error: uploadError } = await uploadAvatar(user.id, file, {
+        previousAvatarUrl: form.avatarUrl
+      });
+      if (uploadError) throw new Error(uploadError);
+      setForm((current) => ({ ...current, avatarUrl: url || "" }));
+      setErrors((current) => ({ ...current, avatarUrl: undefined }));
+      emitAvatarUpdated(url || "");
+      setPhotoState({ status: "saved", message: "Profile photo uploaded." });
+    } catch (uploadError) {
+      setPhotoState({
+        status: "error",
+        message: uploadError?.message || "We could not upload your photo."
+      });
     }
   }
 
@@ -190,6 +225,8 @@ export default function MentorQuestionnaireOnboardingPage() {
               <MentorProfileFormFields
                 form={form}
                 errors={errors}
+                photoState={photoState}
+                onPhotoSelect={handlePhotoSelect}
                 onChange={(next) => {
                   setForm(next);
                   setErrors({});
