@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ArrowLeft, Calendar, Check, CheckCheck, ChevronRight, ImagePlus, MessageCircle, Pencil, Send, Users, Video, X } from "lucide-react";
 import { findNextJoinableMeeting } from "../../../lib/zoomMeetingLinks.js";
+import { chatMessagePreviewText, sanitizeThreadPreview } from "../../../lib/chatAttachments.js";
+import { CHAT_ATTACHMENT_ACCEPT } from "../../../lib/chatStorage.js";
 import { loadLocalChatMessages } from "../../../lib/localChatStore.js";
+import MessageAttachment from "./MessageAttachment.jsx";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { Avatar, EmptyState, SearchInput } from "../ui/index.jsx";
@@ -72,7 +75,7 @@ function groupMessages(messages) {
 function threadPreview(thread) {
   const cached = loadLocalChatMessages(thread);
   const last = cached[cached.length - 1];
-  return last?.body || last?.attachmentName || thread?.lastMessagePreview || "";
+  return chatMessagePreviewText(last) || sanitizeThreadPreview(thread?.lastMessagePreview);
 }
 
 function threadLastActivity(thread) {
@@ -237,13 +240,16 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   }, [activeThreadId, messages.length, lastOutgoingAt]);
 
   useEffect(() => {
-    if (!pendingFile) {
+    if (!pendingFile || !/^image\//i.test(pendingFile.type || "")) {
       setPreviewUrl(null);
       return undefined;
     }
     const url = URL.createObjectURL(pendingFile);
     setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
+    // Revoke after the paint that removed the preview, never while it is on screen.
+    return () => {
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    };
   }, [pendingFile]);
 
   function selectThread(id) {
@@ -441,11 +447,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                           ) : (
                             <div key={msg.id} className="msg-bubble-wrap">
                               <div className={"msg-bubble msg-bubble--" + g.side}>
-                                {msg.attachmentUrl ? (
-                                  <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="msg-bubble__image-link">
-                                    <img src={msg.attachmentUrl} alt={msg.attachmentName || "Shared image"} className="msg-bubble__image" />
-                                  </a>
-                                ) : null}
+                                <MessageAttachment message={msg} />
                                 {msg.body ? <span className="msg-bubble__text">{msg.body}</span> : null}
                                 {canEditMessage(msg, now) ? (
                                   <button type="button" className="msg-bubble__edit" onClick={() => setEditingId(msg.id)} aria-label="Edit message">
@@ -484,10 +486,14 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
             ) : null}
 
             {/* Attachment preview */}
-            {previewUrl ? (
+            {pendingFile ? (
               <div className="msg-preview">
-                <img src={previewUrl} alt="Attachment preview" />
-                <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = ""; }} aria-label="Remove image">
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Attachment preview" />
+                ) : (
+                  <span className="msg-preview__file">{pendingFile.name}</span>
+                )}
+                <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = ""; }} aria-label="Remove attachment">
                   <X size={16} />
                 </button>
               </div>
@@ -495,7 +501,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
 
             {/* Composer */}
             <form className="msg-composer" onSubmit={handleSend}>
-              <input ref={fileRef} type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif" className="msg-composer__file"
+              <input ref={fileRef} type="file" accept={CHAT_ATTACHMENT_ACCEPT} className="msg-composer__file"
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
                   if (!file) return;
@@ -503,7 +509,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                   setError(null);
                   e.target.value = "";
                 }} />
-              <button type="button" className="msg-composer__attach" onClick={() => fileRef.current?.click()} aria-label="Attach photo" disabled={sending}>
+              <button type="button" className="msg-composer__attach" onClick={() => fileRef.current?.click()} aria-label="Attach a photo or file" disabled={sending}>
                 <ImagePlus size={20} />
               </button>
               <textarea

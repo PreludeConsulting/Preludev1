@@ -10,6 +10,7 @@ import {
   DEMO_STUDENT,
   isDemoEmail
 } from "../data/demoAccounts.js";
+import { normalizeChatAttachment } from "./chatAttachments.js";
 import { shouldUseDemoFixtures } from "./devAuthBypass.js";
 import {
   appendLocalChatMessage,
@@ -113,6 +114,7 @@ function shouldUseLocalChat(user) {
 
 export function mapChatMessage(row, viewerId) {
   const status = row.status || (isOptimisticMessageId(row.id) ? MESSAGE_STATUS.SENDING : MESSAGE_STATUS.SENT);
+  const attachment = normalizeChatAttachment(row);
   return {
     id: row.id,
     clientId: row.client_id || row.clientId || (isOptimisticMessageId(row.id) ? row.id : null),
@@ -127,19 +129,53 @@ export function mapChatMessage(row, viewerId) {
     read: Boolean(row.read),
     createdAt: row.created_at || row.createdAt,
     editedAt: row.edited_at || row.editedAt || null,
-    attachmentUrl: row.attachment_url || row.attachmentUrl || null,
-    attachmentMime: row.attachment_mime || row.attachmentMime || null,
-    attachmentName: row.attachment_name || row.attachmentName || null,
+    ...attachment,
     isMine: (row.sender_id || row.senderId) === viewerId
   };
 }
 
+/** The cache keeps the durable storage key; signed URLs are re-derived per read. */
+export function toCacheRow(message, threadId) {
+  return {
+    id: message.id,
+    client_id: message.clientId || null,
+    status: message.status || MESSAGE_STATUS.SENT,
+    chat_thread_id: message.threadId || threadId,
+    chat_type: message.chatType,
+    sender_id: message.senderId,
+    receiver_id: message.receiverId,
+    sender_name: message.senderName,
+    sender_role: message.senderRole,
+    body: message.body,
+    read: message.read,
+    created_at: message.createdAt,
+    edited_at: message.editedAt,
+    attachment_path: message.attachmentPath || null,
+    // Only inline data survives a reload; a signed URL would be stale by then.
+    attachment_url: message.attachmentPath ? null : message.attachmentUrl || null,
+    attachment_mime: message.attachmentMime || null,
+    attachment_name: message.attachmentName || null,
+    attachment_size: message.attachmentSize || null
+  };
+}
+
+/**
+ * Turns a durable storage key into a URL the browser can load. Runs on every read
+ * so an expired signature is replaced rather than rendered as a broken image.
+ */
 async function withResolvedAttachment(row) {
-  const stored = row?.attachment_url || row?.attachmentUrl;
-  const path = normalizeChatAttachmentStoragePath(stored);
-  if (!path) return row;
+  const { attachmentPath, attachmentUrl } = normalizeChatAttachment(row);
+  if (!attachmentPath) return row;
+
+  const path = normalizeChatAttachmentStoragePath(attachmentPath) || attachmentPath;
   const signedUrl = await createPrivateChatAttachmentUrl(path);
-  return signedUrl ? { ...row, attachment_url: signedUrl, attachmentUrl: signedUrl } : row;
+  return {
+    ...row,
+    attachment_path: path,
+    attachmentPath: path,
+    attachment_url: signedUrl || attachmentUrl || null,
+    attachmentUrl: signedUrl || attachmentUrl || null
+  };
 }
 
 function withStorageKey(thread) {
@@ -541,6 +577,16 @@ export async function listChatThreadsForUser(user) {
   }
 }
 
+async function resolveAttachmentUrls(messages, viewerId) {
+  return Promise.all(
+    messages.map(async (message) =>
+      message.attachmentPath && !message.attachmentUrl
+        ? mapChatMessage(await withResolvedAttachment(message), viewerId)
+        : message
+    )
+  );
+}
+
 export async function loadChatMessages(user, threadMeta) {
   const thread = typeof threadMeta === "string" ? { id: threadMeta } : threadMeta;
   if (!user?.id || !thread?.id) return { messages: [], error: null };
@@ -559,33 +605,22 @@ export async function loadChatMessages(user, threadMeta) {
       .order("created_at", { ascending: true });
 
     if (error) {
-      return { messages: localRows, error: localRows.length ? null : error.message };
+      return {
+        messages: await resolveAttachmentUrls(localRows, user.id),
+        error: localRows.length ? null : error.message
+      };
     }
 
     const resolvedRows = await Promise.all((data || []).map(withResolvedAttachment));
     const remoteRows = resolvedRows.map((row) => mapChatMessage(row, user.id));
     const merged = mergeChatMessages(remoteRows, localRows).map((m) => mapChatMessage(m, user.id));
-    saveLocalChatMessages(thread, merged.map((message) => ({
-      id: message.id,
-      client_id: message.clientId || null,
-      chat_thread_id: thread.id,
-      chat_type: message.chatType,
-      sender_id: message.senderId,
-      receiver_id: message.receiverId,
-      sender_name: message.senderName,
-      sender_role: message.senderRole,
-      body: message.body,
-      read: message.read,
-      created_at: message.createdAt,
-      edited_at: message.editedAt,
-      attachment_url: message.attachmentUrl,
-      attachment_mime: message.attachmentMime,
-      attachment_name: message.attachmentName
-    })), { silent: true });
-    return { messages: merged, error: null };
+    // Cached rows carry a storage key, not a URL, so sign whatever the merge kept.
+    const withUrls = await resolveAttachmentUrls(merged, user.id);
+    saveLocalChatMessages(thread, withUrls.map((message) => toCacheRow(message, thread.id)), { silent: true });
+    return { messages: withUrls, error: null };
   } catch (err) {
     return {
-      messages: localRows,
+      messages: await resolveAttachmentUrls(localRows, user.id),
       error: localRows.length ? null : err.message || "Could not load messages."
     };
   }
@@ -609,8 +644,10 @@ export function buildOptimisticChatMessage(user, threadMeta, { body = "", attach
       read: false,
       created_at: now,
       attachment_url: attachment?.url || null,
+      attachment_path: attachment?.path || null,
       attachment_mime: attachment?.mime || null,
-      attachment_name: attachment?.name || null
+      attachment_name: attachment?.name || null,
+      attachment_size: attachment?.size || null
     },
     user?.id
   );
@@ -619,7 +656,9 @@ export function buildOptimisticChatMessage(user, threadMeta, { body = "", attach
 export async function sendChatMessage(user, threadMeta, { body = "", attachment = null, clientId } = {}) {
   if (!user?.id || !threadMeta?.id) return { message: null, error: "Missing conversation." };
   const trimmed = (body || "").trim();
-  if (!trimmed && !attachment?.url) return { message: null, error: "Write a message or attach a photo." };
+  if (!trimmed && !attachment?.url && !attachment?.path) {
+    return { message: null, error: "Write a message or attach a file." };
+  }
 
   const receiverId = otherParticipantId(threadMeta, user.id);
   const localId = clientId || createClientMessageId();
@@ -647,10 +686,14 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
     editedAt: null,
     attachment_url: attachment?.url || null,
     attachmentUrl: attachment?.url || null,
+    attachment_path: attachment?.path || null,
+    attachmentPath: attachment?.path || null,
     attachment_mime: attachment?.mime || null,
     attachmentMime: attachment?.mime || null,
     attachment_name: attachment?.name || null,
-    attachmentName: attachment?.name || null
+    attachmentName: attachment?.name || null,
+    attachment_size: attachment?.size || null,
+    attachmentSize: attachment?.size || null
   };
 
   if (shouldUseLocalChat(user)) {
@@ -662,23 +705,31 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
   appendLocalChatMessage(threadMeta, payload, { silent: true });
 
   try {
-    const { data, error } = await db()
+    const insertRow = {
+      chat_thread_id: threadMeta.id,
+      chat_type: threadMeta.chatType,
+      sender_id: user.id,
+      receiver_id: receiverId,
+      sender_name: user.name,
+      sender_role: (user.role || "student").toLowerCase(),
+      body: trimmed || null,
+      read: false,
+      // The durable storage key lives here; signed URLs are derived on read.
+      attachment_url: attachment?.path || attachment?.url || null,
+      attachment_mime: attachment?.mime || null,
+      attachment_name: attachment?.name || null
+    };
+
+    let { data, error } = await db()
       .from("messages")
-      .insert({
-        chat_thread_id: threadMeta.id,
-        chat_type: threadMeta.chatType,
-        sender_id: user.id,
-        receiver_id: receiverId,
-        sender_name: user.name,
-        sender_role: (user.role || "student").toLowerCase(),
-        body: trimmed || null,
-        read: false,
-        attachment_url: attachment?.path || attachment?.url || null,
-        attachment_mime: attachment?.mime || null,
-        attachment_name: attachment?.name || null
-      })
+      .insert(attachment?.size ? { ...insertRow, attachment_size: attachment.size } : insertRow)
       .select("*")
       .single();
+
+    // Deployments that have not run the attachment_size migration yet still send.
+    if (error && attachment?.size && /attachment_size/i.test(error.message || "")) {
+      ({ data, error } = await db().from("messages").insert(insertRow).select("*").single());
+    }
 
     if (error) {
       removeLocalChatMessage(threadMeta, payload.id, { silent: true });
@@ -690,28 +741,19 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
     }
 
     const saved = mapChatMessage(
-      { ...(await withResolvedAttachment(data)), client_id: localId, status: MESSAGE_STATUS.SENT },
+      {
+        ...(await withResolvedAttachment(data)),
+        client_id: localId,
+        status: MESSAGE_STATUS.SENT,
+        // The row echoes back only what the schema stores; keep what we uploaded.
+        attachment_size: data.attachment_size ?? attachment?.size ?? null,
+        attachment_name: data.attachment_name ?? attachment?.name ?? null,
+        attachment_mime: data.attachment_mime ?? attachment?.mime ?? null
+      },
       user.id
     );
     const localRows = loadLocalChatMessages(threadMeta).filter((m) => m.id !== payload.id);
-    saveLocalChatMessages(threadMeta, [...localRows, {
-      id: data.id,
-      client_id: localId,
-      status: MESSAGE_STATUS.SENT,
-      chat_thread_id: threadMeta.id,
-      chat_type: threadMeta.chatType,
-      sender_id: data.sender_id,
-      receiver_id: data.receiver_id,
-      sender_name: data.sender_name,
-      sender_role: data.sender_role,
-      body: data.body,
-      read: data.read,
-      created_at: data.created_at,
-      edited_at: data.edited_at,
-      attachment_url: data.attachment_url,
-      attachment_mime: data.attachment_mime,
-      attachment_name: data.attachment_name
-    }], { silent: true });
+    saveLocalChatMessages(threadMeta, [...localRows, toCacheRow(saved, threadMeta.id)], { silent: true });
     return { message: saved, clientId: localId, error: null };
   } catch (err) {
     removeLocalChatMessage(threadMeta, payload.id, { silent: true });

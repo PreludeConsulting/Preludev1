@@ -3,7 +3,9 @@ import { createPortal } from "react-dom";
 import { useLocation } from "react-router";
 import { ImagePlus, MessageCircle, Pencil, Send, X } from "lucide-react";
 import { Avatar } from "../ui/index.jsx";
+import { CHAT_ATTACHMENT_ACCEPT } from "../../../lib/chatStorage.js";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
+import MessageAttachment from "./MessageAttachment.jsx";
 import UnreadCountBadge, { useUnreadBadgeDismiss } from "./UnreadCountBadge.jsx";
 
 function formatTime(iso) {
@@ -40,16 +42,11 @@ function ChatBubble({ message, onEdit }) {
 
   return (
     <div className={`dash-msg-fab-bubble dash-msg-fab-bubble--${side}`}>
-      {message.attachmentUrl ? (
-        <a
-          href={message.attachmentUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="dash-msg-fab-bubble__image-link"
-        >
-          <img src={message.attachmentUrl} alt={message.attachmentName || "Shared image"} className="dash-msg-fab-bubble__image" />
-        </a>
-      ) : null}
+      <MessageAttachment
+        message={message}
+        linkClassName="dash-msg-fab-bubble__image-link"
+        imageClassName="dash-msg-fab-bubble__image"
+      />
       {message.body ? <p className="dash-msg-fab-bubble__text">{message.body}</p> : null}
       <div className="dash-msg-fab-bubble__meta">
         <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
@@ -130,13 +127,16 @@ function ChatPanel({
   }, [messages.length, open, activeThreadId, lastOutgoingAt]);
 
   useEffect(() => {
-    if (!pendingFile) {
+    if (!pendingFile || !/^image\//i.test(pendingFile.type || "")) {
       setPreviewUrl(null);
       return undefined;
     }
     const url = URL.createObjectURL(pendingFile);
     setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
+    // Revoke after the paint that removed the preview, never while it is on screen.
+    return () => {
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    };
   }, [pendingFile]);
 
   async function handleSend() {
@@ -235,10 +235,14 @@ function ChatPanel({
         </p>
       ) : null}
 
-      {previewUrl ? (
+      {pendingFile ? (
         <div className="dash-msg-fab__preview">
-          <img src={previewUrl} alt="Attachment preview" />
-          <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = ""; }} aria-label="Remove image">
+          {previewUrl ? (
+            <img src={previewUrl} alt="Attachment preview" />
+          ) : (
+            <span className="dash-msg-fab__preview-file">{pendingFile.name}</span>
+          )}
+          <button type="button" onClick={() => { setPendingFile(null); if (fileRef.current) fileRef.current.value = ""; }} aria-label="Remove attachment">
             <X size={14} />
           </button>
         </div>
@@ -248,7 +252,7 @@ function ChatPanel({
         <input
           ref={fileRef}
           type="file"
-          accept="image/*,.jpg,.jpeg,.png,.webp,.gif"
+          accept={CHAT_ATTACHMENT_ACCEPT}
           className="dash-msg-fab__file-input"
           onChange={(e) => {
             const file = e.target.files?.[0] || null;
@@ -262,7 +266,7 @@ function ChatPanel({
           type="button"
           className="dash-msg-fab__attach"
           onClick={() => fileRef.current?.click()}
-          aria-label="Attach photo"
+          aria-label="Attach a photo or file"
           disabled={!activeThread || sending}
         >
           <ImagePlus size={18} />

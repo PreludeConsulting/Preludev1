@@ -10,6 +10,13 @@ import { shouldUseDemoFixtures } from "./devAuthBypass.js";
 const BUCKET = "message-attachments";
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const ALLOWED_FILE_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+  "text/csv"
+]);
 const LEGACY_PUBLIC_PATH = "/storage/v1/object/public/message-attachments/";
 
 const EXTENSION_TO_MIME = {
@@ -17,8 +24,16 @@ const EXTENSION_TO_MIME = {
   jpeg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
-  gif: "image/gif"
+  gif: "image/gif",
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  txt: "text/plain",
+  csv: "text/csv"
 };
+
+export const CHAT_ATTACHMENT_ACCEPT =
+  "image/*,application/pdf,.jpg,.jpeg,.png,.webp,.gif,.pdf,.doc,.docx,.txt,.csv";
 
 function extensionFor(file) {
   const map = {
@@ -33,7 +48,18 @@ function extensionFor(file) {
 export function resolveChatImageMime(file) {
   if (file?.type && ALLOWED_TYPES.has(file.type)) return file.type;
   const ext = (file?.name || "").split(".").pop()?.toLowerCase();
-  return EXTENSION_TO_MIME[ext] || null;
+  const guessed = EXTENSION_TO_MIME[ext] || null;
+  return guessed && ALLOWED_TYPES.has(guessed) ? guessed : null;
+}
+
+/** Images and the document types the attachment bucket accepts. */
+export function resolveChatAttachmentMime(file) {
+  const image = resolveChatImageMime(file);
+  if (image) return image;
+  if (file?.type && ALLOWED_FILE_TYPES.has(file.type)) return file.type;
+  const ext = (file?.name || "").split(".").pop()?.toLowerCase();
+  const guessed = EXTENSION_TO_MIME[ext] || null;
+  return guessed && ALLOWED_FILE_TYPES.has(guessed) ? guessed : null;
 }
 
 function shouldUseLocalAttachments(user) {
@@ -46,9 +72,11 @@ function shouldUseLocalAttachments(user) {
 }
 
 export function validateChatImageFile(file) {
-  if (!file) return "Please choose an image.";
-  if (!resolveChatImageMime(file)) return "Use a JPG, PNG, WebP, or GIF image.";
-  if (file.size > MAX_BYTES) return "Image must be 5 MB or smaller.";
+  if (!file) return "Please choose a file.";
+  if (!resolveChatAttachmentMime(file)) {
+    return "Use a JPG, PNG, WebP, GIF image or a PDF, DOC, DOCX, TXT, or CSV file.";
+  }
+  if (file.size > MAX_BYTES) return "Attachment must be 5 MB or smaller.";
   return null;
 }
 
@@ -86,22 +114,23 @@ function fileToDataUrl(file) {
 
 export async function uploadChatAttachment(user, threadId, file) {
   const validation = validateChatImageFile(file);
-  if (validation) return { url: null, mime: null, name: null, error: validation };
+  if (validation) return { url: null, mime: null, name: null, size: null, error: validation };
 
-  const mime = resolveChatImageMime(file);
+  const mime = resolveChatAttachmentMime(file);
   const safeName = (file.name || `photo.${extensionFor({ type: mime })}`).replace(/[^\w.-]+/g, "_");
+  const size = Number(file.size) || null;
 
   if (shouldUseLocalAttachments(user)) {
     try {
       const dataUrl = await fileToDataUrl(file);
-      return { url: dataUrl, mime, name: safeName, error: null };
+      return { url: dataUrl, path: null, mime, name: safeName, size, error: null };
     } catch {
-      return { url: null, mime: null, name: null, error: "Could not read image file." };
+      return { url: null, mime: null, name: null, size: null, error: "Could not read the file." };
     }
   }
 
   const supabase = getSupabase();
-  if (!supabase) return { url: null, mime: null, name: null, error: "Supabase is not configured." };
+  if (!supabase) return { url: null, mime: null, name: null, size: null, error: "Supabase is not configured." };
 
   const { data: authData, error: authError } = await supabase.auth.getUser();
   const storageUserId = authData?.user?.id || user?.id;
@@ -117,7 +146,7 @@ export async function uploadChatAttachment(user, threadId, file) {
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
     upsert: false,
     cacheControl: "3600",
-    contentType: mime || file.type || "image/jpeg"
+    contentType: mime || file.type || "application/octet-stream"
   });
 
   if (uploadError) {
@@ -127,22 +156,34 @@ export async function uploadChatAttachment(user, threadId, file) {
         path: null,
         mime: null,
         name: null,
+        size: null,
         error: "Message attachment storage is not configured. Run supabase/chat-messaging.sql in Supabase."
       };
     }
-    return { url: null, path: null, mime: null, name: null, error: uploadError.message };
+    if (/mime type|not supported/i.test(uploadError.message)) {
+      return {
+        url: null,
+        path: null,
+        mime: null,
+        name: null,
+        size: null,
+        error: "That file type is not enabled for attachments yet."
+      };
+    }
+    return { url: null, path: null, mime: null, name: null, size: null, error: uploadError.message };
   }
 
   const url = await createPrivateChatAttachmentUrl(path, supabase);
   if (!url) {
     await supabase.storage.from(BUCKET).remove([path]);
-    return { url: null, path: null, mime: null, name: null, error: "Could not secure the uploaded image." };
+    return { url: null, path: null, mime: null, name: null, size: null, error: "Could not secure the upload." };
   }
   return {
     url,
     path,
     mime: mime || file.type,
     name: safeName,
+    size,
     error: null
   };
 }

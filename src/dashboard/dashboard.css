@@ -3807,6 +3807,65 @@ img.dash-avatar {
   max-width: min(300px, 100%);
 }
 
+/* Non-image attachment card (shared by the Messages page and the floating chat) */
+.msg-attachment {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: min(280px, 100%);
+  padding: 0.5rem 0.6rem;
+  border: 1px solid hsl(var(--foreground) / 0.1);
+  border-radius: 0.7rem;
+  background: hsl(var(--background) / 0.6);
+  color: inherit;
+  text-decoration: none;
+}
+
+.msg-attachment__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.msg-attachment__info {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.msg-attachment__name {
+  overflow: hidden;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msg-attachment__meta {
+  font-size: 0.68rem;
+  opacity: 0.65;
+}
+
+.msg-attachment__action {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+.msg-attachment--missing {
+  opacity: 0.75;
+}
+
+.msg-preview__file,
+.dash-msg-fab__preview-file {
+  overflow: hidden;
+  max-width: 12rem;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .msg-bubble__edit {
   display: inline-flex;
   align-items: center;
