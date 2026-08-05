@@ -112,7 +112,8 @@ function ChatPanel({
   editingId,
   setEditingId,
   saveEdit,
-  setError
+  setError,
+  lastOutgoingAt
 }) {
   const [draft, setDraft] = useState("");
   const [pendingFile, setPendingFile] = useState(null);
@@ -122,8 +123,11 @@ function ChatPanel({
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length, open, activeThreadId]);
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    const ownSend = lastOutgoingAt && Date.now() - lastOutgoingAt < 1000;
+    if (nearBottom || ownSend) el.scrollTop = el.scrollHeight;
+  }, [messages.length, open, activeThreadId, lastOutgoingAt]);
 
   useEffect(() => {
     if (!pendingFile) {
@@ -312,7 +316,8 @@ export default function PreludeFloatingChat() {
     setEditingId,
     saveEdit,
     markThreadRead,
-    unreadTotal
+    unreadTotal,
+    lastOutgoingAt
   } = usePreludeChatContext();
   const { showBadge, badgeCount, dismissing, dismissBadge } = useUnreadBadgeDismiss(unreadTotal);
   const settingsPage = /\/settings\/?$/.test(location.pathname);
@@ -366,6 +371,7 @@ export default function PreludeFloatingChat() {
         setEditingId={setEditingId}
         saveEdit={saveEdit}
         setError={setError}
+        lastOutgoingAt={lastOutgoingAt}
         />
       </div>
     </div>

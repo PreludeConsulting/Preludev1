@@ -53,7 +53,7 @@ function groupMessages(messages) {
   messages.forEach((msg) => {
     const day = formatDateLabel(msg.createdAt);
     if (day !== lastDay) {
-      groups.push({ type: "date", label: day });
+      groups.push({ type: "date", label: day, key: `date-${day}` });
       lastDay = day;
       batch = null;
     }
@@ -61,7 +61,8 @@ function groupMessages(messages) {
     if (batch && batch.side === side) {
       batch.items.push(msg);
     } else {
-      batch = { type: "messages", side, items: [msg] };
+      // Keyed by its first message so a group keeps its identity as the thread grows.
+      batch = { type: "messages", side, items: [msg], key: `group-${msg.id}` };
       groups.push(batch);
     }
   });
@@ -103,12 +104,19 @@ function EditComposer({ message, onCancel, onSave }) {
   );
 }
 
-function MessageStatus({ status }) {
-  if (!status || status === "sending") return <span className="msg-status msg-status--sending">Sending…</span>;
-  if (status === "sent") return <span className="msg-status"><Check size={12} /></span>;
+function MessageStatus({ status, onRetry }) {
+  if (status === "sending") return <span className="msg-status msg-status--sending">Sending…</span>;
+  if (status === "failed") {
+    return (
+      <span className="msg-status msg-status--failed">
+        Not sent
+        <button type="button" className="msg-status__retry" onClick={onRetry}>Retry</button>
+      </span>
+    );
+  }
   if (status === "delivered") return <span className="msg-status"><CheckCheck size={12} /></span>;
   if (status === "read") return <span className="msg-status msg-status--read"><CheckCheck size={12} /></span>;
-  return null;
+  return <span className="msg-status"><Check size={12} /></span>;
 }
 
 function ConvoRow({ thread, active, unreadCount, preview, lastAt, onSelect }) {
@@ -159,7 +167,9 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
     saveEdit,
     threadRevision,
     unreadByThread,
-    markThreadRead
+    markThreadRead,
+    retryMessage,
+    lastOutgoingAt
   } = usePreludeChatContext();
   const { meetings, mentor } = useDashboardData();
   const { canAccess } = usePlanAccess();
@@ -210,14 +220,21 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
   const groups = activeThread ? groupMessages(messages) : [];
   const nextMeeting = findNextJoinableMeeting(meetings);
 
+  // Jump to the newest message when opening a conversation, when the reader is
+  // already at the bottom, or right after this user sends — never while they are
+  // scrolled up reading history.
   useEffect(() => {
-    if (!activeThreadId) return;
+    if (!activeThreadId) return undefined;
+    const el = scrollRef.current;
+    const nearBottom = el ? el.scrollHeight - el.scrollTop - el.clientHeight < 120 : true;
+    const ownSend = lastOutgoingAt && Date.now() - lastOutgoingAt < 1000;
+    if (!nearBottom && !ownSend) return undefined;
     const timer = setTimeout(() => {
-      const el = scrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
+      const target = scrollRef.current;
+      if (target) target.scrollTop = target.scrollHeight;
     }, 50);
     return () => clearTimeout(timer);
-  }, [activeThreadId, messages.length]);
+  }, [activeThreadId, messages.length, lastOutgoingAt]);
 
   useEffect(() => {
     if (!pendingFile) {
@@ -407,11 +424,11 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                   <p className="msg-empty-chat__desc">Send your first message to start the conversation.</p>
                 </div>
               ) : (
-                groups.map((g, idx) =>
+                groups.map((g) =>
                   g.type === "date" ? (
-                    <div key={`d-${idx}`} className="msg-date">{g.label}</div>
+                    <div key={g.key} className="msg-date">{g.label}</div>
                   ) : (
-                    <div key={`m-${idx}`} className={"msg-group msg-group--" + g.side}>
+                    <div key={g.key} className={"msg-group msg-group--" + g.side}>
                       <div className="msg-group__bubbles">
                         {g.items.map((msg) =>
                           editingId === msg.id ? (
@@ -438,7 +455,12 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                               </div>
                               <div className={"msg-bubble__meta msg-bubble__meta--" + g.side}>
                                 {msg.editedAt ? <span className="msg-edited">edited</span> : null}
-                                {g.side === "me" ? <MessageStatus status={msg.status} /> : null}
+                                {g.side === "me" ? (
+                                  <MessageStatus
+                                    status={msg.status}
+                                    onRetry={() => retryMessage?.(msg.clientId || msg.id)}
+                                  />
+                                ) : null}
                                 <time className="msg-time">{formatTime(msg.createdAt)}</time>
                               </div>
                             </div>

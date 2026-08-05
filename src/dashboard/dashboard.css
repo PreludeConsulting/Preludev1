@@ -3884,6 +3884,23 @@ img.dash-avatar {
   color: hsl(var(--primary) / 0.7);
 }
 
+.msg-status--failed {
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.62rem;
+  color: hsl(var(--destructive, 0 72% 51%));
+}
+
+.msg-status__retry {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* Edit composer */
 .msg-edit {
   display: flex;

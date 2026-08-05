@@ -17,6 +17,7 @@ import {
   loadLocalChatMessages,
   loadLocalChatThreads,
   mergeChatMessages,
+  removeLocalChatMessage,
   saveLocalChatMessages,
   saveLocalChatThreads,
   subscribeLocalChatMessages,
@@ -35,6 +36,57 @@ export const CHAT_TYPE = {
 
 /** Assignment states that mean "this pair is working together right now". */
 export const ACTIVE_MATCH_STATUSES = ["assigned", "accepted", "active"];
+
+export const MESSAGE_STATUS = {
+  SENDING: "sending",
+  SENT: "sent",
+  FAILED: "failed"
+};
+
+const OPTIMISTIC_ID_PREFIX = "local-";
+
+export function createClientMessageId() {
+  const random = Math.random().toString(36).slice(2, 10);
+  return `${OPTIMISTIC_ID_PREFIX}${Date.now()}-${random}`;
+}
+
+export function isOptimisticMessageId(id) {
+  return String(id || "").startsWith(OPTIMISTIC_ID_PREFIX);
+}
+
+/**
+ * One entry per message: persisted rows win over the optimistic copy they replace,
+ * and a repeated realtime/refetch delivery of the same row is ignored.
+ */
+export function mergeMessagesById(existing = [], incoming = []) {
+  const byKey = new Map();
+
+  for (const message of [...existing, ...incoming]) {
+    if (!message?.id) continue;
+    const persistedKey = isOptimisticMessageId(message.id) ? null : message.id;
+    const key = persistedKey || message.clientId || message.id;
+    const previous = byKey.get(key);
+
+    if (previous && isOptimisticMessageId(message.id) && !isOptimisticMessageId(previous.id)) {
+      continue;
+    }
+    byKey.set(key, previous ? { ...previous, ...message } : message);
+  }
+
+  // A persisted row and its optimistic twin can land under different keys when the
+  // server row arrives before the local reconcile; collapse them on clientId.
+  const collapsed = new Map();
+  for (const message of byKey.values()) {
+    const key = !isOptimisticMessageId(message.id) && message.clientId ? message.clientId : message.id;
+    const previous = collapsed.get(key);
+    if (previous && isOptimisticMessageId(message.id) && !isOptimisticMessageId(previous.id)) continue;
+    collapsed.set(key, previous ? { ...previous, ...message } : message);
+  }
+
+  return [...collapsed.values()].sort(
+    (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+  );
+}
 
 const DEMO_IDS = {
   studentEssay: "demo-student-basic",
@@ -60,8 +112,11 @@ function shouldUseLocalChat(user) {
 }
 
 export function mapChatMessage(row, viewerId) {
+  const status = row.status || (isOptimisticMessageId(row.id) ? MESSAGE_STATUS.SENDING : MESSAGE_STATUS.SENT);
   return {
     id: row.id,
+    clientId: row.client_id || row.clientId || (isOptimisticMessageId(row.id) ? row.id : null),
+    status,
     threadId: row.chat_thread_id || row.threadId,
     chatType: row.chat_type || row.chatType,
     senderId: row.sender_id || row.senderId,
@@ -512,6 +567,7 @@ export async function loadChatMessages(user, threadMeta) {
     const merged = mergeChatMessages(remoteRows, localRows).map((m) => mapChatMessage(m, user.id));
     saveLocalChatMessages(thread, merged.map((message) => ({
       id: message.id,
+      client_id: message.clientId || null,
       chat_thread_id: thread.id,
       chat_type: message.chatType,
       sender_id: message.senderId,
@@ -525,7 +581,7 @@ export async function loadChatMessages(user, threadMeta) {
       attachment_url: message.attachmentUrl,
       attachment_mime: message.attachmentMime,
       attachment_name: message.attachmentName
-    })));
+    })), { silent: true });
     return { messages: merged, error: null };
   } catch (err) {
     return {
@@ -535,14 +591,42 @@ export async function loadChatMessages(user, threadMeta) {
   }
 }
 
-export async function sendChatMessage(user, threadMeta, { body = "", attachment = null }) {
+export function buildOptimisticChatMessage(user, threadMeta, { body = "", attachment = null, clientId } = {}) {
+  const id = clientId || createClientMessageId();
+  const now = new Date().toISOString();
+  return mapChatMessage(
+    {
+      id,
+      client_id: id,
+      status: MESSAGE_STATUS.SENDING,
+      chat_thread_id: threadMeta?.id,
+      chat_type: threadMeta?.chatType,
+      sender_id: user?.id,
+      receiver_id: otherParticipantId(threadMeta, user?.id),
+      sender_name: user?.name,
+      sender_role: (user?.role || "student").toLowerCase(),
+      body: (body || "").trim(),
+      read: false,
+      created_at: now,
+      attachment_url: attachment?.url || null,
+      attachment_mime: attachment?.mime || null,
+      attachment_name: attachment?.name || null
+    },
+    user?.id
+  );
+}
+
+export async function sendChatMessage(user, threadMeta, { body = "", attachment = null, clientId } = {}) {
   if (!user?.id || !threadMeta?.id) return { message: null, error: "Missing conversation." };
   const trimmed = (body || "").trim();
   if (!trimmed && !attachment?.url) return { message: null, error: "Write a message or attach a photo." };
 
   const receiverId = otherParticipantId(threadMeta, user.id);
+  const localId = clientId || createClientMessageId();
   const payload = {
-    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: localId,
+    client_id: localId,
+    status: MESSAGE_STATUS.SENDING,
     chat_thread_id: threadMeta.id,
     threadId: threadMeta.id,
     chat_type: threadMeta.chatType,
@@ -570,11 +654,12 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
   };
 
   if (shouldUseLocalChat(user)) {
-    appendLocalChatMessage(threadMeta, payload);
-    return { message: mapChatMessage(payload, user.id), error: null };
+    const stored = { ...payload, status: MESSAGE_STATUS.SENT };
+    appendLocalChatMessage(threadMeta, stored, { silent: true });
+    return { message: mapChatMessage(stored, user.id), error: null };
   }
 
-  appendLocalChatMessage(threadMeta, payload);
+  appendLocalChatMessage(threadMeta, payload, { silent: true });
 
   try {
     const { data, error } = await db()
@@ -596,13 +681,23 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
       .single();
 
     if (error) {
-      return { message: mapChatMessage(payload, user.id), error: null };
+      removeLocalChatMessage(threadMeta, payload.id, { silent: true });
+      return {
+        message: null,
+        clientId: localId,
+        error: error.message || "Message could not be sent."
+      };
     }
 
-    const saved = mapChatMessage(await withResolvedAttachment(data), user.id);
+    const saved = mapChatMessage(
+      { ...(await withResolvedAttachment(data)), client_id: localId, status: MESSAGE_STATUS.SENT },
+      user.id
+    );
     const localRows = loadLocalChatMessages(threadMeta).filter((m) => m.id !== payload.id);
     saveLocalChatMessages(threadMeta, [...localRows, {
       id: data.id,
+      client_id: localId,
+      status: MESSAGE_STATUS.SENT,
       chat_thread_id: threadMeta.id,
       chat_type: threadMeta.chatType,
       sender_id: data.sender_id,
@@ -616,10 +711,15 @@ export async function sendChatMessage(user, threadMeta, { body = "", attachment 
       attachment_url: data.attachment_url,
       attachment_mime: data.attachment_mime,
       attachment_name: data.attachment_name
-    }]);
-    return { message: saved, error: null };
-  } catch {
-    return { message: mapChatMessage(payload, user.id), error: null };
+    }], { silent: true });
+    return { message: saved, clientId: localId, error: null };
+  } catch (err) {
+    removeLocalChatMessage(threadMeta, payload.id, { silent: true });
+    return {
+      message: null,
+      clientId: localId,
+      error: err?.message || "Message could not be sent."
+    };
   }
 }
 
@@ -725,7 +825,7 @@ export async function markChatThreadRead(user, threadMeta) {
 
   const unreadIds = new Set(unread.map((message) => message.id));
   const nextRows = rows.map((message) => (unreadIds.has(message.id) ? { ...message, read: true } : message));
-  saveLocalChatMessages(threadMeta, nextRows);
+  saveLocalChatMessages(threadMeta, nextRows, { silent: true });
 
   if (shouldUseLocalChat(user)) {
     return { updated: unread.length, error: null };
@@ -748,17 +848,19 @@ export function subscribeChatMessages(threadMeta, onChange) {
   const thread = typeof threadMeta === "string" ? { id: threadMeta } : threadMeta;
   if (!thread?.id) return () => {};
 
-  const cleanups = [subscribeLocalChatMessages(thread, onChange)];
+  const cleanups = [subscribeLocalChatMessages(thread, () => onChange?.({ source: "local" }))];
 
   if (isSupabaseConfigured()) {
     const supabase = getSupabase();
     if (supabase) {
+      // Unique topic per subscription instance: a shared topic let a re-mounted
+      // effect adopt (and later tear down) the previous mount's channel.
       const channel = supabase
-        .channel(`chat-${thread.id}`)
+        .channel(`chat-${thread.id}-${Math.random().toString(36).slice(2, 10)}`)
         .on(
           "postgres_changes",
           { event: "*", schema: "public", table: "messages", filter: `chat_thread_id=eq.${thread.id}` },
-          () => onChange?.()
+          (payload) => onChange?.({ source: "realtime", event: payload?.eventType, row: payload?.new || null })
         )
         .subscribe();
       cleanups.push(() => {
@@ -767,7 +869,10 @@ export function subscribeChatMessages(threadMeta, onChange) {
     }
   }
 
+  let disposed = false;
   return () => {
+    if (disposed) return;
+    disposed = true;
     cleanups.forEach((cleanup) => cleanup());
   };
 }

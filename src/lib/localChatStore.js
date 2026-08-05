@@ -61,28 +61,47 @@ export function loadLocalChatMessages(threadMeta) {
   return best;
 }
 
-export function saveLocalChatMessages(threadMeta, messages) {
+/**
+ * @param {object} threadMeta
+ * @param {Array} messages
+ * @param {{ silent?: boolean }} [options] Pass `silent` for cache writes that mirror a
+ *   remote read. Notifying on those re-entered the loader through the change listener
+ *   and spun the Messages page in an endless reload loop.
+ */
+export function saveLocalChatMessages(threadMeta, messages, options = {}) {
   if (!threadMeta || typeof window === "undefined") return;
   const payload = JSON.stringify(messages);
   const keys = messageKeysForThread(threadMeta);
+  let changed = false;
 
   for (const key of keys) {
     try {
-      window.localStorage.setItem(`${PREFIX}${key}`, payload);
+      if (window.localStorage.getItem(`${PREFIX}${key}`) !== payload) {
+        window.localStorage.setItem(`${PREFIX}${key}`, payload);
+        changed = true;
+      }
     } catch {
       /* quota or private mode */
     }
   }
 
-  notifyLocalChatChange(threadMeta);
+  if (changed && !options.silent) notifyLocalChatChange(threadMeta);
 }
 
-export function appendLocalChatMessage(threadMeta, message) {
+export function appendLocalChatMessage(threadMeta, message, options = {}) {
   const existing = loadLocalChatMessages(threadMeta);
   const next = [...existing.filter((m) => m.id !== message.id), message].sort(
     (a, b) => new Date(a.created_at || a.createdAt) - new Date(b.created_at || b.createdAt)
   );
-  saveLocalChatMessages(threadMeta, next);
+  saveLocalChatMessages(threadMeta, next, options);
+  return next;
+}
+
+export function removeLocalChatMessage(threadMeta, messageId, options = {}) {
+  const existing = loadLocalChatMessages(threadMeta);
+  const next = existing.filter((m) => m.id !== messageId);
+  if (next.length === existing.length) return existing;
+  saveLocalChatMessages(threadMeta, next, options);
   return next;
 }
 
