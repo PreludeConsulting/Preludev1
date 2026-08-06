@@ -14,13 +14,18 @@ export default function MentorStudentDirectoryCard({ student, basePath, onAssign
       ? "One-time"
       : student.paymentType === "recurring"
         ? "Recurring"
-        : null;
+        : student.paymentType === "mixed"
+          ? "Subscription + Essay Support"
+          : null;
   const usageSummary = student.usageSummary
-    || (student.reviewCredits
-      ? `${student.reviewCredits.remaining} of ${student.reviewCredits.purchased || student.reviewCredits.remaining} review credits remaining`
-      : student.sessionAllowance
+    || [
+      student.sessionAllowance
         ? `${student.sessionAllowance.remaining} of ${student.sessionAllowance.included} session credits remaining`
-        : null);
+        : null,
+      student.reviewCredits
+        ? `${student.reviewCredits.remaining} of ${student.reviewCredits.purchased || student.reviewCredits.remaining} review credits remaining`
+        : null
+    ].filter(Boolean).join(" · ") || null;
 
   return (
     <article className="dash-mentor-directory-card">

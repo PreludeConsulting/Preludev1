@@ -105,7 +105,7 @@ describe("Cloudflare Matching Team queue", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("excludes a student with a final assignment", async () => {
+  it("keeps assigned students visible for review and reassignment", async () => {
     const fetchMock = vi.fn();
     authorizedResponses(fetchMock);
     fetchMock
@@ -114,18 +114,38 @@ describe("Cloudflare Matching Team queue", () => {
         questionnaire_answers: { grade: "College" },
         matched_mentor_ids: [],
         matched_mentor_count: 0,
-        admin_review_required: true,
-        mentor_assignment_status: null
+        admin_review_required: false,
+        mentor_assignment_status: "admin_assigned",
+        selected_mentor_id: "mentor-user-1",
+        mentor_selection_method: null,
+        mentor_selection_timestamp: null,
+        updated_at: "2026-07-31T00:00:00Z"
       }]))
       .mockResolvedValueOnce(response([{ id: eligibleStudentId, full_name: "Assigned Student", role: "student" }]))
-      .mockResolvedValueOnce(response([{ user_id: eligibleStudentId, student_id: eligibleStudentId, status: "assigned" }]))
+      .mockResolvedValueOnce(response([{
+        user_id: eligibleStudentId,
+        student_id: eligibleStudentId,
+        mentor_id: "mentor-user-1",
+        mentor_name: "Casey Mentor",
+        status: "assigned"
+      }]))
       .mockResolvedValueOnce(response([]));
 
     const result = await handleMentorReview(
       context(fetchMock, { SUPABASE_SERVICE_ROLE_KEY: "server-only-service-role" }),
       "list"
     );
+    const payload = await result.json();
 
-    expect((await result.json()).students).toEqual([]);
+    expect(result.status).toBe(200);
+    expect(payload.students).toHaveLength(1);
+    expect(payload.students[0]).toMatchObject({
+      studentId: eligibleStudentId,
+      matchStatus: "assigned",
+      selectedMentorId: "mentor-user-1",
+      assignedMentorId: "mentor-user-1",
+      assignedMentorName: "Casey Mentor",
+      adminReviewRequired: false
+    });
   });
 });

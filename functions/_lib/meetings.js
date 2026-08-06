@@ -245,7 +245,9 @@ export async function handleMeetings(context, action = "index") {
     if (action === "available-slots") {
       if (method !== "GET") return json({ error: "method_not_allowed" }, 405);
       const url = new URL(context.request.url);
-      const mentorUserId = url.searchParams.get("mentorUserId") || url.searchParams.get("mentorId");
+      // Prefer mentorUserId (auth uuid). Do not treat mentor_matches.id as the schedule key.
+      const mentorUserId = String(url.searchParams.get("mentorUserId") || "").trim()
+        || String(url.searchParams.get("mentorId") || "").trim();
       if (!mentorUserId) {
         return json({ error: "validation_error", message: "mentorUserId is required." }, 400);
       }

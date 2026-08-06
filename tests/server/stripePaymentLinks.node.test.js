@@ -83,6 +83,24 @@ test("enrichCheckoutSessionFromPaymentLink trusts Payment Link credits over meta
   assert.equal(session.metadata.userId, "student-1");
 });
 
+test("essay Payment Link enrichment strips planId so Plus/Pro is not overwritten", () => {
+  const session = enrichCheckoutSessionFromPaymentLink({
+    id: "cs_essay_keep_pro",
+    client_reference_id: "student-pro",
+    payment_link: ESSAY_SUPPORT_OPTIONS[3].paymentLinkId,
+    payment_status: "paid",
+    metadata: {
+      userId: "student-pro",
+      planId: "basic",
+      bundleId: "essay_support"
+    }
+  });
+  assert.equal(session.metadata.bundleId, "essay_support");
+  assert.equal(session.metadata.purchaseType, "ESSAY_SUPPORT");
+  assert.equal(session.metadata.creditQuantity, "3");
+  assert.equal(session.metadata.planId, undefined);
+});
+
 test("extractEssaySupportCredit grants mapped Payment Link quantity", () => {
   const credit = extractEssaySupportCredit({
     id: "cs_essay_10",

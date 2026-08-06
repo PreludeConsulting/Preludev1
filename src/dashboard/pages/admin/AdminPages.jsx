@@ -22,13 +22,13 @@ function displayList(value, fallback = "Not provided") {
 }
 
 function statusLabel(status) {
-  if (status === "matched") return "Matched";
+  if (status === "assigned" || status === "matched") return "Assigned";
   if (status === "needs_review") return "Needs Review";
   return "Unmatched";
 }
 
 function statusClass(status) {
-  if (status === "matched") return "matching-team-status--matched";
+  if (status === "assigned" || status === "matched") return "matching-team-status--matched";
   if (status === "needs_review") return "matching-team-status--review";
   return "matching-team-status--unmatched";
 }
@@ -189,10 +189,13 @@ export default function MatchingTeamPage() {
     setMessage("");
     try {
       await assignMentorAsMatchingTeam(studentId, mentorId);
+      const mentor = mentors.find((entry) => entry.id === mentorId);
       updateStudent(studentId, {
         selectedMentorId: mentorId,
-        matchStatus: "matched",
-        mentorAssignmentStatus: "matching_team_assigned",
+        assignedMentorId: mentorId,
+        assignedMentorName: mentor?.name || null,
+        matchStatus: "assigned",
+        mentorAssignmentStatus: "admin_assigned",
         adminReviewRequired: false
       });
       setMessage("Mentor assigned by the Matching Team.");
@@ -211,6 +214,8 @@ export default function MatchingTeamPage() {
       await removeMentorAsMatchingTeam(studentId);
       updateStudent(studentId, {
         selectedMentorId: null,
+        assignedMentorId: null,
+        assignedMentorName: null,
         matchStatus: "needs_review",
         mentorAssignmentStatus: null,
         adminReviewRequired: true
@@ -260,10 +265,9 @@ export default function MatchingTeamPage() {
             {filterOptions.stages.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
           <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
-            <option value="">All statuses</option>
-            <option value="unmatched">Unmatched</option>
+            <option value="">All students</option>
             <option value="needs_review">Needs Review</option>
-            <option value="matched">Matched</option>
+            <option value="assigned">Assigned</option>
           </select>
           <select value={filters.mentorType} onChange={(event) => setFilters((current) => ({ ...current, mentorType: event.target.value }))}>
             <option value="">All mentor traits</option>
@@ -314,7 +318,8 @@ export default function MatchingTeamPage() {
                     className="dash-btn dash-btn--primary dash-btn--sm"
                     onClick={() => setMentorPanelStudentId(showMentors ? "" : student.studentId)}
                   >
-                    <UserCheck className="h-4 w-4" aria-hidden="true" /> {student.selectedMentorId ? "Change Mentor" : "Find Mentor"}
+                    <UserCheck className="h-4 w-4" aria-hidden="true" />{" "}
+                    {student.selectedMentorId ? (showMentors ? "View Match" : "Reassign Mentor") : "Find Mentor"}
                   </button>
                 </div>
               </div>
@@ -333,8 +338,12 @@ export default function MatchingTeamPage() {
                 </div>
               ) : null}
 
-              {assignedMentor ? (
-                <p className="matching-team-assigned">Current mentor: <strong>{assignedMentor.name}</strong> · {assignedMentor.school} · {assignedMentor.major}</p>
+              {assignedMentor || student.assignedMentorName ? (
+                <p className="matching-team-assigned">
+                  Current mentor:{" "}
+                  <strong>{assignedMentor?.name || student.assignedMentorName}</strong>
+                  {assignedMentor ? ` · ${assignedMentor.school} · ${assignedMentor.major}` : null}
+                </p>
               ) : null}
 
               <button

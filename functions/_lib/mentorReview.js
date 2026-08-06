@@ -1,8 +1,12 @@
 import { hasMatchingTeamAccess } from "../../shared/matchingTeamAccess.js";
-import { isStudentEligibleForMatchingQueue } from "../../shared/matchingQueueEligibility.js";
+import {
+  FINAL_MENTOR_MATCH_STATUSES,
+  deriveMatchingDirectoryStatus,
+  isStudentVisibleOnMatchingDirectory
+} from "../../shared/matchingQueueEligibility.js";
 import { deactivateStudentMentorChats, syncAssignedMentorStudentChat } from "./mentorAssignmentChat.js";
 
-const FINAL_MATCH_STATUSES = ["assigned", "accepted", "active"];
+const FINAL_MATCH_STATUSES = [...FINAL_MENTOR_MATCH_STATUSES];
 
 function json(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -148,19 +152,17 @@ function mapMentor(row) {
   };
 }
 
-function matchStatus(row) {
-  if (row.admin_review_required) return "needs_review";
-  if (row.selected_mentor_id || ["admin_assigned", "student_selected"].includes(row.mentor_assignment_status)) {
-    return "matched";
-  }
-  return "unmatched";
+function matchStatus(row, { hasFinalMentorMatch = false } = {}) {
+  return deriveMatchingDirectoryStatus(row, { hasFinalMentorMatch });
 }
 
 async function loadQueue(context) {
   requireAdminConfig(context);
+  // Directory includes needs-review and already-assigned students so Matching Team
+  // can reassign without losing the row after the first assignment.
   const rows = await adminRest(
     context,
-    "onboarding_progress?select=user_id,questionnaire_answers,matched_mentor_ids,matched_mentor_count,admin_review_required,mentor_assignment_status,mentor_selection_method,selected_mentor_id,mentor_selection_timestamp,updated_at&admin_review_required=eq.true&order=mentor_selection_timestamp.desc.nullslast"
+    "onboarding_progress?select=user_id,questionnaire_answers,matched_mentor_ids,matched_mentor_count,admin_review_required,mentor_assignment_status,mentor_selection_method,selected_mentor_id,mentor_selection_timestamp,updated_at&or=(admin_review_required.eq.true,mentor_assignment_status.in.(admin_assigned,student_selected),selected_mentor_id.not.is.null)&order=mentor_selection_timestamp.desc.nullslast"
   ) || [];
   const userIds = rows.map((row) => row.user_id).filter(Boolean);
   const [profiles, finalMatches, mentorRows] = await Promise.all([
@@ -170,20 +172,25 @@ async function loadQueue(context) {
     userIds.length
       ? adminRest(
         context,
-        `mentor_matches?select=user_id,student_id,status&or=(user_id.in.${inFilter(userIds)},student_id.in.${inFilter(userIds)})&status=in.${inFilter(FINAL_MATCH_STATUSES)}`
+        `mentor_matches?select=user_id,student_id,mentor_id,mentor_name,status&or=(user_id.in.${inFilter(userIds)},student_id.in.${inFilter(userIds)})&status=in.${inFilter(FINAL_MATCH_STATUSES)}`
       )
       : [],
     adminRest(context, "mentor_matching_profiles?select=*&completed=eq.true&order=display_name.asc")
   ]);
 
   const profileById = Object.fromEntries((profiles || []).map((profile) => [profile.id, profile]));
-  const assignedStudentIds = new Set(
-    (finalMatches || []).flatMap((match) => [match.user_id, match.student_id]).filter(Boolean)
-  );
-  const eligibleRows = rows.filter((row) => isStudentEligibleForMatchingQueue({
+  const assignmentByStudentId = new Map();
+  for (const match of finalMatches || []) {
+    const studentKey = match.student_id || match.user_id;
+    if (!studentKey) continue;
+    // Prefer the most recently seen active assignment row.
+    if (!assignmentByStudentId.has(studentKey)) {
+      assignmentByStudentId.set(studentKey, match);
+    }
+  }
+  const eligibleRows = rows.filter((row) => isStudentVisibleOnMatchingDirectory({
     onboarding: row,
-    profile: profileById[row.user_id],
-    hasFinalMentorMatch: assignedStudentIds.has(row.user_id)
+    profile: profileById[row.user_id]
   }));
 
   console.info("[prelude-matching]", JSON.stringify({
@@ -191,25 +198,31 @@ async function loadQueue(context) {
     serviceRoleClientAvailable: true,
     onboardingRows: rows.length,
     profileRows: (profiles || []).length,
-    finalAssignments: assignedStudentIds.size,
+    finalAssignments: assignmentByStudentId.size,
     eligibleStudents: eligibleRows.length
   }));
 
   return {
-    students: eligibleRows.map((row) => ({
-      studentId: row.user_id,
-      studentName: profileById[row.user_id]?.full_name || "Student",
-      questionnaireAnswers: row.questionnaire_answers || {},
-      matchedMentorIds: row.matched_mentor_ids || [],
-      matchedMentorCount: row.matched_mentor_count ?? (row.matched_mentor_ids || []).length,
-      adminReviewRequired: Boolean(row.admin_review_required),
-      mentorAssignmentStatus: row.mentor_assignment_status,
-      mentorSelectionMethod: row.mentor_selection_method,
-      matchStatus: matchStatus(row),
-      selectedMentorId: row.selected_mentor_id,
-      selectionTimestamp: row.mentor_selection_timestamp,
-      updatedAt: row.updated_at
-    })),
+    students: eligibleRows.map((row) => {
+      const assignment = assignmentByStudentId.get(row.user_id) || null;
+      const selectedMentorId = row.selected_mentor_id || assignment?.mentor_id || null;
+      return {
+        studentId: row.user_id,
+        studentName: profileById[row.user_id]?.full_name || "Student",
+        questionnaireAnswers: row.questionnaire_answers || {},
+        matchedMentorIds: row.matched_mentor_ids || [],
+        matchedMentorCount: row.matched_mentor_count ?? (row.matched_mentor_ids || []).length,
+        adminReviewRequired: Boolean(row.admin_review_required),
+        mentorAssignmentStatus: row.mentor_assignment_status,
+        mentorSelectionMethod: row.mentor_selection_method,
+        matchStatus: matchStatus(row, { hasFinalMentorMatch: Boolean(assignment) }),
+        selectedMentorId,
+        assignedMentorId: assignment?.mentor_id || selectedMentorId || null,
+        assignedMentorName: assignment?.mentor_name || null,
+        selectionTimestamp: row.mentor_selection_timestamp,
+        updatedAt: row.updated_at
+      };
+    }),
     mentors: (mentorRows || []).map(mapMentor).filter((mentor) => mentor.id)
   };
 }
@@ -246,7 +259,12 @@ async function assignMentor(context, studentId) {
   });
   await adminRest(
     context,
-    `mentor_matches?user_id=eq.${encodeURIComponent(studentId)}&status=in.(assigned,saved,pending)`,
+    `mentor_matches?user_id=eq.${encodeURIComponent(studentId)}&status=in.(${FINAL_MATCH_STATUSES.join(",")})`,
+    { method: "DELETE", prefer: "return=minimal" }
+  );
+  await adminRest(
+    context,
+    `mentor_matches?student_id=eq.${encodeURIComponent(studentId)}&status=in.(${FINAL_MATCH_STATUSES.join(",")})`,
     { method: "DELETE", prefer: "return=minimal" }
   );
   await adminRest(context, "mentor_matches", {
@@ -273,7 +291,12 @@ async function assignMentor(context, studentId) {
     console.error("[mentor-review] chat sync failed after assign", chatError?.message || chatError);
     await adminRest(
       context,
-      `mentor_matches?user_id=eq.${encodeURIComponent(studentId)}&status=in.(assigned,saved,pending)`,
+      `mentor_matches?user_id=eq.${encodeURIComponent(studentId)}&status=in.(${FINAL_MATCH_STATUSES.join(",")})`,
+      { method: "DELETE", prefer: "return=minimal" }
+    );
+    await adminRest(
+      context,
+      `mentor_matches?student_id=eq.${encodeURIComponent(studentId)}&status=in.(${FINAL_MATCH_STATUSES.join(",")})`,
       { method: "DELETE", prefer: "return=minimal" }
     );
     await adminRest(context, `onboarding_progress?user_id=eq.${encodeURIComponent(studentId)}`, {
@@ -314,7 +337,12 @@ async function removeAssignment(context, studentId) {
   });
   await adminRest(
     context,
-    `mentor_matches?user_id=eq.${encodeURIComponent(studentId)}&status=in.(assigned,saved,pending)`,
+    `mentor_matches?user_id=eq.${encodeURIComponent(studentId)}&status=in.(${FINAL_MATCH_STATUSES.join(",")})`,
+    { method: "DELETE", prefer: "return=minimal" }
+  );
+  await adminRest(
+    context,
+    `mentor_matches?student_id=eq.${encodeURIComponent(studentId)}&status=in.(${FINAL_MATCH_STATUSES.join(",")})`,
     { method: "DELETE", prefer: "return=minimal" }
   );
   await deactivateStudentMentorChats(context, { studentId });

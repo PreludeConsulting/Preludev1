@@ -8,8 +8,11 @@ import {
 } from "../shared/mentorSelectionLogic.js";
 import { hasMatchingTeamAccess } from "../shared/matchingTeamAccess.js";
 import {
+  FINAL_MENTOR_MATCH_STATUSES,
+  deriveMatchingDirectoryStatus,
   hasSubmittedMatchingQuestionnaire,
-  isStudentEligibleForMatchingQueue
+  isStudentEligibleForMatchingQueue,
+  isStudentVisibleOnMatchingDirectory
 } from "../shared/matchingQueueEligibility.js";
 import { readJsonBody, sendJson } from "./http.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
@@ -143,7 +146,10 @@ async function getMentorDisplay(supabase, mentorId) {
 }
 
 async function assignMentorMatchRow(supabase, { studentId, mentor, status, notes }) {
-  await supabase.from("mentor_matches").delete().eq("user_id", studentId).in("status", ["assigned", "saved", "pending"]);
+  // Replace any prior active/pending assignment so reassignment never duplicates.
+  const replaceStatuses = [...FINAL_MENTOR_MATCH_STATUSES, "saved", "pending"];
+  await supabase.from("mentor_matches").delete().eq("user_id", studentId).in("status", replaceStatuses);
+  await supabase.from("mentor_matches").delete().eq("student_id", studentId).in("status", replaceStatuses);
   const { error } = await supabase.from("mentor_matches").insert({
     user_id: studentId,
     student_id: studentId,
@@ -303,18 +309,16 @@ async function handleSaveMentorSelection(req, res) {
   });
 }
 
-function getMatchStatus(row) {
-  if (row.admin_review_required) return "needs_review";
-  if (
-    row.selected_mentor_id
-    || row.mentor_assignment_status === MENTOR_ASSIGNMENT_STATUS.ADMIN_ASSIGNED
-    || row.mentor_assignment_status === MENTOR_ASSIGNMENT_STATUS.STUDENT_SELECTED
-  ) return "matched";
-  return "unmatched";
+function getMatchStatus(row, { hasFinalMentorMatch = false } = {}) {
+  return deriveMatchingDirectoryStatus(row, { hasFinalMentorMatch });
 }
 
-const FINAL_MENTOR_MATCH_STATUSES = ["assigned", "accepted", "active"];
-export { hasSubmittedMatchingQuestionnaire, isStudentEligibleForMatchingQueue };
+export {
+  hasSubmittedMatchingQuestionnaire,
+  isStudentEligibleForMatchingQueue,
+  isStudentVisibleOnMatchingDirectory,
+  FINAL_MENTOR_MATCH_STATUSES
+};
 
 async function loadCompletedMentors(supabase) {
   const { data, error } = await supabase
@@ -347,10 +351,11 @@ async function handleAdminList(req, res, env) {
   if (!supabase) {
     return matchingAdminUnavailable(res);
   }
+  // Include needs-review and assigned students so reassignment stays possible.
   const { data: rows, error } = await supabase
     .from("onboarding_progress")
     .select("user_id, questionnaire_answers, matched_mentor_ids, matched_mentor_count, admin_review_required, mentor_assignment_status, mentor_selection_method, selected_mentor_id, mentor_selection_timestamp, updated_at")
-    .eq("admin_review_required", true)
+    .or("admin_review_required.eq.true,mentor_assignment_status.in.(admin_assigned,student_selected),selected_mentor_id.not.is.null")
     .order("mentor_selection_timestamp", { ascending: false, nullsFirst: false });
   if (error) return sendJson(res, 500, { error: "load_failed", message: "Could not load mentor review queue." });
 
@@ -367,12 +372,12 @@ async function handleAdminList(req, res, env) {
     ? await Promise.all([
       supabase
         .from("mentor_matches")
-        .select("user_id, student_id, status")
+        .select("user_id, student_id, mentor_id, mentor_name, status")
         .in("user_id", userIds)
         .in("status", FINAL_MENTOR_MATCH_STATUSES),
       supabase
         .from("mentor_matches")
-        .select("user_id, student_id, status")
+        .select("user_id, student_id, mentor_id, mentor_name, status")
         .in("student_id", userIds)
         .in("status", FINAL_MENTOR_MATCH_STATUSES)
     ])
@@ -380,16 +385,16 @@ async function handleAdminList(req, res, env) {
   if (matchesByUser.error || matchesByStudent.error) {
     return sendJson(res, 500, { error: "load_failed", message: "Could not verify final mentor assignments." });
   }
-  const assignedStudentIds = new Set(
-    [...(matchesByUser.data || []), ...(matchesByStudent.data || [])]
-      .flatMap((match) => [match.user_id, match.student_id])
-      .filter(Boolean)
-  );
+  const assignmentByStudentId = new Map();
+  for (const match of [...(matchesByUser.data || []), ...(matchesByStudent.data || [])]) {
+    const studentKey = match.student_id || match.user_id;
+    if (!studentKey || assignmentByStudentId.has(studentKey)) continue;
+    assignmentByStudentId.set(studentKey, match);
+  }
 
-  const eligibleRows = (rows || []).filter((row) => isStudentEligibleForMatchingQueue({
+  const eligibleRows = (rows || []).filter((row) => isStudentVisibleOnMatchingDirectory({
     onboarding: row,
-    profile: profileById[row.user_id],
-    hasFinalMentorMatch: assignedStudentIds.has(row.user_id)
+    profile: profileById[row.user_id]
   }));
 
   console.info("[prelude-matching]", JSON.stringify({
@@ -397,24 +402,30 @@ async function handleAdminList(req, res, env) {
     serviceRoleClientAvailable: true,
     onboardingRows: (rows || []).length,
     profileRows: (profiles || []).length,
-    finalAssignments: assignedStudentIds.size,
+    finalAssignments: assignmentByStudentId.size,
     eligibleStudents: eligibleRows.length
   }));
 
-  const students = eligibleRows.map((row) => ({
-    studentId: row.user_id,
-    studentName: profileById[row.user_id]?.full_name || "Student",
-    questionnaireAnswers: row.questionnaire_answers || {},
-    matchedMentorIds: row.matched_mentor_ids || [],
-    matchedMentorCount: row.matched_mentor_count ?? (row.matched_mentor_ids || []).length,
-    adminReviewRequired: Boolean(row.admin_review_required),
-    mentorAssignmentStatus: row.mentor_assignment_status,
-    mentorSelectionMethod: row.mentor_selection_method,
-    matchStatus: getMatchStatus(row),
-    selectedMentorId: row.selected_mentor_id,
-    selectionTimestamp: row.mentor_selection_timestamp,
-    updatedAt: row.updated_at
-  }));
+  const students = eligibleRows.map((row) => {
+    const assignment = assignmentByStudentId.get(row.user_id) || null;
+    const selectedMentorId = row.selected_mentor_id || assignment?.mentor_id || null;
+    return {
+      studentId: row.user_id,
+      studentName: profileById[row.user_id]?.full_name || "Student",
+      questionnaireAnswers: row.questionnaire_answers || {},
+      matchedMentorIds: row.matched_mentor_ids || [],
+      matchedMentorCount: row.matched_mentor_count ?? (row.matched_mentor_ids || []).length,
+      adminReviewRequired: Boolean(row.admin_review_required),
+      mentorAssignmentStatus: row.mentor_assignment_status,
+      mentorSelectionMethod: row.mentor_selection_method,
+      matchStatus: getMatchStatus(row, { hasFinalMentorMatch: Boolean(assignment) }),
+      selectedMentorId,
+      assignedMentorId: assignment?.mentor_id || selectedMentorId || null,
+      assignedMentorName: assignment?.mentor_name || null,
+      selectionTimestamp: row.mentor_selection_timestamp,
+      updatedAt: row.updated_at
+    };
+  });
 
   const mentors = await loadCompletedMentors(supabase);
   return sendJson(res, 200, { students, mentors });
@@ -466,7 +477,9 @@ async function handleAdminAssign(req, res, studentId, env) {
     });
   } catch (chatError) {
     console.error("[mentor-selection] chat sync failed after assign", chatError?.message || chatError);
-    await supabase.from("mentor_matches").delete().eq("user_id", studentId).in("status", ["assigned", "saved", "pending"]);
+    const replaceStatuses = [...FINAL_MENTOR_MATCH_STATUSES, "saved", "pending"];
+    await supabase.from("mentor_matches").delete().eq("user_id", studentId).in("status", replaceStatuses);
+    await supabase.from("mentor_matches").delete().eq("student_id", studentId).in("status", replaceStatuses);
     await supabase
       .from("onboarding_progress")
       .update({
@@ -487,7 +500,9 @@ async function handleAdminAssign(req, res, studentId, env) {
   return sendJson(res, 200, {
     studentId,
     selectedMentorId: payload.mentorId,
-    mentorAssignmentStatus: MENTOR_ASSIGNMENT_STATUS.ADMIN_ASSIGNED
+    mentorAssignmentStatus: MENTOR_ASSIGNMENT_STATUS.ADMIN_ASSIGNED,
+    matchStatus: "assigned",
+    assignedMentorName: mentor.name || null
   });
 }
 
@@ -518,12 +533,19 @@ async function handleAdminRemoveAssign(req, res, studentId, env) {
     .eq("user_id", studentId);
   if (saveError) return sendJson(res, 500, { error: "save_failed", message: "Could not remove mentor match." });
 
-  const { error: deleteError } = await supabase
+  const replaceStatuses = [...FINAL_MENTOR_MATCH_STATUSES, "saved", "pending"];
+  const { error: deleteByUserError } = await supabase
     .from("mentor_matches")
     .delete()
     .eq("user_id", studentId)
-    .in("status", ["assigned", "saved", "pending"]);
-  if (deleteError) return sendJson(res, 500, { error: "delete_failed", message: "Could not remove mentor match." });
+    .in("status", replaceStatuses);
+  if (deleteByUserError) return sendJson(res, 500, { error: "delete_failed", message: "Could not remove mentor match." });
+  const { error: deleteByStudentError } = await supabase
+    .from("mentor_matches")
+    .delete()
+    .eq("student_id", studentId)
+    .in("status", replaceStatuses);
+  if (deleteByStudentError) return sendJson(res, 500, { error: "delete_failed", message: "Could not remove mentor match." });
 
   await deactivateStudentMentorChats(supabase, { studentId });
 

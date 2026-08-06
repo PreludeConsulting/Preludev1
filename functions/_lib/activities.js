@@ -875,7 +875,8 @@ async function createActivity(context, caller, body) {
   }
 
   const isEssayReview = ESSAY_SUPPORT_ACTIVITY_TYPES.includes(input.activityType);
-  if (essaySupportOnly && isEssayReview && balance.remaining < 1) {
+  const hasPurchasedEssayCredits = Number(balance.purchased || 0) > 0 || Number(balance.remaining || 0) > 0;
+  if ((essaySupportOnly || hasPurchasedEssayCredits) && isEssayReview && balance.remaining < 1) {
     throw httpError("This student has no Essay Support review credits remaining.", 409, "no_review_credits");
   }
   const usesEssayCredits = isEssayReview && balance.remaining > 0;

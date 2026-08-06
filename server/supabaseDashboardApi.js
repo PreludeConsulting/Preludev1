@@ -3,6 +3,10 @@ import { readJsonBody, sendJson } from "./http.js";
 import { assertDashboardAppDataOwnership } from "./lib/dataOwnership.js";
 import { getSupabaseAdmin, requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 import {
+  evaluateMentorAccess,
+  isLiveSessionBundleId
+} from "../shared/mentorAccess.js";
+import {
   formatAvailabilitySummary,
   syncMentorAvailabilityToStudentMatches
 } from "../shared/mentorAvailabilitySync.js";
@@ -116,7 +120,19 @@ function mapRewards(wallet, tasks) {
   };
 }
 
-export function normalizeDashboardAppData({ user, profile, settings, availability, wallet, tasks, notifications, events, messages, featureErrors = [] }) {
+export function normalizeDashboardAppData({
+  user,
+  profile,
+  settings,
+  availability,
+  wallet,
+  tasks,
+  notifications,
+  events,
+  messages,
+  mentorAccess = null,
+  featureErrors = []
+}) {
   return {
     version: 1,
     user: { id: user.id, email: user.email || null, role: (user.user_metadata?.role || profile?.role || "student").toLowerCase() },
@@ -129,6 +145,7 @@ export function normalizeDashboardAppData({ user, profile, settings, availabilit
     })),
     events: events || [],
     messages: messages || [],
+    mentorAccess,
     featureErrors
   };
 }
@@ -169,6 +186,18 @@ async function loadAppData(supabase, user) {
     events: eventsRes.data,
     messages: messagesRes.data
   });
+
+  let mentorAccess = null;
+  const profileRole = String(profileRes.data?.role || user.user_metadata?.role || "").toLowerCase();
+  if (profileRole === "student" && profileRes.data) {
+    try {
+      mentorAccess = await loadStudentMentorAccess(supabase, profileRes.data);
+    } catch (error) {
+      // Soft-fail: Book a Session can fall back to billing summary / client eval.
+      console.error("[prelude-dashboard] mentorAccess load failed", error?.message || error);
+    }
+  }
+
   return normalizeDashboardAppData({
     user,
     profile: profileRes.data,
@@ -179,8 +208,84 @@ async function loadAppData(supabase, user) {
     notifications: notificationsRes.data,
     events: eventsRes.data,
     messages: messagesRes.data,
+    mentorAccess,
     featureErrors
   });
+}
+
+async function loadStudentMentorAccess(supabase, profile) {
+  const studentUserId = profile.id;
+  const now = Date.now();
+  const [{ data: periodRows }, { data: packageRows }] = await Promise.all([
+    supabase
+      .from("subscription_session_periods")
+      .select("*")
+      .eq("student_user_id", studentUserId)
+      .eq("status", "active")
+      .order("period_start", { ascending: false }),
+    supabase
+      .from("session_package_purchases")
+      .select("*")
+      .eq("student_user_id", studentUserId)
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
+  ]);
+
+  const periods = Array.isArray(periodRows) ? periodRows : periodRows ? [periodRows] : [];
+  const period = periods.find((row) => {
+    if (!row?.period_end) return true;
+    const end = new Date(row.period_end).getTime();
+    return !Number.isNaN(end) && end > now;
+  }) || null;
+  const sessionCredits = period
+    ? {
+        allowance: Math.max(0, Number(period.allowance) || 0),
+        remaining: Math.max(0, Number(period.remaining) || 0),
+        used: Math.max(0, (Number(period.allowance) || 0) - (Number(period.remaining) || 0)),
+        active: String(period.status || "").toLowerCase() === "active",
+        periodEnd: period.period_end || null,
+        planId: period.plan_id || null
+      }
+    : { allowance: 0, remaining: 0, used: 0, active: false, periodEnd: null, planId: null };
+
+  const packages = (packageRows || [])
+    .map((row) => ({
+      id: row.id,
+      studentUserId: row.student_user_id,
+      mentorUserId: row.mentor_user_id ?? null,
+      bundleId: row.bundle_id || "flexible_sessions",
+      sessionsPurchased: Number(row.sessions_purchased) || 0,
+      sessionsRemaining: Number(row.sessions_remaining) || 0,
+      status: row.status || "active",
+      expiresAt: row.expires_at ?? null
+    }))
+    .filter((pkg) => isLiveSessionBundleId(pkg.bundleId));
+
+  const access = evaluateMentorAccess({
+    user: {
+      id: studentUserId,
+      plan: profile.plan_id || "basic",
+      subscriptionStatus: profile.subscription_status,
+      subscriptionCurrentPeriodEnd: profile.entitlement_ends_at || profile.subscription_current_period_end,
+      entitlementEndsAt: profile.entitlement_ends_at || profile.subscription_current_period_end,
+      promoAccessEndsAt: profile.promo_access_ends_at
+    },
+    packages,
+    sessionCredits
+  });
+
+  return {
+    allowed: access.allowed,
+    accessType: access.accessType,
+    remainingSessions: access.remainingSessions,
+    subscriptionRemaining: access.subscriptionRemaining,
+    packageRemaining: access.packageRemaining,
+    allowance: access.allowance,
+    periodEnd: access.periodEnd,
+    sessionCreditBalanceLabel: access.sessionCreditBalanceLabel,
+    reason: access.reason,
+    dailyBookingUsed: access.dailyBookingUsed === true
+  };
 }
 
 function pickFields(body, allowed) {
@@ -243,15 +348,11 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
       const availability = availabilitySchema.parse(body);
       const availabilitySummary = formatAvailabilitySummary(availability);
       const admin = getSupabaseAdmin();
-      if (!admin) {
-        const unavailable = new Error("Availability sync requires service role configuration.");
-        unavailable.statusCode = 503;
-        throw unavailable;
-      }
+      // Prefer service role for reliable RETURNING; fall back to the authed client
+      // so mentors can still save their own schedule in local/dev without admin keys.
+      const writer = admin || supabase;
 
-      // Persist with the service-role client after authz so RLS RETURNING quirks
-      // cannot report a false "nothing was saved" failure for valid mentor saves.
-      const { data, error } = await admin
+      const { data, error } = await writer
         .from("mentor_matching_profiles")
         .upsert(
           {
@@ -271,7 +372,7 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
         throw notFound;
       }
 
-      if (availabilitySummary) {
+      if (availabilitySummary && admin) {
         const { data: questionnaire } = await admin
           .from("mentor_questionnaires")
           .select("answers")
@@ -289,7 +390,11 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
         }
       }
 
-      await syncMentorAvailabilityToStudentMatches(admin, user.id, availabilitySummary);
+      if (admin) {
+        await syncMentorAvailabilityToStudentMatches(admin, user.id, availabilitySummary);
+      } else {
+        await syncMentorAvailabilityToStudentMatches(supabase, user.id, availabilitySummary);
+      }
 
       return sendJson(res, 200, { availability: mapAvailability(data) });
     } catch (error) {
@@ -303,13 +408,17 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
       }
       const status = Number(error?.statusCode) || 500;
       if (status >= 500) console.error("[prelude-dashboard-sync]", error);
+      const rawMessage = String(error?.message || "");
+      const safeServerMessage = "Dashboard data is temporarily unavailable. Retry in a moment.";
       return sendJson(res, status, {
         error: status === 401 ? "unauthenticated" : status === 403 ? "forbidden" : "dashboard_sync_failed",
         message: status === 401
           ? "Sign in again to continue."
           : status === 403
             ? error.message || "You do not have access to this dashboard data."
-            : error.message || "Dashboard data is temporarily unavailable. Retry in a moment."
+            : status >= 500
+              ? safeServerMessage
+              : rawMessage || safeServerMessage
       });
     }
   };

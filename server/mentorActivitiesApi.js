@@ -396,11 +396,13 @@ async function createActivity(admin, caller, body) {
   }
 
   const isEssayReview = ESSAY_SUPPORT_ACTIVITY_TYPES.includes(input.activityType);
-  if (essaySupportOnly && isEssayReview && balance.remaining < 1) {
+  const hasPurchasedEssayCredits = Number(balance.purchased || 0) > 0 || Number(balance.remaining || 0) > 0;
+  if ((essaySupportOnly || hasPurchasedEssayCredits) && isEssayReview && balance.remaining < 1) {
     throw httpError(409, "This student has no Essay Support review credits remaining.", "no_review_credits");
   }
   // Consume a package credit when inventory remains. Essay Support-only students
-  // cannot assign reviews without credits; Plus/Pro may still assign without packages.
+  // cannot assign reviews without credits; Plus/Pro may still assign without packages
+  // when they have never purchased Essay Support.
   const usesEssayCredits = isEssayReview && balance.remaining > 0;
 
   const prompts = input.activityType === "supplemental_essay"

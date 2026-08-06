@@ -492,8 +492,11 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
 async function syncCheckoutSession(context, session) {
   const enriched = enrichCheckoutSessionFromPaymentLink(session);
   const userId = enriched.metadata?.userId || enriched.client_reference_id;
-  const planId = enriched.metadata?.planId;
   const bundleId = String(enriched.metadata?.bundleId || "").trim();
+  const purchaseType = String(enriched.metadata?.purchaseType || "").trim().toUpperCase();
+  const isEssayCheckout = bundleId === "essay_support" || purchaseType === "ESSAY_SUPPORT";
+  // Essay Support is additive — never write plan_id from essay checkout metadata.
+  const planId = isEssayCheckout ? null : enriched.metadata?.planId;
   if (!userId || (!planId && !bundleId)) return;
   if (!isCheckoutPaymentSuccessful(enriched)) return;
 

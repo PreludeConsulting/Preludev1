@@ -184,11 +184,13 @@ export function enrichCheckoutSessionFromPaymentLink(session) {
 
   if (purchase.kind === "essay_support") {
     // Always trust the verified Payment Link ID for credit quantity.
+    // Never stamp planId — essay purchases must not overwrite Plus/Pro plan_id.
     metadata.bundleId = "essay_support";
     metadata.purchaseType = "ESSAY_SUPPORT";
     metadata.packageKey = purchase.packageKey;
     metadata.creditQuantity = String(purchase.credits);
     metadata.essayReviews = String(purchase.credits);
+    delete metadata.planId;
   } else if (purchase.kind === "subscription") {
     metadata.planId = purchase.planId;
   }

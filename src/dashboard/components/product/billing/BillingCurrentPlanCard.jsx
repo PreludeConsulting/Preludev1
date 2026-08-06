@@ -9,6 +9,8 @@ export default function BillingCurrentPlanCard({ plan, reviewCredits, packages }
   const { preferredLanguage } = useLanguage();
   const badgeLabel = getPlanBadgeLabel(plan.id, preferredLanguage);
   const highlights = PLAN_BILLING_HIGHLIGHTS[plan.id] || plan.features.slice(0, 5);
+  const hasEssayCredits =
+    Number(reviewCredits?.purchased || 0) > 0 || Number(reviewCredits?.remaining || 0) > 0;
 
   if (isEssaySupportProduct(plan.id)) {
     return (
@@ -60,6 +62,11 @@ export default function BillingCurrentPlanCard({ plan, reviewCredits, packages }
             </li>
           ))}
         </ul>
+        {hasEssayCredits ? (
+          <div className="billing-current-plan__essay-alongside">
+            <EssaySupportCreditsSummary reviewCredits={reviewCredits} packages={packages} />
+          </div>
+        ) : null}
       </div>
     </article>
   );

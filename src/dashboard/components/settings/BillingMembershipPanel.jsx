@@ -145,6 +145,9 @@ export default function BillingMembershipPanel({
   const essaySupportHref = buildEssaySupportPath();
   const plansHref = STUDENT_BILLING_PLANS_PATH;
   const isEssaySupport = summary.plan?.id === "basic";
+  const reviewCredits = summary.reviewCredits || null;
+  const hasEssayCredits =
+    Number(reviewCredits?.purchased || 0) > 0 || Number(reviewCredits?.remaining || 0) > 0;
   const canManageBilling = Boolean(
     membership.hasCustomer ||
       summary.canOpenCustomerPortal ||
@@ -205,6 +208,14 @@ export default function BillingMembershipPanel({
             ) : null}
 
             <p className="dash-muted dash-billing-membership__explanation">{membership.explanation}</p>
+            {hasEssayCredits ? (
+              <div className="dash-billing-membership__essay-alongside">
+                <EssaySupportCreditsSummary
+                  reviewCredits={summary.reviewCredits}
+                  packages={summary.sessions?.packages}
+                />
+              </div>
+            ) : null}
             {membership.pendingPlanId === "pro" ? (
               <p className="dash-muted">
                 Upgrade to Pro is pending payment confirmation

@@ -1838,7 +1838,22 @@ export function StudentMentor() {
         year: "numeric"
       })
     : null;
-  const showBookingSurface = canAccess("oneOnOneSessions") || Boolean(mentorAccess?.packageRemaining > 0);
+  // Book a Session must follow mentorAccess (session ledger), not a single plan-name field.
+  const hasSessionEntitlement = Boolean(
+    mentorAccess?.allowed
+    || mentorAccess?.reason === "no_session_credits"
+    || mentorAccess?.reason === "daily_booking_limit"
+    || Number(mentorAccess?.allowance) > 0
+    || Number(mentorAccess?.packageRemaining) > 0
+    || Number(mentorAccess?.subscriptionRemaining) > 0
+  );
+  const showBookingSurface = canAccess("oneOnOneSessions") || hasSessionEntitlement;
+  const mentorHasNoSlots =
+    canShowBookingForm
+    && !bookingSlotsLoading
+    && !bookingSlotsError
+    && Array.isArray(bookingSlotDates)
+    && bookingSlotDates.every((day) => !day?.hasAvailability && !(day?.slots || []).some((slot) => slot?.available));
   const upcoming = [...(meetings || [])]
     .filter((meeting) => meeting.status !== "pending")
     .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
@@ -1997,6 +2012,18 @@ export function StudentMentor() {
                       </button>
                     </p>
                   )}
+                </div>
+              ) : null}
+
+              {canShowBookingForm && mentorHasNoSlots ? (
+                <div className="dash-plan-session-banner__meta" role="status">
+                  <p>
+                    <strong>Your mentor has no open booking times right now.</strong>
+                  </p>
+                  <p>
+                    You still have session credits available. Check back later or message your mentor
+                    to request additional availability.
+                  </p>
                 </div>
               ) : null}
 

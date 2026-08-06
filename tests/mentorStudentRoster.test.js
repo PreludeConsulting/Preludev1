@@ -15,9 +15,10 @@ describe("mentor student roster plan credits", () => {
     expect(summary.usageSummary).toBe("3 of 5 review credits remaining");
     expect(summary.sessionAllowance).toBeNull();
     expect(summary.reviewCredits.remaining).toBe(3);
+    expect(summary.essaySupportOnly).toBe(true);
   });
 
-  it("shows Plus/Pro session credits and never review-credit copy", () => {
+  it("shows Plus/Pro session credits without inventing review credits", () => {
     const plus = buildMentorStudentPlanCredits({
       planId: "plus",
       subscriptionStatus: "active",
@@ -39,6 +40,37 @@ describe("mentor student roster plan credits", () => {
     expect(pro.planLabel).toBe("Pro");
     expect(pro.usageSummary).toBe("4 of 4 session credits remaining");
     expect(pro.usageSummary).not.toMatch(/review/i);
+  });
+
+  it("keeps Plus/Pro and Essay Support concurrent on the same account", () => {
+    const combined = buildMentorStudentPlanCredits({
+      planId: "pro",
+      subscriptionStatus: "active",
+      reviewCredits: { purchased: 3, assigned: 0, remaining: 3 },
+      sessionCredits: { active: true, allowance: 4, remaining: 4 }
+    });
+    expect(combined.essaySupportOnly).toBe(false);
+    expect(combined.hasActiveSubscription).toBe(true);
+    expect(combined.hasEssaySupportCredits).toBe(true);
+    expect(combined.planLabel).toContain("Pro");
+    expect(combined.planLabel).toContain("Essay Support");
+    expect(combined.paymentType).toBe("mixed");
+    expect(combined.sessionAllowance).toEqual({ remaining: 4, included: 4 });
+    expect(combined.reviewCredits.remaining).toBe(3);
+    expect(combined.usageSummary).toMatch(/session credit/);
+    expect(combined.usageSummary).toMatch(/review credit/);
+  });
+
+  it("preserves essay credits when subscription becomes inactive", () => {
+    const afterCancel = buildMentorStudentPlanCredits({
+      planId: "plus",
+      subscriptionStatus: "canceled",
+      reviewCredits: { purchased: 2, assigned: 0, remaining: 2 },
+      sessionCredits: { active: false, allowance: 0, remaining: 0 }
+    });
+    expect(afterCancel.hasActiveSubscription).toBe(false);
+    expect(afterCancel.essaySupportOnly).toBe(true);
+    expect(afterCancel.reviewCredits.remaining).toBe(2);
   });
 
   it("handles cancel-at-period-end and no-plan states", () => {

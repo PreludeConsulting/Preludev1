@@ -1,6 +1,9 @@
 /**
  * Mentor-facing student roster plan + credit display helpers.
  * Shared by Node and Cloudflare activity APIs — no hardcoded demo values.
+ *
+ * Plus/Pro subscriptions and Essay Support review credits are concurrent
+ * entitlements. A student may have both at once; never treat them as XOR.
  */
 
 import { hasActiveMentorSubscription, normalizePlanId } from "./mentorAccess.js";
@@ -11,6 +14,15 @@ export function mentorFacingPlanLabel(planId) {
   if (id === "plus") return "Plus";
   if (id === "pro") return "Pro";
   return "No active plan";
+}
+
+function normalizeReviewCredits(reviewCredits) {
+  if (!reviewCredits) return null;
+  const purchased = Math.max(0, Number(reviewCredits.purchased) || 0);
+  const remaining = Math.max(0, Number(reviewCredits.remaining) || 0);
+  const assigned = Math.max(0, Number(reviewCredits.assigned) || 0);
+  if (purchased <= 0 && remaining <= 0) return null;
+  return { purchased, assigned, remaining };
 }
 
 /**
@@ -30,35 +42,19 @@ export function buildMentorStudentPlanCredits({
     subscriptionStatus,
     subscriptionCurrentPeriodEnd
   });
-  const essaySupportOnly = !activeSubscription;
+  const reviewCreditsOut = normalizeReviewCredits(reviewCredits);
+  // True essay-only: no active Plus/Pro. Review credits may still exist alongside a sub.
+  const essaySupportOnly = !activeSubscription && Boolean(reviewCreditsOut || plan === "basic");
   const hasActivePeriod =
     Boolean(sessionCredits?.active) && Number(sessionCredits?.allowance || 0) > 0;
 
   let planLabel = "No active plan";
   let paymentType = null;
   let creditType = null;
-  let usageSummary = "No active plan";
+  const usageParts = [];
   let sessionAllowance = null;
-  let reviewCreditsOut = null;
 
-  if (essaySupportOnly) {
-    const purchased = Math.max(0, Number(reviewCredits?.purchased) || 0);
-    const remaining = Math.max(0, Number(reviewCredits?.remaining) || 0);
-    const assigned = Math.max(0, Number(reviewCredits?.assigned) || 0);
-    if (purchased > 0 || remaining > 0) {
-      planLabel = "Essay Support";
-      paymentType = "one_time";
-      creditType = "review";
-      usageSummary = `${remaining} of ${purchased || remaining} review credit${purchased === 1 ? "" : "s"} remaining`;
-      reviewCreditsOut = { purchased, assigned, remaining };
-    } else if (plan === "basic") {
-      planLabel = "Essay Support";
-      paymentType = "one_time";
-      creditType = "review";
-      usageSummary = "0 review credits remaining";
-      reviewCreditsOut = { purchased: 0, assigned: 0, remaining: 0 };
-    }
-  } else {
+  if (activeSubscription) {
     planLabel = mentorFacingPlanLabel(plan);
     paymentType = "recurring";
     creditType = "session";
@@ -66,14 +62,41 @@ export function buildMentorStudentPlanCredits({
       const remaining = Math.max(0, Number(sessionCredits.remaining) || 0);
       const included = Math.max(0, Number(sessionCredits.allowance) || 0);
       sessionAllowance = { remaining, included };
-      usageSummary = `${remaining} of ${included} session credit${included === 1 ? "" : "s"} remaining`;
+      usageParts.push(`${remaining} of ${included} session credit${included === 1 ? "" : "s"} remaining`);
     } else {
-      usageSummary = "No session credits in the current billing period";
+      usageParts.push("No session credits in the current billing period");
     }
     if (subscriptionCancelAtPeriodEnd) {
-      usageSummary = `${usageSummary} · Cancels at period end`;
+      usageParts[usageParts.length - 1] = `${usageParts[usageParts.length - 1]} · Cancels at period end`;
     }
   }
+
+  if (reviewCreditsOut) {
+    if (!activeSubscription) {
+      planLabel = "Essay Support";
+      paymentType = "one_time";
+      creditType = "review";
+    }
+    usageParts.push(
+      `${reviewCreditsOut.remaining} of ${reviewCreditsOut.purchased || reviewCreditsOut.remaining} review credit${
+        (reviewCreditsOut.purchased || reviewCreditsOut.remaining) === 1 ? "" : "s"
+      } remaining`
+    );
+  } else if (!activeSubscription && plan === "basic") {
+    planLabel = "Essay Support";
+    paymentType = "one_time";
+    creditType = "review";
+    usageParts.push("0 review credits remaining");
+  }
+
+  // Concurrent services: show both plan names when Plus/Pro + Essay Support coexist.
+  if (activeSubscription && reviewCreditsOut) {
+    planLabel = `${mentorFacingPlanLabel(plan)} · Essay Support`;
+    paymentType = "mixed";
+    creditType = "session_and_review";
+  }
+
+  const usageSummary = usageParts.length ? usageParts.join(" · ") : "No active plan";
 
   return {
     plan,
@@ -82,7 +105,11 @@ export function buildMentorStudentPlanCredits({
     creditType,
     usageSummary,
     essaySupportOnly,
-    reviewCredits: reviewCreditsOut,
+    hasActiveSubscription: activeSubscription,
+    hasEssaySupportCredits: Boolean(reviewCreditsOut),
+    reviewCredits: reviewCreditsOut || (!activeSubscription && plan === "basic"
+      ? { purchased: 0, assigned: 0, remaining: 0 }
+      : null),
     sessionAllowance,
     subscriptionStatus: subscriptionStatus || null,
     cancelAtPeriodEnd: Boolean(subscriptionCancelAtPeriodEnd)

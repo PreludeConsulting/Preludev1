@@ -131,7 +131,9 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
   const availableTypes = selectedStudent?.essaySupportOnly
     ? ACTIVITY_TYPE_OPTIONS.filter((option) => ["personal_statement", "supplemental_essay"].includes(option.value))
     : ACTIVITY_TYPE_OPTIONS;
-  const noReviewCredits = Boolean(selectedStudent?.essaySupportOnly && selectedStudent.reviewCredits?.remaining === 0);
+  const reviewCreditsRemaining = Number(selectedStudent?.reviewCredits?.remaining) || 0;
+  const hasReviewCredits = Boolean(selectedStudent?.reviewCredits);
+  const noReviewCredits = Boolean(hasReviewCredits && reviewCreditsRemaining === 0);
   const collegeSpecific = ["supplemental_essay", "additional_essay"].includes(activityType);
 
   useEffect(() => {
@@ -229,13 +231,13 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
                 <strong>{selectedStudent.displayName || selectedStudent.name}</strong>
                 {selectedStudent.planLabel ? ` · ${selectedStudent.planLabel}` : ""}
               </p>
-              {selectedStudent.essaySupportOnly ? (
+              {selectedStudent.essaySupportOnly || selectedStudent.reviewCredits ? (
                 noReviewCredits ? (
                   <>
                     <p><strong>No review credits remaining</strong></p>
                     <p>This student has used all purchased Essay Support credits.</p>
                   </>
-                ) : (
+                ) : selectedStudent.reviewCredits ? (
                   <>
                     <p>
                       <strong>
@@ -246,14 +248,16 @@ export function AssignActivityModal({ open, onClose, students = [], presetStuden
                     <p>1 credit will be used when this review activity is assigned.</p>
                     <p>1 credit is used for a personal statement review or one college’s complete supplemental essay set.</p>
                   </>
-                )
-              ) : selectedStudent.sessionAllowance ? (
+                ) : null
+              ) : null}
+              {selectedStudent.sessionAllowance ? (
                 <p>
                   <strong>
-                    {selectedStudent.sessionAllowance.remaining} of {selectedStudent.sessionAllowance.included} flexible sessions remaining this month
+                    {selectedStudent.sessionAllowance.remaining} of {selectedStudent.sessionAllowance.included} session
+                    credit{(selectedStudent.sessionAllowance.included) === 1 ? "" : "s"} remaining
                   </strong>
                 </p>
-              ) : selectedStudent.usageSummary ? (
+              ) : !selectedStudent.reviewCredits && selectedStudent.usageSummary ? (
                 <p><strong>{selectedStudent.usageSummary}</strong></p>
               ) : null}
             </div>

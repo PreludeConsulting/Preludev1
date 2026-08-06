@@ -1,4 +1,5 @@
 import { formatAvailabilitySummary } from "../../shared/mentorAvailabilitySync.js";
+import { evaluateMentorAccess, isLiveSessionBundleId } from "../../shared/mentorAccess.js";
 import { adminRest, first, httpError, json, requireUser, rest } from "./http.js";
 import { loadMeetingsForUser, sanitizeMeetingForRole } from "./meetings.js";
 import { DEFAULT_INTEGRATIONS, normalizeIntegrations } from "./integrations.js";
@@ -88,6 +89,93 @@ function ensureDashboardOwnership(user, { profile, settings, availability, walle
   ensureOwnedRow(wallet, user.id, ["user_id"], "Reward wallet data");
 }
 
+function mapLiveSessionPackage(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    studentUserId: row.student_user_id,
+    mentorUserId: row.mentor_user_id ?? null,
+    bundleId: row.bundle_id || "flexible_sessions",
+    sessionsPurchased: Number(row.sessions_purchased) || 0,
+    sessionsRemaining: Number(row.sessions_remaining) || 0,
+    status: row.status || "active",
+    expiresAt: row.expires_at ?? null
+  };
+}
+
+function summarizeActiveSessionPeriod(period) {
+  if (!period) {
+    return { allowance: 0, remaining: 0, used: 0, active: false, periodEnd: null, planId: null };
+  }
+  const allowance = Math.max(0, Number(period.allowance) || 0);
+  const remaining = Math.max(0, Number(period.remaining) || 0);
+  return {
+    allowance,
+    remaining,
+    used: Math.max(0, allowance - remaining),
+    active: String(period.status || "").toLowerCase() === "active",
+    periodEnd: period.period_end || null,
+    planId: period.plan_id || null
+  };
+}
+
+/**
+ * Book a Session source of truth for Cloudflare production (mirrors Node canRequestMentor).
+ * Session credits and live packages are evaluated separately from Essay Support review credits.
+ */
+async function loadStudentMentorAccess(context, profile, meetings = []) {
+  if (!profile || String(profile.role || "").toLowerCase() !== "student") return null;
+  const studentUserId = profile.id;
+  const nowIso = new Date().toISOString();
+  let sessionCredits = summarizeActiveSessionPeriod(null);
+  let packages = [];
+  try {
+    const [periodRows, packageRows] = await Promise.all([
+      adminRest(
+        context,
+        `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
+      ),
+      adminRest(
+        context,
+        `session_package_purchases?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&select=*&order=created_at.asc`
+      )
+    ]);
+    sessionCredits = summarizeActiveSessionPeriod(first(periodRows));
+    packages = (packageRows || [])
+      .map(mapLiveSessionPackage)
+      .filter((pkg) => pkg && isLiveSessionBundleId(pkg.bundleId));
+  } catch (error) {
+    console.error("[prelude-dashboard-worker] mentorAccess load failed", error?.message || error);
+  }
+
+  const accessUser = {
+    id: studentUserId,
+    plan: profile.plan_id || "basic",
+    subscriptionStatus: profile.subscription_status,
+    subscriptionCurrentPeriodEnd: profile.entitlement_ends_at || profile.subscription_current_period_end,
+    entitlementEndsAt: profile.entitlement_ends_at || profile.subscription_current_period_end,
+    promoAccessEndsAt: profile.promo_access_ends_at
+  };
+  const access = evaluateMentorAccess({
+    user: accessUser,
+    meetings,
+    packages,
+    sessionCredits
+  });
+  return {
+    allowed: access.allowed,
+    accessType: access.accessType,
+    remainingSessions: access.remainingSessions,
+    subscriptionRemaining: access.subscriptionRemaining,
+    packageRemaining: access.packageRemaining,
+    allowance: access.allowance,
+    periodEnd: access.periodEnd,
+    sessionCreditBalanceLabel: access.sessionCreditBalanceLabel,
+    reason: access.reason,
+    dailyBookingUsed: access.dailyBookingUsed === true
+  };
+}
+
 async function loadAppData(context, user, token) {
   const uid = encodeURIComponent(user.id);
   const query = (table, suffix) => rest(context, token, `${table}?${suffix}`);
@@ -141,10 +229,21 @@ async function loadAppData(context, user, token) {
     featureErrors.push("integrations");
   }
 
+  const profileRow = first(profile.value);
+  let mentorAccess = null;
+  if (String(resolvedRole) === "student" || String(profileRow?.role || "").toLowerCase() === "student") {
+    try {
+      mentorAccess = await loadStudentMentorAccess(context, profileRow, meetings);
+    } catch (error) {
+      console.error("[prelude-dashboard-worker] mentorAccess evaluate failed", error?.message || error);
+      featureErrors.push("mentorAccess");
+    }
+  }
+
   return {
     version: 1,
     user: { id: user.id, email: user.email || null, role: resolvedRole },
-    profile: mapProfile(first(profile.value), user.email),
+    profile: mapProfile(profileRow, user.email),
     settings: mapSettings(first(settings.value)),
     availability: mapAvailability(availability.status === "fulfilled" ? first(availability.value) : null),
     rewards: mapRewards(wallet.status === "fulfilled" ? first(wallet.value) : null, taskRows),
@@ -163,6 +262,7 @@ async function loadAppData(context, user, token) {
     messages: messageRows,
     meetings,
     integrations,
+    mentorAccess,
     featureErrors
   };
 }
