@@ -966,10 +966,13 @@ async function processWebhookEvent(context, event) {
 }
 
 function checkoutResultUrls(baseUrl, planId, context) {
+  // Always return through /checkout/success so confirm-session can mark
+  // payment_step_completed (including $0 promo / no_payment_required) before
+  // navigating to the student overview.
   const contextQuery = context === "onboarding" ? "&context=onboarding" : "";
   return {
-    successUrl: `${baseUrl}/checkout/success?plan=${planId}${contextQuery}&session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: `${baseUrl}/checkout/cancel?plan=${planId}${contextQuery}`
+    successUrl: `${baseUrl}/checkout/success?plan=${encodeURIComponent(planId)}${contextQuery}&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${baseUrl}/checkout/cancel?plan=${encodeURIComponent(planId)}${contextQuery}`
   };
 }
 
@@ -1192,7 +1195,7 @@ export async function handleBillingConfirmSession(context) {
   const sessionRaw = await stripeRequest(
     context,
     "GET",
-    `/v1/checkout/sessions/${encodeURIComponent(sessionId)}`
+    `/v1/checkout/sessions/${encodeURIComponent(sessionId)}?expand[]=payment_link&expand[]=line_items`
   );
   const session = enrichCheckoutSessionFromPaymentLink(sessionRaw);
 
@@ -1210,10 +1213,78 @@ export async function handleBillingConfirmSession(context) {
   }
 
   await syncCheckoutSession(context, session);
+
+  try {
+    const { fulfillEssaySupportCheckout, fulfillFlexibleSessionCheckout } = await import(
+      "../../server/lib/sessionPackageFulfillment.js"
+    );
+    const creditFn = async (payload) => {
+      const existing = payload.stripeCheckoutSessionId
+        ? await supabaseRest(
+            context,
+            `session_package_purchases?stripe_checkout_session_id=eq.${encodeURIComponent(payload.stripeCheckoutSessionId)}&select=id`,
+            { method: "GET", prefer: "return=representation" }
+          )
+        : null;
+      if (Array.isArray(existing) && existing.length) return existing[0];
+
+      const inserted = await supabaseRest(context, "session_package_purchases", {
+        method: "POST",
+        body: {
+          student_user_id: payload.studentUserId,
+          mentor_user_id: payload.mentorUserId || null,
+          bundle_id: payload.bundleId,
+          stripe_checkout_session_id: payload.stripeCheckoutSessionId,
+          sessions_purchased: payload.sessionsPurchased,
+          sessions_remaining: payload.sessionsPurchased,
+          status: "active"
+        }
+      });
+      return Array.isArray(inserted) ? inserted[0] : inserted;
+    };
+
+    await fulfillFlexibleSessionCheckout(session, creditFn);
+    await fulfillEssaySupportCheckout(session, async (payload) => {
+      const result = await creditFn(payload);
+      const packageKey =
+        String(session.metadata?.packageKey || "").trim() ||
+        `essay_support_${payload.sessionsPurchased}`;
+      try {
+        await supabaseRest(context, "review_credit_ledger", {
+          method: "POST",
+          prefer: "return=minimal,resolution=ignore-duplicates",
+          body: {
+            student_user_id: payload.studentUserId,
+            amount: payload.sessionsPurchased,
+            transaction_type: "PURCHASE",
+            package_key: packageKey,
+            stripe_checkout_session_id: payload.stripeCheckoutSessionId,
+            idempotency_key: `purchase:${payload.stripeCheckoutSessionId}`,
+            reason: "Essay Support purchase",
+            created_by_user_id: session.metadata?.purchaserUserId || session.metadata?.userId || null
+          }
+        });
+      } catch (ledgerError) {
+        console.error(
+          "[stripe-billing] confirm-session review credit ledger write failed",
+          ledgerError?.message || ledgerError
+        );
+      }
+      return result;
+    });
+  } catch (fulfillError) {
+    console.error(
+      "[stripe-billing] confirm-session fulfillment failed",
+      fulfillError?.message || fulfillError
+    );
+  }
+
   return json({
     confirmed: true,
     planId: session.metadata?.planId || null,
-    paymentStatus: session.payment_status
+    bundleId: session.metadata?.bundleId || null,
+    paymentStatus: session.payment_status,
+    amountTotal: session.amount_total ?? null
   });
 }
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
 import AuthLoadingState from "./AuthLoadingState.jsx";
@@ -5,17 +6,57 @@ import {
   canAccessDashboard,
   postAuthDestination
 } from "../lib/onboardingRoutes.js";
+import {
+  confirmOnboardingCheckoutSession,
+  writePaymentStepComplete
+} from "../lib/onboardingPayment.js";
 
 /** Requires login + completed onboarding before dashboard access. */
 export default function RequirePlanGuard({ children }) {
-  const { user, ready, verificationRequired, emailConfirmationRequired } = useAuth();
+  const { user, ready, refreshUser, verificationRequired, emailConfirmationRequired } = useAuth();
   const location = useLocation();
+  const sessionId = new URLSearchParams(location.search || "").get("session_id")
+    || new URLSearchParams(location.search || "").get("sessionId");
+  const [syncingCheckout, setSyncingCheckout] = useState(Boolean(sessionId && user && !user.paymentStepComplete));
 
-  if (!ready) {
+  useEffect(() => {
+    if (!ready || !user || !sessionId || user.paymentStepComplete) {
+      setSyncingCheckout(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setSyncingCheckout(true);
+
+    (async () => {
+      try {
+        const result = await confirmOnboardingCheckoutSession(sessionId);
+        if (cancelled) return;
+        if (result?.confirmed) {
+          writePaymentStepComplete(user.id);
+          await refreshUser?.();
+        }
+      } catch {
+        // Webhook may still complete the payment step; fall through to normal gate.
+      } finally {
+        if (!cancelled) setSyncingCheckout(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, refreshUser, sessionId, user, user?.id, user?.paymentStepComplete]);
+
+  if (!ready || syncingCheckout) {
     return (
       <AuthLoadingState
         title="Loading your Prelude dashboard"
-        message="We are restoring your account, plan, and onboarding state."
+        message={
+          syncingCheckout
+            ? "Confirming your Stripe payment and unlocking your account…"
+            : "We are restoring your account, plan, and onboarding state."
+        }
       />
     );
   }

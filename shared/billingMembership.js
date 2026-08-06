@@ -255,6 +255,8 @@ export function buildSubscriptionEntitlement({
   entitlementEndsAt = null,
   sessionCreditsRemaining = 0,
   sessionCreditsTotal = 0,
+  essaySupportPurchased = 0,
+  essaySupportRemaining = 0,
   stripeCustomerId = null,
   stripeSubscriptionId = null,
   stripePriceId = null,
@@ -272,6 +274,8 @@ export function buildSubscriptionEntitlement({
   });
   const paidPlanActive =
     statusInfo.accessActive && (activePlan === "plus" || activePlan === "pro");
+  const essaySupportAccess =
+    Number(essaySupportPurchased) > 0 || Number(essaySupportRemaining) > 0;
   return {
     activePlan: paidPlanActive ? activePlan.toUpperCase() : activePlan === "basic" ? "NONE" : activePlan.toUpperCase(),
     activePlanId: paidPlanActive ? activePlan : "basic",
@@ -279,6 +283,11 @@ export function buildSubscriptionEntitlement({
     pendingPlanId: pendingPlan,
     subscriptionStatus: subscriptionStatus || null,
     isActive: paidPlanActive,
+    essaySupportAccess,
+    essaySupportPurchased: Number(essaySupportPurchased) || 0,
+    essaySupportRemaining: Number(essaySupportRemaining) || 0,
+    /** True when the student may use the main dashboard after a paid purchase. */
+    dashboardAccess: paidPlanActive || essaySupportAccess,
     cancelAtPeriodEnd: Boolean(cancelAtPeriodEnd),
     downgradeScheduled: false,
     cancellationScheduled: Boolean(cancelAtPeriodEnd && paidPlanActive),
@@ -296,7 +305,8 @@ export function buildSubscriptionEntitlement({
       plus: paidPlanActive && (activePlan === "plus" || activePlan === "pro"),
       pro: paidPlanActive && activePlan === "pro",
       sessionBooking: paidPlanActive,
-      progressRewards: paidPlanActive
+      progressRewards: paidPlanActive,
+      essaySupport: essaySupportAccess
     }
   };
 }

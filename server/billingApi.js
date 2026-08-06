@@ -173,10 +173,13 @@ function isBillingPath(pathname) {
 }
 
 function checkoutResultUrls(appBaseUrl, planId, context) {
+  // Always return through /checkout/success so confirm-session can mark
+  // payment_step_completed (including $0 promo / no_payment_required) before
+  // navigating to the student overview.
   const contextQuery = context === "onboarding" ? "&context=onboarding" : "";
   return {
-    successUrl: `${appBaseUrl}/checkout/success?plan=${planId}${contextQuery}&session_id={CHECKOUT_SESSION_ID}`,
-    cancelUrl: `${appBaseUrl}/checkout/cancel?plan=${planId}${contextQuery}`
+    successUrl: `${appBaseUrl}/checkout/success?plan=${encodeURIComponent(planId)}${contextQuery}&session_id={CHECKOUT_SESSION_ID}`,
+    cancelUrl: `${appBaseUrl}/checkout/cancel?plan=${encodeURIComponent(planId)}${contextQuery}`
   };
 }
 
@@ -481,7 +484,9 @@ async function handleConfirmSession(req, res, deps = {}) {
   const payload = confirmSessionSchema.parse(await readJsonBody(req));
   const { user } = await requireSupabaseUserFn(req);
   const stripe = getStripeClientFn(config);
-  const rawSession = await stripe.checkout.sessions.retrieve(payload.sessionId);
+  const rawSession = await stripe.checkout.sessions.retrieve(payload.sessionId, {
+    expand: ["payment_link", "line_items"]
+  });
   const session = enrichCheckoutSessionFromPaymentLink(rawSession);
 
   const sessionUserId = session.metadata?.userId || session.client_reference_id;
@@ -516,7 +521,9 @@ async function handleConfirmSession(req, res, deps = {}) {
   sendJson(res, 200, {
     confirmed: true,
     planId: session.metadata?.planId || null,
-    paymentStatus: session.payment_status
+    bundleId: session.metadata?.bundleId || null,
+    paymentStatus: session.payment_status,
+    amountTotal: session.amount_total ?? null
   });
 }
 

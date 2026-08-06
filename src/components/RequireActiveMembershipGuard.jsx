@@ -12,11 +12,27 @@ const ALLOWED_PREFIXES = [
 ];
 
 function isAllowlistedPath(pathname) {
-  return ALLOWED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(prefix));
+  return ALLOWED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(prefix)
+  );
+}
+
+function hasDashboardPurchaseAccess(user, subscription) {
+  if (subscription?.isActive || subscription?.dashboardAccess || subscription?.essaySupportAccess) {
+    return true;
+  }
+  // Essay Support (and other one-time) onboarding payments unlock the dashboard even
+  // before review-credit rows finish replicating from the Stripe webhook.
+  if (user?.paymentStepComplete) {
+    const planId = String(subscription?.activePlanId || user?.plan || "basic").toLowerCase();
+    if (planId === "basic" || planId === "none" || !planId) return true;
+  }
+  return false;
 }
 
 /**
- * Locks inactive students out of Plus/Pro dashboard routes.
+ * Locks students without a completed purchase out of the main dashboard.
+ * Plus/Pro subscribers and Essay Support buyers are allowed through.
  * Mentors, admins, and parents are never forced through this lock.
  */
 export default function RequireActiveMembershipGuard({ children }) {
@@ -41,7 +57,7 @@ export default function RequireActiveMembershipGuard({ children }) {
   // Wait for first subscription payload before locking.
   if (!subscription) return children;
 
-  if (subscription.isActive) return children;
+  if (hasDashboardPurchaseAccess(user, subscription)) return children;
 
   if (syncing) {
     return (
@@ -49,5 +65,11 @@ export default function RequireActiveMembershipGuard({ children }) {
     );
   }
 
-  return <Navigate to={STUDENT_BILLING_PATH} replace state={{ from: location.pathname, membershipLocked: true }} />;
+  return (
+    <Navigate
+      to={STUDENT_BILLING_PATH}
+      replace
+      state={{ from: location.pathname, membershipLocked: true }}
+    />
+  );
 }

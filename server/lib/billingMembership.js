@@ -275,6 +275,7 @@ export async function getMySubscription(userId) {
   const sub = ctx.subscriber;
   const planId = String(sub.plan_id || "basic").toLowerCase();
   const creditSummary = await getSessionCreditSummary(sub.id);
+  const reviewCredits = await getReviewCreditBalance(sub.id);
   const entitlement = buildSubscriptionEntitlement({
     planId,
     pendingPlanId: sub.pending_plan_id || null,
@@ -285,6 +286,8 @@ export async function getMySubscription(userId) {
     entitlementEndsAt: sub.entitlement_ends_at || sub.subscription_current_period_end || null,
     sessionCreditsRemaining: creditSummary.active ? creditSummary.remaining : 0,
     sessionCreditsTotal: creditSummary.active ? creditSummary.allowance : 0,
+    essaySupportPurchased: reviewCredits.purchased,
+    essaySupportRemaining: reviewCredits.remaining,
     stripeCustomerId: sub.stripe_customer_id || ctx.viewer.stripe_customer_id || null,
     stripeSubscriptionId: sub.stripe_subscription_id || null,
     stripePriceId: sub.stripe_price_id || null

@@ -82,6 +82,7 @@ describe("Membership entitlement states", () => {
     expect(dto.pendingPlan).toBe("PRO");
     expect(dto.downgradeScheduled).toBe(false);
     expect(dto.sessionCreditsRemaining).toBe(4);
+    expect(dto.dashboardAccess).toBe(true);
   });
 
   it("preserves mentor access while canceled but still paid-through", () => {

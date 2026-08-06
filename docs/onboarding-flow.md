@@ -52,8 +52,33 @@ Students cannot access `/dashboard/*` until `onboarding_progress.payment_step_co
 
 Checkout return URLs:
 
-- Success: `/checkout/success?plan=<id>&context=onboarding&session_id=...`
+- Success: `/checkout/success?plan=<id>&context=onboarding&session_id={CHECKOUT_SESSION_ID}`
 - Cancel: `/checkout/cancel?plan=<id>&context=onboarding`
+
+After `/checkout/success` confirms the Stripe session (including `$0` /
+`no_payment_required` promo checkouts), the app navigates to
+`/dashboard/student/overview`. Do **not** point Payment Link
+`after_completion` redirects at the payment wallet.
+
+### Stripe Payment Link after_completion (Dashboard)
+
+Onboarding Plus, Pro, and every Essay Support Payment Link (3/4/5/6/7/8/10
+credits) should use:
+
+```text
+https://preludeconsultingllc.com/checkout/success?plan=<plus|pro|bundle_essay_support>&context=onboarding&session_id={CHECKOUT_SESSION_ID}
+```
+
+Cancel / abandoned:
+
+```text
+https://preludeconsultingllc.com/checkout/cancel?plan=<plus|pro|bundle_essay_support>&context=onboarding
+```
+
+Pointing Payment Links straight at `/dashboard/student/overview` skips
+`confirm-session`, so free/discounted Essay Support purchases can bounce back
+to `/onboarding/payment` until the webhook lands. The overview URL is fine as
+a *final* destination after confirm-session succeeds.
 
 ## Navigation guards
 
