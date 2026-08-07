@@ -464,7 +464,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     return REWARD_CATALOG.find((r) => r.shopPool === "legendary") || REWARD_CATALOG[0];
   }, [shopState.featuredRewardId]);
   const featuredReward = useMemo(
-    () => enrichReward(featuredRewardBase, state.coins, state.redeemed),
+    () => enrichReward(featuredRewardBase, state.coins, state.redeemed) || featuredRewardBase,
     [featuredRewardBase, state.coins, state.redeemed]
   );
   const nextReward = useMemo(() => getNextAffordableReward(state.coins, state.redeemed), [state.coins, state.redeemed]);

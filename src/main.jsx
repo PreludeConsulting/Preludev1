@@ -61,12 +61,30 @@ import "./styles/plan-wallet.css";
 import "./styles/contact.css";
 import "./components/interaction/interaction.css";
 
+try {
+  sessionStorage.removeItem("prelude-chunk-reload");
+} catch {
+  /* ignore */
+}
+
 function RouteLoadingFallback() {
   return (
     <main className="route-loading" aria-busy="true" aria-live="polite">
       <span className="route-loading__spinner" aria-hidden="true" />
       <p>Loading Prelude…</p>
     </main>
+  );
+}
+
+function isStaleChunkError(error) {
+  const message = String(error?.message || error || "");
+  const name = String(error?.name || "");
+  return (
+    name === "ChunkLoadError" ||
+    /Failed to fetch dynamically imported module/i.test(message) ||
+    /Importing a module script failed/i.test(message) ||
+    /error loading dynamically imported module/i.test(message) ||
+    /Loading chunk [\d]+ failed/i.test(message)
   );
 }
 
@@ -82,15 +100,38 @@ class RouteErrorBoundary extends React.Component {
 
   componentDidCatch(error) {
     console.error("[prelude-route] Page failed to load:", error?.message || error);
+    // After a deploy, open tabs often keep an old HTML/JS mix. Reload once.
+    if (typeof window === "undefined" || !isStaleChunkError(error)) return;
+    const key = "prelude-chunk-reload";
+    try {
+      if (sessionStorage.getItem(key) === "1") return;
+      sessionStorage.setItem(key, "1");
+      window.location.reload();
+    } catch {
+      // ignore storage failures; user can still click Reload
+    }
   }
 
   render() {
     if (!this.state.error) return this.props.children;
+    const detail = String(this.state.error?.message || "").trim();
     return (
       <main className="route-loading" role="alert">
         <h1>This page could not load</h1>
         <p>Prelude may have just been updated. Reload the page to continue.</p>
-        <button type="button" className="dash-btn dash-btn--primary" onClick={() => window.location.reload()}>
+        {detail ? <p className="dash-muted" style={{ maxWidth: "36rem" }}>{detail}</p> : null}
+        <button
+          type="button"
+          className="dash-btn dash-btn--primary"
+          onClick={() => {
+            try {
+              sessionStorage.removeItem("prelude-chunk-reload");
+            } catch {
+              /* ignore */
+            }
+            window.location.reload();
+          }}
+        >
           Reload page
         </button>
       </main>

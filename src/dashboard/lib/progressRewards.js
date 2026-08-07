@@ -162,7 +162,8 @@ export function formatStatusProgressCopy(lifetimeCoins = 0) {
 
 /** Cheapest unredeemed reward cost for piggy-bank short-term goal. */
 export function getCheapestRewardTarget(availableCoins = 0, redeemed = [], catalog = REWARD_CATALOG) {
-  const open = catalog.filter((reward) => !redeemed.includes(reward.id));
+  const redeemedIds = Array.isArray(redeemed) ? redeemed : [];
+  const open = (catalog || []).filter((reward) => reward && !redeemedIds.includes(reward.id));
   if (!open.length) return null;
   const sorted = [...open].sort((a, b) => a.coins - b.coins);
   const cheapest = sorted[0];
@@ -729,7 +730,9 @@ export function getRewardProgressPct(coins, rewardCoins) {
 }
 
 export function enrichReward(reward, coins, redeemed = []) {
-  const isRedeemed = redeemed.includes(reward.id);
+  if (!reward) return null;
+  const redeemedIds = Array.isArray(redeemed) ? redeemed : [];
+  const isRedeemed = redeemedIds.includes(reward.id);
   const { tierId, tierConfig } = resolveRewardTier(reward);
   return {
     ...reward,
