@@ -19,7 +19,7 @@ function isMentorAccessDenied(error) {
 
 export default function MentorAvailabilityProduct() {
   const { user, ready: authReady } = useAuth();
-  const { availability, saveAvailability, syncStatus, syncError, loading: dashboardLoading } = useDashboardData();
+  const { availability, mentorIdentity, saveAvailability, syncStatus, syncError, loading: dashboardLoading } = useDashboardData();
   const [slots, setSlots] = useState(() => availability.map((slot, index) => normalizeAvailabilitySlot(slot, index)));
   const [form, setForm] = useState(() => slotsToWeeklyFormState(slots));
   const [error, setError] = useState("");
@@ -28,7 +28,7 @@ export default function MentorAvailabilityProduct() {
   const [accessDenied, setAccessDenied] = useState(false);
 
   const roleResolved = Boolean(authReady);
-  const isMentor = String(user?.role || "").toLowerCase() === "mentor";
+  const hasMentorProfile = mentorIdentity?.hasProfile === true;
   const stillLoading = !authReady || dashboardLoading || syncStatus === "loading";
 
   useEffect(() => {
@@ -39,8 +39,8 @@ export default function MentorAvailabilityProduct() {
 
   useEffect(() => {
     if (!roleResolved || stillLoading) return;
-    if (!isMentor) setAccessDenied(true);
-  }, [roleResolved, stillLoading, isMentor]);
+    if (!hasMentorProfile) setAccessDenied(true);
+  }, [roleResolved, stillLoading, hasMentorProfile]);
 
   async function handleSave() {
     const validationError = validateWeeklyFormState(form);
@@ -83,7 +83,7 @@ export default function MentorAvailabilityProduct() {
     );
   }
 
-  if (accessDenied || !isMentor) {
+  if (accessDenied || !hasMentorProfile) {
     return (
       <div className="dash-page dash-page--mentor-availability">
         <header className="dash-mentor-avail-page-head" aria-labelledby="mentor-availability-setup-heading">
@@ -97,7 +97,7 @@ export default function MentorAvailabilityProduct() {
           </div>
         </header>
         <p className="dash-mentor-avail-setup__error" role="alert">
-          Mentor access required. Sign in with a mentor account to manage availability.
+          No mentor profile is associated with this account.
         </p>
       </div>
     );

@@ -21,7 +21,8 @@ function dashboardContext({ method = "PUT", action = "availability", body = null
     }),
     env: {
       SUPABASE_URL: "https://supabase.example",
-      SUPABASE_ANON_KEY: "anon-key"
+      SUPABASE_ANON_KEY: "anon-key",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key"
     },
     fetch: fetchImpl
   };
@@ -82,17 +83,14 @@ describe("Cloudflare dashboard ownership", () => {
     assert.equal(body.notifications.length, 1);
   });
 
-  it("rejects availability writes unless the authenticated profile is a mentor", async () => {
+  it("rejects availability writes when the authenticated user has no mentor profile", async () => {
     let availabilityWriteAttempted = false;
     const fetchImpl = async (url, options = {}) => {
       const pathname = new URL(url).pathname;
       if (pathname === "/auth/v1/user") {
         return jsonResponse({ id: "user-1", email: "student@example.com" });
       }
-      if (pathname.includes("/rest/v1/profiles")) {
-        return jsonResponse([{ id: "user-1", role: "student", full_name: "Jordan Student" }]);
-      }
-      if (pathname.includes("/rest/v1/mentor_matching_profiles") && options.method === "POST") {
+      if (pathname.includes("/rest/v1/mentor_matching_profiles") && options.method === "PATCH") {
         availabilityWriteAttempted = true;
         return jsonResponse([{ mentor_user_id: "user-1", availability_schedule: { timezone: "ET", days: [] } }]);
       }
@@ -109,7 +107,7 @@ describe("Cloudflare dashboard ownership", () => {
     const body = await response.json();
 
     assert.equal(response.status, 403);
-    assert.equal(body.error, "forbidden");
+    assert.equal(body.error, "mentor_profile_required");
     assert.equal(availabilityWriteAttempted, false);
   });
 });

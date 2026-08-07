@@ -341,6 +341,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
   const [meetings, setMeetings] = useState([]);
   const [pendingMeetingRequests, setPendingMeetingRequests] = useState([]);
   const [mentorAccess, setMentorAccess] = useState(null);
+  const [mentorIdentity, setMentorIdentity] = useState(null);
   const [noMentorAccessOpen, setNoMentorAccessOpen] = useState(false);
   const [applicationReviews, setApplicationReviews] = useState([]);
   const [resolvedPendingRequestIds, setResolvedPendingRequestIds] = useState([]);
@@ -520,6 +521,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
           timezone: appData?.availability?.timezone || "ET",
           recurring: true
         })));
+        setMentorIdentity(appData?.mentorIdentity || { hasProfile: false });
         setRewardsData(appData?.rewards || null);
         setOnboarding(data.onboarding || EMPTY_ONBOARDING);
         setMentor(data.mentor);
@@ -1319,6 +1321,13 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
         try {
           result = await updateMentorAvailability(weeklyAvailability);
         } catch (error) {
+          if (import.meta.env.DEV) {
+            console.error("[prelude-mentor-availability-save]", {
+              status: error?.status || error?.statusCode || null,
+              code: error?.code || error?.body?.error || null,
+              message: error?.message || "Availability sync failed."
+            });
+          }
           setSyncError(error.message || "Availability sync failed.");
           setSyncStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "sync-failed");
           throw error;
@@ -2172,6 +2181,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       availability: demo?.availability ?? availability,
       rewardsData,
       mentorAccess,
+      mentorIdentity,
       openNoMentorAccessModal: () => setNoMentorAccessOpen(true),
       closeNoMentorAccessModal: () => setNoMentorAccessOpen(false),
       syncStatus,
@@ -2238,6 +2248,7 @@ export function DashboardDataProvider({ children, user, overrides = null, mentor
       availability,
       rewardsData,
       mentorAccess,
+      mentorIdentity,
       syncStatus,
       syncError,
       studentSyncTick,

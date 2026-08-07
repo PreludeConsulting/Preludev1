@@ -166,6 +166,19 @@ function MentorRoutes() {
   );
 }
 
+function MentorAvailabilityRoute() {
+  const { user } = useAuth();
+  return (
+    <DashboardDataProvider user={user}>
+      <Routes>
+        <Route element={<DashboardLayout productNav={MENTOR_NAV} basePath={MENTOR_DASHBOARD_BASE} routeMeta={MENTOR_ROUTE_META} />}>
+          <Route index element={<MentorAvailability />} />
+        </Route>
+      </Routes>
+    </DashboardDataProvider>
+  );
+}
+
 function ParentRoutes() {
   const { user } = useAuth();
   return (
@@ -217,6 +230,14 @@ export default function DashboardRouter() {
     <Suspense fallback={<div className="dash-loading" role="status">Loading dashboard…</div>}>
     <Routes>
       <Route index element={<DashboardRedirect />} />
+      <Route
+        path="mentor/availability"
+        element={
+          <RoleGuard role="mentor" allowAuthenticated>
+            <MentorAvailabilityRoute />
+          </RoleGuard>
+        }
+      />
       <Route
         path="student/*"
         element={

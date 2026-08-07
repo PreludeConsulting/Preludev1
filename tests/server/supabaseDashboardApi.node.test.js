@@ -210,17 +210,17 @@ describe("Supabase dashboard API", () => {
     assert.doesNotMatch(res.body.message, /write failed/i);
   });
 
-  it("rejects availability writes unless the authenticated profile is a mentor", async () => {
+  it("rejects availability writes when the authenticated user has no mentor profile", async () => {
     let availabilityWriteAttempted = false;
     const supabase = {
       from(table) {
         const builder = {
           select() { return builder; },
           eq() { return builder; },
-          upsert() { availabilityWriteAttempted = true; return builder; },
+          update() { availabilityWriteAttempted = true; return builder; },
           maybeSingle() {
             return Promise.resolve({
-              data: table === "profiles" ? { role: "student" } : null,
+              data: null,
               error: null
             });
           }
@@ -229,7 +229,8 @@ describe("Supabase dashboard API", () => {
       }
     };
     const middleware = createSupabaseDashboardApiMiddleware({
-      requireUser: async () => ({ user: { id: "user-1" }, supabase })
+      requireUser: async () => ({ user: { id: "user-1" }, supabase }),
+      getAdminClient: () => supabase
     });
     const res = response();
 
@@ -239,8 +240,43 @@ describe("Supabase dashboard API", () => {
     }), res, () => assert.fail("availability should be handled"));
 
     assert.equal(res.statusCode, 403);
-    assert.equal(res.body.error, "forbidden");
+    assert.equal(res.body.error, "mentor_profile_required");
     assert.equal(availabilityWriteAttempted, false);
+  });
+
+  it("allows an admin account to update only its own existing mentor profile", async () => {
+    const supabase = statefulSupabase({
+      profiles: { id: "admin-mentor", role: "admin" },
+      mentor_matching_profiles: {
+        mentor_user_id: "admin-mentor",
+        availability_schedule: { timezone: "ET", days: [] }
+      },
+      reward_task_instances: [], notifications: [], calendar_events: [], messages: []
+    });
+    const middleware = createSupabaseDashboardApiMiddleware({
+      requireUser: async () => ({
+        user: { id: "admin-mentor", user_metadata: { role: "admin" } },
+        supabase
+      }),
+      getAdminClient: () => supabase
+    });
+    const res = response();
+
+    await middleware(request("PUT", "/api/dashboard/availability", {
+      timezone: "America/New_York",
+      days: [{ dayOfWeek: "Tuesday", enabled: true, startTime: "10:00", endTime: "14:00" }]
+    }), res, () => assert.fail("availability should be handled"));
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.availability.timezone, "America/New_York");
+    assert.equal(res.body.availability.days[0].dayOfWeek, "Tuesday");
+
+    const refreshed = response();
+    await middleware(request(), refreshed, () => assert.fail("app-data should be handled"));
+    assert.equal(refreshed.statusCode, 200);
+    assert.equal(refreshed.body.mentorIdentity.hasProfile, true);
+    assert.equal(refreshed.body.availability.timezone, "America/New_York");
+    assert.equal(refreshed.body.availability.days[0].startTime, "10:00");
   });
 
   it("persists profile, settings, and availability mutations across a subsequent app-data read", async () => {

@@ -182,7 +182,7 @@ async function loadAppData(context, user, token) {
   const requests = await Promise.allSettled([
     query("profiles", `select=*&id=eq.${uid}&limit=1`),
     query("user_settings", `select=*&user_id=eq.${uid}&limit=1`),
-    query("mentor_matching_profiles", `select=mentor_user_id,availability_schedule&mentor_user_id=eq.${uid}&limit=1`),
+    adminRest(context, `mentor_matching_profiles?select=mentor_user_id,availability_schedule&mentor_user_id=eq.${uid}&limit=1`),
     query("reward_wallets", `select=*&user_id=eq.${uid}&limit=1`),
     query("reward_task_instances", `select=*&user_id=eq.${uid}&order=created_at.desc`),
     query("notifications", `select=*&user_id=eq.${uid}&order=created_at.desc`),
@@ -246,6 +246,9 @@ async function loadAppData(context, user, token) {
     profile: mapProfile(profileRow, user.email),
     settings: mapSettings(first(settings.value)),
     availability: mapAvailability(availability.status === "fulfilled" ? first(availability.value) : null),
+    mentorIdentity: {
+      hasProfile: availability.status === "fulfilled" && first(availability.value)?.mentor_user_id === user.id
+    },
     rewards: mapRewards(wallet.status === "fulfilled" ? first(wallet.value) : null, taskRows),
     notifications: notificationRows.map((item) => ({
       id: item.id,
@@ -290,15 +293,13 @@ function validateAvailability(value) {
   return { ok: true };
 }
 
-async function requireMentorProfile(context, user, token) {
-  const rows = await rest(
+async function requireMentorProfile(context, user) {
+  const rows = await adminRest(
     context,
-    token,
-    `profiles?select=id,role&id=eq.${encodeURIComponent(user.id)}&limit=1`
+    `mentor_matching_profiles?select=mentor_user_id&mentor_user_id=eq.${encodeURIComponent(user.id)}&limit=1`
   );
-  const profile = first(rows);
-  if (!profile || profile.id !== user.id || String(profile.role || "").toLowerCase() !== "mentor") {
-    throw httpError("Mentor access required.", 403, "forbidden");
+  if (first(rows)?.mentor_user_id !== user.id) {
+    throw httpError("No mentor profile is associated with this account.", 403, "mentor_profile_required");
   }
 }
 
@@ -332,11 +333,10 @@ export async function handleDashboard(context, action) {
     if (action === "availability" && context.request.method === "PUT") {
       const validation = validateAvailability(body);
       if (!validation.ok) return json({ error: "validation_error", message: validation.message }, 400);
-      await requireMentorProfile(context, user, token);
+      await requireMentorProfile(context, user);
       const availabilitySummary = formatAvailabilitySummary(body);
-      const rows = await adminRest(context, "mentor_matching_profiles?on_conflict=mentor_user_id", {
-        method: "POST",
-        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+      const rows = await adminRest(context, `mentor_matching_profiles?mentor_user_id=eq.${encodeURIComponent(user.id)}`, {
+        method: "PATCH",
         body: JSON.stringify({
           mentor_user_id: user.id,
           availability_schedule: body,
@@ -371,7 +371,11 @@ export async function handleDashboard(context, action) {
     const status = Number(error?.status) || 500;
     if (status >= 500) console.error("[prelude-dashboard-worker]", { action, message: error?.message, details: error?.details });
     return json({
-      error: status === 401 ? "unauthenticated" : status === 403 ? "forbidden" : "dashboard_sync_failed",
+      error: status === 401
+        ? "unauthenticated"
+        : status === 403
+          ? (error?.code || "forbidden")
+          : "dashboard_sync_failed",
       message: status === 401
         ? "Sign in again to continue."
         : status === 403

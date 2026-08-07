@@ -11,7 +11,7 @@ describe("mentor availability + messaging source contracts", () => {
     expect(nodeApi).toMatch(/getAdminClient\s*=\s*getSupabaseAdmin/);
     expect(nodeApi).toMatch(/const admin = getAdminClient\(\)/);
     expect(nodeApi).toMatch(/availability_schedule/);
-    expect(workerApi).toMatch(/adminRest\(context,\s*"mentor_matching_profiles/);
+    expect(workerApi).toMatch(/adminRest\(context,\s*["`]mentor_matching_profiles/);
   });
 
   it("loads student booking slots from the admin schedule source on Workers", () => {
@@ -19,6 +19,16 @@ describe("mentor availability + messaging source contracts", () => {
     expect(meetings).toMatch(/async function loadMentorSchedule/);
     expect(meetings).toMatch(/adminRest\(/);
     expect(meetings).toMatch(/availability_schedule/);
+  });
+
+  it("saves onboarding availability through the canonical dashboard endpoint", () => {
+    const onboarding = fs.readFileSync(
+      path.join(ROOT, "src/components/onboarding/MentorQuestionnaireOnboardingPage.jsx"),
+      "utf8"
+    );
+    expect(onboarding).toMatch(/updateMentorAvailability\(\{/);
+    expect(onboarding).toMatch(/timezone:\s*availabilityForm\.timezone/);
+    expect(onboarding).toMatch(/days:\s*availabilityForm\.days/);
   });
 
   it("creates chat threads during admin assignment", () => {

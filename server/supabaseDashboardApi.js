@@ -125,6 +125,7 @@ export function normalizeDashboardAppData({
   profile,
   settings,
   availability,
+  hasMentorProfile = false,
   wallet,
   tasks,
   notifications,
@@ -139,6 +140,7 @@ export function normalizeDashboardAppData({
     profile: mapProfile(profile, user.email),
     settings: mapSettings(settings),
     availability: mapAvailability(availability),
+    mentorIdentity: { hasProfile: Boolean(hasMentorProfile) },
     rewards: mapRewards(wallet, tasks),
     notifications: (notifications || []).map((item) => ({
       id: item.id, title: item.title, body: item.body, unread: Boolean(item.unread), link: item.link || null, createdAt: item.created_at
@@ -150,11 +152,11 @@ export function normalizeDashboardAppData({
   };
 }
 
-async function loadAppData(supabase, user) {
+async function loadAppData(supabase, user, availabilityClient = supabase) {
   const [profileRes, settingsRes, availabilityRes, walletRes, tasksRes, notificationsRes, eventsRes, messagesRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
     supabase.from("user_settings").select("*").eq("user_id", user.id).maybeSingle(),
-    supabase.from("mentor_matching_profiles").select("mentor_user_id,availability_schedule").eq("mentor_user_id", user.id).maybeSingle(),
+    availabilityClient.from("mentor_matching_profiles").select("mentor_user_id,availability_schedule").eq("mentor_user_id", user.id).maybeSingle(),
     supabase.from("reward_wallets").select("*").eq("user_id", user.id).maybeSingle(),
     supabase.from("reward_task_instances").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     supabase.from("notifications").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
@@ -203,6 +205,7 @@ async function loadAppData(supabase, user) {
     profile: profileRes.data,
     settings: settingsRes.data,
     availability: availabilityRes.data,
+    hasMentorProfile: Boolean(availabilityRes.data?.mentor_user_id === user.id),
     wallet: walletRes.data,
     tasks: tasksRes.data,
     notifications: notificationsRes.data,
@@ -294,14 +297,15 @@ function pickFields(body, allowed) {
 
 async function requireMentorProfile(supabase, userId) {
   const { data, error } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
+    .from("mentor_matching_profiles")
+    .select("mentor_user_id")
+    .eq("mentor_user_id", userId)
     .maybeSingle();
   if (error) throw error;
-  if (String(data?.role || "").toLowerCase() !== "mentor") {
-    const forbidden = new Error("Mentor access required.");
+  if (data?.mentor_user_id !== userId) {
+    const forbidden = new Error("No mentor profile is associated with this account.");
     forbidden.statusCode = 403;
+    forbidden.code = "mentor_profile_required";
     throw forbidden;
   }
 }
@@ -323,7 +327,8 @@ export function createSupabaseDashboardApiMiddleware({
 
     try {
       const { supabase, user } = await requireUser(req);
-      if (isAppData) return sendJson(res, 200, await loadAppData(supabase, user));
+      const admin = getAdminClient();
+      if (isAppData) return sendJson(res, 200, await loadAppData(supabase, user, admin || supabase));
 
       const body = await readJsonBody(req);
       if (isProfile) {
@@ -347,27 +352,24 @@ export function createSupabaseDashboardApiMiddleware({
         return sendJson(res, 200, { settings: mapSettings(data) });
       }
 
-      await requireMentorProfile(supabase, user.id);
-      const availability = availabilitySchema.parse(body);
-      const availabilitySummary = formatAvailabilitySummary(availability);
-      const admin = getAdminClient();
       if (!admin) {
         const configError = new Error("Availability sync requires service role configuration.");
         configError.statusCode = 503;
         throw configError;
       }
+      await requireMentorProfile(admin, user.id);
+      const availability = availabilitySchema.parse(body);
+      const availabilitySummary = formatAvailabilitySummary(availability);
 
       const { data, error } = await admin
         .from("mentor_matching_profiles")
-        .upsert(
-          {
+        .update({
             mentor_user_id: user.id,
             availability_schedule: availability,
             ...(availabilitySummary ? { availability: availabilitySummary } : {}),
             updated_at: new Date().toISOString()
-          },
-          { onConflict: "mentor_user_id" }
-        )
+          })
+        .eq("mentor_user_id", user.id)
         .select("availability_schedule")
         .maybeSingle();
       if (error) throw error;
@@ -412,7 +414,11 @@ export function createSupabaseDashboardApiMiddleware({
       const rawMessage = String(error?.message || "");
       const safeServerMessage = "Dashboard data is temporarily unavailable. Retry in a moment.";
       return sendJson(res, status, {
-        error: status === 401 ? "unauthenticated" : status === 403 ? "forbidden" : "dashboard_sync_failed",
+        error: status === 401
+          ? "unauthenticated"
+          : status === 403
+            ? (error?.code || "forbidden")
+            : "dashboard_sync_failed",
         message: status === 401
           ? "Sign in again to continue."
           : status === 403
