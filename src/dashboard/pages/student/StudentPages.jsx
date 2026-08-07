@@ -2036,7 +2036,9 @@ export function StudentMentor() {
                     {periodEndLabel ? `. Current paid period ends ${periodEndLabel}.` : "."}
                   </p>
                   <p>
-                    Your session credits will reset after your next successful subscription payment.
+                    {mentorAccess?.sessionCreditsActive === false && Number(mentorAccess?.allowance) > 0
+                      ? "Your membership is active, but this billing period’s session credits have not loaded yet. Refresh the page or open Plans & Billing to sync."
+                      : "Your session credits will reset after your next successful subscription payment."}
                   </p>
                 </div>
               ) : null}

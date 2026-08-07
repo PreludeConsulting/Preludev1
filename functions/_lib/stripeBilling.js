@@ -346,6 +346,23 @@ export async function syncSubscriptionFromStripeEvent(context, subscription, opt
   return syncSubscription(context, subscription, options);
 }
 
+/**
+ * Retrieve a live Stripe subscription and sync membership + period #1 credits.
+ * Used to heal stuck Plus/Pro accounts whose profile is Active but the session
+ * ledger was never opened (missing period bounds / missed invoice grant).
+ */
+export async function pullAndSyncSubscriptionCredits(context, subscriptionId) {
+  const id = String(subscriptionId || "").trim();
+  if (!id) return null;
+  const subscription = await stripeRequest(
+    context,
+    "GET",
+    `/v1/subscriptions/${encodeURIComponent(id)}?expand[]=items.data.price&expand[]=latest_invoice&expand[]=latest_invoice.lines.data`
+  );
+  await syncSubscription(context, subscription, { paymentConfirmed: true });
+  return subscription;
+}
+
 async function syncSubscription(context, subscription, { paymentConfirmed = false } = {}) {
   let userId = subscription.metadata?.userId || null;
   let priorPlanId = null;

@@ -4,6 +4,8 @@ import { adminRest, first, httpError, json, requireUser, rest } from "./http.js"
 import { loadMeetingsForUser, sanitizeMeetingForRole } from "./meetings.js";
 import { DEFAULT_INTEGRATIONS, normalizeIntegrations } from "./integrations.js";
 import { ensureSessionPeriodFromProfile, summarizeSessionPeriodRow, wrapAdminRestForSessionPeriods } from "./sessionPeriodCredits.js";
+import { normalizePlanId, ACTIVE_SUBSCRIPTION_STATUSES } from "../../shared/mentorAccess.js";
+import { shouldInitializeSessionPeriodForSubscription } from "../../shared/sessionPeriodEnsure.js";
 
 const profileFields = [
   "full_name", "preferred_name", "school", "grade_level", "time_zone", "language",
@@ -119,17 +121,69 @@ async function loadStudentMentorAccess(context, profile, meetings = []) {
   let sessionCredits = summarizeActiveSessionPeriod(null);
   let packages = [];
   try {
-    await ensureSessionPeriodFromProfile(wrapAdminRestForSessionPeriods(adminRest), context, profile);
-    const [periodRows, packageRows] = await Promise.all([
-      adminRest(
-        context,
-        `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
-      ),
-      adminRest(
-        context,
-        `session_package_purchases?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&select=*&order=created_at.asc`
-      )
-    ]);
+    const periodRest = wrapAdminRestForSessionPeriods(adminRest);
+    await ensureSessionPeriodFromProfile(periodRest, context, profile);
+
+    let periodRows = await adminRest(
+      context,
+      `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
+    );
+    // Stuck Active Plus/Pro with no ledger row (common when period bounds were
+    // never persisted): pull Stripe and open period #1 now.
+    if (!first(periodRows)) {
+      const planId = normalizePlanId(profile.plan_id);
+      const status = String(profile.subscription_status || "").trim().toLowerCase();
+      const statusForInit =
+        status === "complete" || status === "checkout_completed" ? "active" : status;
+      const subId = profile.stripe_subscription_id || null;
+      const needsStripeHeal =
+        (planId === "plus" || planId === "pro") &&
+        ACTIVE_SUBSCRIPTION_STATUSES.has(statusForInit) &&
+        Boolean(subId);
+      if (needsStripeHeal) {
+        try {
+          const { pullAndSyncSubscriptionCredits } = await import("./stripeBilling.js");
+          await pullAndSyncSubscriptionCredits(context, subId);
+          // Re-ensure from (possibly updated) profile fields, then re-read ledger.
+          const refreshed = first(
+            await adminRest(
+              context,
+              `profiles?id=eq.${encodeURIComponent(studentUserId)}&select=id,plan_id,subscription_status,subscription_current_period_start,subscription_current_period_end,entitlement_ends_at,stripe_subscription_id&limit=1`
+            )
+          );
+          if (refreshed) {
+            await ensureSessionPeriodFromProfile(periodRest, context, refreshed);
+          }
+          periodRows = await adminRest(
+            context,
+            `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
+          );
+        } catch (healError) {
+          console.error(
+            "[prelude-dashboard-worker] stripe session-period heal failed",
+            healError?.message || healError
+          );
+        }
+      } else if (
+        shouldInitializeSessionPeriodForSubscription({
+          subscriptionStatus: statusForInit,
+          planId,
+          periodStartIso: profile.subscription_current_period_start,
+          periodEndIso: profile.entitlement_ends_at || profile.subscription_current_period_end
+        })
+      ) {
+        await ensureSessionPeriodFromProfile(periodRest, context, profile);
+        periodRows = await adminRest(
+          context,
+          `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
+        );
+      }
+    }
+
+    const packageRows = await adminRest(
+      context,
+      `session_package_purchases?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&select=*&order=created_at.asc`
+    );
     sessionCredits = summarizeActiveSessionPeriod(first(periodRows));
     packages = (packageRows || [])
       .map(mapLiveSessionPackage)
@@ -162,7 +216,8 @@ async function loadStudentMentorAccess(context, profile, meetings = []) {
     periodEnd: access.periodEnd,
     sessionCreditBalanceLabel: access.sessionCreditBalanceLabel,
     reason: access.reason,
-    dailyBookingUsed: access.dailyBookingUsed === true
+    dailyBookingUsed: access.dailyBookingUsed === true,
+    sessionCreditsActive: Boolean(sessionCredits?.active)
   };
 }
 

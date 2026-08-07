@@ -243,10 +243,29 @@ async function getSessionCreditSummary(context, studentUserId, profile = null) {
     }
   }
   const nowIso = new Date().toISOString();
-  const rows = await adminRest(
+  let rows = await adminRest(
     context,
     `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
   );
+  if (!first(rows) && profile?.stripe_subscription_id) {
+    const planId = String(profile.plan_id || "").toLowerCase();
+    const status = String(profile.subscription_status || "").toLowerCase();
+    if (
+      (planId === "plus" || planId === "pro") &&
+      (status === "active" || status === "trialing" || status === "complete" || status === "checkout_completed")
+    ) {
+      try {
+        const { pullAndSyncSubscriptionCredits } = await import("./stripeBilling.js");
+        await pullAndSyncSubscriptionCredits(context, profile.stripe_subscription_id);
+        rows = await adminRest(
+          context,
+          `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
+        );
+      } catch (error) {
+        console.error("[billing] stripe session-period heal failed", error?.message || error);
+      }
+    }
+  }
   return summarizeSessionPeriod(first(rows));
 }
 

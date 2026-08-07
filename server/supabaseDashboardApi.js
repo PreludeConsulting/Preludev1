@@ -309,7 +309,8 @@ async function loadStudentMentorAccess(supabase, profile) {
     periodEnd: access.periodEnd,
     sessionCreditBalanceLabel: access.sessionCreditBalanceLabel,
     reason: access.reason,
-    dailyBookingUsed: access.dailyBookingUsed === true
+    dailyBookingUsed: access.dailyBookingUsed === true,
+    sessionCreditsActive: Boolean(sessionCredits?.active)
   };
 }
 
