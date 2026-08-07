@@ -9,6 +9,11 @@ import {
   weeklyFormStateToSlots
 } from "../../lib/mentorAvailability.js";
 import MentorAvailabilitySetupCard from "./MentorAvailabilitySetupCard.jsx";
+import { useInteractionFeedback } from "../../../components/interaction/InteractionFeedback.jsx";
+
+// Keeps only schedules confirmed by the dashboard API so route remounts can
+// refresh in the background without flashing an empty page.
+const confirmedAvailabilityByUser = new Map();
 
 function isMentorAccessDenied(error) {
   if (!error) return false;
@@ -19,57 +24,70 @@ function isMentorAccessDenied(error) {
 
 export default function MentorAvailabilityProduct() {
   const { user, ready: authReady } = useAuth();
+  const { showToast } = useInteractionFeedback();
   const { availability, mentorIdentity, saveAvailability, syncStatus, syncError, loading: dashboardLoading } = useDashboardData();
-  const [slots, setSlots] = useState(() => availability.map((slot, index) => normalizeAvailabilitySlot(slot, index)));
+  const cachedSlots = user?.id ? confirmedAvailabilityByUser.get(user.id) : null;
+  const [slots, setSlots] = useState(() => (
+    cachedSlots || availability.map((slot, index) => normalizeAvailabilitySlot(slot, index))
+  ));
   const [form, setForm] = useState(() => slotsToWeeklyFormState(slots));
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [hasConfirmedAvailability, setHasConfirmedAvailability] = useState(Boolean(cachedSlots));
   const [saving, setSaving] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
 
   const roleResolved = Boolean(authReady);
   const hasMentorProfile = mentorIdentity?.hasProfile === true;
-  const stillLoading = !authReady || dashboardLoading || syncStatus === "loading";
+  const refreshing = dashboardLoading || syncStatus === "loading";
+  const stillLoading = !authReady || (refreshing && !hasConfirmedAvailability);
+  const canDisplayAvailability = hasMentorProfile || (refreshing && hasConfirmedAvailability);
 
   useEffect(() => {
+    if (dashboardLoading || syncStatus === "loading") return;
+    if (!mentorIdentity?.hasProfile) {
+      if (user?.id) confirmedAvailabilityByUser.delete(user.id);
+      setHasConfirmedAvailability(false);
+      return;
+    }
     const nextSlots = availability.map((slot, index) => normalizeAvailabilitySlot(slot, index));
     setSlots(nextSlots);
     setForm(slotsToWeeklyFormState(nextSlots));
-  }, [availability]);
+    if (user?.id) confirmedAvailabilityByUser.set(user.id, nextSlots);
+    setHasConfirmedAvailability(true);
+  }, [availability, dashboardLoading, mentorIdentity?.hasProfile, syncStatus, user?.id]);
 
   useEffect(() => {
     if (!roleResolved || stillLoading) return;
-    if (!hasMentorProfile) setAccessDenied(true);
-  }, [roleResolved, stillLoading, hasMentorProfile]);
+    if (!canDisplayAvailability) setAccessDenied(true);
+  }, [roleResolved, stillLoading, canDisplayAvailability]);
 
   async function handleSave() {
     const validationError = validateWeeklyFormState(form);
     if (validationError) {
-      setError(validationError);
-      setSuccess(false);
+      showToast(validationError, "error");
       return;
     }
 
     const nextSlots = weeklyFormStateToSlots(form, slots);
     setSaving(true);
-    setError("");
-    setSuccess(false);
     try {
       await saveAvailability({
         timezone: form.timezone,
         days: form.days
       });
       setSlots(nextSlots);
+      if (user?.id) confirmedAvailabilityByUser.set(user.id, nextSlots);
+      setHasConfirmedAvailability(true);
       setAccessDenied(false);
-      setSuccess(true);
+      showToast("Availability saved. Assigned students can book these times immediately.");
     } catch (saveError) {
       if (isMentorAccessDenied(saveError)) {
         setAccessDenied(true);
-        setError("");
       } else {
-        setError(saveError?.message || syncError || "Availability could not be synchronized. Try again.");
+        showToast(
+          saveError?.message || syncError || "Availability could not be synchronized. Try again.",
+          "error"
+        );
       }
-      setSuccess(false);
     } finally {
       setSaving(false);
     }
@@ -83,7 +101,7 @@ export default function MentorAvailabilityProduct() {
     );
   }
 
-  if (accessDenied || !hasMentorProfile) {
+  if (accessDenied || !canDisplayAvailability) {
     return (
       <div className="dash-page dash-page--mentor-availability">
         <header className="dash-mentor-avail-page-head" aria-labelledby="mentor-availability-setup-heading">
@@ -120,22 +138,13 @@ export default function MentorAvailabilityProduct() {
       </header>
 
       <div className="dash-mentor-avail-setup-card-wrap">
-        {syncStatus === "offline" ? <p className="dash-mentor-avail-setup__error" role="alert">You are offline. Reconnect and retry your save.</p> : null}
-        {error ? <p className="dash-mentor-avail-setup__error" role="alert">{error}</p> : null}
-        {success ? (
-          <p className="dash-mentor-avail-setup__success" role="status">
-            Availability saved. Assigned students can book these times immediately.
-          </p>
-        ) : null}
         <MentorAvailabilitySetupCard
           form={form}
           error=""
-          success={success}
+          success={false}
           saving={saving}
           onChange={(next) => {
             setForm(next);
-            setError("");
-            setSuccess(false);
           }}
           onSave={handleSave}
         />
