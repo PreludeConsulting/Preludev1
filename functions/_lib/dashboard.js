@@ -135,20 +135,31 @@ async function loadStudentMentorAccess(context, profile, meetings = []) {
       const status = String(profile.subscription_status || "").trim().toLowerCase();
       const statusForInit =
         status === "complete" || status === "checkout_completed" ? "active" : status;
-      const subId = profile.stripe_subscription_id || null;
       const needsStripeHeal =
-        (planId === "plus" || planId === "pro") &&
-        ACTIVE_SUBSCRIPTION_STATUSES.has(statusForInit) &&
-        Boolean(subId);
+        (planId === "plus" || planId === "pro") && ACTIVE_SUBSCRIPTION_STATUSES.has(statusForInit);
       if (needsStripeHeal) {
         try {
-          const { pullAndSyncSubscriptionCredits } = await import("./stripeBilling.js");
-          await pullAndSyncSubscriptionCredits(context, subId);
+          const {
+            pullAndSyncSubscriptionCredits,
+            resolveStudentStripeSubscriptionId
+          } = await import("./stripeBilling.js");
+          const subId = await resolveStudentStripeSubscriptionId(context, profile);
+          if (subId) {
+            await pullAndSyncSubscriptionCredits(context, subId, {
+              userId: studentUserId,
+              planId
+            });
+          } else {
+            console.error("[prelude-dashboard-worker] session-period heal: no Stripe subscription id", {
+              studentUserId,
+              hasCustomerId: Boolean(profile.stripe_customer_id)
+            });
+          }
           // Re-ensure from (possibly updated) profile fields, then re-read ledger.
           const refreshed = first(
             await adminRest(
               context,
-              `profiles?id=eq.${encodeURIComponent(studentUserId)}&select=id,plan_id,subscription_status,subscription_current_period_start,subscription_current_period_end,entitlement_ends_at,stripe_subscription_id&limit=1`
+              `profiles?id=eq.${encodeURIComponent(studentUserId)}&select=id,plan_id,subscription_status,subscription_current_period_start,subscription_current_period_end,entitlement_ends_at,stripe_subscription_id,stripe_customer_id&limit=1`
             )
           );
           if (refreshed) {

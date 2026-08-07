@@ -247,7 +247,7 @@ async function getSessionCreditSummary(context, studentUserId, profile = null) {
     context,
     `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
   );
-  if (!first(rows) && profile?.stripe_subscription_id) {
+  if (!first(rows) && profile) {
     const planId = String(profile.plan_id || "").toLowerCase();
     const status = String(profile.subscription_status || "").toLowerCase();
     if (
@@ -255,8 +255,17 @@ async function getSessionCreditSummary(context, studentUserId, profile = null) {
       (status === "active" || status === "trialing" || status === "complete" || status === "checkout_completed")
     ) {
       try {
-        const { pullAndSyncSubscriptionCredits } = await import("./stripeBilling.js");
-        await pullAndSyncSubscriptionCredits(context, profile.stripe_subscription_id);
+        const {
+          pullAndSyncSubscriptionCredits,
+          resolveStudentStripeSubscriptionId
+        } = await import("./stripeBilling.js");
+        const subId = await resolveStudentStripeSubscriptionId(context, profile);
+        if (subId) {
+          await pullAndSyncSubscriptionCredits(context, subId, {
+            userId: studentUserId,
+            planId
+          });
+        }
         rows = await adminRest(
           context,
           `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`

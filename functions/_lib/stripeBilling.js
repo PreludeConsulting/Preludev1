@@ -233,7 +233,7 @@ async function claimBillingWebhookEvent(context, eventId, eventType, payload = {
     });
     return true;
   } catch (error) {
-    const details = error?.details || {};
+    const details = error?.payload || error?.details || {};
     const code = details.code || details?.error || "";
     const message = String(error?.message || details?.message || "");
     if (code === "23505" || /duplicate|unique/i.test(message)) {
@@ -350,8 +350,15 @@ export async function syncSubscriptionFromStripeEvent(context, subscription, opt
  * Retrieve a live Stripe subscription and sync membership + period #1 credits.
  * Used to heal stuck Plus/Pro accounts whose profile is Active but the session
  * ledger was never opened (missing period bounds / missed invoice grant).
+ *
+ * Always pass profile `userId` + `planId` so heal cannot no-op when Stripe
+ * subscription metadata is missing or price IDs are unmapped.
  */
-export async function pullAndSyncSubscriptionCredits(context, subscriptionId) {
+export async function pullAndSyncSubscriptionCredits(
+  context,
+  subscriptionId,
+  { userId = null, planId = null } = {}
+) {
   const id = String(subscriptionId || "").trim();
   if (!id) return null;
   const subscription = await stripeRequest(
@@ -359,12 +366,71 @@ export async function pullAndSyncSubscriptionCredits(context, subscriptionId) {
     "GET",
     `/v1/subscriptions/${encodeURIComponent(id)}?expand[]=items.data.price&expand[]=latest_invoice&expand[]=latest_invoice.lines.data`
   );
-  await syncSubscription(context, subscription, { paymentConfirmed: true });
+  await syncSubscription(context, subscription, {
+    paymentConfirmed: true,
+    userId,
+    planId
+  });
+
+  // Hard guarantee: open period #1 even if syncSubscription returned early on
+  // entitlement edge cases — uses the known profile identity.
+  const bounds = resolvePaidMembershipPeriodBounds(subscription);
+  const effectiveUserId = userId || subscription.metadata?.userId || null;
+  const effectivePlan =
+    (planId && PAID_PLAN_IDS.includes(String(planId).toLowerCase()) && String(planId).toLowerCase()) ||
+    (PAID_PLAN_IDS.includes(subscription.metadata?.planId) && subscription.metadata.planId) ||
+    null;
+  if (
+    effectiveUserId &&
+    effectivePlan &&
+    bounds.startIso &&
+    bounds.endIso &&
+    ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status)
+  ) {
+    await ensureSessionPeriodRow(supabaseRest, context, {
+      studentUserId: effectiveUserId,
+      planId: effectivePlan,
+      periodStart: bounds.startIso,
+      periodEnd: bounds.endIso,
+      stripeSubscriptionId: subscription.id
+    });
+  } else {
+    console.error("[stripe-billing] session-period heal skipped after pull", {
+      subscriptionId: id,
+      hasUserId: Boolean(effectiveUserId),
+      planId: effectivePlan,
+      status: subscription.status,
+      periodStart: bounds.startIso,
+      periodEnd: bounds.endIso
+    });
+  }
   return subscription;
 }
 
-async function syncSubscription(context, subscription, { paymentConfirmed = false } = {}) {
-  let userId = subscription.metadata?.userId || null;
+/**
+ * Resolve a student's Stripe subscription id from profile fields (sub id or customer).
+ */
+export async function resolveStudentStripeSubscriptionId(context, profile = {}) {
+  const direct = String(profile.stripe_subscription_id || "").trim();
+  if (direct) return direct;
+  const customerId = String(profile.stripe_customer_id || "").trim();
+  if (!customerId) return null;
+  const listed = await stripeRequest(
+    context,
+    "GET",
+    `/v1/subscriptions?customer=${encodeURIComponent(customerId)}&status=active&limit=5`
+  );
+  const subs = Array.isArray(listed?.data) ? listed.data : [];
+  const paid = subs.find((sub) => ["active", "trialing"].includes(String(sub.status || ""))) || subs[0];
+  return paid?.id || null;
+}
+
+async function syncSubscription(
+  context,
+  subscription,
+  { paymentConfirmed = false, userId: userIdOverride = null, planId: planIdOverride = null } = {}
+) {
+  let userId = userIdOverride || subscription.metadata?.userId || null;
   let priorPlanId = null;
   if (!userId) {
     const customerId = stripeObjectId(subscription.customer);
@@ -395,12 +461,29 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
   }
   const config = getBillingConfig(context);
   const metadataPlanId = subscription.metadata?.planId;
-  const planId = PAID_PLAN_IDS.includes(metadataPlanId)
-    ? metadataPlanId
-    : (subscription.items?.data || [])
-      .map((item) => planIdForPriceId(stripeObjectId(item.price), config))
-      .find(Boolean);
-  if (!userId || !planId) return;
+  const mappedFromPrice = (subscription.items?.data || [])
+    .map((item) => planIdForPriceId(stripeObjectId(item.price), config))
+    .find(Boolean);
+  const overridePlan =
+    planIdOverride && PAID_PLAN_IDS.includes(String(planIdOverride).toLowerCase())
+      ? String(planIdOverride).toLowerCase()
+      : null;
+  const planId =
+    overridePlan ||
+    (PAID_PLAN_IDS.includes(metadataPlanId) ? metadataPlanId : null) ||
+    mappedFromPrice ||
+    null;
+  if (!userId || !planId) {
+    console.error("[stripe-billing] syncSubscription skipped: missing userId or planId", {
+      subscriptionId: subscription?.id,
+      hasUserId: Boolean(userId),
+      planId,
+      metadataPlanId,
+      mappedFromPrice,
+      overridePlan
+    });
+    return;
+  }
 
   let confirmed = Boolean(paymentConfirmed);
   // Recover stuck Plus→Pro upgrades when Stripe already collected payment but
@@ -616,7 +699,9 @@ async function requireSupabaseUser(context) {
 async function supabaseRest(context, path, { method = "GET", body = null, prefer = "return=representation" } = {}) {
   const supabaseUrl = getEnv(context, "SUPABASE_URL") || getEnv(context, "VITE_SUPABASE_URL");
   const serviceRoleKey = getEnv(context, "SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) return null;
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error("Supabase service role is not configured for billing sync.");
+  }
   const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/rest/v1/${path}`, {
     method,
     headers: {
@@ -629,12 +714,25 @@ async function supabaseRest(context, path, { method = "GET", body = null, prefer
   });
   if (response.status === 204) return null;
   const text = await response.text();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
+  let payload = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = text;
+    }
   }
+  if (!response.ok) {
+    const message =
+      (payload && typeof payload === "object" && (payload.message || payload.hint || payload.error)) ||
+      (typeof payload === "string" ? payload : null) ||
+      `Supabase ${method} ${path} failed (${response.status})`;
+    const error = new Error(String(message));
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+  return payload;
 }
 
 async function loadPendingReferral(context, userId) {
