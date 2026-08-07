@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { fetchMySubscription } from "../lib/billingMembership.js";
+import { fetchMySubscription, syncSubscriptionFromStripe } from "../lib/billingMembership.js";
 import { useAuth } from "./AuthContext.jsx";
 
 const SubscriptionContext = createContext(null);
@@ -58,15 +58,25 @@ export function SubscriptionProvider({ children }) {
       setError("");
       let latest = null;
       try {
+        // Pull from Stripe first so Portal returns do not wait solely on webhooks.
+        await syncSubscriptionFromStripe().catch(() => null);
         for (let attempt = 0; attempt < SYNC_ATTEMPTS; attempt += 1) {
           latest = await load();
           await refreshUser?.().catch(() => null);
+          const effective =
+            latest?.effectiveMembership ||
+            (latest?.isActive ? latest?.activePlanId : null) ||
+            null;
           const planMatch =
             expectActivePlanId == null ||
+            String(effective || "").toLowerCase() === String(expectActivePlanId).toLowerCase() ||
             String(latest?.activePlanId || "").toLowerCase() === String(expectActivePlanId).toLowerCase();
           const activeMatch = expectIsActive == null || Boolean(latest?.isActive) === Boolean(expectIsActive);
           if (latest && planMatch && activeMatch) break;
-          await sleep(SYNC_DELAY_MS);
+          if (attempt < SYNC_ATTEMPTS - 1) {
+            await syncSubscriptionFromStripe().catch(() => null);
+            await sleep(SYNC_DELAY_MS);
+          }
         }
       } finally {
         setSyncing(false);

@@ -53,6 +53,7 @@ import {
 import {
   cancelMembershipAtPeriodEnd,
   changeMembershipPlan,
+  syncSubscriptionFromStripe,
   claimBillingWebhookEvent,
   getBillingSummary,
   getMySubscription,
@@ -62,7 +63,7 @@ import {
   recordPurchaseFromInvoice,
   resolveBillingContext
 } from "./lib/billingMembership.js";
-import { logBillingEvent, hasActiveProEntitlement, PLUS_BLOCKED_BY_PRO_MESSAGE } from "../shared/billingMembership.js";
+import { logBillingEvent, hasActiveProEntitlement, PLUS_BLOCKED_BY_PRO_MESSAGE, PRO_TO_PLUS_USE_PORTAL_MESSAGE } from "../shared/billingMembership.js";
 import { resolveSubscriptionPlanEntitlement } from "../shared/billingSubscriptionSync.js";
 
 const checkoutSchema = z.object({
@@ -169,6 +170,7 @@ function isBillingPath(pathname) {
     pathname === "/api/billing/cancel" ||
     pathname === "/api/billing/reactivate" ||
     pathname === "/api/billing/change-plan" ||
+    pathname === "/api/billing/sync-subscription" ||
     pathname === "/api/billing/consume-essay-review"
   );
 }
@@ -326,7 +328,7 @@ async function handleCheckout(req, res) {
       ) {
         return sendJson(res, 409, {
           error: "downgrade_not_allowed",
-          message: PLUS_BLOCKED_BY_PRO_MESSAGE
+          message: PRO_TO_PLUS_USE_PORTAL_MESSAGE
         });
       }
     }
@@ -664,6 +666,23 @@ async function handleChangePlan(req, res) {
   }
 }
 
+async function handleSyncSubscription(req, res) {
+  const { user } = await requireSupabaseUser(req);
+  const config = getBillingConfig();
+  if (!config.enabled) return sendJson(res, 503, billingNotConfiguredPayload(config));
+  try {
+    const result = await syncSubscriptionFromStripe(user.id, { stripe: getStripeClient(config) });
+    const entitlement = await getMySubscription(user.id);
+    return sendJson(res, 200, { ...result, entitlement });
+  } catch (error) {
+    const status = error.statusCode || error.status || 500;
+    return sendJson(res, status, {
+      error: error.code || "sync_failed",
+      message: error.message || "Could not sync your subscription from Stripe."
+    });
+  }
+}
+
 async function readRawBody(req) {
   if (typeof req.body === "string") return req.body;
   if (Buffer.isBuffer(req.body)) return req.body.toString("utf8");
@@ -728,21 +747,31 @@ async function syncSubscription(subscription, { paymentConfirmed = false } = {})
 
   const active = ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status);
   const priorPlan = String(user.plan || "").toLowerCase();
+  const periodEndTimestamp = subscriptionPeriodEnd(subscription);
+  const periodEnd = periodEndTimestamp ? new Date(periodEndTimestamp * 1000) : null;
   const entitlement = resolveSubscriptionPlanEntitlement({
     priorPlanId: priorPlan,
     mappedPlanId: planId,
     paymentConfirmed,
-    metadata: subscription.metadata
+    metadata: subscription.metadata,
+    subscriptionStatus: subscription.status,
+    currentPeriodEnd: periodEnd ? periodEnd.toISOString() : null
   });
-  planId = active ? entitlement.activePlanId : planId;
-
-  const periodEndTimestamp = subscriptionPeriodEnd(subscription);
-  const periodEnd = periodEndTimestamp ? new Date(periodEndTimestamp * 1000) : null;
+  planId = entitlement.activePlanId || (active ? planId : null);
+  const stillInPaidPeriod = periodEnd && periodEnd.getTime() > Date.now();
+  if (!active && stillInPaidPeriod && (priorPlan === "pro" || priorPlan === "plus")) {
+    planId = priorPlan === "pro" ? "pro" : priorPlan;
+  }
 
   await db().user.update({
     where: { id: user.id },
     data: {
-      plan: active ? (planId ? normalizePlan(planId) : user.plan) : "BASIC",
+      plan:
+        planId && (active || stillInPaidPeriod)
+          ? normalizePlan(planId)
+          : active
+            ? user.plan
+            : "BASIC",
       stripeCustomerId: stripeObjectId(subscription.customer) || user.stripeCustomerId,
       stripeSubscriptionId: subscription.id || user.stripeSubscriptionId,
       subscriptionStatus: subscription.status || null,
@@ -859,7 +888,25 @@ async function processWebhookEvent(event) {
     }
 
     try {
-      const planId = resolvePlanIdFromSubscription(subscription);
+      const mappedPlanId = resolvePlanIdFromSubscription(subscription);
+      const priorPlanId =
+        String(
+          (await findUserForSubscription(subscription))?.plan ||
+            subscription.metadata?.previousPlanId ||
+            ""
+        ).toLowerCase() || null;
+      const periodEndIso = subscription.current_period_end
+        ? new Date(subscription.current_period_end * 1000).toISOString()
+        : null;
+      const entitlement = resolveSubscriptionPlanEntitlement({
+        priorPlanId,
+        mappedPlanId,
+        paymentConfirmed: true,
+        metadata: subscription.metadata,
+        subscriptionStatus: subscription.status,
+        currentPeriodEnd: periodEndIso
+      });
+      const planId = entitlement.activePlanId || mappedPlanId;
       const studentUserId =
         subscription.metadata?.userId ||
         (await findUserForSubscription(subscription))?.id ||
@@ -979,6 +1026,9 @@ export function createBillingApiMiddleware(deps = {}) {
       if (url.pathname === "/api/billing/cancel" && req.method === "POST") return await handleCancel(req, res);
       if (url.pathname === "/api/billing/reactivate" && req.method === "POST") return await handleReactivate(req, res);
       if (url.pathname === "/api/billing/change-plan" && req.method === "POST") return await handleChangePlan(req, res);
+      if (url.pathname === "/api/billing/sync-subscription" && req.method === "POST") {
+        return await handleSyncSubscription(req, res);
+      }
       if (
         (url.pathname === "/api/billing/webhook" || url.pathname === "/api/stripe-webhook") &&
         req.method === "POST"

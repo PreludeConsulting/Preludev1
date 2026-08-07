@@ -144,21 +144,34 @@ export default function BillingMembershipPanel({
   const actions = membership.actions || {};
   const essaySupportHref = buildEssaySupportPath();
   const plansHref = STUDENT_BILLING_PLANS_PATH;
-  const isEssaySupport = summary.plan?.id === "basic";
+  const isEssaySupportOnly =
+    summary.plan?.id === "basic" && !summary.entitlement?.isActive && !(membership.accessActive);
   const reviewCredits = summary.reviewCredits || null;
   const hasEssayCredits =
     Number(reviewCredits?.purchased || 0) > 0 || Number(reviewCredits?.remaining || 0) > 0;
+  const sessionCredits = summary.sessions?.subscriptionCredits || null;
+  const scheduledMembership = summary.entitlement?.scheduledMembership || summary.membership?.pendingPlanId || null;
+  const scheduledAt =
+    summary.entitlement?.scheduledMembershipEffectiveAt ||
+    membership.entitlementEndsAt ||
+    membership.endsAt ||
+    null;
   const canManageBilling = Boolean(
     membership.hasCustomer ||
       summary.canOpenCustomerPortal ||
       membership.stripeSubscriptionId ||
       actions.managePaymentMethod
   );
+  const hasActiveMembership = Boolean(
+    summary.entitlement?.isActive ||
+      membership.accessActive ||
+      summary.entitlement?.effectiveMembership
+  );
 
   return (
-    <SectionCard title={isEssaySupport ? "Essay Support" : "Membership"} className="dash-panel" id="billing-membership">
+    <SectionCard title={isEssaySupportOnly ? "Essay Support" : "Membership"} className="dash-panel" id="billing-membership">
       <div className="dash-billing-membership">
-        {isEssaySupport ? (
+        {isEssaySupportOnly ? (
           <EssaySupportCreditsSummary
             reviewCredits={summary.reviewCredits}
             packages={summary.sessions?.packages}
@@ -207,6 +220,12 @@ export default function BillingMembershipPanel({
               </dl>
             ) : null}
 
+            {sessionCredits?.active ? (
+              <p className="dash-muted">
+                Session credits: {sessionCredits.remaining} of {sessionCredits.allowance} remaining
+              </p>
+            ) : null}
+
             <p className="dash-muted dash-billing-membership__explanation">{membership.explanation}</p>
             {hasEssayCredits ? (
               <div className="dash-billing-membership__essay-alongside">
@@ -216,24 +235,28 @@ export default function BillingMembershipPanel({
                 />
               </div>
             ) : null}
-            {membership.pendingPlanId === "pro" ? (
-              <p className="dash-muted">
+            {scheduledMembership === "pro" ? (
+              <p className="dash-muted" role="status">
                 Upgrade to Pro is pending payment confirmation
-                {membership.entitlementEndsAt || membership.endsAt
-                  ? ` (current period through ${formatBillingDate(membership.entitlementEndsAt || membership.endsAt)})`
-                  : ""}
-                .
+                {scheduledAt ? ` (current period through ${formatBillingDate(scheduledAt)})` : ""}.
               </p>
             ) : null}
-            {syncing || actionMessage === "Syncing your plan…" ? (
+            {scheduledMembership === "plus" ? (
               <p className="dash-muted" role="status">
-                Syncing your plan…
+                Scheduled change: switches to Plus
+                {scheduledAt ? ` on ${formatBillingDate(scheduledAt)}` : " at the end of the current billing period"}.
+                You keep Pro access until then.
+              </p>
+            ) : null}
+            {syncing ? (
+              <p className="dash-muted" role="status">
+                Syncing your subscription…
               </p>
             ) : null}
           </>
         )}
 
-        {actionMessage ? (
+        {actionMessage && actionMessage !== "Syncing your plan…" ? (
           <p className="dash-save-state dash-save-state--ok" role="status">
             {actionMessage}
           </p>
@@ -250,7 +273,7 @@ export default function BillingMembershipPanel({
               Manage billing
             </SecondaryButton>
           ) : null}
-          {!isEssaySupport && actions.reactivate ? (
+          {!isEssaySupportOnly && actions.reactivate ? (
             <PrimaryButton
               type="button"
               className="dash-btn--sm"
@@ -266,9 +289,11 @@ export default function BillingMembershipPanel({
               Purchase Essay Support
             </SecondaryButton>
           ) : null}
-          <SecondaryButton as={Link} to={plansHref} className="dash-btn--sm">
-            View plans
-          </SecondaryButton>
+          {!hasActiveMembership ? (
+            <SecondaryButton as={Link} to={plansHref} className="dash-btn--sm">
+              View plans
+            </SecondaryButton>
+          ) : null}
           {!compact ? (
             <SecondaryButton type="button" className="dash-btn--sm" onClick={load}>
               <RefreshCw className="h-4 w-4" aria-hidden="true" />

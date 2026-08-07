@@ -140,6 +140,19 @@ export function deriveMembershipStatus({
     };
   }
 
+  // Paid Plus/Pro with a future entitlement window but missing/stale Stripe status —
+  // keep membership access so billing and booking stay aligned with session credits.
+  if ((plan === "plus" || plan === "pro") && stillInPaidPeriod && !status) {
+    return {
+      key: "active",
+      label: "Active",
+      autoRenew: !cancelAtPeriodEnd,
+      accessActive: true,
+      endsAt: null,
+      renewsAt: !cancelAtPeriodEnd && periodEndValid ? periodEnd.toISOString() : null
+    };
+  }
+
   // Canceled/unpaid but still within the already-paid window — keep access until entitlement ends.
   if (CANCELED.has(status) && stillInPaidPeriod && (plan === "plus" || plan === "pro")) {
     return {
@@ -210,6 +223,11 @@ export function membershipAccessExplanation(
   if (statusInfo.accessActive) {
     return "Your membership is active.";
   }
+  // Do not claim "inactive" when the student still has live session credits —
+  // that contradictory copy was a primary Plans & Billing / Book a Session bug.
+  if (subscriptionCreditsRemaining > 0) {
+    return `You have ${subscriptionCreditsRemaining} session credit${subscriptionCreditsRemaining === 1 ? "" : "s"} remaining in the current billing period.`;
+  }
   if (sessionBalance > 0) {
     return `Your monthly membership is inactive, but you still have ${sessionBalance} purchased session${sessionBalance === 1 ? "" : "s"} available.`;
   }
@@ -217,7 +235,13 @@ export function membershipAccessExplanation(
 }
 
 export const PLUS_BLOCKED_BY_PRO_MESSAGE =
-  "To switch to Plus, cancel your current Pro subscription first. Your Pro access will remain active until the end of your current billing period. Once it expires, you can subscribe to Plus.";
+  "To switch to Plus, use Manage billing. Your Pro access stays active until the end of the current billing period, then Plus begins.";
+
+/**
+ * Prefer portal-managed Pro→Plus scheduling over creating a second subscription.
+ */
+export const PRO_TO_PLUS_USE_PORTAL_MESSAGE =
+  "Pro to Plus is scheduled at the end of your current Pro billing period. Use Manage billing in Stripe to schedule the change.";
 
 /**
  * True when the student still has paid Pro access (including cancel_at_period_end
@@ -276,11 +300,19 @@ export function buildSubscriptionEntitlement({
     statusInfo.accessActive && (activePlan === "plus" || activePlan === "pro");
   const essaySupportAccess =
     Number(essaySupportPurchased) > 0 || Number(essaySupportRemaining) > 0;
+  const scheduledDowngrade = paidPlanActive && activePlan === "pro" && pendingPlan === "plus";
+  const scheduledUpgrade = paidPlanActive && activePlan === "plus" && pendingPlan === "pro";
   return {
     activePlan: paidPlanActive ? activePlan.toUpperCase() : activePlan === "basic" ? "NONE" : activePlan.toUpperCase(),
     activePlanId: paidPlanActive ? activePlan : "basic",
+    /** Effective membership right now: plus | pro | null */
+    effectiveMembership: paidPlanActive ? activePlan : null,
     pendingPlan: pendingPlan ? pendingPlan.toUpperCase() : null,
     pendingPlanId: pendingPlan,
+    /** Future membership Stripe has scheduled (Portal/app downgrade or pending upgrade). */
+    scheduledMembership: pendingPlan === "plus" || pendingPlan === "pro" ? pendingPlan : null,
+    scheduledMembershipEffectiveAt:
+      pendingPlan === "plus" || pendingPlan === "pro" ? endsAt : null,
     subscriptionStatus: subscriptionStatus || null,
     isActive: paidPlanActive,
     essaySupportAccess,
@@ -289,7 +321,8 @@ export function buildSubscriptionEntitlement({
     /** True when the student may use the main dashboard after a paid purchase. */
     dashboardAccess: paidPlanActive || essaySupportAccess,
     cancelAtPeriodEnd: Boolean(cancelAtPeriodEnd),
-    downgradeScheduled: false,
+    downgradeScheduled: scheduledDowngrade,
+    upgradePending: scheduledUpgrade,
     cancellationScheduled: Boolean(cancelAtPeriodEnd && paidPlanActive),
     billingPeriodStart: billingPeriodStart || null,
     billingPeriodEnd: billingPeriodEnd || null,

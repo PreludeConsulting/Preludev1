@@ -1807,7 +1807,7 @@ export function StudentMentor() {
     mentorAccess?.reason === "daily_booking_limit" ||
     mentorAccess?.dailyBookingUsed === true ||
     hasPlusProBookingSubmissionToday(creditMeetings);
-  const canShowBookingForm = canBook && !dailyBookingUsed;
+  const mayRequestSlots = canBook && !dailyBookingUsed;
   const mentorUserId = m?.userId || m?.mentorUserId || null;
   const {
     dates: bookingSlotDates,
@@ -1818,19 +1818,42 @@ export function StudentMentor() {
     mentorUserId,
     schedule: m?.availabilitySchedule || null,
     meetings: creditMeetings,
-    enabled: Boolean(m && canShowBookingForm)
+    enabled: Boolean(m && mayRequestSlots)
   });
-  const remainingLabel =
-    mentorAccess?.sessionCreditBalanceLabel ||
-    (mentorAccess && typeof mentorAccess.subscriptionRemaining === "number" && mentorAccess.allowance
-      ? `${mentorAccess.subscriptionRemaining} of ${mentorAccess.allowance} session credits remaining`
-      : mentorAccess && typeof mentorAccess.remainingSessions === "number"
-        ? `${mentorAccess.remainingSessions} session${mentorAccess.remainingSessions === 1 ? "" : "s"} remaining`
-        : sessionCreditBalanceLabel(creditMeetings));
-  const noSessionCredits = mentorAccess?.reason === "no_session_credits" ||
-    (mentorAccess?.allowed === false &&
-      mentorAccess?.packageRemaining === 0 &&
-      Number(mentorAccess?.allowance) > 0);
+  const remainingLabel = mentorAccess
+    ? (
+      mentorAccess.sessionCreditBalanceLabel ||
+      (typeof mentorAccess.subscriptionRemaining === "number" && mentorAccess.allowance
+        ? `${mentorAccess.subscriptionRemaining} of ${mentorAccess.allowance} session credits remaining`
+        : typeof mentorAccess.remainingSessions === "number"
+          ? `${mentorAccess.remainingSessions} session${mentorAccess.remainingSessions === 1 ? "" : "s"} remaining`
+          : null)
+    )
+    : null;
+  const bookingBlockReason = (() => {
+    if (mentorAccess == null) return "loading";
+    if (dailyBookingUsed) return "daily_booking_limit";
+    if (mentorAccess.allowed) {
+      const noSlots =
+        !bookingSlotsLoading &&
+        !bookingSlotsError &&
+        Array.isArray(bookingSlotDates) &&
+        bookingSlotDates.every(
+          (day) => !day?.hasAvailability && !(day?.slots || []).some((slot) => slot?.available)
+        );
+      return noSlots ? "no_mentor_availability" : "ok";
+    }
+    if (
+      mentorAccess.reason === "no_session_credits" ||
+      (Number(mentorAccess.allowance) > 0 &&
+        Number(mentorAccess.subscriptionRemaining) <= 0 &&
+        Number(mentorAccess.packageRemaining) <= 0)
+    ) {
+      return "no_session_credits";
+    }
+    return "no_subscription";
+  })();
+  const noSessionCredits = bookingBlockReason === "no_session_credits";
   const periodEndLabel = mentorAccess?.periodEnd
     ? new Date(mentorAccess.periodEnd).toLocaleDateString(undefined, {
         month: "long",
@@ -1838,7 +1861,6 @@ export function StudentMentor() {
         year: "numeric"
       })
     : null;
-  // Book a Session must follow mentorAccess (session ledger), not a single plan-name field.
   const hasSessionEntitlement = Boolean(
     mentorAccess?.allowed
     || mentorAccess?.reason === "no_session_credits"
@@ -1848,12 +1870,8 @@ export function StudentMentor() {
     || Number(mentorAccess?.subscriptionRemaining) > 0
   );
   const showBookingSurface = canAccess("oneOnOneSessions") || hasSessionEntitlement;
-  const mentorHasNoSlots =
-    canShowBookingForm
-    && !bookingSlotsLoading
-    && !bookingSlotsError
-    && Array.isArray(bookingSlotDates)
-    && bookingSlotDates.every((day) => !day?.hasAvailability && !(day?.slots || []).some((slot) => slot?.available));
+  const mentorHasNoSlots = bookingBlockReason === "no_mentor_availability";
+  const canShowBookingForm = mayRequestSlots && bookingBlockReason === "ok";
   const upcoming = [...(meetings || [])]
     .filter((meeting) => meeting.status !== "pending")
     .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
@@ -1988,37 +2006,45 @@ export function StudentMentor() {
                 ) : null}
               </div>
 
-              {!canBook && !dailyBookingUsed ? (
+              {bookingBlockReason === "loading" ? (
+                <p className="dash-plan-session-banner__meta" role="status">
+                  Checking your session access…
+                </p>
+              ) : null}
+
+              {bookingBlockReason === "no_subscription" ? (
                 <div className="dash-plan-session-banner__meta" role="alert">
-                  {noSessionCredits ? (
-                    <>
-                      <p>
-                        <strong>No session credits remaining</strong>
-                        {periodEndLabel ? `. Current paid period ends ${periodEndLabel}.` : "."}
-                      </p>
-                      <p>
-                        Your session credits will reset after your next successful subscription payment.
-                      </p>
-                    </>
-                  ) : (
-                    <p>
-                      No sessions remaining with this mentor.{" "}
-                      <button
-                        type="button"
-                        className="dash-linkish"
-                        onClick={() => openNoMentorAccessModal?.()}
-                      >
-                        View Plus and Pro
-                      </button>
-                    </p>
-                  )}
+                  <p>
+                    <strong>Plus or Pro is required to book sessions.</strong>
+                  </p>
+                  <p>
+                    <button
+                      type="button"
+                      className="dash-linkish"
+                      onClick={() => openNoMentorAccessModal?.()}
+                    >
+                      View Plus and Pro
+                    </button>
+                  </p>
                 </div>
               ) : null}
 
-              {canShowBookingForm && mentorHasNoSlots ? (
+              {bookingBlockReason === "no_session_credits" ? (
+                <div className="dash-plan-session-banner__meta" role="alert">
+                  <p>
+                    <strong>No session credits remaining</strong>
+                    {periodEndLabel ? `. Current paid period ends ${periodEndLabel}.` : "."}
+                  </p>
+                  <p>
+                    Your session credits will reset after your next successful subscription payment.
+                  </p>
+                </div>
+              ) : null}
+
+              {bookingBlockReason === "no_mentor_availability" ? (
                 <div className="dash-plan-session-banner__meta" role="status">
                   <p>
-                    <strong>Your mentor has no open booking times right now.</strong>
+                    <strong>Your mentor currently has no available session times.</strong>
                   </p>
                   <p>
                     You still have session credits available. Check back later or message your mentor

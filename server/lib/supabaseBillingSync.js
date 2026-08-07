@@ -131,16 +131,34 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
     }
   }
 
+  const periodEndIso = subscription.current_period_end
+    ? new Date(subscription.current_period_end * 1000).toISOString()
+    : null;
   const entitlement = resolveSubscriptionPlanEntitlement({
     priorPlanId,
     mappedPlanId,
     paymentConfirmed: confirmed,
-    metadata: subscription.metadata
+    metadata: subscription.metadata,
+    subscriptionStatus: subscription.status,
+    currentPeriodEnd: periodEndIso
   });
-  const planId = active ? entitlement.activePlanId : mappedPlanId || null;
+  const stillInPaidPeriod =
+    periodEndIso && new Date(periodEndIso).getTime() > Date.now();
+  // Prefer effective entitlement over raw Stripe price mapping — keeps Pro during
+  // scheduled Plus downgrades and through cancel_at_period_end paid windows.
+  let planId = entitlement.activePlanId || (active ? mappedPlanId : null) || null;
+  if (
+    !active &&
+    stillInPaidPeriod &&
+    (priorPlanId === "pro" || priorPlanId === "plus")
+  ) {
+    planId = priorPlanId === "pro" ? "pro" : priorPlanId;
+  }
+  const pendingPlanId = entitlement.pendingPlanId || entitlement.scheduledPlanId || null;
 
   await persistSubscriptionFields(userId, subscription, planId, {
-    pendingPlanId: active ? entitlement.pendingPlanId : subscription.metadata?.pendingPlanId || null,
+    priorPlanId,
+    pendingPlanId,
     paymentConfirmed: confirmed
   });
 
@@ -153,14 +171,12 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
       currentPeriodStart: subscription.current_period_start
         ? new Date(subscription.current_period_start * 1000).toISOString()
         : null,
-      currentPeriodEnd: subscription.current_period_end
-        ? new Date(subscription.current_period_end * 1000).toISOString()
-        : null,
+      currentPeriodEnd: periodEndIso,
       cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
       canceledAt: subscription.canceled_at
         ? new Date(subscription.canceled_at * 1000).toISOString()
         : null,
-      pendingPlanId: entitlement.pendingPlanId
+      pendingPlanId
     });
     try {
       if (confirmed) {
@@ -171,7 +187,11 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
     }
   } else if (userId) {
     // Still persist status/period when canceled or past_due without forcing plan_id to basic mid-period.
-    await persistSubscriptionFields(userId, subscription, planId, { paymentConfirmed: confirmed });
+    await persistSubscriptionFields(userId, subscription, planId, {
+      priorPlanId,
+      pendingPlanId,
+      paymentConfirmed: confirmed
+    });
   }
 
   if (entitlement.shouldClearPendingMetadata) {

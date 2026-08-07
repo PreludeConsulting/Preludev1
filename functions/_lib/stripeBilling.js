@@ -328,6 +328,11 @@ function resolveSubscriptionPriceId(subscription) {
   return stripeObjectId(recurring?.price);
 }
 
+/** Pull-path alias used by POST /api/billing/sync-subscription. */
+export async function syncSubscriptionFromStripeEvent(context, subscription, options = {}) {
+  return syncSubscription(context, subscription, options);
+}
+
 async function syncSubscription(context, subscription, { paymentConfirmed = false } = {}) {
   let userId = subscription.metadata?.userId || null;
   let priorPlanId = null;
@@ -398,26 +403,31 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
   const cancelAtPeriodEnd = Boolean(subscription.cancel_at_period_end);
   const priceId = resolveSubscriptionPriceId(subscription);
 
-  // Plus→Pro price change must not unlock Pro until a paid invoice confirms it.
+  // Plus→Pro price change must not unlock Pro until payment is confirmed
+  // (or Portal already shows an active Pro price without pending-upgrade metadata).
   // Sticky pendingUpgrade metadata must not demote an already-confirmed Pro account.
+  // Pro→Plus keeps Pro effective through the paid period (scheduledMembership = plus).
   const entitlement = resolveSubscriptionPlanEntitlement({
     priorPlanId,
     mappedPlanId: planId,
     paymentConfirmed: confirmed,
-    metadata: subscription.metadata
+    metadata: subscription.metadata,
+    subscriptionStatus: status,
+    currentPeriodEnd: periodEnd
   });
   let activePlanId = active ? entitlement.activePlanId : null;
-  let pendingPlanId = active ? entitlement.pendingPlanId : null;
+  let pendingPlanId = active ? (entitlement.pendingPlanId || entitlement.scheduledPlanId) : null;
 
-  // Canceled but still within paid Pro window — keep Pro entitlement.
+  // Canceled but still within paid Pro/Plus window — keep effective membership.
   if (
     !active &&
-    priorPlanId === "pro" &&
+    (priorPlanId === "pro" || priorPlanId === "plus") &&
     periodEnd &&
     new Date(periodEnd).getTime() > Date.now() &&
     (status === "canceled" || status === "unpaid" || cancelAtPeriodEnd)
   ) {
-    activePlanId = "pro";
+    activePlanId = priorPlanId === "pro" ? "pro" : priorPlanId;
+    if (entitlement.scheduledPlanId === "plus") pendingPlanId = "plus";
   }
 
   await syncSupabasePaymentComplete(context, userId, {
@@ -775,6 +785,41 @@ async function processWebhookEvent(context, event) {
 
   if (["customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"].includes(event.type)) {
     await syncSubscription(context, object);
+    // Expire unused session credits only after Stripe period_end has passed.
+    let userId = object.metadata?.userId || null;
+    if (!userId) {
+      const customerId = stripeObjectId(object.customer);
+      if (customerId) {
+        try {
+          const rows = await supabaseRest(
+            context,
+            `profiles?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=id&limit=1`,
+            { method: "GET", prefer: "return=representation" }
+          );
+          userId = Array.isArray(rows) && rows[0]?.id ? rows[0].id : null;
+        } catch {
+          userId = null;
+        }
+      }
+    }
+    if (userId) {
+      try {
+        const periodEnd = subscriptionPeriodIso(object, "current_period_end");
+        if (periodEnd && new Date(periodEnd).getTime() <= Date.now()) {
+          await supabaseRest(
+            context,
+            `subscription_session_periods?student_user_id=eq.${encodeURIComponent(userId)}&status=eq.active&period_end=lte.${encodeURIComponent(periodEnd)}`,
+            {
+              method: "PATCH",
+              prefer: "return=minimal",
+              body: { status: "expired", updated_at: new Date().toISOString() }
+            }
+          );
+        }
+      } catch (expireError) {
+        console.error("[stripe-billing] session period expire failed", expireError?.message || expireError);
+      }
+    }
   }
 
   if (
@@ -869,12 +914,41 @@ async function processWebhookEvent(context, event) {
     if (subscriptionId) {
       const subscription = await stripeRequest(context, "GET", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
       await syncSubscription(context, subscription, { paymentConfirmed: true });
-      const userId = subscription.metadata?.userId;
-      const planId =
+      let priorPlanId = null;
+      let profileUserId = null;
+      const customerId = stripeObjectId(subscription.customer);
+      if (customerId) {
+        try {
+          const rows = await supabaseRest(
+            context,
+            `profiles?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=id,plan_id&limit=1`,
+            { method: "GET", prefer: "return=representation" }
+          );
+          priorPlanId = Array.isArray(rows) && rows[0]?.plan_id ? String(rows[0].plan_id).toLowerCase() : null;
+          profileUserId = Array.isArray(rows) && rows[0]?.id ? rows[0].id : null;
+        } catch {
+          priorPlanId = null;
+        }
+      }
+      const mappedPlanId =
         (PAID_PLAN_IDS.includes(subscription.metadata?.planId) && subscription.metadata.planId) ||
         (subscription.items?.data || [])
           .map((item) => planIdForPriceId(stripeObjectId(item.price), getBillingConfig(context)))
           .find(Boolean);
+      const periodEndIso = subscriptionPeriodIso(subscription, "current_period_end");
+      const entitlement = resolveSubscriptionPlanEntitlement({
+        priorPlanId:
+          priorPlanId ||
+          String(subscription.metadata?.previousPlanId || "").toLowerCase() ||
+          null,
+        mappedPlanId,
+        paymentConfirmed: true,
+        metadata: subscription.metadata,
+        subscriptionStatus: subscription.status,
+        currentPeriodEnd: periodEndIso
+      });
+      const userId = subscription.metadata?.userId || profileUserId;
+      const planId = entitlement.activePlanId || mappedPlanId;
       if (userId && planId && ["plus", "pro"].includes(String(planId).toLowerCase())) {
         try {
           const billingReason = String(object.billing_reason || "").toLowerCase();

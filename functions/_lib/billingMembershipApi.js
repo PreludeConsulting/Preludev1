@@ -329,6 +329,8 @@ export async function handleBillingSummary(context) {
       entitlementEndsAt,
       sessionCreditsRemaining: creditSummary.active ? creditSummary.remaining : 0,
       sessionCreditsTotal: creditSummary.active ? creditSummary.allowance : 0,
+      essaySupportPurchased: reviewCredits.purchased,
+      essaySupportRemaining: reviewCredits.remaining,
       stripeCustomerId: sub.stripe_customer_id || ctx.viewer.stripe_customer_id || null,
       stripeSubscriptionId: sub.stripe_subscription_id || null,
       stripePriceId: sub.stripe_price_id || null
@@ -350,6 +352,7 @@ export async function handleBillingSummary(context) {
       },
       membership: {
         ...statusInfo,
+        accessActive: statusInfo.accessActive,
         subscriptionStatus: sub.subscription_status || null,
         cancelAtPeriodEnd: Boolean(sub.subscription_cancel_at_period_end),
         currentPeriodStart: sub.subscription_current_period_start || null,
@@ -746,6 +749,52 @@ export async function handleBillingPortal(context) {
   }
 }
 
+/**
+ * Pull the customer's Stripe subscription and re-run entitlement sync.
+ * Used when returning from Customer Portal before the webhook arrives.
+ */
+export async function handleBillingSyncSubscription(context) {
+  try {
+    if (context.request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        }
+      });
+    }
+    if (context.request.method !== "POST") {
+      return json({ error: "method_not_allowed", message: "Use POST." }, 405);
+    }
+    const config = getBillingConfig(context);
+    if (!config.enabled) return json(billingNotConfiguredPayload(), 503);
+
+    const { user } = await requireUser(context);
+    const ctx = await resolveBillingContext(context, user.id);
+    if (!ctx.eligible) {
+      return json({ ok: true, synced: false, reason: ctx.reason || "ineligible" });
+    }
+    const subscriptionId = ctx.subscriber?.stripe_subscription_id || null;
+    if (!subscriptionId) {
+      return json({ ok: true, synced: false, reason: "no_subscription" });
+    }
+
+    const subscription = await stripeRequest(
+      context,
+      "GET",
+      `/v1/subscriptions/${encodeURIComponent(subscriptionId)}?expand[]=items.data.price&expand[]=latest_invoice`
+    );
+    const { syncSubscriptionFromStripeEvent } = await import("./stripeBilling.js");
+    if (typeof syncSubscriptionFromStripeEvent === "function") {
+      await syncSubscriptionFromStripeEvent(context, subscription);
+    }
+    return json({ ok: true, synced: true, subscriptionId });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
 function configuredPriceId(value) {
   const priceId = String(value || "").trim();
   return /^price_[A-Za-z0-9]+$/.test(priceId) ? priceId : null;
@@ -861,22 +910,59 @@ export async function handleBillingChangePlan(context) {
     }
 
     const isUpgrade = currentPlan === "plus" && targetPlan === "pro";
-    if (currentPlan === "pro" && targetPlan === "plus") {
-      return json(
-        {
-          error: "downgrade_not_allowed",
-          message: PLUS_BLOCKED_BY_PRO_MESSAGE
-        },
-        409
-      );
-    }
-    if (!isUpgrade) {
+    const isDowngrade = currentPlan === "pro" && targetPlan === "plus";
+    if (!isUpgrade && !isDowngrade) {
       return json({ error: "invalid_plan_change", message: "That plan change is not supported." }, 400);
     }
 
     const periodEndIso = subscription.current_period_end
       ? new Date(subscription.current_period_end * 1000).toISOString()
       : ctx.subscriber.subscription_current_period_end || null;
+
+    if (isDowngrade) {
+      const params = new URLSearchParams();
+      params.set("items[0][id]", recurringItem.id);
+      params.set("items[0][price]", targetPriceId);
+      params.set("items[0][quantity]", "1");
+      params.set("proration_behavior", "none");
+      params.set("metadata[planId]", "plus");
+      params.set("metadata[userId]", ctx.subscriber.id);
+      params.set("metadata[previousPlanId]", "pro");
+      params.set("metadata[pendingPlanId]", "plus");
+      params.set("metadata[pendingUpgrade]", "");
+      params.set("metadata[pendingDowngrade]", "true");
+      params.set("metadata[deferDowngrade]", "true");
+      params.set("metadata[deferUntil]", periodEndIso || "");
+
+      await stripeRequest(
+        context,
+        "POST",
+        `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`,
+        params
+      );
+
+      await adminRest(context, `profiles?id=eq.${encodeURIComponent(ctx.subscriber.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          plan_id: "pro",
+          pending_plan_id: "plus",
+          stripe_price_id: targetPriceId,
+          entitlement_ends_at: periodEndIso,
+          updated_at: new Date().toISOString()
+        }),
+        headers: { Prefer: "return=minimal" }
+      });
+
+      return json({
+        ok: true,
+        processing: true,
+        fromPlan: currentPlan,
+        targetPlan,
+        deferred: true,
+        message:
+          "Plus is scheduled for the end of your current Pro billing period. You keep Pro access until then."
+      });
+    }
 
     const params = new URLSearchParams();
     params.set("items[0][id]", recurringItem.id);
@@ -888,6 +974,7 @@ export async function handleBillingChangePlan(context) {
     params.set("metadata[previousPlanId]", currentPlan);
     params.set("metadata[pendingPlanId]", targetPlan);
     params.set("metadata[pendingUpgrade]", "true");
+    params.set("metadata[pendingDowngrade]", "");
     params.set("metadata[deferDowngrade]", "");
     params.set("metadata[deferUntil]", "");
 

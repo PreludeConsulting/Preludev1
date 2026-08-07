@@ -87,3 +87,14 @@ export async function changeMembershipPlan(targetPlan) {
     throw mapped;
   }
 }
+
+/**
+ * Pull the customer's Stripe subscription into Prelude (before webhooks arrive).
+ * Used when returning from Checkout or the Customer Portal.
+ */
+export async function syncSubscriptionFromStripe() {
+  return billingRequest("/api/billing/sync-subscription", {
+    method: "POST",
+    body: "{}"
+  });
+}
