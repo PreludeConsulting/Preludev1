@@ -248,3 +248,204 @@ export async function grantSessionPeriodFromPaidInvoice(supabaseRest, context, {
   }
   return created;
 }
+
+function randomUuid() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Reserve exactly 1 session credit for a Book a Session request (Workers / REST).
+ * Idempotent on booking idempotency key.
+ */
+export async function reserveSessionCreditRow(supabaseRest, context, {
+  studentUserId,
+  idempotencyKey,
+  meetingId = null
+}) {
+  if (!studentUserId) {
+    const error = new Error("You have no session credits remaining for the current billing period.");
+    error.statusCode = 409;
+    error.code = "NO_SESSION_CREDITS";
+    throw error;
+  }
+  const key = String(idempotencyKey || "").trim();
+  if (!key) {
+    const error = new Error("A booking idempotency key is required to reserve a session credit.");
+    error.statusCode = 400;
+    error.code = "idempotency_key_required";
+    throw error;
+  }
+
+  const existing = first(
+    await supabaseRest(
+      context,
+      `subscription_session_reservations?idempotency_key=eq.${encodeURIComponent(key)}&select=id,period_id&limit=1`,
+      { method: "GET", prefer: "return=representation" }
+    )
+  );
+  if (existing?.id) {
+    return {
+      reserved: true,
+      duplicate: true,
+      periodId: existing.period_id,
+      reservationId: existing.id
+    };
+  }
+
+  const nowIso = new Date().toISOString();
+  const period = first(
+    await supabaseRest(
+      context,
+      `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&remaining=gt.0&select=id,remaining,allowance&order=period_start.desc&limit=1`,
+      { method: "GET", prefer: "return=representation" }
+    )
+  );
+  if (!period?.id || Number(period.remaining) <= 0) {
+    const error = new Error("You have no session credits remaining for the current billing period.");
+    error.statusCode = 409;
+    error.code = "NO_SESSION_CREDITS";
+    throw error;
+  }
+
+  const nextRemaining = Number(period.remaining) - 1;
+  const updated = await supabaseRest(
+    context,
+    `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}&status=eq.active&remaining=eq.${encodeURIComponent(String(period.remaining))}`,
+    {
+      method: "PATCH",
+      prefer: "return=representation",
+      body: {
+        remaining: nextRemaining,
+        updated_at: new Date().toISOString()
+      }
+    }
+  );
+  if (!first(updated)?.id) {
+    const error = new Error("You have no session credits remaining for the current billing period.");
+    error.statusCode = 409;
+    error.code = "NO_SESSION_CREDITS";
+    throw error;
+  }
+
+  const reservationId = randomUuid();
+  try {
+    await supabaseRest(context, "subscription_session_reservations", {
+      method: "POST",
+      prefer: "return=minimal,resolution=ignore-duplicates",
+      body: {
+        id: reservationId,
+        period_id: period.id,
+        student_user_id: studentUserId,
+        meeting_id: meetingId,
+        amount: -1,
+        idempotency_key: key
+      }
+    });
+  } catch (error) {
+    // Roll back the decrement if reservation insert fails (non-duplicate).
+    const message = String(error?.message || "");
+    if (!/duplicate|unique|23505/i.test(message)) {
+      await supabaseRest(
+        context,
+        `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}`,
+        {
+          method: "PATCH",
+          prefer: "return=minimal",
+          body: {
+            remaining: Number(period.remaining),
+            updated_at: new Date().toISOString()
+          }
+        }
+      ).catch(() => {});
+      throw error;
+    }
+  }
+
+  return { reserved: true, duplicate: false, periodId: period.id, reservationId };
+}
+
+export async function attachSessionCreditMeetingId(supabaseRest, context, {
+  idempotencyKey,
+  meetingId
+}) {
+  if (!idempotencyKey || !meetingId) return;
+  await supabaseRest(
+    context,
+    `subscription_session_reservations?idempotency_key=eq.${encodeURIComponent(idempotencyKey)}&or=(meeting_id.is.null,meeting_id.eq.${encodeURIComponent(meetingId)})`,
+    {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: { meeting_id: meetingId }
+    }
+  );
+}
+
+/** Restore one credit when a pending request is canceled/declined unused. */
+export async function releaseSessionCreditRow(supabaseRest, context, {
+  meetingId = null,
+  idempotencyKey = null
+}) {
+  if (!meetingId && !idempotencyKey) return null;
+  const filters = [];
+  if (meetingId) filters.push(`meeting_id=eq.${encodeURIComponent(meetingId)}`);
+  if (idempotencyKey) filters.push(`idempotency_key=eq.${encodeURIComponent(idempotencyKey)}`);
+  const reservation = first(
+    await supabaseRest(
+      context,
+      `subscription_session_reservations?or=(${filters.join(",")})&amount=eq.-1&select=id,period_id,student_user_id,meeting_id,idempotency_key&limit=1`,
+      { method: "GET", prefer: "return=representation" }
+    )
+  );
+  if (!reservation?.id) return null;
+
+  const releaseKey = `release:${reservation.idempotency_key}`;
+  const priorRelease = first(
+    await supabaseRest(
+      context,
+      `subscription_session_reservations?idempotency_key=eq.${encodeURIComponent(releaseKey)}&select=id&limit=1`,
+      { method: "GET", prefer: "return=representation" }
+    )
+  );
+  if (priorRelease?.id) return { restored: false, duplicate: true };
+
+  const period = first(
+    await supabaseRest(
+      context,
+      `subscription_session_periods?id=eq.${encodeURIComponent(reservation.period_id)}&select=id,allowance,remaining,status&limit=1`,
+      { method: "GET", prefer: "return=representation" }
+    )
+  );
+  if (period?.id && String(period.status).toLowerCase() === "active") {
+    const next = Math.min(Number(period.allowance) || 0, (Number(period.remaining) || 0) + 1);
+    await supabaseRest(
+      context,
+      `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}`,
+      {
+        method: "PATCH",
+        prefer: "return=minimal",
+        body: { remaining: next, updated_at: new Date().toISOString() }
+      }
+    );
+  }
+
+  await supabaseRest(context, "subscription_session_reservations", {
+    method: "POST",
+    prefer: "return=minimal,resolution=ignore-duplicates",
+    body: {
+      id: randomUuid(),
+      period_id: reservation.period_id,
+      student_user_id: reservation.student_user_id,
+      meeting_id: reservation.meeting_id,
+      amount: 1,
+      idempotency_key: releaseKey
+    }
+  });
+  return { restored: true, duplicate: false };
+}

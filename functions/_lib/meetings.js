@@ -13,6 +13,18 @@ import {
   normalizeAvailabilitySchedule,
   validateMentorBookingSlot
 } from "../../shared/mentorBookingSlots.js";
+import {
+  evaluateMentorAccess,
+  isLiveSessionBundleId
+} from "../../shared/mentorAccess.js";
+import {
+  attachSessionCreditMeetingId,
+  ensureSessionPeriodFromProfile,
+  releaseSessionCreditRow,
+  reserveSessionCreditRow,
+  summarizeSessionPeriodRow,
+  wrapAdminRestForSessionPeriods
+} from "./sessionPeriodCredits.js";
 
 const MEETING_TYPES = new Set(["zoom", "google_meet", "in_person", "phone"]);
 const MEETING_STATUSES = new Set(["scheduled", "pending", "approved", "declined", "canceled", "rescheduled"]);
@@ -122,6 +134,112 @@ function resolveIdempotencyKey(body, request) {
     request.headers.get("X-Idempotency-Key") ||
     null
   );
+}
+
+async function loadStudentBookingAccess(context, studentUserId, meetings = []) {
+  const profile = first(
+    await adminRest(
+      context,
+      `profiles?id=eq.${encodeURIComponent(studentUserId)}&select=id,role,plan_id,subscription_status,subscription_current_period_start,subscription_current_period_end,entitlement_ends_at,promo_access_ends_at,stripe_subscription_id,stripe_customer_id&limit=1`
+    )
+  );
+  if (!profile) {
+    throw httpError("Student profile not found.", 404, "not_found");
+  }
+
+  const periodRest = wrapAdminRestForSessionPeriods(adminRest);
+  try {
+    await ensureSessionPeriodFromProfile(periodRest, context, profile);
+  } catch (error) {
+    console.error("[meetings] session period ensure failed", error?.message || error);
+  }
+
+  const nowIso = new Date().toISOString();
+  const [periodRows, packageRows] = await Promise.all([
+    adminRest(
+      context,
+      `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
+    ),
+    adminRest(
+      context,
+      `session_package_purchases?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&select=*&order=created_at.asc`
+    )
+  ]);
+
+  const sessionCredits = summarizeSessionPeriodRow(first(periodRows));
+  const packages = (packageRows || [])
+    .map((row) => ({
+      id: row.id,
+      studentUserId: row.student_user_id,
+      mentorUserId: row.mentor_user_id ?? null,
+      bundleId: row.bundle_id || "flexible_sessions",
+      sessionsPurchased: Number(row.sessions_purchased) || 0,
+      sessionsRemaining: Number(row.sessions_remaining) || 0,
+      status: row.status || "active",
+      expiresAt: row.expires_at ?? null
+    }))
+    .filter((pkg) => isLiveSessionBundleId(pkg.bundleId));
+
+  const access = evaluateMentorAccess({
+    user: {
+      id: studentUserId,
+      plan: profile.plan_id || "basic",
+      subscriptionStatus: profile.subscription_status,
+      subscriptionCurrentPeriodEnd: profile.entitlement_ends_at || profile.subscription_current_period_end,
+      entitlementEndsAt: profile.entitlement_ends_at || profile.subscription_current_period_end,
+      promoAccessEndsAt: profile.promo_access_ends_at
+    },
+    meetings,
+    packages,
+    sessionCredits
+  });
+
+  return { profile, access, sessionCredits, packages };
+}
+
+async function consumeLiveSessionPackage(context, packages, mentorUserId) {
+  const now = Date.now();
+  const candidate =
+    packages.find((pkg) => {
+      if (String(pkg.status || "").toLowerCase() !== "active") return false;
+      if (Number(pkg.sessionsRemaining) <= 0) return false;
+      if (pkg.expiresAt) {
+        const expires = new Date(pkg.expiresAt).getTime();
+        if (!Number.isNaN(expires) && expires <= now) return false;
+      }
+      if (pkg.mentorUserId && mentorUserId && pkg.mentorUserId !== mentorUserId) return false;
+      if (pkg.mentorUserId && !mentorUserId) return false;
+      return true;
+    }) || null;
+  if (!candidate) {
+    throw httpError(
+      "You have no session credits remaining for the current billing period.",
+      409,
+      "NO_SESSION_CREDITS"
+    );
+  }
+  const nextRemaining = Number(candidate.sessionsRemaining) - 1;
+  const updated = await adminRest(
+    context,
+    `session_package_purchases?id=eq.${encodeURIComponent(candidate.id)}&status=eq.active&sessions_remaining=eq.${encodeURIComponent(String(candidate.sessionsRemaining))}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        sessions_remaining: nextRemaining,
+        status: nextRemaining <= 0 ? "depleted" : "active",
+        updated_at: new Date().toISOString()
+      })
+    }
+  );
+  if (!first(updated)?.id) {
+    throw httpError(
+      "You have no session credits remaining for the current billing period.",
+      409,
+      "NO_SESSION_CREDITS"
+    );
+  }
+  return { accessType: "session_package", sessionPackageId: candidate.id, subscriptionSessionPeriodId: null };
 }
 
 async function assertActiveMatch(context, token, studentUserId, mentorUserId) {
@@ -299,6 +417,66 @@ export async function handleMeetings(context, action = "index") {
       const payload = parseCreateBody(body, user, role);
       await assertActiveMatch(context, token, payload.studentUserId, payload.mentorUserId);
 
+      let accessType = null;
+      let sessionPackageId = null;
+      let subscriptionSessionPeriodId = null;
+      const periodRest = wrapAdminRestForSessionPeriods(adminRest);
+
+      if (role === "student" && payload.status === "pending") {
+        const studentMeetings = (await loadMeetingsForUser(context, token, user.id, role)).map((m) =>
+          sanitizeMeetingForRole(m, role)
+        );
+        const { access, packages } = await loadStudentBookingAccess(context, user.id, studentMeetings);
+        if (!access.allowed) {
+          if (access.reason === "daily_booking_limit") {
+            throw httpError(
+              "You can submit only one Book a Session request per day on Plus and Pro. Try again tomorrow.",
+              409,
+              "DAILY_BOOKING_LIMIT"
+            );
+          }
+          if (access.reason === "no_session_credits") {
+            throw httpError(
+              "You have no session credits remaining for the current billing period.",
+              409,
+              "NO_SESSION_CREDITS"
+            );
+          }
+          throw httpError(
+            "You need an available session or an active subscription to request this mentor.",
+            403,
+            "NO_MENTOR_ACCESS"
+          );
+        }
+
+        if (access.accessType === "subscription") {
+          if (!idempotencyKey) {
+            throw httpError("A booking idempotency key is required.", 400, "idempotency_key_required");
+          }
+          try {
+            const reserved = await reserveSessionCreditRow(periodRest, context, {
+              studentUserId: user.id,
+              idempotencyKey: String(idempotencyKey)
+            });
+            accessType = "subscription";
+            subscriptionSessionPeriodId = reserved.periodId || null;
+          } catch (error) {
+            if (error.code === "NO_SESSION_CREDITS" || error.statusCode === 409) {
+              throw httpError(
+                error.message || "You have no session credits remaining for the current billing period.",
+                409,
+                "NO_SESSION_CREDITS"
+              );
+            }
+            throw error;
+          }
+        } else if (access.accessType === "session_package") {
+          const consumed = await consumeLiveSessionPackage(context, packages, payload.mentorUserId);
+          accessType = consumed.accessType;
+          sessionPackageId = consumed.sessionPackageId;
+        }
+      }
+
       if (role === "student" && isVideoMeetingType(payload.meetingType) && payload.mentorUserId) {
         const schedule = await loadMentorSchedule(context, token, payload.mentorUserId);
         const meetings = await loadMentorBusyMeetings(context, token, payload.mentorUserId);
@@ -309,6 +487,11 @@ export async function handleMeetings(context, action = "index") {
           meetings
         });
         if (!slotCheck.ok) {
+          if (accessType === "subscription" && idempotencyKey) {
+            await releaseSessionCreditRow(periodRest, context, {
+              idempotencyKey: String(idempotencyKey)
+            }).catch(() => {});
+          }
           throw httpError(slotCheck.message || "That time slot is unavailable.", 409, slotCheck.code || "slot_unavailable");
         }
       }
@@ -327,14 +510,39 @@ export async function handleMeetings(context, action = "index") {
         status: payload.status,
         notes: payload.notes,
         is_private: payload.isPrivate,
-        idempotency_key: idempotencyKey ? String(idempotencyKey) : null
+        idempotency_key: idempotencyKey ? String(idempotencyKey) : null,
+        ...(accessType ? { access_type: accessType } : {}),
+        ...(sessionPackageId ? { session_package_id: sessionPackageId } : {}),
+        ...(subscriptionSessionPeriodId
+          ? { subscription_session_period_id: subscriptionSessionPeriodId }
+          : {})
       };
 
-      const rows = await rest(context, token, "meetings", {
-        method: "POST",
-        body: JSON.stringify(insert)
-      });
-      const meeting = rowToMeeting(first(rows));
+      let meeting;
+      try {
+        const rows = await rest(context, token, "meetings", {
+          method: "POST",
+          body: JSON.stringify(insert)
+        });
+        meeting = rowToMeeting(first(rows));
+      } catch (error) {
+        if (accessType === "subscription" && idempotencyKey) {
+          await releaseSessionCreditRow(periodRest, context, {
+            idempotencyKey: String(idempotencyKey)
+          }).catch(() => {});
+        }
+        throw error;
+      }
+
+      if (accessType === "subscription" && idempotencyKey && meeting?.id) {
+        await attachSessionCreditMeetingId(periodRest, context, {
+          idempotencyKey: String(idempotencyKey),
+          meetingId: meeting.id
+        }).catch((error) => {
+          console.error("[meetings] attach reservation meeting id failed", error?.message || error);
+        });
+      }
+
       return json({ meeting: sanitizeMeetingForRole(meeting, role) }, 201);
     }
 
@@ -408,6 +616,21 @@ export async function handleMeetings(context, action = "index") {
       });
       const meeting = rowToMeeting(first(rows));
       if (!meeting) throw httpError("Meeting could not be updated.", 409, "conflict");
+
+      const releasingSubscriptionCredit =
+        existing.accessType === "subscription" &&
+        ["canceled", "declined"].includes(String(nextStatus || "").toLowerCase()) &&
+        !["canceled", "declined"].includes(String(existing.status || "").toLowerCase());
+      if (releasingSubscriptionCredit) {
+        const periodRest = wrapAdminRestForSessionPeriods(adminRest);
+        await releaseSessionCreditRow(periodRest, context, {
+          meetingId: existing.id,
+          idempotencyKey: existing.idempotencyKey || null
+        }).catch((error) => {
+          console.error("[meetings] session credit release failed", error?.message || error);
+        });
+      }
+
       return json({ meeting: sanitizeMeetingForRole(meeting, role) });
     }
 
