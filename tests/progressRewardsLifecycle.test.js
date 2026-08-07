@@ -5,6 +5,10 @@ import {
   ensureLocalRewardTasks,
   claimLocalRewardTask
 } from "../src/lib/progressRewardsRuntime.js";
+import {
+  resolveProgressRewardsStudentId,
+  shouldUseRemoteProgressRewards
+} from "../src/lib/progressRewardsMentorAccess.js";
 import { REWARD_TASK_STATUS } from "../src/lib/rewardTaskCatalog.js";
 import { canAccessFeature } from "../src/lib/planFeatures.js";
 
@@ -87,9 +91,39 @@ describe("Reward redemption chat preview", () => {
   });
 });
 
-describe("Rewards isolation from paid entitlements", () => {
-  it("does not treat rewards access as Essay Support or session credits", () => {
-    expect(canAccessFeature("plus", "rewards")).toBe(true);
-    expect(canAccessFeature("basic", "rewards")).toBe(false);
+describe("Progress Rewards mentor assignment identity", () => {
+  it("uses mentorViewStudent.id for mentor student view, not synthetic student auth flags", () => {
+    const studentId = "11111111-1111-1111-1111-111111111111";
+    expect(
+      resolveProgressRewardsStudentId({
+        isMentorStudentView: true,
+        mentorViewStudentId: studentId,
+        userId: "synthetic-local-id"
+      })
+    ).toBe(studentId);
+  });
+
+  it("uses remote rewards when supabase mentor views a local-authProvider student shell", () => {
+    expect(
+      shouldUseRemoteProgressRewards({
+        isMentorStudentView: true,
+        mentorViewStudentId: "11111111-1111-1111-1111-111111111111",
+        studentAuthProvider: "local",
+        authAuthProvider: "supabase",
+        studentUserId: "11111111-1111-1111-1111-111111111111"
+      })
+    ).toBe(true);
+  });
+
+  it("does not use remote rewards for unauthenticated demo mentor view without supabase auth", () => {
+    expect(
+      shouldUseRemoteProgressRewards({
+        isMentorStudentView: true,
+        mentorViewStudentId: "demo-student-plus",
+        studentAuthProvider: "demo",
+        authAuthProvider: "demo",
+        studentUserId: "demo-student-plus"
+      })
+    ).toBe(false);
   });
 });

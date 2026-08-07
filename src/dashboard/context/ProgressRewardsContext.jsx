@@ -52,6 +52,10 @@ import {
   grantLocalWelcomeBonus,
   loadLocalRewardWallet
 } from "../../lib/progressRewardsRuntime.js";
+import {
+  resolveProgressRewardsStudentId,
+  shouldUseRemoteProgressRewards
+} from "../../lib/progressRewardsMentorAccess.js";
 import { resolveShopOffers } from "../lib/rewardShop.js";
 import { useSubscription } from "../../context/SubscriptionContext.jsx";
 import { canAccessFeature, getEffectiveUserPlan } from "../../lib/planFeatures.js";
@@ -82,7 +86,7 @@ function shopStorageKey(email) {
 }
 
 export function ProgressRewardsProvider({ children, user, profile, initial }) {
-  const { isMentorStudentView, mentor: assignedMentor } = useDashboardData();
+  const { isMentorStudentView, mentor: assignedMentor, mentorViewStudent } = useDashboardData();
   const { user: authUser } = useAuth();
   const subscription = useSubscription();
   const normalizedInitial = useMemo(() => normalizeRewardsState(initial), [initial]);
@@ -105,8 +109,21 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const tutoringUnlocked = Boolean(profile?.academicTutoring) || canAccessFeature(planId, "academicTutoring");
   const proBoost = canAccessFeature(planId, "advancedRewards");
   const rewardsUnlocked = canAccessFeature(planId, "rewards");
+  // Synthetic mentor-view student users are authProvider "local" — do not use that for remote/assignment.
   const isSupabaseUser = user?.authProvider === "supabase";
-  const usesTaskRuntime = isSupabaseUser || isMentorStudentView || Boolean(user?.email);
+  const rewardsStudentId = resolveProgressRewardsStudentId({
+    isMentorStudentView,
+    mentorViewStudentId: mentorViewStudent?.id,
+    userId: user?.id
+  });
+  const usesRemoteRewards = shouldUseRemoteProgressRewards({
+    isMentorStudentView,
+    mentorViewStudentId: mentorViewStudent?.id,
+    studentAuthProvider: user?.authProvider,
+    authAuthProvider: authUser?.authProvider,
+    studentUserId: user?.id
+  });
+  const usesTaskRuntime = usesRemoteRewards || isMentorStudentView || Boolean(user?.email);
   const initialRef = useRef(initial);
   initialRef.current = initial;
 
@@ -177,18 +194,30 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         setIsMainAssignedMentor(false);
         return;
       }
-      if (!isSupabaseUser) {
-        setIsMainAssignedMentor(
-          assignedMentor?.id === authUser.id || assignedMentor?.email === authUser.email
-        );
-        return;
-      }
-      if (!user?.id) {
+      // mentorViewStudent.id === profiles.id === mentor_matches.student_id
+      // authUser.id === auth.uid() === mentor_matches.mentor_id
+      const studentId = resolveProgressRewardsStudentId({
+        isMentorStudentView,
+        mentorViewStudentId: mentorViewStudent?.id,
+        userId: user?.id
+      });
+      if (!studentId) {
         setIsMainAssignedMentor(false);
         return;
       }
-      const { isMain } = await isMainMentorForStudent(authUser.id, user.id);
-      if (!cancelled) setIsMainAssignedMentor(Boolean(isMain));
+
+      // Never gate on synthetic studentUser.authProvider ("local" in mentor view).
+      if (authUser.authProvider === "supabase") {
+        const { isMain } = await isMainMentorForStudent(authUser.id, studentId);
+        if (!cancelled) setIsMainAssignedMentor(Boolean(isMain));
+        return;
+      }
+
+      setIsMainAssignedMentor(
+        assignedMentor?.id === authUser.id ||
+          assignedMentor?.email === authUser.email ||
+          Boolean(mentorViewStudent?.id)
+      );
     }
     resolveMainMentor().catch(() => {
       if (!cancelled) setIsMainAssignedMentor(false);
@@ -196,15 +225,24 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     return () => {
       cancelled = true;
     };
-  }, [assignedMentor?.email, assignedMentor?.id, authUser?.email, authUser?.id, isMentorStudentView, isSupabaseUser, user?.id]);
+  }, [
+    assignedMentor?.email,
+    assignedMentor?.id,
+    authUser?.authProvider,
+    authUser?.email,
+    authUser?.id,
+    isMentorStudentView,
+    mentorViewStudent?.id,
+    user?.id
+  ]);
 
   const refreshRewardTasks = useCallback(async () => {
-    if (!user?.id && !user?.email) return;
-    if (isSupabaseUser && user?.id) {
+    if (!rewardsStudentId && !user?.email) return;
+    if (usesRemoteRewards && rewardsStudentId) {
       const [{ tasks: rows }, { wallet }, { redemptions, error: redemptionError }] = await Promise.all([
-        listRewardTaskInstances(user.id),
-        getRewardWallet(user.id),
-        listRewardRedemptions(user.id)
+        listRewardTaskInstances(rewardsStudentId),
+        getRewardWallet(rewardsStudentId),
+        listRewardRedemptions(rewardsStudentId)
       ]);
       const mappedTasks = rows || [];
       setTasks(mappedTasks);
@@ -240,12 +278,12 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       lifetimeCoins: Number(wallet.lifetime_coins || wallet.lifetime_earned || prev.lifetimeCoins || 0)
     }));
     setSyncError(null);
-  }, [isSupabaseUser, satActUnlocked, tutoringUnlocked, user?.email, user?.id]);
+  }, [rewardsStudentId, satActUnlocked, tutoringUnlocked, user?.email, usesRemoteRewards]);
 
   useEffect(() => {
     let cancelled = false;
     async function loadRewardTasks() {
-      if (!usesTaskRuntime || (!user?.id && !user?.email)) return;
+      if (!usesTaskRuntime || (!rewardsStudentId && !user?.email)) return;
       if (!rewardsUnlocked && !isMentorStudentView) {
         setTasks([]);
         setSyncLoading(false);
@@ -255,12 +293,12 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       setSyncLoading(true);
       setSyncState(createSyncState({ status: SYNC_STATUS.LOADING, source: "rewards" }));
       try {
-        if (isSupabaseUser && user?.id) {
-          const ensured = await ensureRewardTaskInstances(user.id, {
+        if (usesRemoteRewards && rewardsStudentId) {
+          const ensured = await ensureRewardTaskInstances(rewardsStudentId, {
             satActUnlocked,
             tutoringUnlocked,
             // Mentor viewing a student must seed THAT student's tasks, not the mentor's.
-            asStudentId: isMentorStudentView ? user.id : null
+            asStudentId: isMentorStudentView ? rewardsStudentId : null
           });
           if (cancelled) return;
           if (ensured?.error) {
@@ -272,9 +310,9 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
             }));
           }
           if (!isMentorStudentView) {
-            await upsertStudentDailyActivity(user.id);
-            await syncStudentNetworkMessageActivity(user.id);
-            await syncDashboardControlledRewardTasks(user.id);
+            await upsertStudentDailyActivity(rewardsStudentId);
+            await syncStudentNetworkMessageActivity(rewardsStudentId);
+            await syncDashboardControlledRewardTasks(rewardsStudentId);
           }
         } else if (user?.email) {
           ensureLocalRewardTasks(user.email, { satActUnlocked, tutoringUnlocked });
@@ -305,20 +343,20 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     };
   }, [
     isMentorStudentView,
-    isSupabaseUser,
     refreshRewardTasks,
+    rewardsStudentId,
     rewardsUnlocked,
     satActUnlocked,
     tutoringUnlocked,
     user?.email,
-    user?.id,
+    usesRemoteRewards,
     usesTaskRuntime
   ]);
 
   // Keep student Claim UI fresh after mentor Complete without requiring a full remount.
   useEffect(() => {
     if (!usesTaskRuntime || !rewardsUnlocked || isMentorStudentView) return undefined;
-    if (!isSupabaseUser || !user?.id) return undefined;
+    if (!usesRemoteRewards || !rewardsStudentId) return undefined;
     const id = window.setInterval(() => {
       refreshRewardTasks().catch(() => {});
     }, 20000);
@@ -332,7 +370,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [isMentorStudentView, isSupabaseUser, refreshRewardTasks, rewardsUnlocked, user?.id, usesTaskRuntime]);
+  }, [isMentorStudentView, refreshRewardTasks, rewardsStudentId, rewardsUnlocked, usesRemoteRewards, usesTaskRuntime]);
 
   const persist = useCallback(
     (next) => {
@@ -480,8 +518,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
         return;
       }
 
-      if (isSupabaseUser && authUser?.id && user?.id) {
-        const result = await completeMentorControlledRewardTask(authUser.id, user.id, milestoneId);
+      if (usesRemoteRewards && authUser?.id && rewardsStudentId) {
+        const result = await completeMentorControlledRewardTask(authUser.id, rewardsStudentId, milestoneId);
         if (result?.error) {
           showToast(result.error, "error");
           return;
@@ -509,12 +547,12 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       canMentorCompleteTask,
       isMainAssignedMentor,
       isMentorStudentView,
-      isSupabaseUser,
       milestones,
       refreshRewardTasks,
+      rewardsStudentId,
       showToast,
       user?.email,
-      user?.id
+      usesRemoteRewards
     ]
   );
 
