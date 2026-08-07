@@ -25,7 +25,6 @@ import {
   removeActivityDraftFile,
   requestActivityUpload,
   resolveActivityFileMime,
-  saveActivityPromptResponses,
   saveActivitySubmission,
   statusLabel,
   uploadActivityFile,
@@ -121,11 +120,9 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
   const [success, setSuccess] = useState("");
   const [removeConfirm, setRemoveConfirm] = useState(false);
   const [replaceAfterRemove, setReplaceAfterRemove] = useState(false);
-  const [promptDrafts, setPromptDrafts] = useState({});
   const fileInputRef = useRef(null);
   const submitKeyRef = useRef(null);
   const completed = activity?.storedStatus === "completed" || activity?.status === "completed";
-  const hasPromptBuilder = Boolean(activity?.prompts?.length);
 
   useEffect(() => {
     if (!open) return;
@@ -146,26 +143,7 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
     setRemoveConfirm(false);
     setReplaceAfterRemove(false);
     submitKeyRef.current = null;
-    const nextDrafts = {};
-    for (const prompt of activity?.prompts || []) {
-      const existing = activity?.promptResponses?.find((item) => item.promptId === prompt.id);
-      nextDrafts[prompt.id] = existing?.responseText || "";
-    }
-    setPromptDrafts(nextDrafts);
   }, [activity, open]);
-
-  async function savePrompts(asSubmitted) {
-    if (!hasPromptBuilder) return activity;
-    const responses = (activity.prompts || []).map((prompt) => ({
-      promptId: prompt.id,
-      responseText: String(promptDrafts[prompt.id] || "").trim(),
-      submissionStatus: asSubmitted ? "submitted" : "draft"
-    }));
-    if (asSubmitted && responses.some((response) => !response.responseText)) {
-      throw new Error("Add a response for every supplemental prompt before submitting.");
-    }
-    return saveActivityPromptResponses(activity.id, responses, user);
-  }
 
   async function handleFile(file) {
     setError("");
@@ -231,30 +209,19 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
     setError("");
     setSuccess("");
     try {
-      if (hasPromptBuilder) {
-        await savePrompts(!isDraft);
-        // Optional document/file attachment still allowed alongside prompt text.
-        if (method) {
-          const payload = submissionPayload(isDraft);
-          if (!isDraft && !submitKeyRef.current) submitKeyRef.current = crypto.randomUUID();
-          const idempotencyKey = isDraft ? null : submitKeyRef.current;
-          await saveActivitySubmission(activity.id, payload, idempotencyKey, user);
-        } else if (!isDraft) {
-          // Prompt-only submit is enough when no file/link method is chosen.
-        }
-      } else {
-        const payload = submissionPayload(isDraft);
-        if (!isDraft && !submitKeyRef.current) submitKeyRef.current = crypto.randomUUID();
-        const idempotencyKey = isDraft ? null : submitKeyRef.current;
-        await saveActivitySubmission(activity.id, payload, idempotencyKey, user);
-      }
+      const payload = submissionPayload(isDraft);
+      if (!isDraft && !submitKeyRef.current) submitKeyRef.current = crypto.randomUUID();
+      const idempotencyKey = isDraft ? null : submitKeyRef.current;
+      await saveActivitySubmission(activity.id, payload, idempotencyKey, user);
       if (isDraft) {
         setSuccess("Draft saved.");
+        await onChanged?.();
       } else {
-        setSuccess("submitted");
         submitKeyRef.current = null;
+        await onChanged?.();
+        onClose?.();
+        return;
       }
-      await onChanged?.();
     } catch (saveError) {
       setError(saveError.message || "Could not save this submission.");
     } finally {
@@ -280,64 +247,11 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
 
   return (
     <Modal open={open} onClose={busy ? () => {} : onClose} title={activity?.title || "Activity"} className="dash-modal--activity" scrollable>
-      {success === "submitted" ? (
-        <div className="dash-activity-success" role="status">
-          <CheckCircle2 className="h-10 w-10" aria-hidden="true" />
-          <h3>Submitted to your mentor</h3>
-          <p>Your mentor will be notified and can now review your work.</p>
-          <PrimaryButton type="button" onClick={onClose}>Done</PrimaryButton>
+      <div className="dash-activity-detail">
+        <div className="dash-activity-detail__top">
+          <ActivityStatus status={activity?.status || "not_started"} />
+          <ActivityMeta activity={activity} />
         </div>
-      ) : (
-        <div className="dash-activity-detail">
-          <div className="dash-activity-detail__top">
-            <ActivityStatus status={activity?.status || "not_started"} />
-            <ActivityMeta activity={activity} />
-          </div>
-
-          {activity?.prompts?.length ? (
-            <section className="dash-activity-detail__section">
-              <h3>Essay prompts</h3>
-              <ol className="dash-activity-history">
-                {activity.prompts.map((prompt, index) => (
-                  <li key={prompt.id} className="dash-activity-history__item">
-                    <p><strong>Prompt {index + 1}</strong></p>
-                    <p>{prompt.promptText}</p>
-                    {prompt.optionalWordLimit ? <span className="dash-activity-detail__limit">{prompt.optionalWordLimit} word limit</span> : null}
-                    {completed ? (
-                      promptDrafts[prompt.id] ? (
-                        <blockquote className="dash-activity-feedback">
-                          <strong>Your response</strong>
-                          <p>{promptDrafts[prompt.id]}</p>
-                        </blockquote>
-                      ) : null
-                    ) : (
-                      <label className="dash-field">
-                        <span>Your response</span>
-                        <textarea
-                          value={promptDrafts[prompt.id] || ""}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setPromptDrafts((current) => ({ ...current, [prompt.id]: value }));
-                          }}
-                          placeholder="Write your response to this prompt"
-                          disabled={busy}
-                          rows={6}
-                        />
-                      </label>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ) : activity?.essayPrompt ? (
-            <section className="dash-activity-detail__section">
-              <h3>Essay prompt</h3>
-              <p>{activity.essayPrompt}</p>
-              {activity.wordLimit ? <span className="dash-activity-detail__limit">{activity.wordLimit} word limit</span> : null}
-            </section>
-          ) : activity?.wordLimit ? (
-            <p className="dash-activity-detail__limit">{activity.wordLimit} word limit</p>
-          ) : null}
 
           {activity?.instructions ? (
             <section className="dash-activity-detail__section">
@@ -350,12 +264,12 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
             <section className="dash-activity-submission" aria-labelledby="activity-submission-heading">
               <h3 id="activity-submission-heading">Your submission</h3>
               <label className="dash-field">
-                <span>{hasPromptBuilder ? "Optional file or link (in addition to prompt responses)" : "How would you like to submit your work?"}</span>
+                <span>How would you like to submit your work?</span>
                 <select value={method} onChange={(event) => {
                   setMethod(event.target.value);
                   setError("");
                 }} disabled={busy}>
-                  <option value="">{hasPromptBuilder ? "No additional file or link" : "Select a submission method"}</option>
+                  <option value="">Select a submission method</option>
                   {availableMethods.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </label>
@@ -449,7 +363,7 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
                 <SecondaryButton
                   type="button"
                   onClick={() => save(true)}
-                  disabled={busy || (!hasPromptBuilder && !method)}
+                  disabled={busy || !method}
                   loading={busy}
                 >
                   Save Draft
@@ -457,7 +371,7 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
                 <PrimaryButton
                   type="button"
                   onClick={() => save(false)}
-                  disabled={busy || (!hasPromptBuilder && !method)}
+                  disabled={busy || !method}
                   loading={busy}
                 >
                   Submit to Mentor
@@ -474,7 +388,6 @@ function ActivitySubmissionModal({ activity, open, onClose, onChanged, user }) {
           </section>
           {error && completed ? <p className="dash-field-error" role="alert">{error}</p> : null}
         </div>
-      )}
     </Modal>
   );
 }

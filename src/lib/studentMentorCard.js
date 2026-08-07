@@ -156,8 +156,11 @@ export function enrichAssignedMentorMatch(match, matchingProfile = null, account
   const avatarUrl =
     cleanText(ap.avatar_url) ||
     cleanText(ap.avatarUrl) ||
+    cleanText(mp.avatar_url) ||
+    cleanText(mp.avatarUrl) ||
     cleanText(match.avatarUrl) ||
-    cleanText(match.headshot);
+    cleanText(match.headshot) ||
+    cleanText(match.photo);
   const graduationYear =
     ap.graduation_year ?? ap.graduationYear ?? match.graduationYear ?? match.graduation_year ?? null;
   const displayName =

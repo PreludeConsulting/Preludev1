@@ -375,9 +375,6 @@ export async function createDemoMentorActivity(user, payload) {
     if (!String(payload.collegeName || "").trim()) {
       throw new Error("College is required for supplemental essay reviews.");
     }
-    if (!prompts.length || prompts.some((prompt) => !prompt.promptText)) {
-      throw new Error("Add at least one supplemental essay prompt.");
-    }
   }
 
   const state = readState();

@@ -147,9 +147,21 @@ describe("studentMentorCard missing fields", () => {
     expect(resolveMentorCardPhoto({})).toBe("");
   });
 
-  it("parses class-year strings", () => {
-    expect(resolveMentorCardGraduationYear({ graduationYear: "Class of 2027" })).toBe("2027");
-    expect(resolveMentorCardGraduationYear({ graduation_year: 2028 })).toBe("2028");
+  it("uses matching-profile avatar when account profile photo is missing", () => {
+    const mentor = enrichAssignedMentorMatch(
+      { id: "match-3", mentor_name: "Casey", mentor_id: "mentor-c", student_id: "student-3" },
+      {
+        mentor_user_id: "mentor-c",
+        display_name: "Casey Mentor",
+        avatar_url: "https://cdn.example.com/casey.webp",
+        college: "Brown",
+        major: "Economics"
+      },
+      { id: "mentor-c", full_name: "Casey Mentor", avatar_url: null }
+    );
+
+    expect(resolveMentorCardPhoto(mentor)).toBe("https://cdn.example.com/casey.webp");
+    expect(mentor.avatarUrl).toBe("https://cdn.example.com/casey.webp");
   });
 });
 

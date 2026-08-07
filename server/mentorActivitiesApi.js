@@ -424,7 +424,6 @@ async function createActivity(admin, caller, body) {
     : [];
   if (input.activityType === "supplemental_essay") {
     if (!input.collegeName) throw httpError(400, "College is required for supplemental essay reviews.", "college_required");
-    if (!prompts.length) throw httpError(400, "Add at least one supplemental essay prompt.", "prompt_required");
   }
 
   const { data, error } = await admin.from("mentor_assigned_activities").insert({
@@ -433,8 +432,8 @@ async function createActivity(admin, caller, body) {
     title: input.title,
     activity_type: input.activityType,
     college_name: input.collegeName,
-    essay_prompt: prompts[0]?.promptText || input.essayPrompt,
-    word_limit: prompts[0]?.optionalWordLimit || input.wordLimit,
+    essay_prompt: prompts[0]?.promptText || input.essayPrompt || null,
+    word_limit: prompts[0]?.optionalWordLimit || input.wordLimit || null,
     instructions: input.instructions,
     due_date: input.dueDate,
     allowed_submission_method: input.allowedSubmissionMethod,

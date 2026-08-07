@@ -360,8 +360,8 @@ function scholarshipToRow(input = {}) {
 }
 
 const MENTOR_MATCH_PROFILE_SELECT =
-  "mentor_user_id, display_name, college, major, bio, specialties, target_majors, target_schools, support_styles, application_strengths, availability, availability_schedule";
-const MENTOR_MATCH_PROFILE_FALLBACK_SELECT = "mentor_user_id, availability, availability_schedule";
+  "mentor_user_id, display_name, avatar_url, college, major, bio, specialties, target_majors, target_schools, support_styles, application_strengths, availability, availability_schedule";
+const MENTOR_MATCH_PROFILE_FALLBACK_SELECT = "mentor_user_id, avatar_url, availability, availability_schedule";
 const MENTOR_ACCOUNT_PROFILE_SELECT = "id, full_name, avatar_url, graduation_year";
 
 async function loadMentorMatchEnrichment(mentorIds) {

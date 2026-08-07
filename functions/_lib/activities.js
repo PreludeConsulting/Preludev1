@@ -895,7 +895,6 @@ async function createActivity(context, caller, body) {
       : [];
   if (input.activityType === "supplemental_essay") {
     if (!input.collegeName) throw httpError("College is required for supplemental essay reviews.", 400, "college_required");
-    if (!prompts.length) throw httpError("Add at least one supplemental essay prompt.", 400, "prompt_required");
   }
 
   const insertRows = await adminRest(context, "mentor_assigned_activities", {
@@ -906,8 +905,8 @@ async function createActivity(context, caller, body) {
       title: input.title,
       activity_type: input.activityType,
       college_name: input.collegeName,
-      essay_prompt: prompts[0]?.promptText || input.essayPrompt,
-      word_limit: prompts[0]?.optionalWordLimit || input.wordLimit,
+      essay_prompt: prompts[0]?.promptText || input.essayPrompt || null,
+      word_limit: prompts[0]?.optionalWordLimit || input.wordLimit || null,
       instructions: input.instructions,
       due_date: input.dueDate,
       allowed_submission_method: input.allowedSubmissionMethod,
