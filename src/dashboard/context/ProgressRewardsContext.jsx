@@ -41,7 +41,9 @@ import {
   listRewardTaskInstances,
   redeemCatalogReward,
   syncDashboardControlledRewardTasks,
-  syncStudentNetworkMessageActivity
+  syncStudentNetworkMessageActivity,
+  upsertStudentDailyActivity,
+  fulfillRewardRedemption
 } from "../../lib/dashboardData.js";
 import {
   claimLocalRewardTask,
@@ -51,7 +53,8 @@ import {
   loadLocalRewardWallet
 } from "../../lib/progressRewardsRuntime.js";
 import { resolveShopOffers } from "../lib/rewardShop.js";
-import { canAccessFeature, getUserPlan } from "../../lib/planFeatures.js";
+import { useSubscription } from "../../context/SubscriptionContext.jsx";
+import { canAccessFeature, getEffectiveUserPlan } from "../../lib/planFeatures.js";
 import {
   EARN_CATEGORY_ORDER,
   MILESTONE_CATEGORY_LABELS,
@@ -81,6 +84,7 @@ function shopStorageKey(email) {
 export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const { isMentorStudentView, mentor: assignedMentor } = useDashboardData();
   const { user: authUser } = useAuth();
+  const subscription = useSubscription();
   const normalizedInitial = useMemo(() => normalizeRewardsState(initial), [initial]);
   const [state, setState] = useState(() => normalizedInitial);
   const [toasts, setToasts] = useState([]);
@@ -94,11 +98,13 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   const [syncError, setSyncError] = useState(null);
   const { triggerCoinBurst } = useInteractionFeedback();
   const { play, SOUND_EVENTS } = useInterfaceSound();
-  const planId = getUserPlan(user);
+  // Plus (and Pro) unlock Progress Rewards — prefer active billing entitlement.
+  const planId = getEffectiveUserPlan(user, subscription);
   // Plus/Pro include flexible session credits for SAT/ACT and tutoring reward tracks.
   const satActUnlocked = Boolean(profile?.satActPrep) || canAccessFeature(planId, "satActPrep");
   const tutoringUnlocked = Boolean(profile?.academicTutoring) || canAccessFeature(planId, "academicTutoring");
   const proBoost = canAccessFeature(planId, "advancedRewards");
+  const rewardsUnlocked = canAccessFeature(planId, "rewards");
   const isSupabaseUser = user?.authProvider === "supabase";
   const usesTaskRuntime = isSupabaseUser || isMentorStudentView || Boolean(user?.email);
   const initialRef = useRef(initial);
@@ -240,12 +246,33 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     let cancelled = false;
     async function loadRewardTasks() {
       if (!usesTaskRuntime || (!user?.id && !user?.email)) return;
+      if (!rewardsUnlocked && !isMentorStudentView) {
+        setTasks([]);
+        setSyncLoading(false);
+        setSyncState(createSyncState({ status: SYNC_STATUS.IDLE, source: "rewards" }));
+        return;
+      }
       setSyncLoading(true);
       setSyncState(createSyncState({ status: SYNC_STATUS.LOADING, source: "rewards" }));
       try {
         if (isSupabaseUser && user?.id) {
-          await ensureRewardTaskInstances(user.id, { satActUnlocked, tutoringUnlocked });
+          const ensured = await ensureRewardTaskInstances(user.id, {
+            satActUnlocked,
+            tutoringUnlocked,
+            // Mentor viewing a student must seed THAT student's tasks, not the mentor's.
+            asStudentId: isMentorStudentView ? user.id : null
+          });
+          if (cancelled) return;
+          if (ensured?.error) {
+            setSyncError(ensured.error);
+            setSyncState(createSyncState({
+              status: SYNC_STATUS.FAILED,
+              error: ensured.error,
+              source: "rewards"
+            }));
+          }
           if (!isMentorStudentView) {
+            await upsertStudentDailyActivity(user.id);
             await syncStudentNetworkMessageActivity(user.id);
             await syncDashboardControlledRewardTasks(user.id);
           }
@@ -276,7 +303,36 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     return () => {
       cancelled = true;
     };
-  }, [isMentorStudentView, isSupabaseUser, refreshRewardTasks, satActUnlocked, tutoringUnlocked, user?.email, user?.id, usesTaskRuntime]);
+  }, [
+    isMentorStudentView,
+    isSupabaseUser,
+    refreshRewardTasks,
+    rewardsUnlocked,
+    satActUnlocked,
+    tutoringUnlocked,
+    user?.email,
+    user?.id,
+    usesTaskRuntime
+  ]);
+
+  // Keep student Claim UI fresh after mentor Complete without requiring a full remount.
+  useEffect(() => {
+    if (!usesTaskRuntime || !rewardsUnlocked || isMentorStudentView) return undefined;
+    if (!isSupabaseUser || !user?.id) return undefined;
+    const id = window.setInterval(() => {
+      refreshRewardTasks().catch(() => {});
+    }, 20000);
+    const onFocus = () => {
+      refreshRewardTasks().catch(() => {});
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [isMentorStudentView, isSupabaseUser, refreshRewardTasks, rewardsUnlocked, user?.id, usesTaskRuntime]);
 
   const persist = useCallback(
     (next) => {
@@ -306,8 +362,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     let cancelled = false;
     async function grantWelcome() {
       if (isMentorStudentView) return;
-      const plan = getUserPlan(user);
-      if (!canAccessFeature(plan, "rewards")) return;
+      if (!rewardsUnlocked) return;
       if (isSupabaseUser && user?.id) {
         const bonus = await grantRewardsWelcomeBonus(user.id);
         if (cancelled || !bonus?.granted) return;
@@ -326,7 +381,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
     return () => {
       cancelled = true;
     };
-  }, [isMentorStudentView, isSupabaseUser, refreshRewardTasks, showToast, user]);
+  }, [isMentorStudentView, isSupabaseUser, refreshRewardTasks, rewardsUnlocked, showToast, user]);
 
   const grade = parseGradeLevel(profile?.grade);
   const isJordan = isJordanDemoEmail(user?.email);
@@ -337,7 +392,9 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   );
 
   const milestones = useMemo(() => {
-    if (usesTaskRuntime && tasks.length) {
+    // Task runtime is the source of truth for Plus/Pro Progress Rewards.
+    // Never fall back to the legacy catalog (all rows default to "Locked").
+    if (usesTaskRuntime) {
       return tasks.map((task) => ({
         id: task.id,
         taskTemplateId: task.taskTemplateId,
@@ -403,9 +460,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       if ([REWARD_TASK_STATUS.CLAIMED, REWARD_TASK_STATUS.COMPLETED_BY_MENTOR, REWARD_TASK_STATUS.READY_TO_CLAIM].includes(milestone.status)) {
         return false;
       }
-      if (milestone.taskTemplateId === "mentor-meeting-completed" && !isMainAssignedMentor) {
-        return false;
-      }
+      // Assigned mentor only (isMainAssignedMentor now means actively assigned).
+      if (!isMainAssignedMentor) return false;
       return true;
     },
     [authUser?.id, isMainAssignedMentor, isMentorStudentView]
@@ -418,8 +474,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       if (!isMentorStudentView) return;
       if (milestone.ownershipType === REWARD_TASK_OWNERSHIP.DASHBOARD_CONTROLLED) return;
       if (!canMentorCompleteTask(milestone)) {
-        if (milestone.taskTemplateId === "mentor-meeting-completed" && !isMainAssignedMentor) {
-          showToast("Only the student's main assigned mentor can complete this task.", "error");
+        if (!isMainAssignedMentor) {
+          showToast("You are not assigned to this student.", "error");
         }
         return;
       }
@@ -621,8 +677,8 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
 
       const followUp =
         reward.fulfillmentType === "live_call"
-          ? "Reward redeemed! We’ll follow up to schedule your live session."
-          : "Reward redeemed! A mentor will follow up with next steps.";
+          ? "Reward redeemed! Your mentor will see it in Messages to coordinate scheduling."
+          : "Reward redeemed! Your mentor will see it in Messages with next steps.";
       showToast(followUp, "success");
       return { success: true };
     },
@@ -644,6 +700,37 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
   );
 
   const handleRedeemReward = redeemReward;
+
+  const markRedemptionFulfilled = useCallback(
+    async (redemptionId) => {
+      if (!isMentorStudentView || !redemptionId) return { success: false };
+      if (isSupabaseUser) {
+        const { redemption, error, alreadyFulfilled } = await fulfillRewardRedemption(redemptionId);
+        if (error) {
+          showToast(error, "error");
+          return { success: false, error };
+        }
+        await refreshRewardTasks();
+        showToast(alreadyFulfilled ? "Already marked fulfilled." : "Marked as fulfilled.");
+        return { success: true, redemption };
+      }
+      setState((prev) => {
+        const next = {
+          ...prev,
+          redemptionHistory: prev.redemptionHistory.map((item) =>
+            item.id === redemptionId
+              ? { ...item, status: "fulfilled", fulfilledAt: new Date().toISOString() }
+              : item
+          )
+        };
+        persist(next);
+        return next;
+      });
+      showToast("Marked as fulfilled.");
+      return { success: true };
+    },
+    [isMentorStudentView, isSupabaseUser, persist, refreshRewardTasks, showToast]
+  );
 
   const rewards = useMemo(
     () => REWARD_CATALOG.map((r) => enrichReward(r, state.coins, state.redeemed)),
@@ -730,6 +817,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       completeMilestone,
       redeemReward,
       handleRedeemReward,
+      markRedemptionFulfilled,
       showToast
     }),
     [
@@ -781,6 +869,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       claimMilestone,
       redeemReward,
       handleRedeemReward,
+      markRedemptionFulfilled,
       showToast
     ]
   );

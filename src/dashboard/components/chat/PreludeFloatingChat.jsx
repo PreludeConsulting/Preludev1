@@ -6,6 +6,7 @@ import { Avatar } from "../ui/index.jsx";
 import { CHAT_ATTACHMENT_ACCEPT } from "../../../lib/chatStorage.js";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
 import MessageAttachment from "./MessageAttachment.jsx";
+import RewardRedemptionCard from "./RewardRedemptionCard.jsx";
 import UnreadCountBadge, { useUnreadBadgeDismiss } from "./UnreadCountBadge.jsx";
 
 function formatTime(iso) {
@@ -45,22 +46,28 @@ function ChatBubble({ message, onEdit, onDelete, deleting }) {
     !String(message.id || "").startsWith("local-");
 
   return (
-    <div className={`dash-msg-fab-bubble dash-msg-fab-bubble--${side}`}>
-      <MessageAttachment
-        message={message}
-        linkClassName="dash-msg-fab-bubble__image-link"
-        imageClassName="dash-msg-fab-bubble__image"
-      />
-      {message.body ? <p className="dash-msg-fab-bubble__text">{message.body}</p> : null}
+    <div className={`dash-msg-fab-bubble dash-msg-fab-bubble--${side}${message.messageType === "reward_redemption" ? " dash-msg-fab-bubble--reward" : ""}`}>
+      {message.messageType === "reward_redemption" ? (
+        <RewardRedemptionCard message={message} />
+      ) : (
+        <>
+          <MessageAttachment
+            message={message}
+            linkClassName="dash-msg-fab-bubble__image-link"
+            imageClassName="dash-msg-fab-bubble__image"
+          />
+          {message.body ? <p className="dash-msg-fab-bubble__text">{message.body}</p> : null}
+        </>
+      )}
       <div className="dash-msg-fab-bubble__meta">
         <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>
         {message.editedAt ? <span className="dash-msg-fab-bubble__edited">edited</span> : null}
-        {message.isMine ? (
+        {message.isMine && message.messageType !== "reward_redemption" ? (
           <button type="button" className="dash-msg-fab-bubble__edit" onClick={() => onEdit(message)} aria-label="Edit message">
             <Pencil size={12} />
           </button>
         ) : null}
-        {canDelete ? (
+        {canDelete && message.messageType !== "reward_redemption" ? (
           <button
             type="button"
             className="dash-msg-fab-bubble__delete"

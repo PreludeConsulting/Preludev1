@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useSubscription } from "../../context/SubscriptionContext.jsx";
 import { getPlan } from "../../lib/plans.js";
 import {
   canAccessFeature,
@@ -7,19 +8,23 @@ import {
   canSubmitApplicationReview,
   getApplicationReviewAllowanceLabel,
   getApplicationReviewBalanceLabel,
+  getEffectiveUserPlan,
   getFeatureLockCopy,
   getMonthlyApplicationReviewLimit,
   getMonthlyOneOnOneLimit,
   getRemainingApplicationReviews,
   getRemainingOneOnOneSessions,
   getSessionAllowanceLabel,
-  getSessionCreditBalanceLabel,
-  getUserPlan
+  getSessionCreditBalanceLabel
 } from "../../lib/planFeatures.js";
 
 export function usePlanAccess() {
   const { user } = useAuth();
-  const plan = useMemo(() => getUserPlan(user), [user]);
+  const subscription = useSubscription();
+  const plan = useMemo(
+    () => getEffectiveUserPlan(user, subscription),
+    [subscription, user]
+  );
   const planDetails = useMemo(() => getPlan(plan), [plan]);
 
   return useMemo(

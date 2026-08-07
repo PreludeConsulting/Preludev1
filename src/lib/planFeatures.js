@@ -50,6 +50,21 @@ export function getUserPlan(user) {
   return normalizePlanId(raw) || "basic";
 }
 
+/**
+ * Feature gating plan: prefer active Plus/Pro billing entitlement over a stale
+ * profile plan_id so Progress Rewards and other Plus features unlock as soon as
+ * membership is active.
+ */
+export function getEffectiveUserPlan(user, subscription = null) {
+  if (subscription?.isActive) {
+    const fromSub = normalizePlanId(
+      subscription.activePlanId || subscription.effectiveMembership || null
+    );
+    if (fromSub === "plus" || fromSub === "pro") return fromSub;
+  }
+  return getUserPlan(user);
+}
+
 export const PLAN_FEATURES = {
   dashboardOverview: { minPlan: "basic" },
   calendarBasics: { minPlan: "basic" },

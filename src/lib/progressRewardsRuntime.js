@@ -74,7 +74,16 @@ export function saveLocalRewardWallet(email, wallet) {
 export function ensureLocalRewardTasks(email, { satActUnlocked = false, tutoringUnlocked = false } = {}) {
   const existing = loadLocalRewardTasks(email);
   const usedTemplateIds = new Set(existing.map((task) => task.taskTemplateId));
-  const next = [...existing];
+  let next = existing.map((task) => {
+    if (task.status !== REWARD_TASK_STATUS.LOCKED) return task;
+    if (task.category === REWARD_TASK_CATEGORY.SAT_ACT && satActUnlocked) {
+      return { ...task, status: REWARD_TASK_STATUS.IN_PROGRESS };
+    }
+    if (task.category === REWARD_TASK_CATEGORY.ACADEMIC_TUTORING && tutoringUnlocked) {
+      return { ...task, status: REWARD_TASK_STATUS.IN_PROGRESS };
+    }
+    return task;
+  });
 
   for (const def of MOMENTUM_TASK_DEFS) {
     if (usedTemplateIds.has(def.id)) continue;
@@ -113,8 +122,10 @@ export function completeLocalMentorTask({ studentEmail, taskInstanceId, mentorId
   if (task.status === REWARD_TASK_STATUS.LOCKED) {
     return { error: "Task is locked for this student plan.", task: null };
   }
+  // Mentor Meeting Completed uses the same assigned-mentor gate as other
+  // mentor-controlled tasks (caller must pass isMainMentor for an assigned mentor).
   if (task.taskTemplateId === "mentor-meeting-completed" && !isMainMentor) {
-    return { error: "Only the student's main assigned mentor can complete this task.", task: null };
+    return { error: "You are not assigned to this student.", task: null };
   }
   if ([REWARD_TASK_STATUS.CLAIMED, REWARD_TASK_STATUS.COMPLETED_BY_MENTOR, REWARD_TASK_STATUS.READY_TO_CLAIM].includes(task.status)) {
     return { error: "Task is already completed.", task };

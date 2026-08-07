@@ -556,13 +556,25 @@ export async function grantRewardsWelcomeBonus(userId) {
   }
 }
 
-export async function ensureRewardTaskInstances(userId, { satActUnlocked = false, tutoringUnlocked = false } = {}) {
+export async function ensureRewardTaskInstances(
+  userId,
+  { satActUnlocked = false, tutoringUnlocked = false, asStudentId = null } = {}
+) {
   requireUserId(userId);
   try {
-    const { data, error } = await db().rpc("ensure_reward_task_instances", {
-      p_sat_act_unlocked: Boolean(satActUnlocked),
-      p_tutoring_unlocked: Boolean(tutoringUnlocked)
-    });
+    const studentId = asStudentId || userId;
+    // Mentors seeding a student's tasks must call the student-scoped RPC.
+    // Self-ensure still uses ensure_reward_task_instances (auth.uid()).
+    const { data, error } = asStudentId
+      ? await db().rpc("ensure_student_reward_task_instances", {
+          p_student_id: studentId,
+          p_sat_act_unlocked: Boolean(satActUnlocked),
+          p_tutoring_unlocked: Boolean(tutoringUnlocked)
+        })
+      : await db().rpc("ensure_reward_task_instances", {
+          p_sat_act_unlocked: Boolean(satActUnlocked),
+          p_tutoring_unlocked: Boolean(tutoringUnlocked)
+        });
     if (error) {
       logFeatureError("rewards", error);
       return { tasks: [], error: error.message };
@@ -571,7 +583,7 @@ export async function ensureRewardTaskInstances(userId, { satActUnlocked = false
     if (rows.length) {
       return { tasks: rows.map(mapRewardTaskInstance), error: null };
     }
-    return listRewardTaskInstances(userId);
+    return listRewardTaskInstances(studentId);
   } catch (error) {
     return { tasks: [], error: error?.message || "Reward tasks unavailable." };
   }
@@ -627,6 +639,10 @@ export async function claimRewardTask(userId, taskInstanceId, { proBoost = false
   }
 }
 
+/**
+ * Assigned mentors (assigned/accepted/active) may complete mentor-controlled
+ * milestones including Mentor Meeting Completed. Unrelated mentors cannot.
+ */
 export async function isMainMentorForStudent(mentorUserId, studentUserId) {
   const mentorId = requireUserId(mentorUserId);
   const studentId = requireUserId(studentUserId);
@@ -639,17 +655,8 @@ export async function isMainMentorForStudent(mentorUserId, studentUserId) {
     .limit(1);
   if (assignedErr) return { isMain: false, isAssigned: false, error: assignedErr.message };
   if (!assigned?.length) return { isMain: false, isAssigned: false, error: null };
-
-  const { data: mainMentor, error: mainErr } = await db()
-    .from("mentor_matches")
-    .select("mentor_id")
-    .eq("student_id", studentId)
-    .eq("status", "assigned")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (mainErr) return { isMain: false, isAssigned: true, error: mainErr.message };
-  return { isMain: mainMentor?.mentor_id === mentorId, isAssigned: true, error: null };
+  // Any currently assigned mentor is authorized for mentor-controlled Complete.
+  return { isMain: true, isAssigned: true, error: null };
 }
 
 export async function completeMentorControlledRewardTask(mentorUserId, studentUserId, taskInstanceId) {
@@ -754,6 +761,9 @@ function mapRewardRedemption(row) {
     status: row.status,
     selection: row.selection || null,
     redeemedAt: row.redeemed_at,
+    fulfilledAt: row.fulfilled_at || null,
+    messageId: row.message_id || null,
+    assignedMentorId: row.assigned_mentor_id || null,
     description: row.description || null,
     fulfillmentType: row.fulfillment_type || null,
     scope: row.scope || null,
@@ -763,6 +773,28 @@ function mapRewardRedemption(row) {
     assignedMentorIds: row.assigned_mentor_ids || [],
     catalogSnapshot: row.catalog_snapshot || null
   };
+}
+
+export async function fulfillRewardRedemption(redemptionId) {
+  try {
+    const { data, error } = await db().rpc("fulfill_reward_redemption", {
+      p_redemption_id: redemptionId
+    });
+    if (error) {
+      logFeatureError("rewards", error);
+      return { redemption: null, error: error.message };
+    }
+    if (data?.error) {
+      return { redemption: null, error: data.error };
+    }
+    return {
+      redemption: data?.redemption ? mapRewardRedemption(data.redemption) : null,
+      alreadyFulfilled: Boolean(data?.already_fulfilled),
+      error: null
+    };
+  } catch (error) {
+    return { redemption: null, error: error?.message || "Could not mark reward fulfilled." };
+  }
 }
 
 export async function listRewardRedemptions(userId) {

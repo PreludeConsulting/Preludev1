@@ -6,6 +6,7 @@ import { chatMessagePreviewText, sanitizeThreadPreview } from "../../../lib/chat
 import { CHAT_ATTACHMENT_ACCEPT } from "../../../lib/chatStorage.js";
 import { loadLocalChatMessages } from "../../../lib/localChatStore.js";
 import MessageAttachment from "./MessageAttachment.jsx";
+import RewardRedemptionCard from "./RewardRedemptionCard.jsx";
 import { usePreludeChatContext } from "../../context/PreludeChatContext.jsx";
 import { useDashboardData } from "../../context/DashboardDataContext.jsx";
 import { Avatar, EmptyState, SearchInput } from "../ui/index.jsx";
@@ -32,10 +33,12 @@ const EDIT_WINDOW_MS = 2 * 60 * 1000;
 
 function canEditMessage(msg, now) {
   if (!msg?.isMine || !msg.createdAt) return false;
+  if (msg.messageType === "reward_redemption" || msg.generatedBySystem) return false;
   return now - new Date(msg.createdAt).getTime() <= EDIT_WINDOW_MS;
 }
 
 function canDeleteMessage(msg) {
+  if (msg?.messageType === "reward_redemption" || msg?.generatedBySystem) return false;
   return Boolean(
     msg?.isMine &&
     msg.status !== "sending" &&
@@ -463,10 +466,16 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
                             />
                           ) : (
                             <div key={msg.id} className="msg-bubble-wrap">
-                              <div className={"msg-bubble msg-bubble--" + g.side}>
-                                <MessageAttachment message={msg} />
-                                {msg.body ? <span className="msg-bubble__text">{msg.body}</span> : null}
-                                {canEditMessage(msg, now) ? (
+                              <div className={"msg-bubble msg-bubble--" + g.side + (msg.messageType === "reward_redemption" ? " msg-bubble--reward" : "")}>
+                                {msg.messageType === "reward_redemption" ? (
+                                  <RewardRedemptionCard message={msg} />
+                                ) : (
+                                  <>
+                                    <MessageAttachment message={msg} />
+                                    {msg.body ? <span className="msg-bubble__text">{msg.body}</span> : null}
+                                  </>
+                                )}
+                                {msg.messageType !== "reward_redemption" && canEditMessage(msg, now) ? (
                                   <button type="button" className="msg-bubble__edit" onClick={() => setEditingId(msg.id)} aria-label="Edit message">
                                     <Pencil size={12} />
                                   </button>

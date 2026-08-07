@@ -1900,6 +1900,16 @@
   color: var(--rw-purple);
 }
 
+.dash-rewards-my-card__meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-rewards-my-card .dash-btn {
+  margin-top: 0.65rem;
+}
+
 .dash-rewards-earn__intro {
   margin: 0 0 1rem;
   font-size: 0.875rem;

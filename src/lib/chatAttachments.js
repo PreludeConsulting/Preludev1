@@ -142,6 +142,10 @@ export function attachmentPreviewLabel(message) {
 }
 
 export function chatMessagePreviewText(message) {
+  if (message?.messageType === "reward_redemption" || message?.message_type === "reward_redemption") {
+    const name = message?.metadata?.rewardName || message?.metadata?.reward_name;
+    return name ? `Reward redeemed: ${name}` : "Reward redeemed";
+  }
   const body = String(message?.body || "").trim();
   if (body) return body;
   return attachmentPreviewLabel(message);

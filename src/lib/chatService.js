@@ -136,6 +136,7 @@ function reconcileCachedThreadPreview(thread) {
 export function mapChatMessage(row, viewerId) {
   const status = row.status || (isOptimisticMessageId(row.id) ? MESSAGE_STATUS.SENDING : MESSAGE_STATUS.SENT);
   const attachment = normalizeChatAttachment(row);
+  const metadata = row.metadata && typeof row.metadata === "object" ? row.metadata : {};
   return {
     id: row.id,
     clientId: row.client_id || row.clientId || (isOptimisticMessageId(row.id) ? row.id : null),
@@ -151,6 +152,9 @@ export function mapChatMessage(row, viewerId) {
     createdAt: row.created_at || row.createdAt,
     editedAt: row.edited_at || row.editedAt || null,
     deletedAt: row.deleted_at || row.deletedAt || null,
+    messageType: row.message_type || row.messageType || "text",
+    generatedBySystem: Boolean(row.generated_by_system ?? row.generatedBySystem),
+    metadata,
     ...attachment,
     isMine: (row.sender_id || row.senderId) === viewerId
   };
@@ -173,6 +177,9 @@ export function toCacheRow(message, threadId) {
     created_at: message.createdAt,
     edited_at: message.editedAt,
     deleted_at: message.deletedAt,
+    message_type: message.messageType || "text",
+    generated_by_system: Boolean(message.generatedBySystem),
+    metadata: message.metadata || {},
     attachment_path: message.attachmentPath || null,
     // Only inline data survives a reload; a signed URL would be stale by then.
     attachment_url: message.attachmentPath ? null : message.attachmentUrl || null,

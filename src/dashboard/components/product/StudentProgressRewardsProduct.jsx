@@ -158,22 +158,33 @@ function StatusTab() {
 }
 
 function MyRewardsTab() {
-  const { redemptionHistory } = useProgressRewards();
+  const { redemptionHistory, isMentorStudentView, markRedemptionFulfilled } = useProgressRewards();
+  const [fulfillingId, setFulfillingId] = useState(null);
 
   const items = redemptionHistory.map((h) => {
     const isLive = h.fulfillmentType === "live_call" || h.catalogSnapshot?.fulfillmentType === "live_call";
-    let statusLabel = "Redeemed";
-    if (h.status === "ready_to_schedule") {
-      statusLabel = isLive ? "Ready to schedule" : "Ready for written review";
-    } else if (h.status === "scheduled") {
-      statusLabel = "Scheduled";
+    let statusLabel = "Awaiting Fulfillment";
+    if (h.status === "ready_to_schedule" || h.status === "scheduled") {
+      statusLabel = isLive ? "Awaiting Fulfillment" : "Awaiting Fulfillment";
     } else if (h.status === "fulfilled") {
       statusLabel = "Fulfilled";
+    } else if (h.status === "cancelled") {
+      statusLabel = "Cancelled";
     }
+    const redeemedAt = h.redeemedAt
+      ? new Date(h.redeemedAt).toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric"
+        })
+      : null;
     return {
       id: h.id,
       title: h.title,
-      status: statusLabel
+      status: statusLabel,
+      statusKey: h.status,
+      coinCost: h.coinCost,
+      redeemedAt
     };
   });
 
@@ -193,6 +204,26 @@ function MyRewardsTab() {
           <article key={item.id} className="dash-rewards-my-card">
             <h4 className="dash-rewards-my-card__title">{item.title}</h4>
             <p className="dash-rewards-my-card__status">{item.status}</p>
+            {item.redeemedAt ? (
+              <p className="dash-rewards-my-card__meta">Redeemed {item.redeemedAt}</p>
+            ) : null}
+            {item.coinCost ? (
+              <p className="dash-rewards-my-card__meta">{item.coinCost} Prelude Coins</p>
+            ) : null}
+            {isMentorStudentView && item.statusKey !== "fulfilled" && item.statusKey !== "cancelled" ? (
+              <InteractiveButton
+                type="button"
+                className="dash-btn dash-btn--secondary dash-btn--sm"
+                loading={fulfillingId === item.id}
+                onClick={async () => {
+                  setFulfillingId(item.id);
+                  await markRedemptionFulfilled?.(item.id);
+                  setFulfillingId(null);
+                }}
+              >
+                Mark as Fulfilled
+              </InteractiveButton>
+            ) : null}
           </article>
         ))}
       </div>
@@ -201,20 +232,24 @@ function MyRewardsTab() {
 }
 
 function EarnMilestoneRow({ milestone, onComplete, isMentorStudentView, canMentorCompleteTask, isMainAssignedMentor }) {
-  const { status, title, coins, progress, progressCurrent, progressTarget, ownershipType, claimable, locked, taskTemplateId } = milestone;
+  const { status, title, coins, progress, progressCurrent, progressTarget, ownershipType, claimable, locked } = milestone;
   const statusLabel =
     status === REWARD_TASK_STATUS.CLAIMED
       ? "Claimed"
-      : claimable
+      : claimable || status === REWARD_TASK_STATUS.COMPLETED_BY_MENTOR || status === REWARD_TASK_STATUS.READY_TO_CLAIM
         ? "Ready to claim"
-        : status === REWARD_TASK_STATUS.COMPLETED_BY_MENTOR
-          ? "Ready to claim"
-          : status === REWARD_TASK_STATUS.IN_PROGRESS
-            ? "In Progress"
-            : "Locked";
+        : status === REWARD_TASK_STATUS.IN_PROGRESS
+          ? "In Progress"
+          : "Locked";
   const [completing, setCompleting] = useState(false);
   const mentorCanComplete = isMentorStudentView && canMentorCompleteTask?.(milestone);
-  const mentorMeetingLocked = isMentorStudentView && taskTemplateId === "mentor-meeting-completed" && !isMainAssignedMentor;
+  const mentorUnauthorized =
+    isMentorStudentView &&
+    ownershipType === REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED &&
+    !mentorCanComplete &&
+    status === REWARD_TASK_STATUS.IN_PROGRESS &&
+    !locked &&
+    !isMainAssignedMentor;
 
   return (
     <div className={`dash-rewards-earn-row dash-rewards-earn-row--${status}`}>
@@ -280,9 +315,9 @@ function EarnMilestoneRow({ milestone, onComplete, isMentorStudentView, canMento
           Mentor controlled
         </button>
       ) : null}
-      {isMentorStudentView && mentorMeetingLocked && ownershipType === REWARD_TASK_OWNERSHIP.MENTOR_CONTROLLED ? (
-        <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" disabled title="Only the main assigned mentor can complete this task">
-          Main mentor only
+      {mentorUnauthorized ? (
+        <button type="button" className="dash-btn dash-btn--secondary dash-btn--sm" disabled title="You are not assigned to this student">
+          Assigned mentor only
         </button>
       ) : null}
       {!isMentorStudentView && status === REWARD_TASK_STATUS.IN_PROGRESS && !ownershipType ? (
@@ -314,7 +349,8 @@ function EarnTab() {
     milestoneCategoryLabels,
     isMentorStudentView,
     canMentorCompleteTask,
-    isMainAssignedMentor
+    isMainAssignedMentor,
+    syncLoading
   } = useProgressRewards();
   const { canAccess } = usePlanAccess();
 
@@ -323,6 +359,7 @@ function EarnTab() {
     if (items.length) acc[cat] = items;
     return acc;
   }, {});
+  const hasGroups = Object.keys(grouped).length > 0;
 
   return (
     <div className="dash-rewards-tab-panel dash-rewards-earn" id="earn">
@@ -333,6 +370,11 @@ function EarnTab() {
       ) : (
         <p className="dash-rewards-earn__intro">Complete milestones to fill your Piggy Bank and save toward free rewards.</p>
       )}
+      {!hasGroups ? (
+        <p className="dash-muted">
+          {syncLoading ? "Loading earn tasks…" : "Earn tasks will appear here once Progress Rewards finishes syncing."}
+        </p>
+      ) : null}
       {Object.entries(grouped).map(([category, items]) => (
         <details key={category} className="dash-rewards-earn-group" open={category === "momentum" || category === "admissions"}>
           <summary className="dash-rewards-earn-group__summary">{milestoneCategoryLabels[category]}</summary>
