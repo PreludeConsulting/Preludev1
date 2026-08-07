@@ -4,6 +4,7 @@ import { assertDashboardAppDataOwnership } from "./lib/dataOwnership.js";
 import { getSupabaseAdmin, requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 import {
   evaluateMentorAccess,
+  hasActiveMentorSubscription,
   isLiveSessionBundleId
 } from "../shared/mentorAccess.js";
 import {
@@ -219,6 +220,34 @@ async function loadAppData(supabase, user, availabilityClient = supabase) {
 async function loadStudentMentorAccess(supabase, profile) {
   const studentUserId = profile.id;
   const now = Date.now();
+  const accessUser = {
+    id: studentUserId,
+    plan: profile.plan_id || "basic",
+    subscriptionStatus: profile.subscription_status,
+    subscriptionCurrentPeriodEnd: profile.entitlement_ends_at || profile.subscription_current_period_end,
+    entitlementEndsAt: profile.entitlement_ends_at || profile.subscription_current_period_end,
+    promoAccessEndsAt: profile.promo_access_ends_at,
+    subscriptionCurrentPeriodStart: profile.subscription_current_period_start,
+    stripeSubscriptionId: profile.stripe_subscription_id
+  };
+
+  // Heal first-time Plus/Pro accounts whose membership synced but session period
+  // never opened (e.g. Basil period bounds missing from an earlier webhook).
+  if (hasActiveMentorSubscription(accessUser)) {
+    try {
+      const { ensureSessionPeriodForActiveSubscription } = await import("./lib/sessionCredits.js");
+      await ensureSessionPeriodForActiveSubscription({
+        studentUserId,
+        planId: accessUser.plan,
+        periodStart: accessUser.subscriptionCurrentPeriodStart,
+        periodEnd: accessUser.subscriptionCurrentPeriodEnd || accessUser.entitlementEndsAt,
+        stripeSubscriptionId: accessUser.stripeSubscriptionId
+      });
+    } catch (error) {
+      console.error("[prelude-dashboard] session period ensure failed", error?.message || error);
+    }
+  }
+
   const [{ data: periodRows }, { data: packageRows }] = await Promise.all([
     supabase
       .from("subscription_session_periods")
@@ -265,14 +294,7 @@ async function loadStudentMentorAccess(supabase, profile) {
     .filter((pkg) => isLiveSessionBundleId(pkg.bundleId));
 
   const access = evaluateMentorAccess({
-    user: {
-      id: studentUserId,
-      plan: profile.plan_id || "basic",
-      subscriptionStatus: profile.subscription_status,
-      subscriptionCurrentPeriodEnd: profile.entitlement_ends_at || profile.subscription_current_period_end,
-      entitlementEndsAt: profile.entitlement_ends_at || profile.subscription_current_period_end,
-      promoAccessEndsAt: profile.promo_access_ends_at
-    },
+    user: accessUser,
     packages,
     sessionCredits
   });

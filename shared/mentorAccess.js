@@ -7,7 +7,9 @@ export const NO_MENTOR_ACCESS_CODE = "NO_MENTOR_ACCESS";
 export const ACTIVE_SUBSCRIPTION_STATUSES = new Set([
   "active",
   "trialing",
-  "promotional"
+  "promotional",
+  "checkout_completed",
+  "complete"
 ]);
 
 export const BLOCKED_SUBSCRIPTION_STATUSES = new Set([

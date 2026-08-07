@@ -18,7 +18,7 @@ import { evaluateMentorAccess, sumPackageRemaining } from "../../shared/mentorAc
 import { adminRest, first, httpError, json, requireUser, runtimeFetch } from "./http.js";
 
 const STRIPE_API_VERSION = "2026-05-27.dahlia";
-const ACTIVE_STATUSES = new Set(["active", "trialing", "promotional", "checkout_completed"]);
+const ACTIVE_STATUSES = new Set(["active", "trialing", "promotional", "checkout_completed", "complete"]);
 const PLAN_NAMES = Object.freeze({ basic: "Basic", plus: "Plus", pro: "Pro" });
 
 function getEnv(context, name) {

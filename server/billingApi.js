@@ -65,6 +65,10 @@ import {
 } from "./lib/billingMembership.js";
 import { logBillingEvent, hasActiveProEntitlement, PLUS_BLOCKED_BY_PRO_MESSAGE, PRO_TO_PLUS_USE_PORTAL_MESSAGE } from "../shared/billingMembership.js";
 import { resolveSubscriptionPlanEntitlement } from "../shared/billingSubscriptionSync.js";
+import {
+  resolveSubscriptionPeriodBounds,
+  unixToIso
+} from "../shared/stripeSubscriptionPeriod.js";
 
 const checkoutSchema = z.object({
   planId: z.enum(["plus", "pro"]),
@@ -730,11 +734,7 @@ function resolvePlanIdFromSubscription(subscription, config = getBillingConfig()
 }
 
 function subscriptionPeriodEnd(subscription) {
-  if (subscription.current_period_end) return subscription.current_period_end;
-  const periodEnds = (subscription.items?.data || [])
-    .map((item) => item.current_period_end)
-    .filter(Number.isFinite);
-  return periodEnds.length ? Math.max(...periodEnds) : null;
+  return resolveSubscriptionPeriodBounds(subscription).endUnix;
 }
 
 async function syncSubscription(subscription, { paymentConfirmed = false } = {}) {
@@ -866,7 +866,7 @@ async function processWebhookEvent(event) {
             plan: normalizePlan(planId),
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId,
-            subscriptionStatus: session.status || "checkout_completed"
+            subscriptionStatus: "active"
           }
         });
       } catch {
@@ -895,9 +895,7 @@ async function processWebhookEvent(event) {
             subscription.metadata?.previousPlanId ||
             ""
         ).toLowerCase() || null;
-      const periodEndIso = subscription.current_period_end
-        ? new Date(subscription.current_period_end * 1000).toISOString()
-        : null;
+      const periodEndIso = unixToIso(subscriptionPeriodEnd(subscription));
       const entitlement = resolveSubscriptionPlanEntitlement({
         priorPlanId,
         mappedPlanId,

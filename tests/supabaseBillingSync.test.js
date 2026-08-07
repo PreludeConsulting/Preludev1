@@ -52,7 +52,8 @@ describe("syncSupabaseCheckoutSession", () => {
       expect.objectContaining({
         plan_id: "plus",
         stripe_customer_id: "cus_1",
-        stripe_subscription_id: "sub_1"
+        stripe_subscription_id: "sub_1",
+        subscription_status: "active"
       })
     );
     expect(mocks.onboardingUpsert).toHaveBeenCalledWith(
@@ -106,7 +107,8 @@ describe("syncSupabaseCheckoutSession", () => {
       expect.objectContaining({
         plan_id: "plus",
         stripe_customer_id: "cus_zero",
-        stripe_subscription_id: "sub_zero"
+        stripe_subscription_id: "sub_zero",
+        subscription_status: "active"
       })
     );
     expect(mocks.onboardingUpsert).toHaveBeenCalledWith(

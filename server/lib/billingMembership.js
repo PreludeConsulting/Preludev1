@@ -15,6 +15,11 @@ import {
   PLUS_BLOCKED_BY_PRO_MESSAGE
 } from "../../shared/billingMembership.js";
 import { resolveSubscriptionPlanEntitlement } from "../../shared/billingSubscriptionSync.js";
+import {
+  resolveSubscriptionPeriodBounds,
+  unixToIso
+} from "../../shared/stripeSubscriptionPeriod.js";
+import { normalizePersistedSubscriptionStatus } from "../../shared/stripeSubscriptionStatus.js";
 import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
 import {
   enrichCheckoutSessionFromPaymentLink,
@@ -38,7 +43,7 @@ function admin() {
   return supabase;
 }
 
-const ACTIVE_STATUSES = new Set(["active", "trialing", "promotional", "checkout_completed"]);
+const ACTIVE_STATUSES = new Set(["active", "trialing", "promotional", "checkout_completed", "complete"]);
 
 const PLAN_NAMES = Object.freeze({
   basic: "Basic",
@@ -789,14 +794,15 @@ export async function syncSubscriptionFromStripe(userId, { stripe } = {}) {
 
 export async function persistSubscriptionFields(userId, subscription, planId = null, extras = {}) {
   const supabase = admin();
-  const periodEnd = subscription.current_period_end
-    ? new Date(subscription.current_period_end * 1000).toISOString()
-    : null;
-  const periodStart = subscription.current_period_start
-    ? new Date(subscription.current_period_start * 1000).toISOString()
-    : null;
+  const bounds = resolveSubscriptionPeriodBounds(subscription);
+  const periodEnd = unixToIso(bounds.endUnix);
+  const periodStart = unixToIso(bounds.startUnix);
   const status = subscription.status || null;
-  const active = ACTIVE_STATUSES.has(String(status || "").toLowerCase());
+  const normalizedStatus =
+    normalizePersistedSubscriptionStatus(status, {
+      paymentSuccessful: Boolean(extras.paymentConfirmed)
+    }) || status;
+  const active = ACTIVE_STATUSES.has(String(normalizedStatus || "").toLowerCase());
   const resolvedPlan =
     planId ||
     subscription.metadata?.planId ||
@@ -853,7 +859,7 @@ export async function persistSubscriptionFields(userId, subscription, planId = n
 
   const patch = {
     stripe_subscription_id: subscription.id || null,
-    subscription_status: status,
+    subscription_status: normalizedStatus,
     subscription_current_period_start: periodStart,
     subscription_current_period_end: periodEnd,
     subscription_cancel_at_period_end: Boolean(subscription.cancel_at_period_end),

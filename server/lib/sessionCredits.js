@@ -15,6 +15,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getMonthlyOneOnOneLimit, normalizePlanId } from "../../shared/mentorAccess.js";
+import {
+  resolveInvoiceSubscriptionPeriodBounds
+} from "../../shared/stripeSubscriptionPeriod.js";
 import { isDatabaseUnavailableError } from "./dbErrors.js";
 import { assertDurableStoreAvailable } from "./durableStorePolicy.js";
 
@@ -443,14 +446,9 @@ export async function grantSessionCreditsFromPaidInvoice({
     if (billingReason === "subscription_cycle") return null;
   }
 
-  const periodStart =
-    invoice?.lines?.data?.[0]?.period?.start ||
-    subscription?.current_period_start ||
-    invoice?.period_start;
-  const periodEnd =
-    invoice?.lines?.data?.[0]?.period?.end ||
-    subscription?.current_period_end ||
-    invoice?.period_end;
+  const bounds = resolveInvoiceSubscriptionPeriodBounds(invoice, subscription);
+  const periodStart = bounds.startUnix;
+  const periodEnd = bounds.endUnix;
 
   return activateSessionPeriodFromPayment({
     studentUserId,

@@ -406,6 +406,84 @@ async function main() {
     assert.equal((await getSessionCreditSummary(studentPro)).remaining, before.remaining);
   }
 
+  // Essay Support → Plus: Basil-style subscription (period only on items) still initializes Plus allowance.
+  resetStores();
+  {
+    const startUnix = Math.floor(Date.now() / 1000);
+    const endUnix = startUnix + 28 * 24 * 60 * 60;
+    await grantSessionCreditsFromPaidInvoice({
+      studentUserId: studentPlus,
+      planId: "plus",
+      invoice: {
+        id: "in_essay_to_plus",
+        status: "paid",
+        amount_paid: 4999,
+        billing_reason: "subscription_create",
+        lines: { data: [{}] }
+      },
+      subscription: {
+        id: "sub_essay_to_plus",
+        // No top-level current_period_* (Stripe Basil+)
+        items: {
+          data: [{ current_period_start: startUnix, current_period_end: endUnix }]
+        }
+      },
+      stripeEventId: "evt_essay_to_plus"
+    });
+    let summary = await getSessionCreditSummary(studentPlus);
+    assert.equal(summary.active, true);
+    assert.equal(summary.allowance, 2);
+    assert.equal(summary.remaining, 2);
+
+    // Duplicate invoice webhook must not grant twice.
+    await grantSessionCreditsFromPaidInvoice({
+      studentUserId: studentPlus,
+      planId: "plus",
+      invoice: {
+        id: "in_essay_to_plus",
+        status: "paid",
+        amount_paid: 4999,
+        billing_reason: "subscription_create",
+        lines: { data: [{}] }
+      },
+      subscription: {
+        id: "sub_essay_to_plus",
+        items: {
+          data: [{ current_period_start: startUnix, current_period_end: endUnix }]
+        }
+      },
+      stripeEventId: "evt_essay_to_plus_retry"
+    });
+    summary = await getSessionCreditSummary(studentPlus);
+    assert.equal(summary.remaining, 2);
+    assert.equal(summary.allowance, 2);
+  }
+
+  // Essay Support → Pro initializes Pro allowance once.
+  resetStores();
+  {
+    const startUnix = Math.floor(Date.now() / 1000);
+    const endUnix = startUnix + 28 * 24 * 60 * 60;
+    await grantSessionCreditsFromPaidInvoice({
+      studentUserId: studentPro,
+      planId: "pro",
+      invoice: {
+        id: "in_essay_to_pro",
+        status: "paid",
+        amount_paid: 24999,
+        billing_reason: "subscription_create",
+        lines: {
+          data: [{ period: { start: startUnix, end: endUnix } }]
+        }
+      },
+      subscription: { id: "sub_essay_to_pro" }
+    });
+    const summary = await getSessionCreditSummary(studentPro);
+    assert.equal(summary.active, true);
+    assert.equal(summary.allowance, 4);
+    assert.equal(summary.remaining, 4);
+  }
+
   // Passing four weeks without payment does not create credits
   resetStores();
   {

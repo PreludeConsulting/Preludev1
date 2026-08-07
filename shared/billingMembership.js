@@ -6,7 +6,14 @@ import { REFERRAL_BUSINESS_TIMEZONE } from "./referralConstants.js";
 
 export const BILLING_DISPLAY_TIMEZONE = REFERRAL_BUSINESS_TIMEZONE;
 
-const ACTIVE = new Set(["active", "trialing", "promotional", "checkout_completed"]);
+const ACTIVE = new Set([
+  "active",
+  "trialing",
+  "promotional",
+  "checkout_completed",
+  // Checkout Session.status mistakenly persisted by older sync paths.
+  "complete"
+]);
 const PAST_DUE = new Set(["past_due"]);
 const INCOMPLETE = new Set(["incomplete", "incomplete_expired"]);
 const CANCELED = new Set(["canceled", "cancelled", "unpaid"]);
@@ -149,6 +156,23 @@ export function deriveMembershipStatus({
       autoRenew: !cancelAtPeriodEnd,
       accessActive: true,
       endsAt: null,
+      renewsAt: !cancelAtPeriodEnd && periodEndValid ? periodEnd.toISOString() : null
+    };
+  }
+
+  // Paid Plus/Pro plan on profile without a usable Stripe status or period window
+  // (e.g. checkout wrote session.status="complete" and Basil omitted period bounds).
+  // Do not show Inactive while the student clearly owns a recurring membership.
+  if (
+    (plan === "plus" || plan === "pro") &&
+    (!status || status === "complete" || status === "checkout_completed" || status === "unknown")
+  ) {
+    return {
+      key: "active",
+      label: "Active",
+      autoRenew: !cancelAtPeriodEnd,
+      accessActive: true,
+      endsAt: periodEndValid ? periodEnd.toISOString() : null,
       renewsAt: !cancelAtPeriodEnd && periodEndValid ? periodEnd.toISOString() : null
     };
   }

@@ -17,11 +17,18 @@ import {
   CLEARED_PENDING_UPGRADE_METADATA,
   resolveSubscriptionPlanEntitlement
 } from "../../shared/billingSubscriptionSync.js";
+import { getMonthlyOneOnOneLimit } from "../../shared/mentorAccess.js";
+import {
+  resolveInvoiceSubscriptionPeriodBounds,
+  resolveSubscriptionPeriodBounds,
+  unixToIso
+} from "../../shared/stripeSubscriptionPeriod.js";
+import { normalizePersistedSubscriptionStatus } from "../../shared/stripeSubscriptionStatus.js";
 
 const PAID_PLAN_IDS = ["basic", "plus", "pro"];
 const PURCHASABLE_PLAN_IDS = ["plus", "pro"];
 const STRIPE_API_VERSION = "2026-05-27.dahlia";
-const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "checkout_completed", "complete"]);
 
 const PLACEHOLDER_PRICE_ID = /placeholder|replace|change[-_]?me|example|todo|your[-_]?price|x{3,}/i;
 
@@ -317,9 +324,10 @@ async function syncSupabasePaymentComplete(context, userId, {
 }
 
 function subscriptionPeriodIso(subscription, field) {
-  const stamp = subscription?.[field];
-  if (!stamp) return null;
-  return new Date(stamp * 1000).toISOString();
+  const bounds = resolveSubscriptionPeriodBounds(subscription);
+  if (field === "current_period_start") return unixToIso(bounds.startUnix);
+  if (field === "current_period_end") return unixToIso(bounds.endUnix);
+  return null;
 }
 
 function resolveSubscriptionPriceId(subscription) {
@@ -468,8 +476,9 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
     }
   }
 
-  // Credits only reset after a confirmed paid upgrade/period — never on unpaid subscription.updated.
-  if (active && confirmed && activePlanId === "pro" && (priorPlanId === "plus" || priorPlanId === "pro")) {
+  // Credits only after confirmed payment — initialize first Plus/Pro period or
+  // reconcile Plus→Pro mid-cycle. Never invent credits without period bounds.
+  if (active && confirmed && (activePlanId === "plus" || activePlanId === "pro") && periodStart && periodEnd) {
     try {
       const rows = await supabaseRest(
         context,
@@ -477,7 +486,30 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
         { method: "GET", prefer: "return=representation" }
       );
       const period = Array.isArray(rows) && rows[0] ? rows[0] : null;
-      if (period?.id && (priorPlanId === "plus" || Number(period.allowance) !== 4)) {
+      const allowance = getMonthlyOneOnOneLimit(activePlanId);
+      if (!allowance) {
+        /* unknown plan */
+      } else if (!period?.id) {
+        // First paid membership period (e.g. Essay Support → Plus/Pro).
+        await supabaseRest(context, "subscription_session_periods", {
+          method: "POST",
+          prefer: "return=minimal,resolution=ignore-duplicates",
+          body: {
+            student_user_id: userId,
+            plan_id: activePlanId,
+            allowance,
+            remaining: allowance,
+            status: "active",
+            period_start: periodStart,
+            period_end: periodEnd,
+            stripe_subscription_id: subscription.id,
+            idempotency_key: `session-period:ensure:${userId}:${periodStart}:${periodEnd}`
+          }
+        });
+      } else if (
+        activePlanId === "pro" &&
+        (priorPlanId === "plus" || Number(period.allowance) !== allowance)
+      ) {
         await supabaseRest(
           context,
           `subscription_session_periods?id=eq.${encodeURIComponent(period.id)}`,
@@ -486,8 +518,8 @@ async function syncSubscription(context, subscription, { paymentConfirmed = fals
             prefer: "return=minimal",
             body: {
               plan_id: "pro",
-              allowance: 4,
-              remaining: 4,
+              allowance,
+              remaining: allowance,
               updated_at: new Date().toISOString()
             }
           }
@@ -510,16 +542,33 @@ async function syncCheckoutSession(context, session) {
   if (!userId || (!planId && !bundleId)) return;
   if (!isCheckoutPaymentSuccessful(enriched)) return;
 
+  const subscriptionId = stripeObjectId(enriched.subscription);
+
   await syncSupabasePaymentComplete(context, userId, {
     planId: planId || null,
     stripeCustomerId: stripeObjectId(enriched.customer),
     ...(planId
       ? {
-          stripeSubscriptionId: stripeObjectId(enriched.subscription),
-          subscriptionStatus: enriched.status || "checkout_completed"
+          stripeSubscriptionId: subscriptionId,
+          // Persist Subscription-like status, never Checkout Session.status ("complete").
+          subscriptionStatus: normalizePersistedSubscriptionStatus(null, { paymentSuccessful: true })
         }
       : {})
   });
+
+  // Pull the live Subscription so period bounds + status=active win over checkout.
+  if (planId && subscriptionId) {
+    try {
+      const subscription = await stripeRequest(
+        context,
+        "GET",
+        `/v1/subscriptions/${encodeURIComponent(subscriptionId)}?expand[]=items.data.price&expand[]=latest_invoice`
+      );
+      await syncSubscription(context, subscription, { paymentConfirmed: true });
+    } catch (error) {
+      console.error("[stripe-billing] checkout subscription sync failed", error?.message || error);
+    }
+  }
 }
 
 async function requireSupabaseUser(context) {
@@ -960,14 +1009,14 @@ async function processWebhookEvent(context, event) {
             (billingReason === "subscription_update" && amountPaid > 0);
           const zeroCycle = amountPaid === 0 && billingReason === "subscription_cycle";
           if (shouldGrant && !zeroCycle) {
-            const periodStart =
-              object.lines?.data?.[0]?.period?.start || subscription.current_period_start;
-            const periodEnd =
-              object.lines?.data?.[0]?.period?.end || subscription.current_period_end;
-            if (periodStart && periodEnd && object.id) {
-              const startIso = new Date(periodStart * 1000).toISOString();
-              const endIso = new Date(periodEnd * 1000).toISOString();
-              const allowance = String(planId).toLowerCase() === "pro" ? 4 : 2;
+            const bounds = resolveInvoiceSubscriptionPeriodBounds(object, subscription);
+            const startIso = unixToIso(bounds.startUnix);
+            const endIso = unixToIso(bounds.endUnix);
+            if (startIso && endIso && object.id) {
+              const allowance = getMonthlyOneOnOneLimit(planId);
+              if (!allowance) {
+                console.error("[stripe-billing] session credit grant skipped: unknown plan allowance", planId);
+              } else {
               const idempotencyKey = `session-period:invoice:${object.id}`;
               // Supersede prior active periods for this student.
               await supabaseRest(
@@ -995,6 +1044,12 @@ async function processWebhookEvent(context, event) {
                   stripe_event_id: event.id,
                   idempotency_key: idempotencyKey
                 }
+              });
+              }
+            } else {
+              console.error("[stripe-billing] session credit grant skipped: missing period bounds", {
+                invoiceId: object.id,
+                subscriptionId: subscription.id
               });
             }
           }
