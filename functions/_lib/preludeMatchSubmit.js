@@ -5,7 +5,6 @@ import {
 } from "../../server/lib/preludeMatchSubmit.js";
 import { createClient } from "@supabase/supabase-js";
 import { corsHeaders, handlePreflight, json, requireUser, runtimeFetch } from "./http.js";
-import { requireLoginAssuranceCf } from "./loginVerification.js";
 
 function getAdmin(context) {
   const url = context.env?.SUPABASE_URL || context.env?.VITE_SUPABASE_URL || "";
@@ -35,12 +34,13 @@ export async function handlePreludeMatchSubmit(context) {
       return json({ success: false, error: "Payload too large" }, 413, headers);
     }
 
+    // Valid Supabase session JWT is enough. Do not require login-assurance
+    // cookies here — signup/OAuth/restored sessions are already authenticated
+    // and onboarding must not demand a second verification step.
     const { user } = await requireUser(context);
     if (!user.email) {
       return json({ success: false, error: "Unauthorized" }, 401, headers);
     }
-
-    await requireLoginAssuranceCf(context, user.id);
 
     const rawText = await context.request.text();
     if (rawText.length > MAX_PRELUDE_MATCH_BODY_BYTES) {

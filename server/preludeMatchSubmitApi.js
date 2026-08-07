@@ -50,7 +50,9 @@ export function createPreludeMatchSubmitMiddleware(env = process.env) {
         return sendJson(res, 413, { success: false, error: "Payload too large" });
       }
 
-      const { user } = await requireSupabaseUser(req);
+      // Authenticated JWT is enough for Prelude Match. Login-assurance OTP is a
+      // separate step-up for untrusted password logins — not for onboarding.
+      const { user } = await requireSupabaseUser(req, { requireLoginAssurance: false });
       const { rawText, payload } = await readRawJsonBody(req);
       if (rawText.length > MAX_PRELUDE_MATCH_BODY_BYTES) {
         return sendJson(res, 413, { success: false, error: "Payload too large" });

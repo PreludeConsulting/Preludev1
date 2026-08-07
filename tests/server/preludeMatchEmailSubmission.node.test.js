@@ -371,6 +371,15 @@ test("Cloudflare-safe prelude match submit does not import node:crypto", () => {
   assert.doesNotMatch(src, /supabaseRequestAuth/);
 });
 
+test("Prelude Match submit requires authenticated JWT but not login-assurance OTP", () => {
+  const cf = fs.readFileSync(path.join(process.cwd(), "functions/_lib/preludeMatchSubmit.js"), "utf8");
+  assert.match(cf, /requireUser/);
+  assert.doesNotMatch(cf, /requireLoginAssuranceCf/);
+
+  const node = fs.readFileSync(path.join(process.cwd(), "server/preludeMatchSubmitApi.js"), "utf8");
+  assert.match(node, /requireLoginAssurance:\s*false/);
+});
+
 test("Cloudflare route and env example wire Prelude Match submit", () => {
   const route = fs.readFileSync(
     path.join(process.cwd(), "functions/api/prelude-match/submit.js"),

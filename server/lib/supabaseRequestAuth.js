@@ -25,7 +25,7 @@ export function getSupabaseForUser(accessToken) {
   });
 }
 
-export async function requireSupabaseUser(req) {
+export async function requireSupabaseUser(req, { requireLoginAssurance: requireAssurance = true } = {}) {
   const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
   if (!token) {
     const error = new Error("Authentication required.");
@@ -47,12 +47,17 @@ export async function requireSupabaseUser(req) {
     throw authError;
   }
 
-  await requireLoginAssurance({
-    req,
-    userId: data.user.id,
-    admin: getSupabaseAdmin(),
-    env: process.env
-  });
+  // Login assurance is a password/OAuth step-up on untrusted devices.
+  // Confirmed Supabase sessions (signup OTP, OAuth, refresh) are already
+  // authenticated — onboarding and similar flows must not demand a second OTP.
+  if (requireAssurance) {
+    await requireLoginAssurance({
+      req,
+      userId: data.user.id,
+      admin: getSupabaseAdmin(),
+      env: process.env
+    });
+  }
 
   return { supabase, user: data.user };
 }

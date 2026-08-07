@@ -149,6 +149,19 @@ describe("supabase client and cookie persistence contracts", () => {
     expect(onboardingGuard).not.toMatch(/verify-login/);
   });
 
+  it("treats login step-up as pending-login only, not every unverified loginVerified flag", () => {
+    const authContext = fs.readFileSync(path.join(ROOT, "src/context/AuthContext.jsx"), "utf8");
+    expect(authContext).toMatch(/needsLoginStepUpVerification/);
+    expect(authContext).not.toMatch(/verificationRequired = Boolean\(user\?\.emailVerified && !loginVerified\)/);
+  });
+
+  it("lets Prelude Match submit succeed with a restored session JWT (no assurance cookie)", () => {
+    const cf = fs.readFileSync(path.join(ROOT, "functions/_lib/preludeMatchSubmit.js"), "utf8");
+    const node = fs.readFileSync(path.join(ROOT, "server/preludeMatchSubmitApi.js"), "utf8");
+    expect(cf).not.toMatch(/requireLoginAssuranceCf/);
+    expect(node).toMatch(/requireLoginAssurance:\s*false/);
+  });
+
   it("keeps route guards from OTP-bouncing while auth is still loading", () => {
     for (const relative of [
       "src/components/RequireLoginVerification.jsx",

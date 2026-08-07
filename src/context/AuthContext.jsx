@@ -14,6 +14,7 @@ import { isSupabaseConfigured } from "../lib/supabaseConfig.js";
 import { checkLoginVerification, clearLoginAssurance, sendLoginVerificationCode } from "../lib/loginVerification.js";
 import {
   needsEmailConfirmation,
+  needsLoginStepUpVerification,
   resolveRestoredLoginVerified,
   shouldFailOpenLoginVerification
 } from "../lib/authPersistence.js";
@@ -743,7 +744,13 @@ export function AuthProvider({ children }) {
   }, [useSupabase, user]);
 
   const emailConfirmationRequired = needsEmailConfirmation({ user });
-  const verificationRequired = Boolean(user?.emailVerified && !loginVerified);
+  // Step-up OTP only after a fresh password login on an untrusted device —
+  // never for restored/signup/OAuth sessions that are already authenticated.
+  const verificationRequired = needsLoginStepUpVerification({
+    user,
+    loginVerified,
+    pendingLoginStepUp: pendingLoginStepUpRef.current
+  });
 
   const value = useMemo(
     () => ({
