@@ -9,6 +9,7 @@ import { evaluateMentorAccess } from "../../shared/mentorAccess.js";
 import { scheduleMeeting, updateScheduledMeeting } from "../../server/lib/meetingSchedule.js";
 import {
   activateSessionPeriodFromPayment,
+  ensureSessionPeriodForActiveSubscription,
   expireSessionPeriodsAtPeriodEnd,
   getSessionCreditSummary,
   grantSessionCreditsFromPaidInvoice
@@ -538,6 +539,53 @@ async function main() {
       sessionCredits: afterEnd
     });
     assert.equal(blocked.allowed, false);
+  }
+
+  // --- FIRST PERIOD VIA ensure (no invoice.paid required) ---
+  resetStores();
+  {
+    const bounds = periodBounds(30);
+    const opened = await ensureSessionPeriodForActiveSubscription({
+      studentUserId: studentPlus,
+      planId: "plus",
+      periodStart: bounds.start,
+      periodEnd: bounds.end,
+      stripeSubscriptionId: "sub_ensure_plus"
+    });
+    assert.ok(opened);
+    let summary = await getSessionCreditSummary(studentPlus);
+    assert.equal(summary.active, true);
+    assert.equal(summary.allowance, 2);
+    assert.equal(summary.remaining, 2);
+
+    // Duplicate ensure / refresh must not double-grant.
+    await ensureSessionPeriodForActiveSubscription({
+      studentUserId: studentPlus,
+      planId: "plus",
+      periodStart: bounds.start,
+      periodEnd: bounds.end,
+      stripeSubscriptionId: "sub_ensure_plus"
+    });
+    summary = await getSessionCreditSummary(studentPlus);
+    assert.equal(summary.remaining, 2);
+
+    await book(studentPlus, "plus", 1, `plus-ensure-book-${Date.now()}`);
+    assert.equal((await getSessionCreditSummary(studentPlus)).remaining, 1);
+  }
+
+  resetStores();
+  {
+    const bounds = periodBounds(30);
+    await ensureSessionPeriodForActiveSubscription({
+      studentUserId: studentPro,
+      planId: "pro",
+      periodStart: bounds.start,
+      periodEnd: bounds.end,
+      stripeSubscriptionId: "sub_ensure_pro"
+    });
+    const summary = await getSessionCreditSummary(studentPro);
+    assert.equal(summary.allowance, 4);
+    assert.equal(summary.remaining, 4);
   }
 
   console.log("sessionCredits.node.test.js: all assertions passed");

@@ -6,10 +6,7 @@ import {
   CLEARED_PENDING_UPGRADE_METADATA,
   resolveSubscriptionPlanEntitlement
 } from "../../shared/billingSubscriptionSync.js";
-import {
-  resolveSubscriptionPeriodBounds,
-  unixToIso
-} from "../../shared/stripeSubscriptionPeriod.js";
+import { resolvePaidMembershipPeriodBounds } from "../../shared/sessionPeriodEnsure.js";
 import { normalizePersistedSubscriptionStatus } from "../../shared/stripeSubscriptionStatus.js";
 import { getSupabaseAdmin } from "./supabaseRequestAuth.js";
 import { persistSubscriptionFields, recordPurchaseFromCheckoutSession } from "./billingMembership.js";
@@ -139,9 +136,9 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
     }
   }
 
-  const bounds = resolveSubscriptionPeriodBounds(subscription);
-  const periodStartIso = unixToIso(bounds.startUnix);
-  const periodEndIso = unixToIso(bounds.endUnix);
+  const paidBounds = resolvePaidMembershipPeriodBounds(subscription);
+  const periodStartIso = paidBounds.startIso;
+  const periodEndIso = paidBounds.endIso;
   const entitlement = resolveSubscriptionPlanEntitlement({
     priorPlanId,
     mappedPlanId,
@@ -185,9 +182,19 @@ export async function syncSupabaseSubscription(subscription, resolvedPlanId = nu
       pendingPlanId
     });
     try {
+      // Plus→Pro mid-cycle allowance reset still requires confirmed payment.
       if (confirmed) {
         await reconcileActiveSessionPeriodForPlanChange(userId, planId);
-        // First Plus/Pro period (e.g. Essay Support → Plus): open full allowance once.
+      }
+      // Period #1 starts when Stripe marks the subscription active — do not wait for
+      // a separate invoice.paid / paymentConfirmed flag (subscription.updated often
+      // arrives first and previously left remaining=0 forever).
+      if (
+        (planId === "plus" || planId === "pro") &&
+        periodStartIso &&
+        periodEndIso &&
+        ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status)
+      ) {
         await ensureSessionPeriodForActiveSubscription({
           studentUserId: userId,
           planId,
@@ -252,7 +259,7 @@ export async function syncSupabaseCheckoutSession(session) {
             maxNetworkRetries: 2
           });
           const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
-            expand: ["items.data.price", "latest_invoice"]
+            expand: ["items.data.price", "latest_invoice", "latest_invoice.lines.data"]
           });
           await syncSupabaseSubscription(subscription, planId, { paymentConfirmed: true });
         }

@@ -18,6 +18,7 @@ import { getMonthlyOneOnOneLimit, normalizePlanId } from "../../shared/mentorAcc
 import {
   resolveInvoiceSubscriptionPeriodBounds
 } from "../../shared/stripeSubscriptionPeriod.js";
+import { sessionPeriodEnsureIdempotencyKey } from "../../shared/sessionPeriodEnsure.js";
 import { isDatabaseUnavailableError } from "./dbErrors.js";
 import { assertDurableStoreAvailable } from "./durableStorePolicy.js";
 
@@ -223,10 +224,9 @@ export async function reconcileActiveSessionPeriodForPlanChange(
 }
 
 /**
- * Bootstrap a period for an already-active Plus/Pro subscription that has no ledger row yet
- * (migration / demo / promo). Does not invent a new allowance after a prior period expires
- * without a successful payment — only opens a window when none exists for these bounds.
- * Authoritative renewals still go through activateSessionPeriodFromPayment (invoice.paid).
+ * Open period #1 (or heal a missing ledger row) for an already-active Plus/Pro subscription.
+ * Idempotent on subscriptionId + periodStart (or ensure key). Does not invent renewals —
+ * renewals still go through grantSessionCreditsFromPaidInvoice / invoice.paid.
  */
 export async function ensureSessionPeriodForActiveSubscription({
   studentUserId,
@@ -254,7 +254,12 @@ export async function ensureSessionPeriodForActiveSubscription({
       periodStart: startIso,
       periodEnd: endIso,
       stripeSubscriptionId,
-      idempotencyKey: `session-period:ensure:${studentUserId}:${startIso}:${endIso}`
+      idempotencyKey: sessionPeriodEnsureIdempotencyKey({
+        studentUserId,
+        periodStartIso: startIso,
+        periodEndIso: endIso,
+        stripeSubscriptionId
+      })
     });
   }
 

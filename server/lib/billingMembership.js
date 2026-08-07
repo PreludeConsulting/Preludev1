@@ -19,6 +19,7 @@ import {
   resolveSubscriptionPeriodBounds,
   unixToIso
 } from "../../shared/stripeSubscriptionPeriod.js";
+import { resolvePaidMembershipPeriodBounds } from "../../shared/sessionPeriodEnsure.js";
 import { normalizePersistedSubscriptionStatus } from "../../shared/stripeSubscriptionStatus.js";
 import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
 import {
@@ -161,6 +162,18 @@ export async function getBillingSummary(userId) {
 
   const packages = await collectSessionPackages(ctx.members);
   const sessionBalance = sumPackageRemaining(packages);
+  try {
+    const { ensureSessionPeriodForActiveSubscription } = await import("./sessionCredits.js");
+    await ensureSessionPeriodForActiveSubscription({
+      studentUserId: sub.id,
+      planId,
+      periodStart: sub.subscription_current_period_start || null,
+      periodEnd: entitlementEndsAt,
+      stripeSubscriptionId: sub.stripe_subscription_id || null
+    });
+  } catch (error) {
+    console.error("[billing] session period ensure failed", error?.message || error);
+  }
   const creditSummary = await getSessionCreditSummary(sub.id);
   const reviewCredits = await getReviewCreditBalance(sub.id);
   const access = evaluateMentorAccess({
@@ -785,18 +798,28 @@ export async function syncSubscriptionFromStripe(userId, { stripe } = {}) {
     return { ok: true, synced: false, reason: "no_subscription" };
   }
   const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
-    expand: ["items.data.price", "latest_invoice"]
+    expand: ["items.data.price", "latest_invoice", "latest_invoice.lines.data"]
   });
+  const latestInvoice =
+    subscription?.latest_invoice && typeof subscription.latest_invoice === "object"
+      ? subscription.latest_invoice
+      : null;
+  const invoicePaid =
+    latestInvoice &&
+    (latestInvoice.status === "paid" || latestInvoice.paid === true || Number(latestInvoice.amount_paid) > 0);
+  const paymentConfirmed =
+    Boolean(invoicePaid) ||
+    ["active", "trialing"].includes(String(subscription?.status || "").toLowerCase());
   const { syncSupabaseSubscription } = await import("./supabaseBillingSync.js");
-  await syncSupabaseSubscription(subscription, null, { paymentConfirmed: false });
+  await syncSupabaseSubscription(subscription, null, { paymentConfirmed });
   return { ok: true, synced: true, subscriptionId };
 }
 
 export async function persistSubscriptionFields(userId, subscription, planId = null, extras = {}) {
   const supabase = admin();
-  const bounds = resolveSubscriptionPeriodBounds(subscription);
-  const periodEnd = unixToIso(bounds.endUnix);
-  const periodStart = unixToIso(bounds.startUnix);
+  const paidBounds = resolvePaidMembershipPeriodBounds(subscription);
+  const periodEnd = paidBounds.endIso;
+  const periodStart = paidBounds.startIso;
   const status = subscription.status || null;
   const normalizedStatus =
     normalizePersistedSubscriptionStatus(status, {

@@ -315,10 +315,22 @@ async function listAssignedStudents(admin, caller) {
   if (!studentIds.length) return [];
   const { data: profiles, error: profilesError } = await admin
     .from("profiles")
-    .select("id, full_name, preferred_name, grade_level, college_interests, plan_id, subscription_status, subscription_cancel_at_period_end, subscription_current_period_end")
+    .select("id, full_name, preferred_name, grade_level, college_interests, plan_id, subscription_status, subscription_cancel_at_period_end, subscription_current_period_start, subscription_current_period_end, entitlement_ends_at, stripe_subscription_id")
     .in("id", studentIds);
   throwForQuery(profilesError, "Could not load assigned student profiles.");
   const students = await Promise.all((profiles || []).map(async (profile) => {
+    try {
+      const { ensureSessionPeriodForActiveSubscription } = await import("./lib/sessionCredits.js");
+      await ensureSessionPeriodForActiveSubscription({
+        studentUserId: profile.id,
+        planId: profile.plan_id,
+        periodStart: profile.subscription_current_period_start || null,
+        periodEnd: profile.entitlement_ends_at || profile.subscription_current_period_end || null,
+        stripeSubscriptionId: profile.stripe_subscription_id || null
+      });
+    } catch {
+      /* heal best-effort */
+    }
     const [reviewBalance, sessionCredits] = await Promise.all([
       getReviewCreditBalance(profile.id),
       getSessionCreditSummary(profile.id).catch(() => ({ active: false, remaining: 0, allowance: 0 }))

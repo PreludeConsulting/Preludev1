@@ -16,6 +16,10 @@ import {
 import { PLAN_PRICE_CENTS } from "../../shared/billingCatalog.js";
 import { evaluateMentorAccess, sumPackageRemaining } from "../../shared/mentorAccess.js";
 import { adminRest, first, httpError, json, requireUser, runtimeFetch } from "./http.js";
+import {
+  ensureSessionPeriodFromProfile,
+  wrapAdminRestForSessionPeriods
+} from "./sessionPeriodCredits.js";
 
 const STRIPE_API_VERSION = "2026-05-27.dahlia";
 const ACTIVE_STATUSES = new Set(["active", "trialing", "promotional", "checkout_completed", "complete"]);
@@ -230,7 +234,14 @@ async function collectSessionPackages(context, members) {
   return packages;
 }
 
-async function getSessionCreditSummary(context, studentUserId) {
+async function getSessionCreditSummary(context, studentUserId, profile = null) {
+  if (profile) {
+    try {
+      await ensureSessionPeriodFromProfile(wrapAdminRestForSessionPeriods(adminRest), context, profile);
+    } catch (error) {
+      console.error("[billing] session period ensure failed", error?.message || error);
+    }
+  }
   const nowIso = new Date().toISOString();
   const rows = await adminRest(
     context,
@@ -303,7 +314,7 @@ export async function handleBillingSummary(context) {
 
     const packages = await collectSessionPackages(context, ctx.members);
     const sessionBalance = sumPackageRemaining(packages);
-    const creditSummary = await getSessionCreditSummary(context, sub.id);
+    const creditSummary = await getSessionCreditSummary(context, sub.id, sub);
     const reviewCredits = await getReviewCreditSummary(context, sub.id);
     const access = evaluateMentorAccess({
       user: {
@@ -455,7 +466,7 @@ export async function handleMySubscription(context) {
     }
     const sub = ctx.subscriber;
     const planId = String(sub.plan_id || "basic").toLowerCase();
-    const creditSummary = await getSessionCreditSummary(context, sub.id);
+    const creditSummary = await getSessionCreditSummary(context, sub.id, sub);
     const reviewCredits = await getReviewCreditSummary(context, sub.id);
     const entitlement = buildSubscriptionEntitlement({
       planId,
@@ -783,11 +794,21 @@ export async function handleBillingSyncSubscription(context) {
     const subscription = await stripeRequest(
       context,
       "GET",
-      `/v1/subscriptions/${encodeURIComponent(subscriptionId)}?expand[]=items.data.price&expand[]=latest_invoice`
+      `/v1/subscriptions/${encodeURIComponent(subscriptionId)}?expand[]=items.data.price&expand[]=latest_invoice&expand[]=latest_invoice.lines.data`
     );
+    const latestInvoice =
+      subscription?.latest_invoice && typeof subscription.latest_invoice === "object"
+        ? subscription.latest_invoice
+        : null;
+    const invoicePaid =
+      latestInvoice &&
+      (latestInvoice.status === "paid" || latestInvoice.paid === true || Number(latestInvoice.amount_paid) > 0);
+    const paymentConfirmed =
+      Boolean(invoicePaid) ||
+      ["active", "trialing"].includes(String(subscription?.status || "").toLowerCase());
     const { syncSubscriptionFromStripeEvent } = await import("./stripeBilling.js");
     if (typeof syncSubscriptionFromStripeEvent === "function") {
-      await syncSubscriptionFromStripeEvent(context, subscription);
+      await syncSubscriptionFromStripeEvent(context, subscription, { paymentConfirmed });
     }
     return json({ ok: true, synced: true, subscriptionId });
   } catch (error) {

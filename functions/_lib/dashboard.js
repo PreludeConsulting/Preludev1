@@ -3,6 +3,7 @@ import { evaluateMentorAccess, isLiveSessionBundleId } from "../../shared/mentor
 import { adminRest, first, httpError, json, requireUser, rest } from "./http.js";
 import { loadMeetingsForUser, sanitizeMeetingForRole } from "./meetings.js";
 import { DEFAULT_INTEGRATIONS, normalizeIntegrations } from "./integrations.js";
+import { ensureSessionPeriodFromProfile, summarizeSessionPeriodRow, wrapAdminRestForSessionPeriods } from "./sessionPeriodCredits.js";
 
 const profileFields = [
   "full_name", "preferred_name", "school", "grade_level", "time_zone", "language",
@@ -104,19 +105,7 @@ function mapLiveSessionPackage(row) {
 }
 
 function summarizeActiveSessionPeriod(period) {
-  if (!period) {
-    return { allowance: 0, remaining: 0, used: 0, active: false, periodEnd: null, planId: null };
-  }
-  const allowance = Math.max(0, Number(period.allowance) || 0);
-  const remaining = Math.max(0, Number(period.remaining) || 0);
-  return {
-    allowance,
-    remaining,
-    used: Math.max(0, allowance - remaining),
-    active: String(period.status || "").toLowerCase() === "active",
-    periodEnd: period.period_end || null,
-    planId: period.plan_id || null
-  };
+  return summarizeSessionPeriodRow(period);
 }
 
 /**
@@ -130,6 +119,7 @@ async function loadStudentMentorAccess(context, profile, meetings = []) {
   let sessionCredits = summarizeActiveSessionPeriod(null);
   let packages = [];
   try {
+    await ensureSessionPeriodFromProfile(wrapAdminRestForSessionPeriods(adminRest), context, profile);
     const [periodRows, packageRows] = await Promise.all([
       adminRest(
         context,

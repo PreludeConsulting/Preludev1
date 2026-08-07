@@ -16,6 +16,7 @@
 
 import { adminRest, first, httpError, json, readJsonBody, runAuthenticated, runtimeFetch, supabaseConfig } from "./http.js";
 import { buildMentorStudentPlanCredits } from "../../shared/mentorStudentRoster.js";
+import { ensureSessionPeriodFromProfile, wrapAdminRestForSessionPeriods } from "./sessionPeriodCredits.js";
 
 export const ACTIVITY_TYPES = [
   "personal_statement",
@@ -762,9 +763,12 @@ async function hydrateActivities(context, rows) {
     .sort(activitySort);
 }
 
-async function getSessionCreditSummary(context, studentUserId) {
+async function getSessionCreditSummary(context, studentUserId, profile = null) {
   const nowIso = new Date().toISOString();
   try {
+    if (profile) {
+      await ensureSessionPeriodFromProfile(wrapAdminRestForSessionPeriods(adminRest), context, profile);
+    }
     const rows = await adminRest(
       context,
       `subscription_session_periods?student_user_id=eq.${encodeURIComponent(studentUserId)}&status=eq.active&period_end=gt.${encodeURIComponent(nowIso)}&select=*&order=period_start.desc&limit=1`
@@ -794,13 +798,13 @@ async function listAssignedStudents(context, caller) {
   if (!studentIds.length) return [];
   const profiles = await adminRest(
     context,
-    `profiles?select=id,full_name,preferred_name,grade_level,college_interests,plan_id,subscription_status,subscription_cancel_at_period_end,subscription_current_period_end&id=in.(${studentIds.join(",")})`
+    `profiles?select=id,full_name,preferred_name,grade_level,college_interests,plan_id,subscription_status,subscription_cancel_at_period_end,subscription_current_period_start,subscription_current_period_end,entitlement_ends_at,stripe_subscription_id&id=in.(${studentIds.join(",")})`
   );
   const students = await Promise.all(
     (profiles || []).map(async (profile) => {
       const [balance, sessionCredits] = await Promise.all([
         getReviewCreditBalance(context, profile.id),
-        getSessionCreditSummary(context, profile.id)
+        getSessionCreditSummary(context, profile.id, profile)
       ]);
       const planCredits = buildMentorStudentPlanCredits({
         planId: profile.plan_id,

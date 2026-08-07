@@ -48,7 +48,7 @@ describe("No optimistic entitlement on checkout click", () => {
     expect(cf).toContain("Never grant Pro entitlement here");
     expect(node).toMatch(/plan_id:\s*currentPlan/);
     expect(cf).toMatch(/plan_id:\s*currentPlan/);
-    expect(node).toContain("downgrade_not_allowed");
+    expect(node).toContain("scheduled Plus downgrade");
     expect(node).not.toMatch(/reconcileActiveSessionPeriodForPlanChange\(subscriber\.id,\s*targetPlan/);
   });
 
@@ -57,7 +57,7 @@ describe("No optimistic entitlement on checkout click", () => {
     const shared = read("shared/billingSubscriptionSync.js");
     expect(cf).toContain("paymentConfirmed = false");
     expect(cf).toContain("resolveSubscriptionPlanEntitlement");
-    expect(cf).toContain("must not unlock Pro until a paid invoice confirms");
+    expect(cf).toContain("must not unlock Pro until payment is confirmed");
     expect(cf).toContain("syncSubscription(context, subscription, { paymentConfirmed: true })");
     expect(cf).toContain("CLEARED_PENDING_UPGRADE_METADATA");
     expect(shared).toContain("shouldClearPendingMetadata");
