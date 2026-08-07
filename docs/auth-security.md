@@ -1,6 +1,8 @@
 # Authentication, authorization, and account management
 
-Prelude now uses a free, self-hosted authentication stack: Vite middleware/Node API handlers, Prisma ORM, PostgreSQL, Argon2id password hashing, JWT access tokens, hashed refresh tokens, HTTP-only cookies, SameSite CSRF defense, and Zod validation. No paid third-party identity, email, or SMS provider is required to run locally or during early startup validation.
+**Supabase Auth is the primary authentication system** for Prelude (email/password, OAuth, session JWTs, and login verification). Legacy Prisma/cookie JWT auth remains available only when `AUTH_LEGACY_PRISMA=1` or `NODE_ENV !== "production"`.
+
+The legacy stack (Vite middleware/Node API handlers, Prisma ORM, Argon2id, JWT access/refresh cookies) is retained for local/dev compatibility, not as the production identity provider.
 
 ## API surface
 
@@ -81,12 +83,19 @@ During local and early production testing, verification and reset links are logg
 ## Required environment variables
 
 ```bash
-DATABASE_URL="postgresql://prelude:prelude_dev_password@localhost:5432/prelude_dev?schema=public"
-JWT_ACCESS_SECRET="replace-with-a-long-random-secret"
+# Primary (Supabase)
+SUPABASE_URL="https://your-project.supabase.co"
+SUPABASE_ANON_KEY="your-anon-or-publishable-key"
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 PUBLIC_APP_URL="http://localhost:5173"
 NODE_ENV="development"
+
+# Legacy Prisma JWT (optional; off in production unless AUTH_LEGACY_PRISMA=1)
+DATABASE_URL="postgresql://prelude:prelude_dev_password@localhost:5432/prelude_dev?schema=public"
+JWT_ACCESS_SECRET="replace-with-a-long-random-secret"
+AUTH_LEGACY_PRISMA="1"
 ```
 
 Local Docker setup: `npm run db:start` (see root `compose.yml`), then `npm run db:migrate` and `npm run seed:demo`.
 
-Use a strong `JWT_ACCESS_SECRET` before any public deployment. Run `npx prisma migrate deploy` after Prisma engines are available in the deployment environment.
+Use a strong `JWT_ACCESS_SECRET` only if legacy Prisma auth is enabled. Run `npx prisma migrate deploy` after Prisma engines are available in the deployment environment.

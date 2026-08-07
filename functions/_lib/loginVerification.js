@@ -203,7 +203,7 @@ async function requireUser(context) {
   return user;
 }
 
-async function findTrustedDevice(context, userId) {
+export async function findTrustedDevice(context, userId) {
   const cookies = parseCookies(context.request.headers.get("Cookie") || "");
   const raw = cookies[TRUSTED_DEVICE_COOKIE];
   if (!raw) return null;
@@ -222,7 +222,7 @@ async function findTrustedDevice(context, userId) {
   return device;
 }
 
-async function findAssurance(context, userId) {
+export async function findAssurance(context, userId) {
   const cookies = parseCookies(context.request.headers.get("Cookie") || "");
   const raw = cookies[LOGIN_ASSURANCE_COOKIE];
   if (!raw) return null;
@@ -232,6 +232,24 @@ async function findAssurance(context, userId) {
     `/rest/v1/login_assurances?select=id,expires_at,trusted_device_id&user_id=eq.${userId}&assurance_token_hash=eq.${tokenHash}&revoked_at=is.null&expires_at=gt.${encodeURIComponent(new Date().toISOString())}`
   );
   return rows?.[0] || null;
+}
+
+/** Production-only login assurance gate for mutating CF handlers. */
+export async function requireLoginAssuranceCf(context, userId) {
+  const env = context.env || {};
+  const nodeEnv = env.NODE_ENV || env.ENVIRONMENT || "production";
+  if (nodeEnv !== "production") {
+    return { verified: true, method: "not_required" };
+  }
+  const trustedDevice = await findTrustedDevice(context, userId);
+  if (trustedDevice) return { verified: true, method: "trusted_device", id: trustedDevice.id };
+  const assurance = await findAssurance(context, userId);
+  if (assurance) return { verified: true, method: "assurance", id: assurance.id };
+  throw Object.assign(new Error("Complete login verification to continue."), {
+    status: 403,
+    statusCode: 403,
+    code: "login_verification_required"
+  });
 }
 
 async function sendEmail(context, { to, code, challengeId, requestId: rid }) {

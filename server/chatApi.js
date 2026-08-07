@@ -1,18 +1,28 @@
-import { buildChatModelConfig } from "./aiConfig.js";
-import { createMentorMatch } from "./mentorMatch.js";
-import { mapChatError, shouldLogChatError } from "./chatErrors.js";
-import { createRagChatCompletion } from "./chatHandler.js";
 import { db, requireAuth } from "./authApi.js";
+import { isLegacyPrismaAuthEnabled } from "./lib/legacyPrismaAuth.js";
 import { readJsonBody, sendJson } from "./http.js";
 import { hasAuthenticatedRequest } from "./lib/dataOwnership.js";
 import { mergeStudentProfileForChat } from "./rag/studentProfile.js";
 import { sanitizeStudentProfile } from "./rag/studentProfile.js";
 import { validateChatRequestBody } from "./chatRequest.js";
 import { isPreludeAiEnabled, PRELUDE_AI_DISABLED_MESSAGE } from "../shared/preludeAiEnabled.js";
+import { buildChatModelConfig } from "./aiConfig.js";
+import { createMentorMatch } from "./mentorMatch.js";
+import { mapChatError, shouldLogChatError } from "./chatErrors.js";
+import { createRagChatCompletion } from "./chatHandler.js";
 
 export function createChatApiMiddleware(env = process.env, deps = {}) {
   const config = buildChatModelConfig(env);
-  const requireAuthFn = deps.requireAuthFn || requireAuth;
+  const requireAuthFn =
+    deps.requireAuthFn ||
+    (async (req) => {
+      if (!isLegacyPrismaAuthEnabled(env)) {
+        const error = new Error("Authentication required.");
+        error.statusCode = 401;
+        throw error;
+      }
+      return requireAuth(req);
+    });
   const dbFactory = deps.dbFactory || db;
   const createRagChatCompletionFn = deps.createRagChatCompletionFn || createRagChatCompletion;
   const createMentorMatchFn = deps.createMentorMatchFn || createMentorMatch;

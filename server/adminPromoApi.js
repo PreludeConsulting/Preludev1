@@ -2,6 +2,7 @@ import { z } from "zod";
 import { readJsonBody, sendJson, getRequestUrl } from "./http.js";
 import { getSupabaseAdmin, requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 import { db } from "./authApi.js";
+import { isLegacyPrismaAuthEnabled } from "./lib/legacyPrismaAuth.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 import {
   generatePromoCode,
@@ -59,6 +60,11 @@ async function requireAdmin(req) {
 }
 
 async function requirePrismaAdmin(req) {
+  if (!isLegacyPrismaAuthEnabled()) {
+    const error = new Error("Authentication required.");
+    error.statusCode = 401;
+    throw error;
+  }
   const { requireAuth } = await import("./authApi.js");
   const auth = await requireAuth(req);
   if (auth.user.role !== "ADMIN") {

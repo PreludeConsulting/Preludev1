@@ -6,8 +6,6 @@
 import { getPlan, normalizePlanId } from "./plans.js";
 import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
 import { mapOnboardingToUserFields } from "./preludeMatchService.js";
-import { readPaymentStepComplete } from "./onboardingPayment.js";
-import { readParentInviteStepComplete } from "./parentLinks.js";
 import { normalizeAuthProviders } from "./authSignInMethod.js";
 import { resolveAvatarUrl } from "./avatar.js";
 import { hasMatchingTeamAccess } from "../../shared/matchingTeamAccess.js";
@@ -41,11 +39,13 @@ export function mapSupabaseUser(
   const lastName = rest.join(" ") || "";
   const storedRole = (profile?.role || meta.role || "student").toLowerCase();
   const metadataRole = (meta.role || "").toLowerCase();
-  const matchingTeamAccess = hasMatchingTeamAccess({
-    ...profile,
-    matchingTeamAccess: options.matchingTeamAccess,
-    systemRole: storedRole
-  });
+  const matchingTeamAccess =
+    Boolean(options.matchingTeamAccess) ||
+    hasMatchingTeamAccess({
+      ...profile,
+      systemRole: storedRole,
+      role: storedRole
+    });
   const role = matchingTeamAccess
     ? (
       ["student", "mentor", "parent"].includes(metadataRole)
@@ -55,16 +55,13 @@ export function mapSupabaseUser(
           : "mentor"
     )
     : storedRole;
-  const cachedPlan = typeof window !== "undefined" ? window.localStorage.getItem(`prelude_plan_${u.id}`) : null;
-  const planId = normalizePlanId(profile?.plan_id || cachedPlan);
+  // Access gating uses DB fields only — localStorage is UX cache, never entitlement truth.
+  const planId = normalizePlanId(profile?.plan_id || null);
   const plan = planId ? getPlan(planId) : null;
   const onboardingFields = mapOnboardingToUserFields(onboarding, hasAssignedMentor);
-  const parentInviteStepComplete =
-    onboardingFields.parentInviteStepComplete || readParentInviteStepComplete(u.id);
+  const parentInviteStepComplete = Boolean(onboardingFields.parentInviteStepComplete);
   const paymentStepComplete =
-    onboardingFields.paymentStepComplete ||
-    readPaymentStepComplete(u.id) ||
-    Boolean(profile?.payment_waived);
+    Boolean(onboardingFields.paymentStepComplete) || Boolean(profile?.payment_waived);
   const authSignInMethods = normalizeAuthProviders(u.identities || [], u);
   const roleSelectionComplete = profile?.role_selection_complete !== false;
 

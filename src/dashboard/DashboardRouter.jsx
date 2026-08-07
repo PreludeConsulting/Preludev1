@@ -75,10 +75,10 @@ function MatchingTeamGuard({ children }) {
   useEffect(() => {
     let cancelled = false;
     async function checkAccess() {
-      if (hasMatchingTeamAccess(user)) {
-        setState({ loading: false, allowed: true });
-        return;
-      }
+      if (user?.matchingTeamAccess || hasMatchingTeamAccess(user)) {
+           setState({ loading: false, allowed: true });
+           return;
+         }
       try {
         await checkMatchingTeamAccess();
         if (!cancelled) setState({ loading: false, allowed: true });

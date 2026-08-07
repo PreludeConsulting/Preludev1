@@ -225,25 +225,20 @@ export async function inviteParent({ studentId, studentName, parentEmail }) {
 export async function markParentInviteStepComplete(studentId) {
   if (!studentId) return;
 
-  if (isSupabaseConfigured()) {
-    const supabase = getSupabase();
-    if (supabase) {
-      const { error } = await supabase
-        .from("onboarding_progress")
-        .upsert(
-          {
-            user_id: studentId,
-            parent_invite_step_completed: true,
-            onboarding_status: "needs_payment",
-            updated_at: new Date().toISOString()
-          },
-          { onConflict: "user_id" }
-        );
-      if (!error) return;
-      console.warn("[prelude-parent] markParentInviteStepComplete:", error.message);
+  const accessToken = await getSupabaseAccessToken();
+  if (isSupabaseConfigured() && accessToken) {
+    try {
+      await api(appPath("/api/parent-invites/complete-step"), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({})
+      });
+    } catch (error) {
+      console.warn("[prelude-parent] markParentInviteStepComplete:", error?.message || error);
     }
   }
 
+  // Local cache remains for UX only and is not trusted for access gating.
   if (typeof window !== "undefined") {
     try {
       window.localStorage.setItem(`prelude_parent_invite_done_${studentId}`, "1");

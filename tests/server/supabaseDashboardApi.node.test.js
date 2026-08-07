@@ -255,7 +255,10 @@ describe("Supabase dashboard API", () => {
       messages: []
     });
     const requireUser = async () => ({ user: { id: "user-1", email: "mentor@example.com" }, supabase });
-    const middleware = createSupabaseDashboardApiMiddleware({ requireUser });
+    const middleware = createSupabaseDashboardApiMiddleware({
+      requireUser,
+      getAdminClient: () => supabase
+    });
     const profileResponse = response();
     await middleware(request("PATCH", "/api/dashboard/profile", { full_name: "After" }), profileResponse, () => {});
     assert.equal(profileResponse.statusCode, 200);

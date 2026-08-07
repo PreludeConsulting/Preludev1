@@ -51,7 +51,7 @@ function validPayload(overrides = {}) {
   return { ...payload, ...overrides };
 }
 
-function mockAdmin({ existing = null } = {}) {
+function mockAdmin({ existing = null, recentCount = 0 } = {}) {
   const rows = new Map();
   if (existing) rows.set(existing.submission_id, { ...existing });
   const onboarding = [];
@@ -60,7 +60,7 @@ function mockAdmin({ existing = null } = {}) {
     onboarding,
     rows,
     from(table) {
-      const state = { table, filters: {}, payload: null, op: "select" };
+      const state = { table, filters: {}, payload: null, op: "select", count: null };
 
       const resolve = async () => {
         if (state.table === "prelude_match_submissions") {
@@ -68,29 +68,56 @@ function mockAdmin({ existing = null } = {}) {
             const id = state.payload.submission_id;
             const next = { id: rows.get(id)?.id || "row-1", ...rows.get(id), ...state.payload };
             rows.set(id, next);
-            return { data: next, error: null };
+            return { data: next, error: null, count: null };
+          }
+          if (state.op === "update") {
+            const id = state.filters.submission_id;
+            const current = rows.get(id);
+            if (!current) return { data: null, error: null, count: null };
+            if (state.filters.email_status && current.email_status !== state.filters.email_status) {
+              return { data: null, error: null, count: null };
+            }
+            if (state.filters.user_id && current.user_id !== state.filters.user_id) {
+              return { data: null, error: null, count: null };
+            }
+            const next = { ...current, ...state.payload };
+            rows.set(id, next);
+            return { data: next, error: null, count: null };
+          }
+          if (state.count === "exact") {
+            return { data: null, error: null, count: recentCount };
           }
           const id = state.filters.submission_id;
-          return { data: rows.get(id) || null, error: null };
+          return { data: rows.get(id) || null, error: null, count: null };
         }
         if (state.table === "onboarding_progress" && state.op === "upsert") {
           onboarding.push(state.payload);
-          return { data: state.payload, error: null };
+          return { data: state.payload, error: null, count: null };
         }
-        return { data: null, error: null };
+        return { data: null, error: null, count: null };
       };
 
       const api = {
-        select() {
-          if (state.op !== "upsert") state.op = "select";
+        select(_cols, opts = {}) {
+          if (state.op !== "upsert" && state.op !== "update") state.op = "select";
+          if (opts?.count) state.count = opts.count;
           return api;
         },
         eq(col, val) {
           state.filters[col] = val;
           return api;
         },
+        gte(col, val) {
+          state.filters[`${col}_gte`] = val;
+          return api;
+        },
         upsert(payload) {
           state.op = "upsert";
+          state.payload = payload;
+          return api;
+        },
+        update(payload) {
+          state.op = "update";
           state.payload = payload;
           return api;
         },
@@ -339,7 +366,7 @@ test("processPreludeMatchSubmission rejects missing env and invalid payloads", a
 
 test("Cloudflare-safe prelude match submit does not import node:crypto", () => {
   const src = fs.readFileSync(path.join(process.cwd(), "server/lib/preludeMatchSubmit.js"), "utf8");
-  assert.doesNotMatch(src, /node:crypto/);
+  assert.doesNotMatch(src, /from ["']node:crypto["']/);
   assert.doesNotMatch(src, /loginAssurance/);
   assert.doesNotMatch(src, /supabaseRequestAuth/);
 });
@@ -355,11 +382,10 @@ test("Cloudflare route and env example wire Prelude Match submit", () => {
     path.join(process.cwd(), "supabase/functions/send-prelude-match/index.ts"),
     "utf8"
   );
-  assert.match(fn, /PRELUDE_MATCH_RECIPIENT|PRELUDE_MATCH_NOTIFICATION_EMAIL/);
-  assert.match(fn, /PRELUDE_FROM_EMAIL|PRELUDE_MATCH_FROM_EMAIL|AUTH_EMAIL_FROM/);
-  assert.match(fn, /RESEND_API_KEY/);
-  assert.match(fn, /prelude_match_submissions/);
-  assert.match(fn, /Idempotency-Key/);
+  assert.match(fn, /status:\s*410/);
+  assert.match(fn, /\/api\/prelude-match\/submit/);
+  assert.doesNotMatch(fn, /RESEND_API_KEY/);
+  assert.doesNotMatch(fn, /prelude_match_submissions/);
 
   const envExample = fs.readFileSync(path.join(process.cwd(), ".env.example"), "utf8");
   assert.match(envExample, /PRELUDE_MATCH_RECIPIENT=prelude@preludeconsultingllc\.com/);

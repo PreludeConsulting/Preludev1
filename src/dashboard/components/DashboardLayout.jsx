@@ -46,7 +46,8 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
       }
       const userRole = roleFromUser(user);
       const canShowMatchingForRole = userRole === "mentor" || userRole === "admin";
-      const hasKnownMatchingAccess = hasMatchingTeamAccess(user);
+      const hasKnownMatchingAccess =
+        Boolean(user?.matchingTeamAccess) || hasMatchingTeamAccess(user);
       if (!canShowMatchingForRole) {
         setShowMatchingNav(false);
         return;

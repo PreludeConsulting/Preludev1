@@ -62,11 +62,21 @@ describe("Phase 2 auth journey handoff", () => {
       serviceId: "essay-review",
       planId: "plus",
       onboardingStep: "match"
-    }, { role: "student" })).toBe("/onboarding/match?step=result&mentor=mentor-42&service=essay-review&plan=plus");
+    }, {
+      role: "student",
+      matchOnboardingComplete: true,
+      parentInviteStepComplete: true,
+      paymentStepComplete: true
+    })).toBe("/onboarding/match?step=result&mentor=mentor-42&service=essay-review&plan=plus");
   });
 
   it("falls back safely when no pending journey exists", () => {
-    expect(resolveJourneyDestination(null, { role: "student" })).toBe("/dashboard");
+    expect(resolveJourneyDestination(null, {
+      role: "student",
+      matchOnboardingComplete: true,
+      parentInviteStepComplete: true,
+      paymentStepComplete: true
+    })).toBe("/dashboard/student/overview");
   });
 
   it("clears the handoff after completion", () => {

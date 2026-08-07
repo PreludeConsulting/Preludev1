@@ -174,4 +174,34 @@ describe("mapSupabaseUser", () => {
     expect(user.matchingTeamAccess).toBe(true);
     expect(user.isMatchingTeam).toBe(true);
   });
+
+  it("does not trust localStorage for plan or payment entitlements", () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("prelude_plan_user-1", "pro");
+      window.localStorage.setItem("prelude_payment_done_user-1", "1");
+      window.localStorage.setItem("prelude_parent_invite_done_user-1", "1");
+    }
+
+    const user = mapSupabaseUser(
+      session(),
+      {
+        id: "user-1",
+        full_name: "Student",
+        role: "student",
+        role_selection_complete: true,
+        plan_id: null,
+        payment_waived: false
+      },
+      {
+        mentor_matching_complete: true,
+        parent_invite_step_completed: false,
+        payment_step_completed: false
+      }
+    );
+
+    expect(user.plan).toBeNull();
+    expect(user.planSelected).toBe(false);
+    expect(user.paymentStepComplete).toBe(false);
+    expect(user.parentInviteStepComplete).toBe(false);
+  });
 });

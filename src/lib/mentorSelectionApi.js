@@ -1,5 +1,4 @@
 import { getSupabase } from "./supabase.js";
-import { loadMentorSelectionStateDirect, saveMentorSelectionDirect } from "./preludeMatchService.js";
 
 async function getAccessToken() {
   const supabase = getSupabase();
@@ -52,24 +51,14 @@ async function mentorSelectionApi(path, options = {}) {
 }
 
 export async function loadMentorSelectionState() {
-  try {
-    return await mentorSelectionApi("/api/onboarding/mentor-selection");
-  } catch {
-    const { userId } = await getAccessToken();
-    return loadMentorSelectionStateDirect(userId);
-  }
+  return mentorSelectionApi("/api/onboarding/mentor-selection");
 }
 
 export async function saveMentorSelection({ selectedMentorId = null } = {}) {
-  try {
-    return await mentorSelectionApi("/api/onboarding/mentor-selection", {
-      method: "POST",
-      body: JSON.stringify({ selectedMentorId })
-    });
-  } catch {
-    const { userId } = await getAccessToken();
-    return saveMentorSelectionDirect(userId, { selectedMentorId });
-  }
+  return mentorSelectionApi("/api/onboarding/mentor-selection", {
+    method: "POST",
+    body: JSON.stringify({ selectedMentorId })
+  });
 }
 
 export async function loadAdminMentorReviewQueue() {

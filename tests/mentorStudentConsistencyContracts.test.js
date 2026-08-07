@@ -8,7 +8,8 @@ describe("mentor availability + messaging source contracts", () => {
   it("persists availability with service-role clients after mentor authz", () => {
     const nodeApi = fs.readFileSync(path.join(ROOT, "server/supabaseDashboardApi.js"), "utf8");
     const workerApi = fs.readFileSync(path.join(ROOT, "functions/_lib/dashboard.js"), "utf8");
-    expect(nodeApi).toMatch(/getSupabaseAdmin\(\)/);
+    expect(nodeApi).toMatch(/getAdminClient\s*=\s*getSupabaseAdmin/);
+    expect(nodeApi).toMatch(/const admin = getAdminClient\(\)/);
     expect(nodeApi).toMatch(/availability_schedule/);
     expect(workerApi).toMatch(/adminRest\(context,\s*"mentor_matching_profiles/);
   });

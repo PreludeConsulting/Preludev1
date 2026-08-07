@@ -31,7 +31,7 @@ function runtimeFetch(context) {
 function workerSupabaseConfig(context) {
   return {
     url: context.env?.SUPABASE_URL || context.env?.VITE_SUPABASE_URL || "",
-    key: context.env?.SUPABASE_ANON_KEY || context.env?.VITE_SUPABASE_PUBLISHABLE_KEY || context.env?.SUPABASE_SERVICE_ROLE_KEY || ""
+    key: context.env?.SUPABASE_ANON_KEY || context.env?.VITE_SUPABASE_PUBLISHABLE_KEY || ""
   };
 }
 

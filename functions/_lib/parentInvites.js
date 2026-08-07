@@ -1,4 +1,4 @@
-import { sendParentInviteEmail } from "../../server/lib/parentInvites.js";
+import { sendParentInviteEmail, markParentInviteStepCompleted, requireSupabaseStudent } from "../../server/lib/parentInvites.js";
 import { enforceIpRateLimit } from "../../server/lib/ipRateLimit.js";
 import { createSupabaseAdmin } from "../../server/lib/supabasePasswordReset.js";
 
@@ -87,6 +87,24 @@ export async function handleParentInviteSend(context) {
     if (error?.name === "ZodError") {
       return json({ error: "validation_error", issues: error.issues }, 400);
     }
+    const statusCode = error.statusCode || 500;
+    return json(
+      {
+        error: error.code || (statusCode >= 500 ? "server_error" : "request_failed"),
+        message: error.message || "Request failed."
+      },
+      statusCode
+    );
+  }
+}
+
+export async function handleParentInviteCompleteStep(context) {
+  const env = envFromContext(context);
+  try {
+    const { admin, user } = await requireSupabaseStudent(requestFromContext(context), env);
+    await markParentInviteStepCompleted(admin, user.id);
+    return json({ completed: true });
+  } catch (error) {
     const statusCode = error.statusCode || 500;
     return json(
       {

@@ -29,7 +29,7 @@ async function verifiedAccount(context) {
   const token = (context.request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "").trim();
   if (!token) return null;
   const url = context.env?.SUPABASE_URL || context.env?.VITE_SUPABASE_URL;
-  const key = context.env?.SUPABASE_ANON_KEY || context.env?.VITE_SUPABASE_PUBLISHABLE_KEY || context.env?.SUPABASE_SERVICE_ROLE_KEY;
+  const key = context.env?.SUPABASE_ANON_KEY || context.env?.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return null;
 
   const baseUrl = url.replace(/\/$/, "");

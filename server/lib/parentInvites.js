@@ -78,7 +78,7 @@ export async function requireSupabaseStudent(req, env) {
 export async function sendParentInviteEmail({ req, env, payload }) {
   const runtimeEnv = resolveRuntimeEnv(env);
   const parsed = parentInviteSendSchema.parse(payload);
-  const { profile } = await requireSupabaseStudent(req, runtimeEnv);
+  const { admin, user, profile } = await requireSupabaseStudent(req, runtimeEnv);
 
   const parentEmail = normalizeParentEmail(parsed.parentEmail);
   const studentEmail = normalizeParentEmail(profile.email);
@@ -112,8 +112,35 @@ export async function sendParentInviteEmail({ req, env, payload }) {
     throw deliveryError;
   }
 
+  await markParentInviteStepCompleted(admin, user.id);
+
   return {
     message: "Invitation email sent.",
     emailSent: Boolean(result.delivered || result.logged)
   };
+}
+
+export async function markParentInviteStepCompleted(admin, userId) {
+  if (!admin || !userId) return;
+  const now = new Date().toISOString();
+  const { error } = await admin.from("onboarding_progress").upsert(
+    {
+      user_id: userId,
+      parent_invite_step_completed: true,
+      onboarding_status: "needs_payment",
+      updated_at: now
+    },
+    { onConflict: "user_id" }
+  );
+  if (error) {
+    console.error("[prelude-parent-invites] mark_step_failed", {
+      code: error.code,
+      message: error.message,
+      userId
+    });
+    const stepError = new Error("Invitation was sent, but onboarding progress could not be updated.");
+    stepError.statusCode = 503;
+    stepError.code = "onboarding_error";
+    throw stepError;
+  }
 }

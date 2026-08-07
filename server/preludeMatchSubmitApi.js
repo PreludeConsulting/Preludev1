@@ -1,4 +1,4 @@
-import { readJsonBody, sendJson } from "./http.js";
+import { sendJson } from "./http.js";
 import { requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 import {
   GENERIC_RETRY,
@@ -6,6 +6,34 @@ import {
   processPreludeMatchSubmission
 } from "./lib/preludeMatchSubmit.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
+
+async function readRawJsonBody(req) {
+  if (typeof req.body === "string") {
+    return { rawText: req.body, payload: req.body ? JSON.parse(req.body) : {} };
+  }
+  if (typeof Buffer !== "undefined" && Buffer.isBuffer?.(req.body)) {
+    const rawText = req.body.toString("utf8");
+    return { rawText, payload: rawText ? JSON.parse(rawText) : {} };
+  }
+  if (req.body && typeof req.body === "object" && !Array.isArray(req.body)) {
+    const rawText = JSON.stringify(req.body);
+    return { rawText, payload: req.body };
+  }
+
+  const rawText = await new Promise((resolve, reject) => {
+    let raw = "";
+    req.setEncoding?.("utf8");
+    req.on("data", (chunk) => {
+      raw += chunk;
+      if (raw.length > MAX_PRELUDE_MATCH_BODY_BYTES) {
+        reject(Object.assign(new Error("Payload too large"), { statusCode: 413, code: "payload_too_large" }));
+      }
+    });
+    req.on("end", () => resolve(raw));
+    req.on("error", reject);
+  });
+  return { rawText, payload: rawText ? JSON.parse(rawText) : {} };
+}
 
 export function createPreludeMatchSubmitMiddleware(env = process.env) {
   return async function preludeMatchSubmitMiddleware(req, res, next) {
@@ -23,8 +51,10 @@ export function createPreludeMatchSubmitMiddleware(env = process.env) {
       }
 
       const { user } = await requireSupabaseUser(req);
-      const payload =
-        req.body && typeof req.body === "object" ? req.body : await readJsonBody(req);
+      const { rawText, payload } = await readRawJsonBody(req);
+      if (rawText.length > MAX_PRELUDE_MATCH_BODY_BYTES) {
+        return sendJson(res, 413, { success: false, error: "Payload too large" });
+      }
 
       const result = await processPreludeMatchSubmission({
         env,
@@ -33,6 +63,9 @@ export function createPreludeMatchSubmitMiddleware(env = process.env) {
       });
       return sendJson(res, 200, result);
     } catch (error) {
+      if (error instanceof SyntaxError) {
+        return sendJson(res, 400, { success: false, error: "Invalid Prelude Match submission", code: "validation_error" });
+      }
       const status = Number(error?.statusCode || error?.status) || 500;
       if (status >= 500) {
         console.error("[prelude-match-submit]", {

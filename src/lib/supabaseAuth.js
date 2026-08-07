@@ -819,7 +819,6 @@ async function ensureDependentRecords(userId, role = "student") {
     tasks.push(
       supabase.from("onboarding_progress").insert({
         user_id: userId,
-        onboarding_status: "needs_plan",
         updated_at: new Date().toISOString()
       })
     );
@@ -1130,37 +1129,14 @@ function writeCachedPlan(userId, planId) {
   }
 }
 
-/** Persist the user's subscription plan choice (profile column + local fallback). */
+/** Persist the user's subscription plan choice locally; plan_id is set by billing/promo APIs. */
 export async function saveUserPlan(userId, planId) {
   if (!["basic", "plus", "pro"].includes(planId)) {
     return { error: "Please choose a valid plan." };
   }
 
   writeCachedPlan(userId, planId);
-
-  const { error } = await getSupabase().from("profiles").update({ plan_id: planId }).eq("id", userId);
-  if (error) {
-    // Column may not exist yet if SQL migration wasn't re-run — local cache still works.
-    if (/plan_id|column/.test(error.message || "")) {
-      return { error: null, usedFallback: true };
-    }
-    return { error: friendlyError(error) };
-  }
-
-  const { error: onboardingError } = await getSupabase().from("onboarding_progress").upsert(
-    { user_id: userId, onboarding_status: "needs_match", updated_at: new Date().toISOString() },
-    { onConflict: "user_id" }
-  );
-  if (onboardingError) {
-    if (/onboarding_progress/i.test(onboardingError.message || "")) {
-      return {
-        error: "Plan saved, but onboarding progress could not be recorded. Run supabase/migrations/20260616000000_onboarding_progress.sql in Supabase."
-      };
-    }
-    return { error: friendlyError(onboardingError) };
-  }
-
-  return { error: null, usedFallback: false };
+  return { error: null, usedFallback: true };
 }
 
 export function onAuthStateChange(callback) {

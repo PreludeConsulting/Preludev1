@@ -145,7 +145,19 @@ async function getMentorDisplay(supabase, mentorId) {
   return data ? mapMentorRow(data) : null;
 }
 
-async function assignMentorMatchRow(supabase, { studentId, mentor, status, notes }) {
+function requireAdminWriter(adminClient) {
+  if (!adminClient) {
+    const error = new Error("Mentor assignment service is not configured.");
+    error.statusCode = 503;
+    error.code = "matching_admin_client_unavailable";
+    throw error;
+  }
+  return adminClient;
+}
+
+async function assignMentorMatchRow(adminClient, { studentId, mentor, status, notes }) {
+  // mentor_matches writes must use service role — never the caller's JWT.
+  const supabase = requireAdminWriter(adminClient);
   // Replace any prior active/pending assignment so reassignment never duplicates.
   const replaceStatuses = [...FINAL_MENTOR_MATCH_STATUSES, "saved", "pending"];
   await supabase.from("mentor_matches").delete().eq("user_id", studentId).in("status", replaceStatuses);
@@ -221,6 +233,8 @@ async function handleGetMentorSelection(req, res) {
 
 async function handleSaveMentorSelection(req, res) {
   const { supabase, user } = await requireSupabaseUser(req);
+  const adminClient = getSupabaseAdmin();
+  if (!adminClient) return matchingAdminUnavailable(res);
   const payload = selectionSchema.parse(await readJsonBody(req));
 
   const { data: onboarding, error: loadError } = await supabase
@@ -268,7 +282,8 @@ async function handleSaveMentorSelection(req, res) {
     updated_at: resolved.selectionTimestamp
   };
 
-  const { data: updated, error: saveError } = await supabase
+  // Entitlement columns + mentor_matches require service role after RLS hardening.
+  const { data: updated, error: saveError } = await adminClient
     .from("onboarding_progress")
     .update(updatePayload)
     .eq("user_id", user.id)
@@ -277,9 +292,9 @@ async function handleSaveMentorSelection(req, res) {
   if (saveError) return sendJson(res, 500, { error: "save_failed", message: "Could not save mentor selection." });
 
   if (resolved.selectedMentorId) {
-    const mentor = await getMentorDisplay(supabase, resolved.selectedMentorId);
+    const mentor = await getMentorDisplay(adminClient, resolved.selectedMentorId);
     if (mentor) {
-      await assignMentorMatchRow(supabase, {
+      await assignMentorMatchRow(adminClient, {
         studentId: user.id,
         mentor,
         status: "assigned",
@@ -287,7 +302,7 @@ async function handleSaveMentorSelection(req, res) {
       });
       // Student self-selection creates the same conversation an admin assignment would.
       try {
-        await syncAssignedMentorStudentChat(supabase, {
+        await syncAssignedMentorStudentChat(adminClient, {
           studentId: user.id,
           mentorId: resolved.selectedMentorId
         });

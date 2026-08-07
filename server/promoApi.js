@@ -7,6 +7,7 @@ import { requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 import { db, requireAuth } from "./authApi.js";
 import { getSupabaseAdmin } from "./lib/supabaseRequestAuth.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
+import { isLegacyPrismaAuthEnabled } from "./lib/legacyPrismaAuth.js";
 
 const VALIDATE_LIMIT = 20;
 const VALIDATE_WINDOW_SECONDS = 15 * 60;
@@ -75,10 +76,20 @@ async function resolveRedeemUser(req, payload) {
       authError.statusCode = 401;
       throw authError;
     }
+    if (!isLegacyPrismaAuthEnabled()) {
+      const authError = new Error("Authentication required.");
+      authError.statusCode = 401;
+      throw authError;
+    }
     return { userId: prismaUser.id, email: prismaUser.email };
   }
 
   try {
+    if (!isLegacyPrismaAuthEnabled()) {
+      const authError = new Error("Authentication required.");
+      authError.statusCode = 401;
+      throw authError;
+    }
     const auth = await requireAuth(req);
     return { userId: auth.user.id, email: auth.user.email };
   } catch {

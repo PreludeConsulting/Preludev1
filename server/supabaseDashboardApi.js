@@ -306,7 +306,10 @@ async function requireMentorProfile(supabase, userId) {
   }
 }
 
-export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupabaseUser } = {}) {
+export function createSupabaseDashboardApiMiddleware({
+  requireUser = requireSupabaseUser,
+  getAdminClient = getSupabaseAdmin
+} = {}) {
   return async function supabaseDashboardApi(req, res, next) {
     const url = new URL(req.url || "/", "http://localhost");
     const isAppData = url.pathname === "/api/dashboard/app-data" && req.method === "GET";
@@ -347,12 +350,14 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
       await requireMentorProfile(supabase, user.id);
       const availability = availabilitySchema.parse(body);
       const availabilitySummary = formatAvailabilitySummary(availability);
-      const admin = getSupabaseAdmin();
-      // Prefer service role for reliable RETURNING; fall back to the authed client
-      // so mentors can still save their own schedule in local/dev without admin keys.
-      const writer = admin || supabase;
+      const admin = getAdminClient();
+      if (!admin) {
+        const configError = new Error("Availability sync requires service role configuration.");
+        configError.statusCode = 503;
+        throw configError;
+      }
 
-      const { data, error } = await writer
+      const { data, error } = await admin
         .from("mentor_matching_profiles")
         .upsert(
           {
@@ -372,7 +377,7 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
         throw notFound;
       }
 
-      if (availabilitySummary && admin) {
+      if (availabilitySummary) {
         const { data: questionnaire } = await admin
           .from("mentor_questionnaires")
           .select("answers")
@@ -390,11 +395,7 @@ export function createSupabaseDashboardApiMiddleware({ requireUser = requireSupa
         }
       }
 
-      if (admin) {
-        await syncMentorAvailabilityToStudentMatches(admin, user.id, availabilitySummary);
-      } else {
-        await syncMentorAvailabilityToStudentMatches(supabase, user.id, availabilitySummary);
-      }
+      await syncMentorAvailabilityToStudentMatches(admin, user.id, availabilitySummary);
 
       return sendJson(res, 200, { availability: mapAvailability(data) });
     } catch (error) {

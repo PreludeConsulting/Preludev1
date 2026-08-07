@@ -1,12 +1,14 @@
 /**
  * Prelude Match — scoring, mentor lookup, onboarding persistence helpers.
+ * Entitlement columns and mentor_matches are written only by service-role APIs.
  */
 
 import { PRELUDE_MATCH_MENTORS } from "../data/preludeMatchMentors.js";
 import { getSupabase } from "./supabase.js";
 import { ONBOARDING_STATUS } from "./onboardingRoutes.js";
 import { getMentorMatchingProfile, mapMentorMatchingProfile, rankSupabaseMentorsForStudent } from "./mentorQuestionnaireService.js";
-import { filterMatchedMentors, finalizeMatchedMentors, MIN_MATCH_SCORE, resolveMentorSelection, effectiveMatchedMentorCount } from "../../shared/mentorSelectionLogic.js";
+import { finalizeMatchedMentors, MIN_MATCH_SCORE, effectiveMatchedMentorCount } from "../../shared/mentorSelectionLogic.js";
+import { saveMentorSelection } from "./mentorSelectionApi.js";
 
 const MENTOR_CATALOG = PRELUDE_MATCH_MENTORS.map((m) => ({
   ...m,
@@ -21,23 +23,6 @@ const MENTOR_CATALOG = PRELUDE_MATCH_MENTORS.map((m) => ({
 
 export function getMentorCatalog() {
   return MENTOR_CATALOG;
-}
-
-/**
- * Assignments own the conversation: create it as soon as the pair is linked so
- * Messages is populated before anyone writes. Best effort — a failure here must
- * not block onboarding, and the Messages page repairs the thread on load.
- */
-async function ensureAssignedMentorChatThread(studentId, mentorId) {
-  if (!studentId || !mentorId) return;
-  try {
-    await getSupabase().rpc("ensure_mentor_student_chat_thread", {
-      p_mentor_id: mentorId,
-      p_student_id: studentId
-    });
-  } catch {
-    /* conversation is repaired lazily when Messages loads */
-  }
 }
 
 export function getMentorById(id) {
@@ -130,8 +115,7 @@ export async function loadOnboardingProgress(userId) {
 }
 
 /**
- * Mark Prelude Match onboarding complete after a successful email/API submission.
- * Prefer preserving existing questionnaire_answers; never wipe answers to {}.
+ * Draft-only questionnaire answers. Entitlement flags are set by /api/prelude-match/submit.
  */
 export async function markMatchQuestionnaireComplete(userId, answers = null) {
   const existing = await loadOnboardingProgress(userId);
@@ -147,17 +131,6 @@ export async function markMatchQuestionnaireComplete(userId, answers = null) {
     user_id: userId,
     questionnaire_answers: preservedAnswers,
     mentor_matching_started: true,
-    mentor_matching_complete: true,
-    prelude_match_completed: true,
-    suggested_mentor_id: null,
-    matched_mentor_ids: [],
-    matched_mentor_count: 0,
-    onboarding_status: ONBOARDING_STATUS.MATCH_COMPLETED,
-    match_decision: null,
-    selected_mentor_id: null,
-    mentor_selection_method: null,
-    mentor_assignment_status: null,
-    admin_review_required: true,
     updated_at: new Date().toISOString()
   };
   const { data, error } = await getSupabase()
@@ -180,73 +153,32 @@ export async function saveMatchQuestionnaire(userId, answers) {
   return markMatchQuestionnaireComplete(userId, answers);
 }
 
+/** Route mentor acceptance through the mentor-selection API (service-role writes). */
 export async function saveMatchDecision(userId, { decision, mentorId, declinedIds = [] }) {
-  const status =
-    decision === "accepted" ? ONBOARDING_STATUS.ONBOARDING_COMPLETED : ONBOARDING_STATUS.MATCH_COMPLETED;
-
-  const { data, error } = await getSupabase()
-    .from("onboarding_progress")
-    .upsert(
-      {
-        user_id: userId,
-        match_decision: decision,
-        onboarding_status: status,
-        suggested_mentor_id: mentorId,
-        declined_mentor_ids: declinedIds,
-        updated_at: new Date().toISOString()
-      },
-      { onConflict: "user_id" }
-    )
-    .select()
-    .maybeSingle();
-
-  if (error) return { error: error.message };
-
+  void declinedIds;
   if (decision === "accepted" && mentorId) {
-    const mentor = await getSuggestedMentor(mentorId);
-    if (mentor) {
-      await getSupabase().from("mentor_matches").delete().eq("user_id", userId).eq("status", "assigned");
-      await getSupabase().from("mentor_matches").insert({
-        user_id: userId,
-        student_id: userId,
-        mentor_id: mentor.source === "supabase" ? mentor.id : null,
-        mentor_name: mentor.name,
-        mentor_email: null,
-        mentor_college: mentor.school || mentor.university,
-        mentor_major: mentor.major,
-        expertise: mentor.specialties || mentor.tags || [],
-        availability: mentor.availability,
-        status: "assigned",
-        notes: mentor.reason
-      });
-      if (mentor.source === "supabase") {
-        await ensureAssignedMentorChatThread(userId, mentor.id);
-      }
+    try {
+      const result = await saveMentorSelection({ selectedMentorId: mentorId });
+      return { onboarding: result?.onboarding || null, error: null };
+    } catch (error) {
+      return { error: error?.message || "Could not save mentor selection." };
     }
   }
 
-  return { onboarding: data, error: null };
+  // Declines no longer write entitlement columns from the client.
+  const { onboarding } = await loadOnboardingProgress(userId);
+  return { onboarding, error: null };
 }
 
-export async function requestMentorMatch(userId, mentorId) {
-  const mentor = await getSuggestedMentor(mentorId);
-  if (!mentor) return { error: "Mentor not found." };
-
-  await getSupabase().from("mentor_matches").delete().eq("user_id", userId).eq("status", "saved");
-  const { error } = await getSupabase().from("mentor_matches").insert({
-    user_id: userId,
-    student_id: userId,
-    mentor_id: mentor.source === "supabase" ? mentor.id : null,
-    mentor_name: mentor.name,
-    mentor_college: mentor.school || mentor.university,
-    mentor_major: mentor.major,
-    expertise: mentor.specialties || mentor.tags || [],
-    availability: mentor.availability,
-    status: "saved",
-    notes: mentor.reason
-  });
-
-  return { error: error?.message || null };
+/** @deprecated Prefer saveMentorSelection — mentor_matches are service-role only. */
+export async function requestMentorMatch(_userId, mentorId) {
+  if (!mentorId) return { error: "Mentor not found." };
+  try {
+    await saveMentorSelection({ selectedMentorId: mentorId });
+    return { error: null };
+  } catch (error) {
+    return { error: error?.message || "Could not request mentor match." };
+  }
 }
 
 function mapMentorSelectionState(onboarding, mentors = []) {
@@ -292,6 +224,7 @@ async function loadMatchedMentorCards(userId, matchedIds = []) {
     .filter(Boolean);
 }
 
+/** @deprecated Prefer loadMentorSelectionState from mentorSelectionApi.js */
 export async function loadMentorSelectionStateDirect(userId) {
   let { onboarding, error } = await loadOnboardingProgress(userId);
   if (error) throw new Error(error);
@@ -307,99 +240,13 @@ export async function loadMentorSelectionStateDirect(userId) {
     mentors = await loadMatchedMentorCards(userId, matchedIds);
   }
 
-  if (matchedIds.length && !mentors.length) {
-    mentors = await loadMatchedMentorCards(userId, matchedIds);
-  }
-
   return mapMentorSelectionState(onboarding, mentors);
 }
 
-async function assignSelectedMentorMatch(userId, mentorId, notes) {
-  const mentor = await getSuggestedMentor(mentorId);
-  if (!mentor) return;
-  await getSupabase().from("mentor_matches").delete().eq("user_id", userId).in("status", ["assigned", "saved", "pending"]);
-  await getSupabase().from("mentor_matches").insert({
-    user_id: userId,
-    student_id: userId,
-    mentor_id: mentor.source === "supabase" ? mentor.id : null,
-    mentor_name: mentor.name,
-    mentor_email: null,
-    mentor_college: mentor.school || mentor.university,
-    mentor_major: mentor.major,
-    expertise: mentor.specialties || mentor.tags || [],
-    availability: mentor.availability,
-    status: "assigned",
-    notes
-  });
-  if (mentor.source === "supabase") {
-    await ensureAssignedMentorChatThread(userId, mentor.id);
-  }
-}
-
+/** @deprecated Prefer saveMentorSelection from mentorSelectionApi.js */
 export async function saveMentorSelectionDirect(userId, { selectedMentorId = null } = {}) {
-  const { onboarding, error: loadError } = await loadOnboardingProgress(userId);
-  if (loadError) throw new Error(loadError);
-  if (!onboarding?.mentor_matching_complete) {
-    throw new Error("Complete the PreludeMatch quiz first.");
-  }
-  if (onboarding.mentor_assignment_status) {
-    return {
-      alreadyComplete: true,
-      ...mapMentorSelectionState(onboarding)
-    };
-  }
-
-  const matchedIds = onboarding.matched_mentor_ids || [];
-  const matchedCount = effectiveMatchedMentorCount(onboarding.matched_mentor_count, matchedIds);
-  const resolved = resolveMentorSelection({
-    matchedMentorIds: matchedIds,
-    matchedMentorCount: matchedCount,
-    selectedMentorId: selectedMentorId ?? null
-  });
-  if (!resolved.ok) {
-    const error = new Error(resolved.message);
-    error.code = resolved.error;
-    throw error;
-  }
-
-  const updatePayload = {
-    selected_mentor_id: resolved.selectedMentorId,
-    suggested_mentor_id: resolved.selectedMentorId || onboarding.suggested_mentor_id,
-    mentor_selection_method: resolved.mentorSelectionMethod,
-    mentor_assignment_status: resolved.mentorAssignmentStatus,
-    admin_review_required: resolved.adminReviewRequired,
-    mentor_selection_timestamp: resolved.selectionTimestamp,
-    prelude_match_completed: true,
-    match_decision: resolved.selectedMentorId ? "accepted" : null,
-    updated_at: resolved.selectionTimestamp
-  };
-
-  const { data: updated, error: saveError } = await getSupabase()
-    .from("onboarding_progress")
-    .update(updatePayload)
-    .eq("user_id", userId)
-    .select()
-    .maybeSingle();
-  if (saveError) throw new Error(saveError.message);
-
-  if (resolved.selectedMentorId) {
-    await assignSelectedMentorMatch(
-      userId,
-      resolved.selectedMentorId,
-      "Selected by student during PreludeMatch onboarding."
-    );
-  }
-
-  return {
-    selectedMentorId: resolved.selectedMentorId,
-    mentorSelectionMethod: resolved.mentorSelectionMethod,
-    mentorAssignmentStatus: resolved.mentorAssignmentStatus,
-    adminReviewRequired: resolved.adminReviewRequired,
-    matchedMentorCount: resolved.matchedMentorCount,
-    matchedMentorIds: resolved.matchedMentorIds,
-    rejectedClientSelection: Boolean(resolved.rejectedClientSelection),
-    onboarding: updated
-  };
+  void userId;
+  return saveMentorSelection({ selectedMentorId });
 }
 
 export function mapOnboardingToUserFields(onboarding, hasAssignedMentor) {

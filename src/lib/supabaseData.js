@@ -219,12 +219,8 @@ export async function updateSupabaseOnboarding(userId, fields) {
   const payload = { updated_at: new Date().toISOString() };
   if (fields.profileComplete !== undefined) payload.profile_complete = fields.profileComplete;
   if (fields.mentorMatchingStarted !== undefined) payload.mentor_matching_started = fields.mentorMatchingStarted;
-  if (fields.mentorMatchingComplete !== undefined) payload.mentor_matching_complete = fields.mentorMatchingComplete;
   if (fields.questionnaireAnswers !== undefined) payload.questionnaire_answers = fields.questionnaireAnswers;
-  if (fields.onboardingStatus !== undefined) payload.onboarding_status = fields.onboardingStatus;
-  if (fields.suggestedMentorId !== undefined) payload.suggested_mentor_id = fields.suggestedMentorId;
-  if (fields.matchDecision !== undefined) payload.match_decision = fields.matchDecision;
-  if (fields.declinedMentorIds !== undefined) payload.declined_mentor_ids = fields.declinedMentorIds;
+  // Entitlement columns (mentor_matching_complete, onboarding_status, etc.) are service-role only.
 
   const { data, error } = await db()
     .from("onboarding_progress")

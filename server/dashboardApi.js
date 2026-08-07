@@ -6,6 +6,7 @@ import {
 } from "./lib/meetingStore.js";
 import { scheduleMeeting, updateScheduledMeeting } from "./lib/meetingSchedule.js";
 import { readJsonBody, requireAuth, sendJson } from "./authApi.js";
+import { isLegacyPrismaAuthEnabled } from "./lib/legacyPrismaAuth.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 function readIntegrations(userId) {
@@ -179,6 +180,7 @@ export function createDashboardApiMiddleware(getSession) {
 
 export function createDashboardApiHandler() {
   const middleware = createDashboardApiMiddleware(async (req) => {
+    if (!isLegacyPrismaAuthEnabled()) return null;
     try {
       return await requireAuth(req);
     } catch {

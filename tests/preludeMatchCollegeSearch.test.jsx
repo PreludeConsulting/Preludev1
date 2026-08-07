@@ -93,7 +93,7 @@ describe("PreludeCollegeSearch UI", () => {
     const host = mount(<PreludeCollegeSearch selected={[]} onChange={() => {}} reducedMotion />);
     expect(host.textContent).toContain("Search U.S. colleges and universities");
     expect(host.textContent).not.toContain("Start typing a school");
-    const input = host.querySelector("#" + host.querySelector("label")?.getAttribute("for"));
+    const input = host.querySelector(".pm-colleges__input");
     expect(input?.getAttribute("placeholder")).toBe("Search colleges...");
     expect(input?.className).toContain("pm-colleges__input");
   });

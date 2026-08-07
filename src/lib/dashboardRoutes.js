@@ -41,7 +41,7 @@ export function dashboardLegacyTarget(role, alias) {
 }
 
 export function hasAdminDashboardAccess(user) {
-  return hasMatchingTeamAccess(user);
+  return Boolean(user?.matchingTeamAccess) || hasMatchingTeamAccess(user);
 }
 
 export function dashboardHomeForUser(user) {

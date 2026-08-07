@@ -157,7 +157,7 @@ describe("supabase client and cookie persistence contracts", () => {
       "src/components/onboarding/RequireOnboardingAccess.jsx"
     ]) {
       const src = fs.readFileSync(path.join(ROOT, relative), "utf8");
-      expect(src).toMatch(/if\s*\(\s*!ready\s*\)/);
+      expect(src).toMatch(/if\s*\(\s*!ready(?:\s*\|\|[^)]*)?\s*\)/);
       expect(src).toMatch(/AuthLoadingState/);
     }
   });

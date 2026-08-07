@@ -5,12 +5,15 @@ import { sendBugReport } from "./lib/bugReports.js";
 import { enforceIpRateLimit } from "./lib/ipRateLimit.js";
 import { requireSupabaseUser } from "./lib/supabaseRequestAuth.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
+import { isLegacyPrismaAuthEnabled } from "./lib/legacyPrismaAuth.js";
 
 async function optionalVerifiedAccount(req) {
-  try {
-    const { user } = await requireAuth(req);
-    return { name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.name || "", email: user.email || "", role: user.role || "", userId: user.id || "" };
-  } catch {}
+  if (isLegacyPrismaAuthEnabled()) {
+    try {
+      const { user } = await requireAuth(req);
+      return { name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.name || "", email: user.email || "", role: user.role || "", userId: user.id || "" };
+    } catch {}
+  }
   try {
     const { supabase, user } = await requireSupabaseUser(req);
     const { data: profile } = await supabase.from("profiles").select("full_name,role").eq("id", user.id).maybeSingle();

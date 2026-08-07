@@ -2,7 +2,11 @@ import { z } from "zod";
 import { readJsonBody, sendJson } from "./http.js";
 import { enforceIpRateLimit } from "./lib/ipRateLimit.js";
 import { createSupabaseAdmin } from "./lib/supabasePasswordReset.js";
-import { sendParentInviteEmail } from "./lib/parentInvites.js";
+import {
+  markParentInviteStepCompleted,
+  requireSupabaseStudent,
+  sendParentInviteEmail
+} from "./lib/parentInvites.js";
 import { withApiRateLimit } from "./lib/apiRateLimitMiddleware.js";
 
 const INVITE_SEND_LIMIT = 10;
@@ -37,12 +41,18 @@ async function handleParentInviteSend(req, res, env = process.env) {
   return sendJson(res, 200, result);
 }
 
+async function handleParentInviteCompleteStep(req, res, env = process.env) {
+  const { admin, user } = await requireSupabaseStudent(req, env);
+  await markParentInviteStepCompleted(admin, user.id);
+  return sendJson(res, 200, { completed: true });
+}
+
 export function createSupabaseParentInvitesMiddleware(env = process.env) {
   return async function supabaseParentInvitesMiddleware(req, res, next) {
     const url = new URL(req.url || "/", "http://localhost");
-    if (url.pathname !== "/api/parent-invites/send" || req.method !== "POST") {
-      return next();
-    }
+    const isSend = url.pathname === "/api/parent-invites/send" && req.method === "POST";
+    const isComplete = url.pathname === "/api/parent-invites/complete-step" && req.method === "POST";
+    if (!isSend && !isComplete) return next();
 
     if (req.method === "OPTIONS") {
       res.statusCode = 204;
@@ -53,6 +63,7 @@ export function createSupabaseParentInvitesMiddleware(env = process.env) {
     }
 
     try {
+      if (isComplete) return await handleParentInviteCompleteStep(req, res, env);
       return await handleParentInviteSend(req, res, env);
     } catch (error) {
       if (error instanceof z.ZodError) {

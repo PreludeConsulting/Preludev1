@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { z } from "zod";
 import { db, readJsonBody, requireAuth, requireCsrf, sendJson } from "./authApi.js";
+import { isLegacyPrismaAuthEnabled } from "./lib/legacyPrismaAuth.js";
 import {
   billingNotConfiguredPayload,
   getAppBaseUrl,
@@ -226,6 +227,12 @@ async function resolveCheckoutAuth(req, payload) {
 
   const guestCheckout = Boolean(payload.guestCheckout) && isGuestCheckoutAllowed(req);
   if (guestCheckout) return null;
+
+  if (!isLegacyPrismaAuthEnabled()) {
+    const error = new Error("Authentication required.");
+    error.statusCode = 401;
+    throw error;
+  }
 
   const auth = await requireAuth(req);
   requireCsrf(req);
@@ -547,6 +554,11 @@ async function handlePortal(req, res) {
     userId = user.id;
     customerId = await resolveStripeCustomerIdForUser(user.id);
   } catch {
+    if (!isLegacyPrismaAuthEnabled()) {
+      const error = new Error("Authentication required.");
+      error.statusCode = 401;
+      throw error;
+    }
     const auth = await requireAuth(req);
     requireCsrf(req);
     userId = auth.user.id;

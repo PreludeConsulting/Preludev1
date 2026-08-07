@@ -1,7 +1,7 @@
 /**
  * Prelude Match submission: validate → persist → email via Resend.
  * Shared by Cloudflare Pages Functions and the local/Node API stack.
- * Do not import Node-only modules (node:crypto / loginAssurance) — CF Pages bundles this file.
+ * Do not import Node-only auth helpers — CF Pages bundles this file.
  */
 import { createClient } from "@supabase/supabase-js";
 import { PRELUDE_MATCH_QUESTIONS } from "../../shared/preludeMatchQuestions.js";
@@ -14,6 +14,8 @@ import {
 } from "../../shared/preludeMatchSubmission.js";
 
 const MATCH_COMPLETED_STATUS = "match_completed";
+const RECENT_SUBMIT_WINDOW_MS = 60 * 60 * 1000;
+const RECENT_SUBMIT_CAP = 5;
 
 const GENERIC_RETRY =
   "We couldn’t submit your Prelude Match responses. Your answers are still here—please try again.";
@@ -105,6 +107,55 @@ async function upsertSubmissionRow(admin, row) {
       message: error.message,
       submissionId: row.submission_id,
       userId: row.user_id
+    });
+    throw httpError("Could not save your Prelude Match responses. Please try again.", 503, "database_error");
+  }
+  return data;
+}
+
+async function assertRecentSubmitCap(admin, userId) {
+  const since = new Date(Date.now() - RECENT_SUBMIT_WINDOW_MS).toISOString();
+  const { count, error } = await admin
+    .from("prelude_match_submissions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", since);
+  if (error) {
+    console.error("[prelude-match-submit] recent_submit_cap_lookup_failed", {
+      code: error.code,
+      message: error.message,
+      userId
+    });
+    throw httpError("Could not save your Prelude Match responses. Please try again.", 503, "database_error");
+  }
+  if ((count || 0) >= RECENT_SUBMIT_CAP) {
+    throw httpError("Too many Prelude Match submissions. Please try again later.", 429, "rate_limited");
+  }
+}
+
+async function markSubmissionEmailStatus(admin, { submissionId, userId, fromStatus, toStatus, providerMessageId, failureReason }) {
+  const patch = {
+    email_status: toStatus,
+    email_provider_message_id: providerMessageId ?? null,
+    email_failure_reason: failureReason ?? null,
+    updated_at: new Date().toISOString()
+  };
+  const { data, error } = await admin
+    .from("prelude_match_submissions")
+    .update(patch)
+    .eq("submission_id", submissionId)
+    .eq("user_id", userId)
+    .eq("email_status", fromStatus)
+    .select("*")
+    .maybeSingle();
+  if (error) {
+    console.error("[prelude-match-submit] conditional_status_update_failed", {
+      code: error.code,
+      message: error.message,
+      submissionId,
+      userId,
+      fromStatus,
+      toStatus
     });
     throw httpError("Could not save your Prelude Match responses. Please try again.", 503, "database_error");
   }
@@ -217,6 +268,10 @@ export async function processPreludeMatchSubmission({
     };
   }
 
+  if (!existing) {
+    await assertRecentSubmitCap(admin, user.id);
+  }
+
   const baseRow = {
     submission_id: payload.submissionId,
     user_id: user.id,
@@ -232,7 +287,7 @@ export async function processPreludeMatchSubmission({
     updated_at: new Date().toISOString()
   };
 
-  const saved = await upsertSubmissionRow(admin, baseRow);
+  await upsertSubmissionRow(admin, baseRow);
 
   const email = buildPreludeMatchEmail({
     payload,
@@ -254,12 +309,12 @@ export async function processPreludeMatchSubmission({
 
   if (!provider.ok) {
     const failureReason = `${provider.reason}:${provider.providerMessage || "unknown"}`.slice(0, 500);
-    await upsertSubmissionRow(admin, {
-      ...baseRow,
-      id: saved?.id,
-      email_status: "failed",
-      email_failure_reason: failureReason,
-      updated_at: new Date().toISOString()
+    await markSubmissionEmailStatus(admin, {
+      submissionId: payload.submissionId,
+      userId: user.id,
+      fromStatus: "pending",
+      toStatus: "failed",
+      failureReason
     }).catch((err) => {
       console.error("[prelude-match-submit] failed_status_update_error", {
         message: err?.message,
@@ -291,14 +346,33 @@ export async function processPreludeMatchSubmission({
     throw httpError(GENERIC_RETRY, 500, "email_failed");
   }
 
-  await upsertSubmissionRow(admin, {
-    ...baseRow,
-    id: saved?.id,
-    email_status: "sent",
-    email_provider_message_id: provider.id,
-    email_failure_reason: null,
-    updated_at: new Date().toISOString()
+  const sentRow = await markSubmissionEmailStatus(admin, {
+    submissionId: payload.submissionId,
+    userId: user.id,
+    fromStatus: "pending",
+    toStatus: "sent",
+    providerMessageId: provider.id
   });
+  if (!sentRow) {
+    const { data: raced } = await admin
+      .from("prelude_match_submissions")
+      .select("*")
+      .eq("submission_id", payload.submissionId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (raced?.email_status === "sent") {
+      await markOnboardingComplete(admin, { userId: user.id, answers: payload.answers });
+      return {
+        success: true,
+        submissionId: payload.submissionId,
+        emailId: raced.email_provider_message_id || provider.id || null,
+        emailStatus: "sent",
+        alreadySubmitted: true
+      };
+    }
+    throw httpError(GENERIC_RETRY, 409, "email_status_conflict");
+  }
+
   await markOnboardingComplete(admin, { userId: user.id, answers: payload.answers });
 
   console.log("[prelude-match-submit] accepted", {
