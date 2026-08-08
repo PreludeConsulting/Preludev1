@@ -6724,6 +6724,38 @@
   color: hsl(var(--primary));
 }
 
+.dash-chat-network-card__fact {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.dash-chat-network-card__fact-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.dash-chat-network-card__fact-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: hsl(248 32% 30%);
+}
+
+.dash-chat-network-card__fact-value--accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: hsl(248 42% 28%);
+}
+
+.dash-chat-network-card__fact-value--accent svg {
+  flex-shrink: 0;
+  color: hsl(var(--primary));
+}
+
 @media (min-width: 640px) {
   .dash-chat-network__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7400,6 +7432,57 @@
   color: #475569;
   font-size: 0.72rem;
   font-weight: 750;
+}
+
+.admin-network-student-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-network-student-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--foreground) / 0.12);
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.82rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.admin-network-student-chip:hover {
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+.admin-network-student-chip--active {
+  border-color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.08);
+}
+
+.admin-network-student-chip__name {
+  font-weight: 700;
+  color: hsl(248 42% 24%);
+}
+
+.admin-network-student-chip__meta {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.74rem;
+}
+
+.matching-team-mentor-card__network-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.matching-team-mentor-card__network-actions .matching-team-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .mentor-approvals-page {

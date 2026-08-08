@@ -20,6 +20,15 @@ function resolveMentorSchool(mentor) {
   return mentor.school || mentor.university || "";
 }
 
+function resolveMentorTargets(mentor) {
+  const targets = Array.isArray(mentor.targets)
+    ? mentor.targets
+    : Array.isArray(mentor.targetMajors)
+      ? mentor.targetMajors
+      : [];
+  return targets.filter(Boolean);
+}
+
 function resolveMentorInitials(mentor) {
   if (mentor.initials) return mentor.initials;
   return getInitials(mentor.name, "M");
@@ -60,6 +69,7 @@ export function mentorMatchesQuery(mentor, needle) {
     mentor.major,
     resolveMentorBio(mentor),
     mentor.availability,
+    ...resolveMentorTargets(mentor),
     ...(mentor.specialties || [])
   ]
     .filter(Boolean)
@@ -78,6 +88,8 @@ export default function DashboardMentorNetworkCard({
   const tags = resolveMentorTags(mentor);
   const school = resolveMentorSchool(mentor);
   const bio = resolveMentorBio(mentor);
+  const targets = resolveMentorTargets(mentor);
+  const nextOpening = mentor.nextOpening || "";
 
   const card = (
     <article className={cn("dash-chat-network-card", expanded && "dash-chat-network-card--expanded", className)}>
@@ -86,11 +98,11 @@ export default function DashboardMentorNetworkCard({
       <div className="dash-chat-network-card__body">
         <div className="dash-chat-network-card__identity">
           <h3 className="dash-chat-network-card__name">{mentor.name}</h3>
-          {expanded && school ? <p className="dash-chat-network-card__school">{school}</p> : null}
-          {mentor.major ? <p className="dash-chat-network-card__major">{mentor.major}</p> : null}
+          {school ? <p className="dash-chat-network-card__school">{school}</p> : null}
+          {expanded && mentor.major ? <p className="dash-chat-network-card__major">{mentor.major}</p> : null}
         </div>
 
-        {tags.length ? (
+        {expanded && tags.length ? (
           <div className="dash-chat-network-card__tags" aria-label="Specialties">
             {tags.map((tag) => (
               <span key={tag} className="dash-chat-network-card__tag">
@@ -101,15 +113,23 @@ export default function DashboardMentorNetworkCard({
         ) : null}
 
         {expanded && bio ? (
-          <p className={cn("dash-chat-network-card__bio", !expanded && "dash-chat-network-card__bio--clamp")}>{bio}</p>
+          <p className="dash-chat-network-card__bio">{bio}</p>
         ) : null}
 
-        {expanded && mentor.availability ? (
-          <p className="dash-chat-network-card__availability">
+        <div className="dash-chat-network-card__fact">
+          <span className="dash-chat-network-card__fact-label">Targets</span>
+          <span className="dash-chat-network-card__fact-value">
+            {targets.length ? targets.join(", ") : "Not listed yet"}
+          </span>
+        </div>
+
+        <div className="dash-chat-network-card__fact">
+          <span className="dash-chat-network-card__fact-label">Next Opening</span>
+          <span className="dash-chat-network-card__fact-value dash-chat-network-card__fact-value--accent">
             <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{mentor.availability}</span>
-          </p>
-        ) : null}
+            {nextOpening || "No availability listed"}
+          </span>
+        </div>
 
         {onViewProfile ? (
           <span className="dash-chat-network-card__cta">

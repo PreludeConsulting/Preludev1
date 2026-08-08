@@ -489,6 +489,7 @@ export function usePreludeChat({ enabled = true } = {}) {
     saveEdit,
     deleteMessage,
     refreshMessages,
+    refreshThreads,
     markThreadRead,
     unreadByThread,
     unreadTotal,

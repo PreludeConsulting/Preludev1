@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { BadgeCheck, UserCheck } from "lucide-react";
+import { BadgeCheck, Network, UserCheck } from "lucide-react";
 import { Navigate, Route, Routes } from "react-router";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
@@ -51,6 +51,7 @@ import {
 import StudentBillingPlansPage from "./components/product/StudentBillingPlansPage.jsx";
 import { PreludeMatchBrowsePage } from "./pages/shared/PreludeMatchPages.jsx";
 import MatchingTeamPage from "./pages/admin/AdminPages.jsx";
+import AdminNetworkPage from "./pages/admin/AdminNetworkPage.jsx";
 import MentorApprovalsAdminPage from "./pages/admin/MentorApprovalsAdminPage.jsx";
 import PromoCodesAdminPage from "./pages/admin/PromoCodesAdminPage.jsx";
 import { ADMIN_DASHBOARD_BASE } from "../lib/dashboardRoutes.js";
@@ -207,8 +208,9 @@ function AdminRoutes() {
   return (
     <DashboardDataProvider user={user}>
       <Routes>
-        <Route element={<DashboardLayout productNav={[{ to: "/matching", label: "Matching", icon: UserCheck }, { to: "/mentor-approvals", label: "Mentor approvals", icon: BadgeCheck }, { to: "/promo-codes", label: "Promo codes", icon: UserCheck }]} basePath={ADMIN_DASHBOARD_BASE} routeMeta={{}} />}>
+        <Route element={<DashboardLayout productNav={[{ to: "/matching", label: "Matching", icon: UserCheck }, { to: "/network", label: "Network", icon: Network }, { to: "/mentor-approvals", label: "Mentor approvals", icon: BadgeCheck }, { to: "/promo-codes", label: "Promo codes", icon: UserCheck }]} basePath={ADMIN_DASHBOARD_BASE} routeMeta={{}} />}>
           <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
+          <Route path="network" element={<MatchingTeamGuard><AdminNetworkPage /></MatchingTeamGuard>} />
           <Route path="mentor-approvals" element={<MentorApprovalsAdminPage />} />
           <Route path="promo-codes" element={<PromoCodesAdminPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />

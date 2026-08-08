@@ -14,6 +14,7 @@ import { useAuth } from "../../../context/AuthContext.jsx";
 import MessagesMentorNetworkPanel from "./MessagesMentorNetworkPanel.jsx";
 import { usePlanAccess } from "../../hooks/usePlanAccess.js";
 import { roleFromUser } from "../../../lib/dashboardRoutes.js";
+import { ensureNetworkChatThread } from "../../../lib/mentorNetworkApi.js";
 
 function formatDateLabel(iso) {
   const d = new Date(iso);
@@ -186,7 +187,8 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
     unreadByThread,
     markThreadRead,
     retryMessage,
-    lastOutgoingAt
+    lastOutgoingAt,
+    refreshThreads
   } = usePreludeChatContext();
   const { meetings, mentor } = useDashboardData();
   const { canAccess } = usePlanAccess();
@@ -270,6 +272,19 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
     setPanel("inbox");
     setActiveThreadId(id);
     setMobileShowChat(true);
+  }
+
+  // Hand a Network mentor into the EXISTING conversation system, then open the
+  // resulting thread in the normal Messages UI. Reuses an assignment conversation
+  // when the mentor is also the student's primary mentor.
+  async function handleMessageNetworkMentor(mentorId) {
+    const { threadId, error: handoffError } = await ensureNetworkChatThread(mentorId);
+    if (handoffError || !threadId) {
+      return { ok: false, error: handoffError || "Could not open this conversation." };
+    }
+    await refreshThreads?.();
+    selectThread(threadId);
+    return { ok: true, threadId };
   }
 
   function handleBack() {
@@ -402,6 +417,7 @@ export default function PreludeMessagesPage({ schedulePath, placeholder = "Write
           <MessagesMentorNetworkPanel
             canMessage={canMessageNetwork}
             onBack={() => { setPanel("inbox"); setMobileShowChat(false); }}
+            onMessageMentor={handleMessageNetworkMentor}
           />
         ) : activeThread ? (
           <>
