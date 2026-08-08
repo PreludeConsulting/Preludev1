@@ -1,6 +1,4 @@
 import { Calendar, Coins, Flame, Star } from "lucide-react";
-import { Link } from "react-router";
-import { STUDENT_DASHBOARD_BASE } from "../../../../lib/dashboardRoutes.js";
 import { useProgressRewards } from "../../../context/ProgressRewardsContext.jsx";
 import ChallengesCard from "./ChallengesCard.jsx";
 import DailyMomentumCard from "./DailyMomentumCard.jsx";
@@ -42,9 +40,6 @@ function ProgressOverviewCard() {
           <span className="dash-rewards-sidebar__overview-value">{sidebarProgress.coinsEarned}</span>
         </li>
       </ul>
-      <Link to={`${STUDENT_DASHBOARD_BASE}/progress-rewards#earn`} className="dash-btn dash-btn--primary dash-rewards-sidebar__cta">
-        Earn more coins
-      </Link>
     </section>
   );
 }

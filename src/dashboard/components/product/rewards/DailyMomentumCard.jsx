@@ -8,7 +8,7 @@ export default function DailyMomentumCard() {
   const streakDays = loginTask?.progressCurrent || 0;
   const rewardCoins = loginTask?.coins || 30;
   const weekDays = Array.from({ length: 7 }, (_, i) => ({
-    label: ["M", "T", "W", "T", "F", "S", "S"][i],
+    label: String(i + 1),
     status: i < streakDays ? "done" : "pending"
   }));
   const title = "7-Day Momentum Streak";
