@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { UserCheck } from "lucide-react";
+import { Network, UserCheck } from "lucide-react";
 import { Outlet, useLocation } from "react-router";
 import { useAuth } from "../../context/AuthContext.jsx";
 import EmailVerificationBanner from "../../components/EmailVerificationBanner.jsx";
@@ -28,9 +28,18 @@ export default function DashboardLayout({ navItems, basePath, productNav }) {
   const showLanguageSwitcher = basePath === PARENT_DASHBOARD_BASE;
   const visibleNavItems = useMemo(() => {
     const items = productNav || navItems || [];
+    // Matching + Network are gated by the same matching-team/admin access. When
+    // the nav does not already include them (e.g. the mentor MENTOR_NAV), append
+    // them so Network sits directly to the right of Matching. Regular mentors and
+    // students never reach this branch, so they never see either tab.
     if (!showMatchingNav) return items;
-    if (items.some((item) => item.to === "/matching")) return items;
-    return [...items, { to: "/matching", label: "Matching", icon: UserCheck }];
+    const hasMatching = items.some((item) => item.to === "/matching");
+    const hasNetwork = items.some((item) => item.to === "/network");
+    if (hasMatching && hasNetwork) return items;
+    const next = [...items];
+    if (!hasMatching) next.push({ to: "/matching", label: "Matching", icon: UserCheck });
+    if (!hasNetwork) next.push({ to: "/network", label: "Network", icon: Network });
+    return next;
   }, [navItems, productNav, showMatchingNav]);
 
   useEffect(() => {

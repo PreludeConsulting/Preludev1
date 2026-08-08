@@ -98,6 +98,25 @@ describe("Mentor Network frontend contracts", () => {
     expect(router).toMatch(/\{ to: "\/matching", label: "Matching", icon: UserCheck \}, \{ to: "\/network", label: "Network", icon: Network \}/);
     expect(router).toMatch(/path="network" element=\{<MatchingTeamGuard><AdminNetworkPage \/><\/MatchingTeamGuard>\}/);
   });
+
+  it("appends Network beside Matching only for matching-team/admin nav", () => {
+    const layout = read("src/dashboard/components/DashboardLayout.jsx");
+    // Gated by the same matching-team access flag as Matching.
+    expect(layout).toMatch(/if \(!showMatchingNav\) return items;/);
+    // Network is pushed after Matching, and only when not already present.
+    const matchingIdx = layout.indexOf('label: "Matching"');
+    const networkIdx = layout.indexOf('label: "Network"');
+    expect(matchingIdx).toBeGreaterThan(-1);
+    expect(networkIdx).toBeGreaterThan(matchingIdx);
+    expect(layout).toMatch(/import \{ Network, UserCheck \} from "lucide-react"/);
+  });
+
+  it("mounts the network route wherever matching is mounted", () => {
+    const router = read("src/dashboard/DashboardRouter.jsx");
+    const networkRoutes = router.match(/path="network" element=\{<MatchingTeamGuard><AdminNetworkPage \/><\/MatchingTeamGuard>\}/g) || [];
+    // student, mentor, parent, admin
+    expect(networkRoutes.length).toBe(4);
+  });
 });
 
 describe("Next Opening calculation (live availability)", () => {

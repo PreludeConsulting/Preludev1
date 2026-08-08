@@ -130,6 +130,7 @@ function StudentRoutes() {
             <Route path="profile-stats" element={<StudentProfileStats />} />
             <Route path="progress-rewards" element={<StudentProgressRewards />} />
             <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
+            <Route path="network" element={<MatchingTeamGuard><AdminNetworkPage /></MatchingTeamGuard>} />
             <Route path="profile" element={<LegacyDashboardRedirect role="student" alias="profile" />} />
             <Route path="mentor-matching" element={<LegacyDashboardRedirect role="student" alias="mentor-matching" />} />
             <Route index element={<Navigate to="overview" replace />} />
@@ -159,6 +160,7 @@ function MentorRoutes() {
           <Route path="billing" element={<LegacyDashboardRedirect role="mentor" alias="billing" />} />
           <Route path="help" element={<MentorHelp />} />
           <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
+          <Route path="network" element={<MatchingTeamGuard><AdminNetworkPage /></MatchingTeamGuard>} />
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="*" element={<Navigate to={dashboardFallbackForRole("mentor")} replace />} />
         </Route>
@@ -195,6 +197,7 @@ function ParentRoutes() {
           <Route path="billing" element={<ParentBilling />} />
           <Route path="help" element={<ParentHelp />} />
           <Route path="matching" element={<MatchingTeamGuard><MatchingTeamPage /></MatchingTeamGuard>} />
+          <Route path="network" element={<MatchingTeamGuard><AdminNetworkPage /></MatchingTeamGuard>} />
           <Route index element={<Navigate to="overview" replace />} />
           <Route path="*" element={<Navigate to={dashboardFallbackForRole("parent")} replace />} />
         </Route>
