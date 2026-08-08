@@ -562,7 +562,7 @@ export function ProgressRewardsProvider({ children, user, profile, initial }) {
       if (!user?.id && !user?.email) return;
 
       if (isSupabaseUser && user?.id) {
-        const { task, wallet, error } = await claimRewardTask(user.id, milestoneId, { proBoost });
+        const { task, wallet, error } = await claimRewardTask(user.id, milestoneId);
         if (error) {
           showToast(error, "error");
           return;

@@ -599,12 +599,12 @@ export async function listRewardTaskInstances(userId) {
   return { tasks: (data || []).map(mapRewardTaskInstance), error: error?.message || null };
 }
 
-export async function claimRewardTask(userId, taskInstanceId, { proBoost = false } = {}) {
+export async function claimRewardTask(userId, taskInstanceId) {
   requireUserId(userId);
   try {
+    // Pro Boost is derived server-side from profiles.plan_id — do not send p_pro_boost.
     const { data, error } = await db().rpc("claim_reward_task", {
-      p_task_instance_id: taskInstanceId,
-      p_pro_boost: Boolean(proBoost)
+      p_task_instance_id: taskInstanceId
     });
     if (error) {
       logFeatureError("rewards", error);
