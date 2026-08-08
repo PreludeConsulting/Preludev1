@@ -162,6 +162,17 @@ describe("supabase client and cookie persistence contracts", () => {
     expect(node).toMatch(/requireLoginAssurance:\s*false/);
   });
 
+  it("unblocks dashboard restore if session hydrate hangs after a deploy", () => {
+    const authContext = fs.readFileSync(path.join(ROOT, "src/context/AuthContext.jsx"), "utf8");
+    const supabaseAuth = fs.readFileSync(path.join(ROOT, "src/lib/supabaseAuth.js"), "utf8");
+    expect(authContext).toMatch(/AUTH_BOOTSTRAP_TIMEOUT_MS\s*=\s*12000/);
+    expect(authContext).toMatch(/Session restore timed out/);
+    expect(authContext).toMatch(/runPostAuthLinkage\(sessionUser\)\.catch/);
+    expect(supabaseAuth).toMatch(/withAuthTimeout\(\s*[\s\S]*?supabase\.auth\.getSession\(\)/);
+    expect(supabaseAuth).toMatch(/withAuthTimeout\(\s*[\s\S]*?ensureUserProfile\(resolvedAuthUser\)/);
+    expect(supabaseAuth).toMatch(/withAuthTimeout\(\s*[\s\S]*?supabase\.auth\.getUser\(\)/);
+  });
+
   it("keeps route guards from OTP-bouncing while auth is still loading", () => {
     for (const relative of [
       "src/components/RequireLoginVerification.jsx",

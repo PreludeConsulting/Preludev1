@@ -26,8 +26,19 @@ import {
 
 export const AuthContext = createContext(null);
 
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 12000;
+
 async function loadSupabaseAuth() {
   return import("../lib/supabaseAuth.js");
+}
+
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(message)), ms);
+    })
+  ]);
 }
 
 export function AuthProvider({ children }) {
@@ -277,9 +288,17 @@ export function AuthProvider({ children }) {
         }
 
         if (useSupabase) {
-          const { resolveSupabaseAppUser, onAuthStateChange } = await loadSupabaseAuth();
+          const { resolveSupabaseAppUser, onAuthStateChange } = await withTimeout(
+            loadSupabaseAuth(),
+            AUTH_BOOTSTRAP_TIMEOUT_MS,
+            "Auth module load timed out."
+          );
           try {
-            const sessionUser = await resolveSupabaseAppUser();
+            const sessionUser = await withTimeout(
+              resolveSupabaseAppUser(),
+              AUTH_BOOTSTRAP_TIMEOUT_MS,
+              "Session restore timed out."
+            );
             if (!cancelled) {
               if (demoSessionActiveRef.current) {
                 // Keep the active demo session if the user just entered demo mode.
@@ -287,11 +306,11 @@ export function AuthProvider({ children }) {
                 setUser(sessionUser);
                 if (sessionUser) {
                   pendingLoginStepUpRef.current = false;
-                  await runPostAuthLinkage(sessionUser);
-                  const refreshed = await resolveSupabaseAppUser().catch(() => sessionUser);
-                  if (!cancelled && refreshed && !demoSessionActiveRef.current) setUser(refreshed);
-                  const activeUser = refreshed || sessionUser;
-                  if (activeUser?.emailVerified) {
+                  // Invite/promo linkage must not block dashboard restore.
+                  runPostAuthLinkage(sessionUser).catch((err) => {
+                    console.warn("[prelude-parent] post-auth linkage skipped:", err?.message || err);
+                  });
+                  if (sessionUser.emailVerified) {
                     // Restored confirmed session: never bounce to login OTP.
                     if (!cancelled && !demoSessionActiveRef.current) setLoginVerified(true);
                     refreshLoginVerification({ silent: true }).catch(() => null);

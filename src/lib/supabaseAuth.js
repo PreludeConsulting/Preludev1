@@ -410,9 +410,16 @@ export async function logOut() {
 export async function getCurrentSession() {
   const supabase = getSupabase();
   if (!supabase) return { session: null, error: null };
-  const { data, error } = await supabase.auth.getSession();
-  if (error) return { session: null, error: friendlyError(error) };
-  return { session: data.session, error: null };
+  try {
+    const { data, error } = await withAuthTimeout(
+      supabase.auth.getSession(),
+      "Prelude could not restore your session. Refresh and try again."
+    );
+    if (error) return { session: null, error: friendlyError(error) };
+    return { session: data.session, error: null };
+  } catch (error) {
+    return { session: null, error: friendlyError(error) };
+  }
 }
 
 export async function resetPassword(email, captchaToken, options = {}) {
@@ -1174,14 +1181,20 @@ export async function resolveSupabaseAppUser() {
   const { session } = await getCurrentSession();
   if (!session) return null;
 
-  const {
-    data: { user: authUser },
-    error: userError
-  } = await supabase.auth.getUser();
-  if (userError || !authUser) {
-    // Prefer the persisted session user over treating a transient getUser failure as logout.
-    if (!session.user) return null;
+  let authUser = null;
+  try {
+    const {
+      data: { user: fetchedUser },
+      error: userError
+    } = await withAuthTimeout(
+      supabase.auth.getUser(),
+      "Prelude could not restore your account. Refresh and try again."
+    );
+    if (!userError) authUser = fetchedUser;
+  } catch (err) {
+    console.warn("[prelude-auth] getUser timed out; using session user:", err?.message || err);
   }
+  if (!authUser && !session.user) return null;
   const resolvedAuthUser = authUser || session.user;
   if (!resolvedAuthUser) return null;
   if (isSupabaseUserConfirmed(resolvedAuthUser)) clearPendingSignupVerification();
@@ -1189,7 +1202,10 @@ export async function resolveSupabaseAppUser() {
   const userId = resolvedAuthUser.id;
   let profile = null;
   try {
-    const ensured = await ensureUserProfile(resolvedAuthUser);
+    const ensured = await withAuthTimeout(
+      ensureUserProfile(resolvedAuthUser),
+      "Prelude could not restore your profile. Refresh and try again."
+    );
     profile = ensured.profile;
   } catch (err) {
     console.warn("[prelude-auth] profile hydrate failed; continuing with session:", err?.message || err);
@@ -1202,12 +1218,15 @@ export async function resolveSupabaseAppUser() {
   let mentorQuestionnaireRes = { data: null };
   let matchingTeamAccess = false;
   try {
-    [onboardingRes, mentorRes, mentorQuestionnaireRes, matchingTeamAccess] = await Promise.all([
-      supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle(),
-      supabase.from("mentor_matches").select("id").eq("user_id", userId).eq("status", "assigned").limit(1),
-      supabase.from("mentor_questionnaires").select("completed").eq("user_id", userId).maybeSingle(),
-      shouldCheckMatchingTeamAccess ? resolveMatchingTeamAccess(session.access_token) : Promise.resolve(false)
-    ]);
+    [onboardingRes, mentorRes, mentorQuestionnaireRes, matchingTeamAccess] = await withAuthTimeout(
+      Promise.all([
+        supabase.from("onboarding_progress").select("*").eq("user_id", userId).maybeSingle(),
+        supabase.from("mentor_matches").select("id").eq("user_id", userId).eq("status", "assigned").limit(1),
+        supabase.from("mentor_questionnaires").select("completed").eq("user_id", userId).maybeSingle(),
+        shouldCheckMatchingTeamAccess ? resolveMatchingTeamAccess(session.access_token) : Promise.resolve(false)
+      ]),
+      "Prelude could not restore onboarding state. Refresh and try again."
+    );
   } catch (err) {
     console.warn("[prelude-auth] onboarding hydrate failed; continuing with session:", err?.message || err);
   }
