@@ -4,7 +4,7 @@ import { listGlobalMentorNetwork } from "../../../lib/mentorNetworkApi.js";
 import { subscribeMentorNetworkProfiles } from "../../../lib/mentorQuestionnaireService.js";
 import { SearchInput, PrimaryButton } from "../ui/index.jsx";
 import MentorMessagingLockPanel from "./MentorMessagingLockPanel.jsx";
-import DashboardMentorNetworkCard, { mentorMatchesQuery } from "./DashboardMentorNetworkCard.jsx";
+import DashboardMentorNetworkCard, { mentorMatchesQuery, resolveMentorBio } from "./DashboardMentorNetworkCard.jsx";
 
 export default function MessagesMentorNetworkPanel({ canMessage, onBack, onMessageMentor }) {
   const [mentors, setMentors] = useState([]);
@@ -65,6 +65,7 @@ export default function MessagesMentorNetworkPanel({ canMessage, onBack, onMessa
   if (selected) {
     const school = selected.school || selected.university || "";
     const headerMeta = [school, selected.major].filter(Boolean).join(" · ");
+    const bio = resolveMentorBio(selected);
 
     return (
       <div className="dash-chat-network">
@@ -79,31 +80,40 @@ export default function MessagesMentorNetworkPanel({ canMessage, onBack, onMessa
         </header>
 
         <div className="dash-chat-network__results">
-          <div className="dash-chat-network__detail">
-            <DashboardMentorNetworkCard mentor={selected} expanded locked={locked} />
-            {!locked ? (
-              <div className="dash-chat-network__message-cta">
-                <p className="dash-muted">
-                  Start a conversation with {selected.name.split(" ")[0]} from your Prelude mentor network.
-                </p>
-                <PrimaryButton
-                  type="button"
-                  className="dash-btn--sm"
-                  disabled={messagingId === selected.id}
-                  onClick={() => handleMessage(selected.id)}
-                >
-                  <MessageCircle className="h-4 w-4" />{" "}
-                  {messagingId === selected.id ? "Opening…" : "Message mentor"}
-                </PrimaryButton>
-                {messageError ? (
-                  <p className="dash-muted" role="alert">
-                    {messageError}
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <MentorMessagingLockPanel />
-            )}
+          <div className="dash-chat-network__detail dash-chat-network__detail--split">
+            <div className="dash-chat-network__detail-main">
+              <DashboardMentorNetworkCard mentor={selected} expanded locked={locked} />
+            </div>
+
+            <aside className="dash-chat-network__bio-panel">
+              <h4 className="dash-chat-network__bio-title">Mentor Bio</h4>
+              {bio ? (
+                <p className="dash-chat-network__bio-text">{bio}</p>
+              ) : (
+                <p className="dash-chat-network__bio-empty">No mentor bio provided.</p>
+              )}
+
+              {!locked ? (
+                <div className="dash-chat-network__bio-actions">
+                  <PrimaryButton
+                    type="button"
+                    className="dash-btn--sm"
+                    disabled={messagingId === selected.id}
+                    onClick={() => handleMessage(selected.id)}
+                  >
+                    <MessageCircle className="h-4 w-4" />{" "}
+                    {messagingId === selected.id ? "Opening…" : "Message mentor"}
+                  </PrimaryButton>
+                  {messageError ? (
+                    <p className="dash-muted" role="alert">
+                      {messageError}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <MentorMessagingLockPanel />
+              )}
+            </aside>
           </div>
         </div>
       </div>

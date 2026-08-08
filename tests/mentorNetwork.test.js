@@ -91,6 +91,32 @@ describe("Mentor Network frontend contracts", () => {
     expect(panel).toMatch(/onMessageMentor/);
   });
 
+  it("selected mentor view uses a two-column split with a Mentor Bio panel + relocated button", () => {
+    const panel = read("src/dashboard/components/chat/MessagesMentorNetworkPanel.jsx");
+    // Two-column layout for the selected mentor.
+    expect(panel).toMatch(/dash-chat-network__detail--split/);
+    expect(panel).toMatch(/dash-chat-network__bio-panel/);
+    // Bio sourced from the persisted mentor profile field, with a clean fallback.
+    expect(panel).toMatch(/resolveMentorBio\(selected\)/);
+    expect(panel).toMatch(/No mentor bio provided\./);
+    // Message button moved into the bio panel; the old lead-in copy is gone.
+    expect(panel).toMatch(/dash-chat-network__bio-actions/);
+    expect(panel).not.toMatch(/Start a conversation with/);
+    // Still routes through the existing conversation handoff.
+    expect(panel).toMatch(/handleMessage\(selected\.id\)/);
+  });
+
+  it("mentor card no longer renders an unlabeled inline bio (stray-text fix)", () => {
+    const card = read("src/dashboard/components/chat/DashboardMentorNetworkCard.jsx");
+    // The unlabeled bio paragraph inside the card body is removed.
+    expect(card).not.toMatch(/className="dash-chat-network-card__bio"/);
+    // Bio resolver is exported so the panel can source the same persisted field.
+    expect(card).toMatch(/export function resolveMentorBio/);
+    // Unselected cards still surface compare-at-a-glance facts without a click.
+    expect(card).toMatch(/Targets/);
+    expect(card).toMatch(/Next Opening/);
+  });
+
   it("admin page manages the global network with no student selector", () => {
     const page = read("src/dashboard/pages/admin/AdminNetworkPage.jsx");
     expect(page).toMatch(/adminListNetworkMembers/);

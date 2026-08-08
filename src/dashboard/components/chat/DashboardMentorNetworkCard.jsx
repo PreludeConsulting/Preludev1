@@ -8,7 +8,7 @@ function resolveMentorPhoto(mentor) {
   return mentor.photo || mentor.avatarUrl || mentor.avatar_url || mentor.image || null;
 }
 
-function resolveMentorBio(mentor) {
+export function resolveMentorBio(mentor) {
   return mentor.bio || mentor.reason || mentor.description || "";
 }
 
@@ -87,7 +87,6 @@ export default function DashboardMentorNetworkCard({
 }) {
   const tags = resolveMentorTags(mentor);
   const school = resolveMentorSchool(mentor);
-  const bio = resolveMentorBio(mentor);
   const targets = resolveMentorTargets(mentor);
   const nextOpening = mentor.nextOpening || "";
 
@@ -110,10 +109,6 @@ export default function DashboardMentorNetworkCard({
               </span>
             ))}
           </div>
-        ) : null}
-
-        {expanded && bio ? (
-          <p className="dash-chat-network-card__bio">{bio}</p>
         ) : null}
 
         <div className="dash-chat-network-card__fact">
