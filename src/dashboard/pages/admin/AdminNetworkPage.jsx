@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Plus, Search, Users } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { loadMatchingTeamQueue } from "../../../lib/mentorSelectionApi.js";
 import {
-  adminAddStudentNetworkMentor,
-  adminGetStudentNetwork,
-  adminRemoveStudentNetworkMentor
+  adminAddNetworkMember,
+  adminListNetworkMembers,
+  adminRemoveNetworkMember
 } from "../../../lib/mentorNetworkApi.js";
 
 function asArray(value) {
@@ -21,11 +21,7 @@ function displayList(value, fallback = "Not provided") {
     .join(", ");
 }
 
-function studentGrade(student) {
-  return student.questionnaireAnswers?.grade || "";
-}
-
-function AdminNetworkMentorCard({ mentor, inNetwork, saving, disabled, onAdd, onRemove }) {
+function AdminNetworkMentorCard({ mentor, inNetwork, saving, onAdd, onRemove }) {
   return (
     <article className={`matching-team-mentor-card${inNetwork ? " matching-team-mentor-card--selected" : ""}`}>
       <div className="matching-team-mentor-card__head">
@@ -60,14 +56,14 @@ function AdminNetworkMentorCard({ mentor, inNetwork, saving, disabled, onAdd, on
             disabled={saving}
             onClick={() => onRemove(mentor.id)}
           >
-            {saving ? "Removing…" : "Remove"}
+            {saving ? "Removing…" : "Remove from Network"}
           </button>
         </div>
       ) : (
         <button
           type="button"
           className="dash-btn dash-btn--primary dash-btn--sm"
-          disabled={saving || disabled}
+          disabled={saving}
           onClick={() => onAdd(mentor.id)}
         >
           <Plus className="h-4 w-4" aria-hidden="true" /> {saving ? "Adding…" : "Add to Network"}
@@ -78,16 +74,11 @@ function AdminNetworkMentorCard({ mentor, inNetwork, saving, disabled, onAdd, on
 }
 
 export default function AdminNetworkPage() {
-  const [students, setStudents] = useState([]);
   const [mentors, setMentors] = useState([]);
+  const [memberIds, setMemberIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [query, setQuery] = useState("");
-
-  const [selectedStudentId, setSelectedStudentId] = useState("");
-  const [network, setNetwork] = useState({ eligible: false, mentorIds: [] });
-  const [loadingNetwork, setLoadingNetwork] = useState(false);
   const [savingMentorId, setSavingMentorId] = useState("");
 
   useEffect(() => {
@@ -96,10 +87,17 @@ export default function AdminNetworkPage() {
       setLoading(true);
       setError("");
       try {
-        const payload = await loadMatchingTeamQueue();
+        const [queue, members] = await Promise.all([
+          loadMatchingTeamQueue(),
+          adminListNetworkMembers()
+        ]);
         if (cancelled) return;
-        setStudents(payload.students || []);
-        setMentors(payload.mentors || []);
+        setMentors(queue.mentors || []);
+        if (members.error) {
+          setError(members.error);
+        } else {
+          setMemberIds(members.mentorIds);
+        }
       } catch (err) {
         if (!cancelled) setError(err.message || "Could not load Network data.");
       } finally {
@@ -112,60 +110,35 @@ export default function AdminNetworkPage() {
     };
   }, []);
 
-  const filteredStudents = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return students;
-    return students.filter((student) =>
-      [student.studentName, studentGrade(student)].join(" ").toLowerCase().includes(needle)
-    );
-  }, [students, query]);
-
-  const selectedStudent = students.find((student) => student.studentId === selectedStudentId) || null;
-  const mentorIdSet = useMemo(() => new Set(network.mentorIds || []), [network.mentorIds]);
-
-  async function selectStudent(studentId) {
-    setSelectedStudentId(studentId);
-    setMessage("");
-    setError("");
-    setNetwork({ eligible: false, mentorIds: [] });
-    setLoadingNetwork(true);
-    const result = await adminGetStudentNetwork(studentId);
-    setLoadingNetwork(false);
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-    setNetwork({ eligible: result.eligible, mentorIds: result.mentorIds });
-  }
+  const memberIdSet = useMemo(() => new Set(memberIds), [memberIds]);
+  const inNetworkCount = memberIdSet.size;
 
   async function handleAdd(mentorId) {
-    if (!selectedStudentId) return;
     setSavingMentorId(mentorId);
     setError("");
     setMessage("");
-    const result = await adminAddStudentNetworkMentor(selectedStudentId, mentorId);
+    const result = await adminAddNetworkMember(mentorId);
     setSavingMentorId("");
     if (result.error) {
       setError(result.error);
       return;
     }
-    setNetwork({ eligible: result.eligible, mentorIds: result.mentorIds });
-    setMessage("Mentor added to the student's network.");
+    setMemberIds(result.mentorIds);
+    setMessage("Mentor added to the Mentor Network.");
   }
 
   async function handleRemove(mentorId) {
-    if (!selectedStudentId) return;
     setSavingMentorId(mentorId);
     setError("");
     setMessage("");
-    const result = await adminRemoveStudentNetworkMentor(selectedStudentId, mentorId);
+    const result = await adminRemoveNetworkMember(mentorId);
     setSavingMentorId("");
     if (result.error) {
       setError(result.error);
       return;
     }
-    setNetwork({ eligible: result.eligible, mentorIds: result.mentorIds });
-    setMessage("Mentor removed from the student's network.");
+    setMemberIds(result.mentorIds);
+    setMessage("Mentor removed from the Mentor Network.");
   }
 
   if (loading) return <div className="dash-loading">Loading Mentor Network…</div>;
@@ -176,110 +149,56 @@ export default function AdminNetworkPage() {
         <div>
           <p className="dash-eyebrow">Private internal tool</p>
           <h1 className="dash-page-title">Mentor Network</h1>
-          <p className="dash-page-sub">Manage which Prelude mentors each student can connect with.</p>
+          <p className="dash-page-sub">
+            Manage which Prelude mentors Plus and Pro students can connect with.
+          </p>
         </div>
         <div className="matching-team-hero__stat">
-          <strong>{error ? "—" : mentors.length}</strong>
-          <span>mentors available</span>
+          <strong>{error && !mentors.length ? "—" : `${inNetworkCount}/${mentors.length}`}</strong>
+          <span>in Mentor Network</span>
         </div>
       </header>
 
       {error ? <div className="plan-select-page__error" role="alert">{error}</div> : null}
       {message ? <p className="pm-match-result__saved" role="status">{message}</p> : null}
 
-      <section className="matching-team-filters dash-panel">
-        <label className="matching-team-search">
-          <Search className="h-4 w-4" aria-hidden="true" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search students by name or grade…"
-          />
-        </label>
-        <div className="admin-network-student-picker">
-          {filteredStudents.length ? (
-            filteredStudents.map((student) => (
-              <button
-                key={student.studentId}
-                type="button"
-                className={
-                  "admin-network-student-chip" +
-                  (student.studentId === selectedStudentId ? " admin-network-student-chip--active" : "")
-                }
-                onClick={() => selectStudent(student.studentId)}
-              >
-                <span className="admin-network-student-chip__name">{student.studentName || "Student"}</span>
-                {studentGrade(student) ? (
-                  <span className="admin-network-student-chip__meta">{studentGrade(student)}</span>
-                ) : null}
-              </button>
-            ))
-          ) : (
-            <p className="dash-muted">No students match your search.</p>
-          )}
-        </div>
-      </section>
-
-      {!selectedStudent ? (
-        <div className="dash-empty">
-          <Users className="h-5 w-5" aria-hidden="true" /> Select a student to manage their Mentor Network.
-        </div>
-      ) : (
-        <div className="matching-team-list">
-          <article className="matching-team-card dash-panel">
-            <div className="matching-team-card__top">
-              <div>
-                <div className="matching-team-card__title-row">
-                  <h2>Mentor Network for {selectedStudent.studentName}</h2>
-                  <span
-                    className={
-                      "matching-team-status " +
-                      (network.eligible ? "matching-team-status--matched" : "matching-team-status--unmatched")
-                    }
-                  >
-                    {network.eligible ? "Mentor Network eligible" : "Mentor Network unavailable"}
-                  </span>
-                </div>
-                <p>
-                  {network.eligible
-                    ? "Add or remove the mentors this student can browse and message."
-                    : "Mentor Network is available with an active Plus or Pro plan."}
-                </p>
+      <div className="matching-team-list">
+        <article className="matching-team-card dash-panel">
+          <div className="matching-team-card__top">
+            <div>
+              <div className="matching-team-card__title-row">
+                <h2>Prelude mentors</h2>
+                <span className="matching-team-status matching-team-status--matched">
+                  {inNetworkCount} in Network
+                </span>
               </div>
+              <p>
+                This is one global Mentor Network. Every eligible Plus or Pro student sees the same
+                mentors. Details are pulled live from each mentor&apos;s current profile.
+              </p>
             </div>
+          </div>
 
-            {loadingNetwork ? (
-              <div className="dash-loading">Loading student network…</div>
-            ) : mentors.length ? (
-              <section className="matching-team-mentor-panel">
-                <header>
-                  <h3>Prelude mentors</h3>
-                  <p>
-                    {network.eligible
-                      ? "Mentor details are pulled live from each mentor's current profile."
-                      : "Adding mentors is disabled until the student has an active Plus or Pro plan."}
-                  </p>
-                </header>
-                <div className="matching-team-mentor-grid">
-                  {mentors.map((mentor) => (
-                    <AdminNetworkMentorCard
-                      key={mentor.id}
-                      mentor={mentor}
-                      inNetwork={mentorIdSet.has(mentor.id)}
-                      saving={savingMentorId === mentor.id}
-                      disabled={!network.eligible}
-                      onAdd={handleAdd}
-                      onRemove={handleRemove}
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : (
-              <div className="dash-empty">No Prelude mentors are available yet.</div>
-            )}
-          </article>
-        </div>
-      )}
+          {mentors.length ? (
+            <section className="matching-team-mentor-panel">
+              <div className="matching-team-mentor-grid">
+                {mentors.map((mentor) => (
+                  <AdminNetworkMentorCard
+                    key={mentor.id}
+                    mentor={mentor}
+                    inNetwork={memberIdSet.has(mentor.id)}
+                    saving={savingMentorId === mentor.id}
+                    onAdd={handleAdd}
+                    onRemove={handleRemove}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : (
+            <div className="dash-empty">No Prelude mentors are available yet.</div>
+          )}
+        </article>
+      </div>
     </section>
   );
 }

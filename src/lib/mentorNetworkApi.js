@@ -13,7 +13,7 @@ function asArray(value) {
 }
 
 /**
- * Map a LIVE mentor_matching_profiles row (returned by list_my_network_mentors)
+ * Map a LIVE mentor_matching_profiles row (returned by list_global_network_mentors)
  * into the student Mentor Network card view-model. Nothing here is persisted —
  * every field reflects the mentor's current profile on each fetch.
  */
@@ -45,9 +45,12 @@ export function mapNetworkMentor(row) {
   };
 }
 
-/** Student: the mentors an admin added to MY Network (live data, Plus/Pro gated). */
-export async function listMyMentorNetwork() {
-  const { data, error } = await db().rpc("list_my_network_mentors");
+/**
+ * Student: the ONE global Mentor Network (live data, Plus/Pro gated). Membership
+ * is not scoped to the student — every eligible student receives the same list.
+ */
+export async function listGlobalMentorNetwork() {
+  const { data, error } = await db().rpc("list_global_network_mentors");
   if (error) {
     return { eligible: false, mentors: [], error: error.message };
   }
@@ -72,44 +75,29 @@ export async function ensureNetworkChatThread(mentorId) {
   return { threadId: data?.id || null, error: null };
 }
 
-/** Admin: read a student's Network membership + Plus/Pro eligibility. */
-export async function adminGetStudentNetwork(studentId) {
-  if (!studentId) return { eligible: false, mentorIds: [], error: "A student is required." };
-  const { data, error } = await db().rpc("admin_get_student_network", {
-    p_student: studentId
-  });
-  if (error) return { eligible: false, mentorIds: [], error: error.message };
-  return {
-    eligible: Boolean(data?.eligible),
-    mentorIds: asArray(data?.mentorIds),
-    error: null
-  };
+/** Admin: read which mentors are in the ONE global Mentor Network. */
+export async function adminListNetworkMembers() {
+  const { data, error } = await db().rpc("admin_list_network_members");
+  if (error) return { mentorIds: [], error: error.message };
+  return { mentorIds: asArray(data?.mentorIds), error: null };
 }
 
-/** Admin: add a mentor to a student's Network. Returns the updated membership. */
-export async function adminAddStudentNetworkMentor(studentId, mentorId) {
-  const { data, error } = await db().rpc("admin_add_student_network_mentor", {
-    p_student: studentId,
+/** Admin: add a mentor to the global Network. Returns the updated membership. */
+export async function adminAddNetworkMember(mentorId) {
+  if (!mentorId) return { mentorIds: [], error: "A mentor is required." };
+  const { data, error } = await db().rpc("admin_add_network_member", {
     p_mentor: mentorId
   });
-  if (error) return { eligible: false, mentorIds: [], error: error.message };
-  return {
-    eligible: Boolean(data?.eligible),
-    mentorIds: asArray(data?.mentorIds),
-    error: null
-  };
+  if (error) return { mentorIds: [], error: error.message };
+  return { mentorIds: asArray(data?.mentorIds), error: null };
 }
 
-/** Admin: remove a mentor from a student's Network. Returns the updated membership. */
-export async function adminRemoveStudentNetworkMentor(studentId, mentorId) {
-  const { data, error } = await db().rpc("admin_remove_student_network_mentor", {
-    p_student: studentId,
+/** Admin: remove a mentor from the global Network. Returns the updated membership. */
+export async function adminRemoveNetworkMember(mentorId) {
+  if (!mentorId) return { mentorIds: [], error: "A mentor is required." };
+  const { data, error } = await db().rpc("admin_remove_network_member", {
     p_mentor: mentorId
   });
-  if (error) return { eligible: false, mentorIds: [], error: error.message };
-  return {
-    eligible: Boolean(data?.eligible),
-    mentorIds: asArray(data?.mentorIds),
-    error: null
-  };
+  if (error) return { mentorIds: [], error: error.message };
+  return { mentorIds: asArray(data?.mentorIds), error: null };
 }

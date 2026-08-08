@@ -7434,44 +7434,6 @@
   font-weight: 750;
 }
 
-.admin-network-student-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.admin-network-student-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid hsl(var(--foreground) / 0.12);
-  background: #fff;
-  cursor: pointer;
-  font-size: 0.82rem;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.admin-network-student-chip:hover {
-  border-color: hsl(var(--primary) / 0.5);
-}
-
-.admin-network-student-chip--active {
-  border-color: hsl(var(--primary));
-  background: hsl(var(--primary) / 0.08);
-}
-
-.admin-network-student-chip__name {
-  font-weight: 700;
-  color: hsl(248 42% 24%);
-}
-
-.admin-network-student-chip__meta {
-  color: hsl(var(--muted-foreground));
-  font-size: 0.74rem;
-}
-
 .matching-team-mentor-card__network-actions {
   display: flex;
   align-items: center;

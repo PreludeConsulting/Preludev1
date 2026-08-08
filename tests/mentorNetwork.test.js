@@ -6,91 +6,109 @@ import { computeNextOpening } from "../src/lib/mentorNextOpening.js";
 const root = path.resolve(import.meta.dirname, "..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
 
-const MIGRATION = "supabase/migrations/20260808000000_student_mentor_network.sql";
+const MIGRATION = "supabase/migrations/20260808010000_global_mentor_network.sql";
 
-describe("student_mentor_network migration", () => {
+describe("global mentor_network migration", () => {
   const sql = read(MIGRATION);
 
-  it("stores ONLY membership, never duplicated mentor detail", () => {
-    expect(sql).toMatch(/create table if not exists public\.student_mentor_network/i);
-    expect(sql).toMatch(/student_id\s+uuid not null references auth\.users/i);
-    expect(sql).toMatch(/mentor_id\s+uuid not null references auth\.users/i);
+  it("removes the incorrect per-student membership model", () => {
+    expect(sql).toMatch(/drop table if exists public\.student_mentor_network cascade/i);
+    expect(sql).toMatch(/drop function if exists public\.list_my_network_mentors\(\)/i);
+    expect(sql).toMatch(/drop function if exists public\.admin_get_student_network\(uuid\)/i);
+    expect(sql).toMatch(/drop function if exists public\.admin_add_student_network_mentor\(uuid, uuid\)/i);
+    expect(sql).toMatch(/drop function if exists public\.admin_remove_student_network_mentor\(uuid, uuid\)/i);
+  });
+
+  it("stores ONE global membership row per mentor, no per-student column", () => {
+    expect(sql).toMatch(/create table if not exists public\.mentor_network_members/i);
+    expect(sql).toMatch(/mentor_id\s+uuid primary key references auth\.users/i);
     expect(sql).toMatch(/created_by\s+uuid/i);
-    // No copied profile fields on the membership table.
     const tableBlock = sql.slice(
-      sql.indexOf("create table if not exists public.student_mentor_network"),
-      sql.indexOf("create index if not exists student_mentor_network_student_idx")
+      sql.indexOf("create table if not exists public.mentor_network_members"),
+      sql.indexOf("alter table public.mentor_network_members enable row level security")
     );
+    // Not scoped to any student, and no duplicated profile fields.
+    expect(tableBlock).not.toMatch(/student_id/i);
     expect(tableBlock).not.toMatch(/display_name|avatar_url|college|major|bio|target_|availability|specialties/i);
   });
 
-  it("enforces a single membership per student+mentor pair", () => {
-    expect(sql).toMatch(/constraint student_mentor_network_unique unique \(student_id, mentor_id\)/i);
-    expect(sql).toMatch(/on conflict \(student_id, mentor_id\) do nothing/i);
-  });
-
   it("enables RLS and blocks direct client writes", () => {
-    expect(sql).toMatch(/alter table public\.student_mentor_network enable row level security/i);
-    expect(sql).toMatch(/revoke insert, update, delete on public\.student_mentor_network from anon, authenticated/i);
-    expect(sql).toMatch(/auth\.uid\(\) = student_id\s*\n\s*or public\.is_prelude_admin\(\)/i);
+    expect(sql).toMatch(/alter table public\.mentor_network_members enable row level security/i);
+    expect(sql).toMatch(/revoke insert, update, delete on public\.mentor_network_members from anon, authenticated/i);
   });
 
   it("gates eligibility on active Plus/Pro from profiles, independent of Essay Support", () => {
-    expect(sql).toMatch(/function public\.student_has_mentor_network_access/i);
-    expect(sql).toMatch(/plan not in \('plus', 'pro'\)/i);
-    expect(sql).toMatch(/from public\.profiles/i);
-    // Essay Support ledger must never be queried by the entitlement gate.
-    const gate = sql.slice(
-      sql.indexOf("function public.student_has_mentor_network_access"),
-      sql.indexOf("function public.admin_get_student_network")
+    expect(sql).toMatch(/plan not in \('plus', 'pro'\)|student_has_mentor_network_access/i);
+    // The global list RPC gates on the Plus/Pro entitlement helper.
+    const listBlock = sql.slice(
+      sql.indexOf("function public.list_global_network_mentors"),
+      sql.indexOf("function public.ensure_network_chat_thread")
     );
-    expect(gate).not.toMatch(/from\s+public\.review_credit_ledger/i);
-    expect(gate).not.toMatch(/review_credit_ledger/i);
+    expect(listBlock).toMatch(/student_has_mentor_network_access\(uid\)/i);
+    expect(listBlock).not.toMatch(/review_credit_ledger/i);
+    // Membership is NOT scoped by student id anywhere in the list query.
+    expect(listBlock).not.toMatch(/student_id/i);
   });
 
-  it("guards admin RPCs behind is_prelude_admin and student eligibility", () => {
-    expect(sql).toMatch(/function public\.admin_add_student_network_mentor/i);
-    expect(sql).toMatch(/function public\.admin_remove_student_network_mentor/i);
+  it("guards admin RPCs behind is_prelude_admin, with no student argument", () => {
+    expect(sql).toMatch(/function public\.admin_list_network_members\(\)/i);
+    expect(sql).toMatch(/function public\.admin_add_network_member\(p_mentor uuid\)/i);
+    expect(sql).toMatch(/function public\.admin_remove_network_member\(p_mentor uuid\)/i);
     expect(sql).toMatch(/if not public\.is_prelude_admin\(\) then/i);
-    // Adding requires the student to be Plus/Pro eligible.
-    const addBlock = sql.slice(sql.indexOf("admin_add_student_network_mentor"));
-    expect(addBlock).toMatch(/if not public\.student_has_mentor_network_access\(p_student\) then/i);
+    const addBlock = sql.slice(
+      sql.indexOf("function public.admin_add_network_member"),
+      sql.indexOf("function public.admin_remove_network_member")
+    );
+    // Global add takes no student and does not consult per-student eligibility.
+    expect(addBlock).not.toMatch(/p_student/i);
+    expect(addBlock).toMatch(/on conflict \(mentor_id\) do nothing/i);
   });
 
-  it("returns the student's OWN network with live profile data only", () => {
-    expect(sql).toMatch(/function public\.list_my_network_mentors/i);
+  it("returns the SAME global network with live profile data for every student", () => {
+    expect(sql).toMatch(/function public\.list_global_network_mentors/i);
     expect(sql).toMatch(/uid uuid := auth\.uid\(\)/i);
     expect(sql).toMatch(/join public\.mentor_matching_profiles/i);
-    expect(sql).toMatch(/where smn\.student_id = uid/i);
+    expect(sql).toMatch(/from public\.mentor_network_members as mnm/i);
   });
 
-  it("hands off to existing messaging via an isolated mentor_network chat_type", () => {
-    expect(sql).toMatch(/chat_type in \('mentor_student', 'mentor_parent', 'mentor_network'\)/i);
+  it("hands off to existing messaging via global membership, no per-student check", () => {
     expect(sql).toMatch(/function public\.ensure_network_chat_thread/i);
-    // Must verify Plus/Pro + network membership before opening a thread.
     const ensureBlock = sql.slice(sql.indexOf("function public.ensure_network_chat_thread"));
     expect(ensureBlock).toMatch(/student_has_mentor_network_access\(uid\)/i);
-    expect(ensureBlock).toMatch(/from public\.student_mentor_network as smn/i);
+    expect(ensureBlock).toMatch(/from public\.mentor_network_members as mnm/i);
+    expect(ensureBlock).not.toMatch(/student_mentor_network/i);
     // Reuses an existing assignment conversation instead of duplicating it.
     expect(ensureBlock).toMatch(/chat_type = 'mentor_student'/i);
   });
 });
 
 describe("Mentor Network frontend contracts", () => {
-  it("student panel loads only MY network, not all mentors", () => {
+  it("student panel loads the global network, not per-student or all mentors", () => {
     const panel = read("src/dashboard/components/chat/MessagesMentorNetworkPanel.jsx");
-    expect(panel).toMatch(/listMyMentorNetwork/);
+    expect(panel).toMatch(/listGlobalMentorNetwork/);
+    expect(panel).not.toMatch(/listMyMentorNetwork/);
     expect(panel).not.toMatch(/listMentorNetworkProfiles/);
     expect(panel).toMatch(/onMessageMentor/);
   });
 
-  it("network API calls the backend-enforced RPCs", () => {
+  it("admin page manages the global network with no student selector", () => {
+    const page = read("src/dashboard/pages/admin/AdminNetworkPage.jsx");
+    expect(page).toMatch(/adminListNetworkMembers/);
+    expect(page).toMatch(/adminAddNetworkMember/);
+    expect(page).toMatch(/adminRemoveNetworkMember/);
+    // No per-student selection concepts remain.
+    expect(page).not.toMatch(/selectedStudent|adminGetStudentNetwork|Mentor Network for/i);
+  });
+
+  it("network API calls the backend-enforced global RPCs", () => {
     const api = read("src/lib/mentorNetworkApi.js");
-    expect(api).toMatch(/rpc\("list_my_network_mentors"\)/);
+    expect(api).toMatch(/rpc\("list_global_network_mentors"\)/);
     expect(api).toMatch(/rpc\("ensure_network_chat_thread"/);
-    expect(api).toMatch(/rpc\("admin_get_student_network"/);
-    expect(api).toMatch(/rpc\("admin_add_student_network_mentor"/);
-    expect(api).toMatch(/rpc\("admin_remove_student_network_mentor"/);
+    expect(api).toMatch(/rpc\("admin_list_network_members"\)/);
+    expect(api).toMatch(/rpc\("admin_add_network_member"/);
+    expect(api).toMatch(/rpc\("admin_remove_network_member"/);
+    // Per-student RPCs are gone.
+    expect(api).not.toMatch(/admin_get_student_network|admin_add_student_network_mentor|list_my_network_mentors/);
   });
 
   it("admin Network tab + route are registered next to Matching", () => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, MessageCircle } from "lucide-react";
-import { listMyMentorNetwork } from "../../../lib/mentorNetworkApi.js";
+import { listGlobalMentorNetwork } from "../../../lib/mentorNetworkApi.js";
 import { subscribeMentorNetworkProfiles } from "../../../lib/mentorQuestionnaireService.js";
 import { SearchInput, PrimaryButton } from "../ui/index.jsx";
 import MentorMessagingLockPanel from "./MentorMessagingLockPanel.jsx";
@@ -19,13 +19,13 @@ export default function MessagesMentorNetworkPanel({ canMessage, onBack, onMessa
   const loadMentors = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
     try {
-      const result = await listMyMentorNetwork();
+      const result = await listGlobalMentorNetwork();
       setMentors(result.mentors);
       setEligible(result.eligible);
       setLoadError(result.error || "");
     } catch (error) {
       setMentors([]);
-      setLoadError(error?.message || "Could not load your mentor network.");
+      setLoadError(error?.message || "Could not load the mentor network.");
     }
     if (!silent) setLoading(false);
   }, []);
@@ -121,7 +121,7 @@ export default function MessagesMentorNetworkPanel({ canMessage, onBack, onMessa
           <span>
             {locked
               ? "Mentor Network is available with Plus or Pro."
-              : "The mentors your Prelude admin added to your network."}
+              : "The Prelude mentors you can browse and message."}
           </span>
         </div>
       </header>
@@ -170,7 +170,7 @@ export default function MessagesMentorNetworkPanel({ canMessage, onBack, onMessa
                 <p className="dash-muted dash-chat-network__empty">No mentors match your search.</p>
               ) : (
                 <p className="dash-muted dash-chat-network__empty">
-                  Your mentors will appear here once your Prelude admin adds them to your network.
+                  Mentors will appear here once your Prelude admin adds them to the mentor network.
                 </p>
               )}
             </div>
