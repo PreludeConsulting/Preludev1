@@ -112,8 +112,15 @@ describe("Mentor Network frontend contracts", () => {
     expect(card).not.toMatch(/className="dash-chat-network-card__bio"/);
     // Bio resolver is exported so the panel can source the same persisted field.
     expect(card).toMatch(/export function resolveMentorBio/);
-    // Unselected cards still surface compare-at-a-glance facts without a click.
-    expect(card).toMatch(/Targets/);
+  });
+
+  it("mentor card shows School | Major and drops the Targets row", () => {
+    const card = read("src/dashboard/components/chat/DashboardMentorNetworkCard.jsx");
+    // School and major are combined on one line with a pipe separator.
+    expect(card).toMatch(/\[school, mentor\.major\]\.filter\(Boolean\)\.join\(" \| "\)/);
+    // Targets are no longer rendered on the card.
+    expect(card).not.toMatch(/dash-chat-network-card__fact-label">Targets/);
+    // Next Opening still shown.
     expect(card).toMatch(/Next Opening/);
   });
 

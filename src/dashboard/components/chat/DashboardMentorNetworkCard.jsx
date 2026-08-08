@@ -87,7 +87,7 @@ export default function DashboardMentorNetworkCard({
 }) {
   const tags = resolveMentorTags(mentor);
   const school = resolveMentorSchool(mentor);
-  const targets = resolveMentorTargets(mentor);
+  const schoolLine = [school, mentor.major].filter(Boolean).join(" | ");
   const nextOpening = mentor.nextOpening || "";
 
   const card = (
@@ -97,8 +97,7 @@ export default function DashboardMentorNetworkCard({
       <div className="dash-chat-network-card__body">
         <div className="dash-chat-network-card__identity">
           <h3 className="dash-chat-network-card__name">{mentor.name}</h3>
-          {school ? <p className="dash-chat-network-card__school">{school}</p> : null}
-          {expanded && mentor.major ? <p className="dash-chat-network-card__major">{mentor.major}</p> : null}
+          {schoolLine ? <p className="dash-chat-network-card__school">{schoolLine}</p> : null}
         </div>
 
         {expanded && tags.length ? (
@@ -110,13 +109,6 @@ export default function DashboardMentorNetworkCard({
             ))}
           </div>
         ) : null}
-
-        <div className="dash-chat-network-card__fact">
-          <span className="dash-chat-network-card__fact-label">Targets</span>
-          <span className="dash-chat-network-card__fact-value">
-            {targets.length ? targets.join(", ") : "Not listed yet"}
-          </span>
-        </div>
 
         <div className="dash-chat-network-card__fact">
           <span className="dash-chat-network-card__fact-label">Next Opening</span>
