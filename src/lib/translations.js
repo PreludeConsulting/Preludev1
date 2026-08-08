@@ -2,7 +2,8 @@ export const LANGUAGES = [
   { code: "en", label: "English", shortLabel: "EN" },
   { code: "es", label: "Español", shortLabel: "ES" },
   { code: "ko", label: "한국어", shortLabel: "KO" },
-  { code: "zh", label: "中文（普通话）", shortLabel: "ZH" }
+  { code: "zh", label: "中文（普通话）", shortLabel: "ZH" },
+  { code: "zh-TW", label: "繁體中文（國語）", shortLabel: "繁" }
 ];
 
 export const DEFAULT_LANGUAGE = "en";
@@ -1153,6 +1154,389 @@ export const translations = {
         notifications: { title: "通知", subtitle: "关于孩子、导师和会议的最新动态。" },
         billing: { title: "方案与账单", subtitle: "你的家长账户订阅。" },
         help: { title: "帮助与支持", subtitle: "Prelude 家长账户相关资源。" }
+      }
+    }
+  },
+  "zh-TW": {
+    languageSwitcher: {
+      buttonLabel: "變更語言",
+      menuLabel: "選擇網站語言",
+      current: "語言"
+    },
+    nav: {
+      homeLabel: "Prelude 首頁",
+      primaryLabel: "主導覽",
+      searchLabel: "搜尋 Prelude",
+      searchPlaceholder: "搜尋 Prelude...",
+      searchNoResults: "找不到結果",
+      menuOpenLabel: "開啟選單",
+      menuCloseLabel: "關閉選單",
+      signIn: "登入",
+      getStarted: "開始使用",
+      searchItems: {
+        financialAid: "財務補助",
+        collegeList: "大學清單",
+        applicationStrategy: "申請策略",
+        mentorMatching: "導師配對"
+      },
+      links: {
+        about: "關於我們",
+        admissions: "升學申請諮詢",
+        mentoring: "導師輔導",
+        mentoringClarity: "導師輔導與清晰規劃",
+        mentors: "導師",
+        pricing: "價格",
+        bundles: "套組",
+        satPrepTutoring: "SAT 備考與輔導",
+        clarity: "清晰規劃",
+        contact: "聯絡",
+        dashboard: "儀表板"
+      }
+    },
+    hero: {
+      headline: ["大學申請，", "", "更簡單。"],
+      cinematicOpener: ["四分鐘了解你。", "配對真正合適的導師。"],
+      typingPrefix: "",
+      typingPhrases: ["更簡單。", "更個人化。", "更清晰。", "更可實現。", "更少壓力。"],
+      subcopy: "由同齡導師驅動的輔導、個人化策略與財務規劃指導，幫助學生自信打造出色的申請資料。",
+      emailLabel: "電子郵件地址",
+      emailPlaceholder: "輸入你的電子郵件地址",
+      cta: "預約免費諮詢",
+      note: "先免費開始，再配對來自你夢想學校的導師。"
+    },
+    mentors: {
+      eyebrow: "導師目錄",
+      headline: "認識來自頂尖大學的範例導師。",
+      body: "了解 Prelude 大學生導師如何協助學生處理申請文書、選校名單、主修方向與申請過程中的日常問題。",
+      primaryCta: "開始配對",
+      secondaryCta: "查看方案",
+      heroCardTitle: "學生導師",
+      heroCardStat: "面對面式指導",
+      directoryEyebrow: "範例導師",
+      directoryTitle: "Prelude 導師網路預覽"
+    },
+    carousel: {
+      heading: "來自頂尖大學學生的導師輔導"
+    },
+    studentNetwork: {
+      headline: "一支完整團隊，助你成功。",
+      subheadline: "學生不必依賴過時的顧問，而是可以直接接觸剛經歷過申請過程的現代大學生導師。",
+      insightTitle: "向不同經歷學習",
+      insightDescription: "與真正理解你處境的學生交流。",
+      helpTitle: "現在就需要協助？你的導師隨時觸手可及。",
+      graphic: {
+        label: "現代導師網路",
+        you: "你",
+        student: "高中生",
+        majors: {
+          business: "商科",
+          biology: "生物學",
+          engineering: "工程學"
+        }
+      },
+      chat: {
+        roleLine: "導師 · Georgia Tech · CS",
+        status: "線上",
+        scheduleZoom: "預約 Zoom",
+        messages: [
+          "嘿 Asim，我一直在改個人陳述，現在完全不知道它到底有沒有變好。",
+          "哈哈，別擔心～我覺得你只是盯著它看太久了。",
+          "這樣吧，與其一直傳訊息來回討論，不如這週找個時間快速開個 Zoom。我覺得一起聊你的故事、找出哪裡不順，會容易很多。",
+          "那真的太有幫助了！我已經為這件事焦慮好幾週了 🥲",
+          "別擔心，我們會一起理清楚。我會傳幾個我方便的時間，我們一起安排。"
+        ]
+      }
+    },
+    network: {
+      badge: "OUR NETWORK",
+      headline: ["連接頂尖大學", "學生網路"],
+      headlineAccent: "頂尖大學",
+      subtitle: "與美國各地頂尖學校的導師和同學建立聯繫。",
+      subheadline: "建立在網路之上，而不是只依賴一位顧問",
+      metrics: [
+        {
+          value: "25+",
+          title: "大學",
+          description: "涵蓋 Prelude 導師網路中的代表院校。"
+        },
+        {
+          value: "<1 hr",
+          title: "導師平均回覆時間",
+          description: "當問題出現時，及時獲得回答、回饋與指導。"
+        },
+        {
+          value: "50+",
+          title: "獨特視角",
+          description: "向擁有不同主修、背景與申請經歷的學生學習。"
+        }
+      ],
+      features: [
+        {
+          title: "頂尖大學學生",
+          description: "直接向就讀於頂尖大學的學生學習。"
+        },
+        {
+          title: "多元洞察",
+          description: "從擁有不同目標、主修與經歷的導師那裡獲得建議。"
+        },
+        {
+          title: "直接溝通",
+          description: "傳訊息給導師、提問，並獲得個人化回饋。"
+        },
+        {
+          title: "學校定向指導",
+          description: "了解目標院校學生實際用過且有效的申請方法。"
+        }
+      ],
+      messagesVisual: {
+        mentorMeta: "導師 · Georgia Tech · CS",
+        studentMeta: "學生 · 12 年級",
+        searchPlaceholder: "搜尋對話…",
+        status: "線上",
+        scheduleZoom: "預約 Zoom",
+        joinZoom: "加入 Zoom",
+        composerPlaceholder: "寫一則訊息…",
+        threads: [
+          {
+            preview: "你的大學清單進展很好——接下來我們專注文書策略。",
+            time: "2 小時前"
+          },
+          {
+            preview: "我正在處理——明天早上會分享文件。",
+            time: "1 天前"
+          }
+        ],
+        messages: [
+          "嗨 Jordan——我們週四再細化一下你的衝刺校清單。",
+          "聽起來不錯。我今晚會更新大學清單分層。",
+          "你的大學清單進展很好——接下來我們專注文書策略。"
+        ]
+      }
+    },
+    match: {
+      ariaLabel: "PreludeMatch 互動示範",
+      intro: {
+        eyebrow: "PreludeMatch",
+        title: "找到適合你的近齡導師。",
+        body: "回答幾個關於目標、目標院校、興趣與偏好支援方式的快速問題。",
+        cta: "開始配對",
+        footnote: "由 Prelude AI 支援的個人化導師配對"
+      }
+    },
+    sections: {
+      cost: {
+        imageAlt: "戴著畢業帽的存錢筒，旁邊標註 6,500 美元以上費用",
+        bodyBefore: "美國家庭每年在大學申請諮詢上花費超過",
+        bodyAfter: "。",
+        headline: "花得更聰明，而不是更多。"
+      },
+      featureIntro: {
+        eyebrow: "Prelude 方法",
+        headline: "負擔得起、真正個人化，而不是千篇一律的申請支援。",
+        body: "傳統諮詢費用高昂，而且常常與現今學生真實經歷的申請過程脫節。Prelude 將你與近齡導師、實用的財務指導與讓流程井然有序的工具配對，讓家庭投資於清晰，而不是混亂。"
+      },
+      split: {
+        eyebrow: "PreludeMatch",
+        headline: "認識已經抵達你想去之處的導師。",
+        body: "依照目標院校、主修、活動與目標進行配對。學生可從最近走過同樣道路的人那裡獲得指導，並在課程之間持續傳訊息，家長也能看到進度更新。",
+        bullets: [
+          "來自你目標院校的在學學生",
+          "Zoom 課程之間也保持穩定推進",
+          "家庭看得見的清晰進度"
+        ],
+        imageAlt: "PreludeMatch 導師輔導預覽"
+      },
+      benefits: {
+        eyebrow: "致家長",
+        headline: "為家長而打造",
+        subheadline: "參與其中，但不越界",
+        body: "透過一個簡潔的家長入口，掌握會議、回饋與重要里程碑。"
+      },
+      academicPrograms: {
+        headline: "Earn Rewards, Boost Progress",
+        subheadline: "Choose the support you need each month and adjust as your goals change.",
+        cards: []
+      },
+      rewardsShowcase: {
+        badge: "Prelude Rewards",
+        headline: "贏得真正有價值的獎勵",
+        lead: "Complete. Earn. Unlock.",
+        cards: [
+          {
+            id: "personal-statement",
+            icon: "essay",
+            tone: "green",
+            rarity: "rare",
+            rarityBadge: "稀有",
+            title: "個人陳述書面回饋",
+            category: "書面申請回饋",
+            coins: "175 金幣",
+            value: "價值 $70",
+            button: "兌換"
+          },
+          {
+            id: "sat-act",
+            icon: "testprep",
+            tone: "blue",
+            rarity: "epic",
+            rarityBadge: "史詩",
+            title: "SAT/ACT 輔導課程",
+            category: "30 分鐘直播通話",
+            coins: "325 金幣",
+            value: "價值 $100",
+            button: "兌換"
+          }
+        ],
+        steps: [
+          { id: "complete", label: "Complete" },
+          { id: "coins", label: "Coins" },
+          { id: "rewards", label: "Rewards" }
+        ]
+      },
+      plans: {
+        eyebrow: "方案",
+        headline: "隨著你的目標一起成長的支援。",
+        body: "預約免費諮詢。升級即可獲得諮詢、SAT/ACT 備考、學科輔導等彈性課程。",
+        bodyBefore: "預約免費諮詢。升級即可獲得 ",
+        bodyServices: ["諮詢", "SAT/ACT 備考", "學科輔導"],
+        bodyAfter: " 等彈性課程。",
+        pleaseWait: "請稍候...",
+        priceLabels: {
+          free: "免費",
+          paid: "付費",
+          perMonth: "/月"
+        },
+        startFree: "選擇 Essay Support",
+        choose: "選擇 {{plan}}",
+        notices: {
+          basicFree: "一次性審閱額度請選擇 Essay Support；月費會員請選擇 Plus 或 Pro。",
+          signInFirst: "請先建立或登入帳戶。Stripe 連接後，訂閱會關聯到該帳戶。",
+          comingSoon: "付費結帳需要設定 Stripe。請聯絡 Prelude 取得方案支援。",
+          unavailable: "目前無法使用計費功能。"
+        },
+        cards: [
+          {
+            id: "plus",
+            name: "Plus",
+            description: "更多導師接觸、一對一支援與獎勵。",
+            featureHeader: "Prelude 軟體功能，以及：",
+            features: [
+              "完整導師網路訊息",
+              "個人化升學與學業指導",
+              "透過進度賺取 Prelude 幣",
+              "用幣兌換額外課程、多導師文書回饋、輔導等"
+            ]
+          },
+          {
+            id: "pro",
+            name: "Pro",
+            description: "更多彈性課程、優先支援與完整申請審核。",
+            featureHeader: "Plus 的全部內容，以及：",
+            features: [
+              "優先導師網路訊息",
+              "針對目標量身打造的進階策略",
+              "完整申請審核",
+              "文書與活動審核",
+              "多導師文書回饋",
+              "最終申請就緒檢查",
+              "更高比例的賺幣",
+              "進階里程碑獎勵"
+            ]
+          }
+        ]
+      },
+      bundles: {
+        eyebrow: "一次性套組",
+        title: "依你的節奏獲得支援",
+        lede: "選擇文書審閱或彈性課程，無需月付訂閱。",
+        distinction: "無月付訂閱",
+        oneTimePayment: "一次性付款",
+        bestValue: "超值之選",
+        popularOptions: "熱門選項",
+        cards: [
+          {
+            id: "essay_support",
+            title: "申請與文書支援",
+            description: "針對個人陳述、修改、定稿潤色以及院校補充文書的詳細回饋。",
+            options: ["3 次審閱額度", "6 次審閱額度", "10 次審閱額度"],
+            infoTitle: "1 次審閱額度包含什麼？",
+            infoPoints: [
+              "一篇個人陳述",
+              "或一所大學的全部補充文書"
+            ],
+            ctaLabel: "自訂文書支援",
+            note: "結帳前選擇審閱額度"
+          }
+        ]
+      },
+      cta: {
+        headline: "開始你的 Prelude。",
+        body: "預約免費諮詢，了解 Prelude 如何協助你實現大學目標。",
+        primary: "預約免費通話",
+        secondary: "寄電子郵件給我們"
+      },
+      footer: {
+        body: "由同齡導師驅動的大學申請諮詢——更聰明的花費、真實導師、負擔得起的支援。",
+        label: "頁尾",
+        discoverLabel: "頁尾探索連結",
+        discover: "探索",
+        resourcesLabel: "頁尾資源連結",
+        resources: "資源",
+        supportLabel: "頁尾支援連結",
+        support: "支援",
+        about: "關於",
+        aboutLabel: "關於 Prelude 連結",
+        admissions: "升學申請",
+        admissionsLabel: "升學申請連結",
+        follow: "追蹤",
+        copyright: "© 2026 Prelude. 保留所有權利。",
+        privacy: "隱私",
+        terms: "條款",
+        links: {
+          how: "運作方式",
+          mentorship: "導師輔導",
+          pricing: "價格",
+          contact: "聯絡",
+          parentDashboard: "家長控制台",
+          academicSupport: "學術支援",
+          preludeMatch: "PreludeMatch",
+          bookCall: "預約通話",
+          email: "寄電子郵件給我們"
+        }
+      }
+    },
+    parentDashboard: {
+      overview: {
+        greeting: "歡迎，{{name}}",
+        greetingFallback: "歡迎",
+        subtitle: "透過簡化的 Prelude 檢視，關注孩子的大學申請旅程。",
+        childrenTitle: "你的孩子",
+        loading: "正在載入已關聯的孩子…",
+        emptyTitle: "尚未關聯孩子",
+        emptyDescription: "請讓你的學生在 Prelude 設定 → 家庭 中邀請你，或在註冊時填寫你的電子郵件。",
+        studentFallback: "學生"
+      },
+      child: {
+        viewingLabel: "正在檢視",
+        viewingBanner: "正在檢視 {{name}} 的儀表板 — 你可以新增與編輯行事曆事件，但不能刪除。",
+        backToChildren: "返回所有孩子",
+        navLabel: "學生版塊",
+        cannotRemoveEvents: "家長無法刪除行事曆事件。"
+      },
+      nav: {
+        home: "首頁",
+        myChildren: "我的孩子",
+        summary: "概覽",
+        calendar: "行事曆"
+      },
+      routeMeta: {
+        overview: { title: "家長首頁", subtitle: "在 Prelude 上簡化檢視你的孩子。" },
+        children: { title: "已關聯的孩子", subtitle: "連接到你家長帳戶的孩子。" },
+        calendar: { title: "行事曆", subtitle: "檢視並協助管理孩子的行程。" },
+        settings: { title: "個人資料與設定", subtitle: "管理家長帳戶、通知與偏好。" },
+        notifications: { title: "通知", subtitle: "關於孩子、導師與會議的最新動態。" },
+        billing: { title: "方案與帳單", subtitle: "你的家長帳戶訂閱。" },
+        help: { title: "說明與支援", subtitle: "Prelude 家長帳戶相關資源。" }
       }
     }
   },

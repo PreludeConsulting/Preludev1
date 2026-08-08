@@ -906,17 +906,20 @@ html[lang="ko"] .shopify-hero__headline-line {
   }
 }
 
-html[lang="zh"] .shopify-hero__headline {
+html[lang="zh"] .shopify-hero__headline,
+html[lang="zh-TW"] .shopify-hero__headline {
   font-size: clamp(2.5rem, 5.4vw, 3.8rem);
   letter-spacing: -0.02em;
 }
 
-html[lang="zh"] .shopify-hero__headline-line {
+html[lang="zh"] .shopify-hero__headline-line,
+html[lang="zh-TW"] .shopify-hero__headline-line {
   white-space: nowrap;
 }
 
 @media (min-width: 1024px) {
-  html[lang="zh"] .shopify-hero__headline {
+  html[lang="zh"] .shopify-hero__headline,
+  html[lang="zh-TW"] .shopify-hero__headline {
     font-size: clamp(2.15rem, 4vw, 3.15rem);
   }
 }

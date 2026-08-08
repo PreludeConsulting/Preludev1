@@ -7,6 +7,7 @@ const PLAN_BADGE_LABELS = Object.freeze({
   en: Object.freeze({ mostPopular: "Most Popular", bestValue: "Best Value" }),
   ko: Object.freeze({ mostPopular: "가장 인기", bestValue: "최고의 가치" }),
   zh: Object.freeze({ mostPopular: "最受欢迎", bestValue: "超值之选" }),
+  "zh-TW": Object.freeze({ mostPopular: "最受歡迎", bestValue: "超值之選" }),
   es: Object.freeze({ mostPopular: "Más popular", bestValue: "Mejor valor" })
 });
 
